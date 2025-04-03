@@ -1,0 +1,81 @@
+//
+//  EpisodeItem.swift
+//  PeapodApp
+//
+//  Created by Brady Valentino on 2025-04-02.
+//
+
+import SwiftUI
+import Kingfisher
+
+struct EpisodeItem: View {
+    @ObservedObject var episode: Episode
+    var displayedInQueue: Bool = false
+    @State private var selectedPodcast: Podcast? = nil
+    
+    var body: some View {
+        VStack(alignment:.leading) {
+            // Podcast Info Row
+            HStack {
+                HStack {
+                    KFImage(URL(string:episode.podcast?.image ?? ""))
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                        .cornerRadius(3)
+                    
+                    Text(episode.podcast?.title ?? "Podcast title")
+                        .lineLimit(1)
+                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                        .textDetailEmphasis()
+                }
+                .onTapGesture {
+                    selectedPodcast = episode.podcast
+                }
+                
+                Text(episode.airDate ?? Date.distantPast, style: .date)
+                    .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
+                    .textDetail()
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            
+            // Episode Meta
+            
+            VStack(alignment:.leading) {
+                Text(episode.title ?? "Episode title")
+                    .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                    .titleCondensed()
+                
+                Text(episode.episodeDescription ?? "Episode description")
+                    .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.heading)
+                    .textBody()
+            }
+            .frame(maxWidth:.infinity)
+            
+            // Episode Actions
+            
+            HStack {
+                Button(action: {
+                    print("Playing \(episode.title ?? "Episode title")")
+                }) {
+                    Label(formatDuration(seconds: Int(episode.duration)), systemImage: "play.circle.fill")
+                }
+                .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+                
+                Button(action: {
+                    episode.isQueued.toggle()
+                    try? episode.managedObjectContext?.save()
+                    
+                    print("Queued \(episode.title ?? "Episode title")")
+                }) {
+                    Label(episode.isQueued ? "Queued" : "Add to queue", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
+                }
+                .buttonStyle(PPButton(type:.transparent, colorStyle: displayedInQueue ? .monochrome : .tinted))
+            }
+        }
+        .sheet(item: $selectedPodcast) { podcast in
+            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                .modifier(PPSheet())
+        }
+        .frame(maxWidth:.infinity)
+    }
+}

@@ -68,7 +68,7 @@ struct PodcastDetailView: View {
                     episodes = (podcast.episode?.array as? [Episode]) ?? []
 
                     Task.detached(priority: .background) {
-                        await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
+                        ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
                     }
                 }
             }

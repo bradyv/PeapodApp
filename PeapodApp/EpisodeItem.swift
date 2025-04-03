@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct EpisodeItem: View {
+    @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
     var displayedInQueue: Bool = false
     @State private var selectedPodcast: Podcast? = nil
@@ -77,5 +78,10 @@ struct EpisodeItem: View {
                 .modifier(PPSheet())
         }
         .frame(maxWidth:.infinity)
+        .onAppear {
+            Task.detached(priority: .background) {
+                ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+            }
+        }
     }
 }

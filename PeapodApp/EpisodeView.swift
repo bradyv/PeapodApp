@@ -13,16 +13,21 @@ struct EpisodeView: View {
     let episode: Episode
     
     var body: some View {
-        VStack(alignment:.leading) {
-            Text(episode.episodeTint ?? "No episode tint")
-            Text(episode.podcast?.podcastTint ?? "No podcast tint")
-            KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                .resizable()
-                .frame(width: 128, height: 128)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+        ZStack(alignment:.topLeading) {
+            ScrollView {
+                Spacer().frame(height:152)
+                EpisodeItem(episode: episode)
+            }
+            .maskEdge(.top)
             
-            EpisodeItem(episode: episode)
+            VStack {
+                KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                    .resizable()
+                    .frame(width: 128, height: 128)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                Spacer()
+            }
         }
         .frame(maxWidth:.infinity)
         .padding()

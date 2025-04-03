@@ -24,7 +24,7 @@ struct EpisodeItem: View {
                         .frame(width: 24, height: 24)
                         .cornerRadius(3)
                     
-                    Text(episode.podcast?.title ?? "Podcast title")
+                    Text(parseHtml(episode.podcast?.title ?? "Podcast title"))
                         .lineLimit(1)
                         .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
                         .textDetailEmphasis()

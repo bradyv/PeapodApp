@@ -39,8 +39,9 @@ struct PodcastDetailView: View {
                     Text(podcast.title ?? "Podcast Title")
                         .titleSerif()
                     
-                    Text(podcast.podcastDescription ?? "Podcast description").font(.subheadline)
+                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
                         .textBody()
+                        .lineLimit(3)
                     
                     Button(podcast.isSubscribed ? "Unsubscribe" : "Subscribe") {
                         podcast.isSubscribed.toggle()

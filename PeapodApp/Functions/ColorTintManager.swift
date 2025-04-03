@@ -16,11 +16,14 @@ enum ColorTintManager {
               let imageUrl = URL(string: imageUrlString),
               !imageUrlString.isEmpty else { return }
 
+        let podcastID = podcast.objectID
+
         KingfisherManager.shared.retrieveImage(with: imageUrl) { result in
             switch result {
             case .success(let value):
-                if let variants = ColorExtractor.extractColorVariants(from: value.image) {
-                    DispatchQueue.main.async {
+                DispatchQueue.main.async {
+                    if let podcast = try? context.existingObject(with: podcastID) as? Podcast,
+                       let variants = ColorExtractor.extractColorVariants(from: value.image) {
                         podcast.podcastTint = variants.accent
                         try? context.save()
                     }
@@ -38,11 +41,14 @@ enum ColorTintManager {
               !feedImage.isEmpty,
               let imageUrl = URL(string: feedImage) else { return }
 
+        let episodeID = episode.objectID
+
         KingfisherManager.shared.retrieveImage(with: imageUrl) { result in
             switch result {
             case .success(let value):
-                if let variants = ColorExtractor.extractColorVariants(from: value.image) {
-                    DispatchQueue.main.async {
+                DispatchQueue.main.async {
+                    if let episode = try? context.existingObject(with: episodeID) as? Episode,
+                       let variants = ColorExtractor.extractColorVariants(from: value.image) {
                         episode.episodeTint = variants.accent
                         try? context.save()
                     }

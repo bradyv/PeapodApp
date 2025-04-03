@@ -14,7 +14,6 @@ struct PodcastDetailView: View {
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
     @State private var selectedEpisode: Episode? = nil
-
     var podcast: Podcast? { podcastResults.first }
 
     init(feedUrl: String) {

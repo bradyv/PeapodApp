@@ -12,6 +12,7 @@ struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
     var displayedInQueue: Bool = false
+    var displayedFullscreen: Bool = false
     @State private var selectedPodcast: Podcast? = nil
     
     var body: some View {
@@ -40,8 +41,7 @@ struct EpisodeItem: View {
             .frame(maxWidth:.infinity, alignment:.leading)
             
             // Episode Meta
-            
-            VStack(alignment:.leading) {
+            VStack(alignment:.leading, spacing:12) {
                 Text(episode.title ?? "Episode title")
                     .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
                     .titleCondensed()
@@ -53,24 +53,25 @@ struct EpisodeItem: View {
             .frame(maxWidth:.infinity)
             
             // Episode Actions
-            
-            HStack {
-                Button(action: {
-                    print("Playing \(episode.title ?? "Episode title")")
-                }) {
-                    Label(formatDuration(seconds: Int(episode.duration)), systemImage: "play.circle.fill")
-                }
-                .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
-                
-                Button(action: {
-                    episode.isQueued.toggle()
-                    try? episode.managedObjectContext?.save()
+            if !displayedFullscreen {
+                HStack {
+                    Button(action: {
+                        print("Playing \(episode.title ?? "Episode title")")
+                    }) {
+                        Label(formatDuration(seconds: Int(episode.duration)), systemImage: "play.circle.fill")
+                    }
+                    .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
                     
-                    print("Queued \(episode.title ?? "Episode title")")
-                }) {
-                    Label(episode.isQueued ? "Queued" : "Add to queue", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
+                    Button(action: {
+                        episode.isQueued.toggle()
+                        try? episode.managedObjectContext?.save()
+                        
+                        print("Queued \(episode.title ?? "Episode title")")
+                    }) {
+                        Label(episode.isQueued ? "Queued" : "Add to queue", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
+                    }
+                    .buttonStyle(PPButton(type:.transparent, colorStyle: displayedInQueue ? .monochrome : .tinted))
                 }
-                .buttonStyle(PPButton(type:.transparent, colorStyle: displayedInQueue ? .monochrome : .tinted))
             }
         }
         .sheet(item: $selectedPodcast) { podcast in

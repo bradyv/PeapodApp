@@ -65,13 +65,10 @@ struct PodcastDetailView: View {
                 .frame(maxWidth:.infinity)
                 .padding()
                 .onAppear {
-                    ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
+                    episodes = (podcast.episode?.array as? [Episode]) ?? []
 
-                    let loadedEpisodes = (podcast.episode?.array as? [Episode]) ?? []
-                        episodes = loadedEpisodes
-
-                    for episode in loadedEpisodes {
-                        ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+                    Task.detached(priority: .background) {
+                        ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
                     }
                 }
             }

@@ -30,7 +30,7 @@ struct QueueItem: View {
             }
         }
         .frame(width: 300, height: 400)
-        .background(Color(hex: episode.episodeTint)?.darkened(by:0.5) ?? Color(hex: episode.podcast?.podcastTint)?.darkened(by:0.5))
+        .background(Color(hex: episode.episodeTint)?.darkened(by:0.3) ?? Color(hex: episode.podcast?.podcastTint)?.darkened(by:0.3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
     }

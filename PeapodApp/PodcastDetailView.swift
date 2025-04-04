@@ -29,11 +29,36 @@ struct PodcastDetailView: View {
         ScrollView {
             if let podcast {
                 VStack(alignment: .leading, spacing: 12) {
-                    KFImage(URL(string:podcast.image ?? ""))
-                        .resizable()
-                        .frame(width: 128, height: 128)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                    
+                    HStack(alignment:.top) {
+                        KFImage(URL(string:podcast.image ?? ""))
+                            .resizable()
+                            .frame(width: 128, height: 128)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                            .shadow(color:
+                                        (Color(hex: podcast.podcastTint)?.opacity(0.35))
+                                    ?? Color.black.opacity(0.35),
+                                    radius: 32
+                            )
+                            
+                        Spacer()
+                        
+                        Button(action: {
+                            podcast.isSubscribed.toggle()
+                            try? podcast.managedObjectContext?.save()
+                        }) {
+                            Text(podcast.isSubscribed ? "Unfollow" : "Follow")
+                        }
+                        .buttonStyle(PPButton(
+                            type:.filled,
+                            colorStyle:.monochrome,
+                            customColors: ButtonCustomColors(
+                                foreground: .white,
+                                background: Color(hex: podcast.podcastTint) ?? .black
+                            )
+                        ))
+                    }
                     
                     Text(podcast.title ?? "Podcast Title")
                         .titleSerif()
@@ -42,19 +67,14 @@ struct PodcastDetailView: View {
                         .textBody()
                         .lineLimit(3)
                     
-                    Button(podcast.isSubscribed ? "Unsubscribe" : "Subscribe") {
-                        podcast.isSubscribed.toggle()
-                        try? context.save()
-                    }
-
                     LazyVStack(alignment: .leading) {
                         ForEach(episodes, id: \.id) { episode in
                             EpisodeItem(episode: episode)
                                 .lineLimit(3)
+                                .padding(.bottom, 24)
                                 .onTapGesture {
                                     selectedEpisode = episode
                                 }
-                            Divider()
                         }
                     }
                     .sheet(item: $selectedEpisode) { episode in

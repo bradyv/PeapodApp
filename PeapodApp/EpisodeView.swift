@@ -58,6 +58,22 @@ struct EpisodeView: View {
             }
             
             VStack {
+                HStack {
+                    Spacer()
+                    
+                    Button(action: {
+                        episode.isQueued.toggle()
+                        try? episode.managedObjectContext?.save()
+                    }) {
+                        Label("Archive", systemImage: "archivebox")
+                    }
+                    .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                }
+                
+                Spacer()
+            }
+            
+            VStack {
                 KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                     .resizable()
                     .frame(width: 128, height: 128)
@@ -65,8 +81,8 @@ struct EpisodeView: View {
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
                     .shadow(color:
                         (Color(hex: episode.episodeTint)?.opacity(0.5))
-                        ?? (Color(hex: episode.podcast?.podcastTint)?.opacity(0.5))
-                        ?? Color.black.opacity(0.5),
+                        ?? (Color(hex: episode.podcast?.podcastTint)?.opacity(0.35))
+                        ?? Color.black.opacity(0.35),
                         radius: 32
                     )
                 

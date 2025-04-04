@@ -60,7 +60,21 @@ struct EpisodeItem: View {
                     }) {
                         Label(formatDuration(seconds: Int(episode.duration)), systemImage: "play.circle.fill")
                     }
-                    .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+                    .buttonStyle(
+                        displayedInQueue
+                            ? PPButton(
+                                type: .filled,
+                                colorStyle: .monochrome,
+                                customColors: ButtonCustomColors(
+                                    foreground: .black,
+                                    background: .white
+                                )
+                            )
+                            : PPButton(
+                                type: .filled,
+                                colorStyle: .monochrome
+                            )
+                    )
                     
                     Button(action: {
                         episode.isQueued.toggle()
@@ -70,7 +84,21 @@ struct EpisodeItem: View {
                     }) {
                         Label(episode.isQueued ? "Queued" : "Add to queue", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
                     }
-                    .buttonStyle(PPButton(type:.transparent, colorStyle: displayedInQueue ? .monochrome : .tinted))
+                    .buttonStyle(
+                        displayedInQueue
+                            ? PPButton(
+                                type: .transparent,
+                                colorStyle: .monochrome,
+                                customColors: ButtonCustomColors(
+                                    foreground: .white,
+                                    background: .white.opacity(0.15)
+                                )
+                            )
+                            : PPButton(
+                                type: .transparent,
+                                colorStyle: .tinted
+                            )
+                    )
                 }
             }
         }

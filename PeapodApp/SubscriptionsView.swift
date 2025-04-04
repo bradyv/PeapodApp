@@ -20,8 +20,8 @@ struct SubscriptionsView: View {
     
     var body: some View {
         VStack(alignment:.leading) {
-            Text("Subscriptions")
-                .titleSerif()
+            Text("My Shows")
+                .headerSection()
             
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(subscriptions) { podcast in

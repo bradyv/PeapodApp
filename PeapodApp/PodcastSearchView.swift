@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct PodcastSearchView: View {
+    @FocusState private var isTextFieldFocused: Bool
     @State private var query = ""
     @State private var results: [PodcastResult] = []
     @State private var selectedPodcast: PodcastResult? = nil
@@ -17,27 +18,35 @@ struct PodcastSearchView: View {
         VStack {
             TextField("Search Podcasts", text: $query)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                .focused($isTextFieldFocused)
                 .padding()
                 .onSubmit { search() }
-
-            ForEach(results, id: \.id) { podcast in
-                HStack {
-                    KFImage(URL(string:podcast.artworkUrl600))
-                        .resizable()
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                    
-                    VStack(alignment: .leading) {
-                        Text(podcast.title)
-                            .font(.headline)
-                        Text(podcast.author)
-                            .font(.subheadline)
+            
+            ScrollView {
+                ForEach(results, id: \.id) { podcast in
+                    HStack {
+                        KFImage(URL(string:podcast.artworkUrl600))
+                            .resizable()
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                        
+                        VStack(alignment: .leading) {
+                            Text(podcast.title)
+                                .font(.headline)
+                            Text(podcast.author)
+                                .font(.subheadline)
+                        }
+                    }
+                    .onTapGesture {
+                        selectedPodcast = podcast
                     }
                 }
-                .onTapGesture {
-                    selectedPodcast = podcast
-                }
+            }
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                isTextFieldFocused = true
             }
         }
         .sheet(item: $selectedPodcast) { podcast in

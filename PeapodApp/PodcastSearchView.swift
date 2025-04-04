@@ -64,9 +64,9 @@ struct PodcastSearchView: View {
                         
                         VStack(alignment: .leading) {
                             Text(podcast.title)
-                                .font(.headline)
+                                .titleCondensed()
                             Text(podcast.author)
-                                .font(.subheadline)
+                                .textDetail()
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }

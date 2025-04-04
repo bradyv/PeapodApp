@@ -41,7 +41,7 @@ struct EpisodeItem: View {
             .frame(maxWidth:.infinity, alignment:.leading)
             
             // Episode Meta
-            VStack(alignment:.leading, spacing:12) {
+            VStack(alignment:.leading) {
                 Text(episode.title ?? "Episode title")
                     .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
                     .titleCondensed()
@@ -50,7 +50,7 @@ struct EpisodeItem: View {
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.heading)
                     .textBody()
             }
-            .frame(maxWidth:.infinity)
+            .frame(maxWidth:.infinity, alignment: .leading)
             
             // Episode Actions
             if !displayedFullscreen {
@@ -106,7 +106,7 @@ struct EpisodeItem: View {
             PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                 .modifier(PPSheet())
         }
-        .frame(maxWidth:.infinity)
+        .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
             Task.detached(priority: .background) {
                 ColorTintManager.applyTintIfNeeded(to: episode, in: context)

@@ -16,11 +16,42 @@ struct PodcastSearchView: View {
 
     var body: some View {
         VStack {
-            TextField("Search Podcasts", text: $query)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .focused($isTextFieldFocused)
-                .padding()
-                .onSubmit { search() }
+            VStack {
+                HStack {
+                    Image(systemName: "plus.magnifyingglass")
+                        .resizable()
+                        .frame(width: 12, height: 12)
+                        .opacity(0.35)
+                    TextField("Search or paste URL", text: $query)
+                        .focused($isTextFieldFocused)
+                        .textRow()
+                        .onSubmit {
+                            search()
+                        }
+                    
+                    
+                    if !query.isEmpty {
+                        Button(action: {
+                            query = ""
+                            isTextFieldFocused = true
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.surface)
+                .cornerRadius(44)
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        isTextFieldFocused = true
+                    }
+                }
+            }
+            .padding()
             
             ScrollView {
                 ForEach(results, id: \.id) { podcast in
@@ -37,12 +68,15 @@ struct PodcastSearchView: View {
                             Text(podcast.author)
                                 .font(.subheadline)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .padding(.horizontal)
                     .onTapGesture {
                         selectedPodcast = podcast
                     }
                 }
             }
+            .frame(maxWidth:.infinity)
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

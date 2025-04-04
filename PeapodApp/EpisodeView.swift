@@ -19,25 +19,27 @@ struct EpisodeView: View {
                 EpisodeItem(episode: episode, displayedFullscreen:true)
             }
             .maskEdge(.top)
-            .padding(.top,76)
+            .padding(.top,88)
+            .padding(.horizontal)
             
             VStack {
                 Spacer()
-                
-                VStack {
-                    Rectangle()
-                        .frame(maxWidth:.infinity)
-                        .frame(height:6)
-                        .foregroundStyle(Color.surface)
-                        .clipShape(Capsule())
-                    
-                    HStack {
-                        Text("0.00")
-                        Spacer()
-                        Text("-\(countdown(seconds:Int(episode.duration)))")
+                VStack(spacing:16) {
+                    VStack {
+                        Rectangle()
+                            .frame(maxWidth:.infinity)
+                            .frame(height:6)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(Capsule())
+                        
+                        HStack {
+                            Text("0.00")
+                            Spacer()
+                            Text("-\(countdown(seconds:Int(episode.duration)))")
+                        }
+                        .fontDesign(.monospaced)
+                        .font(.caption)
                     }
-                    .fontDesign(.monospaced)
-                    .font(.caption)
                     
                     HStack {
                         AirPlayButton()
@@ -52,9 +54,8 @@ struct EpisodeView: View {
                         .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
                     }
                 }
-                .padding(.top,72)
-                .background(Color.background)
-                .maskEdge(.top)
+                .padding()
+                .background(.regularMaterial)
             }
             
             VStack {
@@ -72,6 +73,7 @@ struct EpisodeView: View {
                 
                 Spacer()
             }
+            .padding()
             
             VStack {
                 KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
@@ -88,8 +90,8 @@ struct EpisodeView: View {
                 
                 Spacer()
             }
+            .padding()
         }
         .frame(maxWidth:.infinity)
-        .padding()
     }
 }

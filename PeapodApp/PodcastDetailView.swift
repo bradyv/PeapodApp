@@ -26,10 +26,40 @@ struct PodcastDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            if let podcast {
-                VStack(alignment: .leading, spacing: 12) {
+        if let podcast {
+            ZStack {
+                ScrollView {
+                    Spacer().frame(height:64)
+                    VStack(alignment: .leading, spacing:8) {
+                        Text(podcast.title ?? "Podcast Title")
+                            .titleSerif()
+                        
+                        Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
+                            .textBody()
+                            .lineLimit(3)
+                    }
+                    .frame(maxWidth:.infinity, alignment:.leading)
                     
+                    LazyVStack(alignment: .leading) {
+                        ForEach(episodes, id: \.id) { episode in
+                            EpisodeItem(episode: episode)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .onTapGesture {
+                                    selectedEpisode = episode
+                                }
+                        }
+                    }
+                    .sheet(item: $selectedEpisode) { episode in
+                        EpisodeView(episode: episode)
+                            .modifier(PPSheet())
+                    }
+                }
+                .maskEdge(.top)
+                .maskEdge(.bottom)
+                .padding(.top,88)
+                
+                VStack {
                     HStack(alignment:.top) {
                         KFImage(URL(string:podcast.image ?? ""))
                             .resizable()
@@ -41,7 +71,7 @@ struct PodcastDetailView: View {
                                     ?? Color.black.opacity(0.35),
                                     radius: 32
                             )
-                            
+                        
                         Spacer()
                         
                         Button(action: {
@@ -59,37 +89,17 @@ struct PodcastDetailView: View {
                             )
                         ))
                     }
-                    
-                    Text(podcast.title ?? "Podcast Title")
-                        .titleSerif()
-                    
-                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
-                        .textBody()
-                        .lineLimit(3)
-                    
-                    LazyVStack(alignment: .leading) {
-                        ForEach(episodes, id: \.id) { episode in
-                            EpisodeItem(episode: episode)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .onTapGesture {
-                                    selectedEpisode = episode
-                                }
-                        }
-                    }
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode)
-                            .modifier(PPSheet())
-                    }
+                    Spacer()
                 }
-                .frame(maxWidth:.infinity)
-                .padding()
-                .onAppear {
-                    episodes = (podcast.episode?.array as? [Episode]) ?? []
+            }
+            .frame(maxWidth:.infinity)
+            .padding()
+            .ignoresSafeArea(edges: .all)
+            .onAppear {
+                episodes = (podcast.episode?.array as? [Episode]) ?? []
 
-                    Task.detached(priority: .background) {
-                        ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
-                    }
+                Task.detached(priority: .background) {
+                    ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
                 }
             }
         }

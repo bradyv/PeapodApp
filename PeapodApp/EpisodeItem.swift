@@ -41,13 +41,13 @@ struct EpisodeItem: View {
             .frame(maxWidth:.infinity, alignment:.leading)
             
             // Episode Meta
-            VStack(alignment:.leading) {
+            VStack(alignment:.leading, spacing:8) {
                 Text(episode.title ?? "Episode title")
                     .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
                     .titleCondensed()
                 
                 Text(episode.episodeDescription ?? "Episode description")
-                    .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.heading)
+                    .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textBody()
             }
             .frame(maxWidth:.infinity, alignment: .leading)
@@ -82,22 +82,28 @@ struct EpisodeItem: View {
                         
                         print("Queued \(episode.title ?? "Episode title")")
                     }) {
-                        Label(episode.isQueued ? "Queued" : "Add to queue", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
+                        displayedInQueue ? Label("Archive", systemImage: "archivebox") : Label(episode.isQueued ? "Queued" : "Add to queue", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
                     }
                     .buttonStyle(
                         displayedInQueue
                             ? PPButton(
                                 type: .transparent,
                                 colorStyle: .monochrome,
+                                iconOnly: true,
                                 customColors: ButtonCustomColors(
                                     foreground: .white,
                                     background: .white.opacity(0.15)
                                 )
                             )
-                            : PPButton(
-                                type: .transparent,
-                                colorStyle: .tinted
-                            )
+                            : episode.isQueued
+                                ? PPButton(
+                                    type: .filled,
+                                    colorStyle: .tinted
+                                    )
+                                : PPButton(
+                                    type: .transparent,
+                                    colorStyle: .monochrome
+                                )
                     )
                 }
             }

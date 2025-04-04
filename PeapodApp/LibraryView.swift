@@ -9,6 +9,7 @@ import SwiftUI
 
 struct LibraryView: View {
     @State private var showSearch = false
+    @State private var showSaved = false
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -56,6 +57,10 @@ struct LibraryView: View {
                         .frame(width: 16, alignment: .trailing)
                         .textBody()
                 }
+                .onTapGesture {
+                    showSaved.toggle()
+                }
+                
                 
                 Divider()
             }
@@ -64,6 +69,10 @@ struct LibraryView: View {
         .frame(maxWidth:.infinity)
         .sheet(isPresented: $showSearch) {
             PodcastSearchView()
+                .modifier(PPSheet())
+        }
+        .sheet(isPresented: $showSaved) {
+            SavedEpisodes()
                 .modifier(PPSheet())
         }
     }

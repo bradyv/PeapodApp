@@ -25,7 +25,7 @@ struct EpisodeItem: View {
                         .frame(width: 24, height: 24)
                         .cornerRadius(3)
                     
-                    Text(parseHtml(episode.podcast?.title ?? "Podcast title"))
+                    Text(episode.podcast?.title ?? "Podcast title")
                         .lineLimit(1)
                         .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
                         .textDetailEmphasis()
@@ -46,7 +46,7 @@ struct EpisodeItem: View {
                     .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
                     .titleCondensed()
                 
-                Text(episode.episodeDescription ?? "Episode description")
+                Text(parseHtml(episode.episodeDescription ?? "Episode description"))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textBody()
             }

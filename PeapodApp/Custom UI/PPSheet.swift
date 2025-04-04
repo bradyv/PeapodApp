@@ -18,7 +18,6 @@ struct PPSheet: ViewModifier {
         content
             .presentationCornerRadius(32)
             .presentationDragIndicator(.hidden)
-            .presentationDetents([.medium, .large]) 
             .background(
                 hasBackground ? nil : EllipticalGradient(
                     stops: [

@@ -14,6 +14,7 @@ struct PodcastDetailView: View {
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
     @State private var selectedEpisode: Episode? = nil
+    @State var showFullDescription: Bool = false
     var podcast: Podcast? { podcastResults.first }
 
     init(feedUrl: String) {
@@ -29,25 +30,46 @@ struct PodcastDetailView: View {
         if let podcast {
             ZStack {
                 ScrollView {
-                    Spacer().frame(height:64)
-                    VStack(alignment: .leading, spacing:8) {
-                        Text(podcast.title ?? "Podcast Title")
-                            .titleSerif()
-                        
-                        Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
-                            .textBody()
-                            .lineLimit(3)
-                    }
-                    .frame(maxWidth:.infinity, alignment:.leading)
+                    Spacer().frame(height:52)
+                    
+                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
+                        .textBody()
+                        .lineLimit(showFullDescription ? nil :  3)
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                        .onTapGesture {
+                            showFullDescription.toggle()
+                            print(showFullDescription)
+                        }
+                    
+                    Spacer().frame(height:24)
                     
                     LazyVStack(alignment: .leading) {
-                        ForEach(episodes, id: \.id) { episode in
-                            EpisodeItem(episode: episode)
+                        if let latestEpisode = episodes.first {
+                            Text("Latest Episode")
+                                .headerSection()
+
+                            EpisodeItem(episode: latestEpisode)
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
                                 .onTapGesture {
-                                    selectedEpisode = episode
+                                    selectedEpisode = latestEpisode
                                 }
+                        }
+
+                        let remainingEpisodes = Array(episodes.dropFirst())
+
+                        if !remainingEpisodes.isEmpty {
+                            Text("Episodes")
+                                .headerSection()
+
+                            ForEach(remainingEpisodes, id: \.id) { episode in
+                                EpisodeItem(episode: episode)
+                                    .lineLimit(3)
+                                    .padding(.bottom, 24)
+                                    .onTapGesture {
+                                        selectedEpisode = episode
+                                    }
+                            }
                         }
                     }
                     .sheet(item: $selectedEpisode) { episode in
@@ -75,19 +97,19 @@ struct PodcastDetailView: View {
                         Spacer()
                         
                         Button(action: {
+                            
+                        }) {
+                            Label("Search \(podcast.title ?? "episodes"))", systemImage: "text.magnifyingglass")
+                        }
+                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                        
+                        Button(action: {
                             podcast.isSubscribed.toggle()
                             try? podcast.managedObjectContext?.save()
                         }) {
                             Text(podcast.isSubscribed ? "Unfollow" : "Follow")
                         }
-                        .buttonStyle(PPButton(
-                            type:.filled,
-                            colorStyle:.monochrome,
-                            customColors: ButtonCustomColors(
-                                foreground: .white,
-                                background: Color(hex: podcast.podcastTint) ?? .black
-                            )
-                        ))
+                        .buttonStyle(PPButton(type:podcast.isSubscribed ? .transparent : .filled, colorStyle:podcast.isSubscribed ? .tinted : .monochrome))
                     }
                     Spacer()
                 }

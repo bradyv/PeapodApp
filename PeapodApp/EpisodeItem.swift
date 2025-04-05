@@ -44,7 +44,10 @@ struct EpisodeItem: View {
             VStack(alignment:.leading, spacing:8) {
                 Text(episode.title ?? "Episode title")
                     .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                    .titleCondensed()
+                    .if(displayedFullscreen,
+                        transform: { $0.titleSerif() },
+                        else: { $0.titleCondensed() }
+                    )
                 
                 Text(parseHtml(episode.episodeDescription ?? "Episode description"))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)

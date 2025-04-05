@@ -25,38 +25,44 @@ struct EpisodeView: View {
             VStack {
                 Spacer()
                 VStack(spacing:16) {
+                    Rectangle()
+                        .frame(maxWidth:.infinity).frame(height:1)
+                        .foregroundStyle(Color.surface)
                     VStack {
-                        Rectangle()
-                            .frame(maxWidth:.infinity)
-                            .frame(height:6)
-                            .foregroundStyle(Color.surface)
-                            .clipShape(Capsule())
+                        VStack {
+                            Rectangle()
+                                .frame(maxWidth:.infinity)
+                                .frame(height:6)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(Capsule())
+                            
+                            HStack {
+                                Text("0.00")
+                                Spacer()
+                                Text("-\(countdown(seconds:Int(episode.duration)))")
+                            }
+                            .fontDesign(.monospaced)
+                            .font(.caption)
+                        }
                         
                         HStack {
-                            Text("0.00")
+                            AirPlayButton()
+                                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
                             Spacer()
-                            Text("-\(countdown(seconds:Int(episode.duration)))")
-                        }
-                        .fontDesign(.monospaced)
-                        .font(.caption)
-                    }
-                    
-                    HStack {
-                        AirPlayButton()
+                            Button(action: {
+                                episode.isSaved.toggle()
+                                try? episode.managedObjectContext?.save()
+                            }) {
+                                Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
+                            }
                             .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-                        Spacer()
-                        Button(action: {
-                            episode.isSaved.toggle()
-                            try? episode.managedObjectContext?.save()
-                        }) {
-                            Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
                         }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
                     }
+                    .padding(.horizontal).padding(.bottom)
                 }
-                .padding()
-                .background(.regularMaterial)
+                .background(.ultraThickMaterial)
             }
+            
             
             VStack {
                 HStack {

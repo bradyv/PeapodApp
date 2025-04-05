@@ -9,13 +9,25 @@ import SwiftUI
 import CoreData
 
 struct ContentView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.managedObjectContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     
     var body: some View {
         ScrollView {
             QueueView()
             LibraryView()
             SubscriptionsView()
+        }
+        .onAppear {
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+            }
+        }
+        .refreshable {
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
         }
     }
 }

@@ -105,6 +105,14 @@ struct PodcastDetailView: View {
                         
                         Button(action: {
                             podcast.isSubscribed.toggle()
+                            
+                            if podcast.isSubscribed,
+                               let latest = (podcast.episode?.array as? [Episode])?
+                                                .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                                                .first {
+                                latest.isQueued = true
+                            }
+                        
                             try? podcast.managedObjectContext?.save()
                         }) {
                             Text(podcast.isSubscribed ? "Unfollow" : "Follow")
@@ -118,10 +126,16 @@ struct PodcastDetailView: View {
             .padding()
             .ignoresSafeArea(edges: .all)
             .onAppear {
-                episodes = (podcast.episode?.array as? [Episode]) ?? []
+                episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
 
                 Task.detached(priority: .background) {
                     ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
+
+                    EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
+                        DispatchQueue.main.async {
+                            episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                        }
+                    }
                 }
             }
         }

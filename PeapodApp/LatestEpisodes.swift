@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct LatestEpisodes: View {
+    @Environment(\.managedObjectContext) private var context
+
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
         predicate: NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES"),
@@ -38,6 +40,9 @@ struct LatestEpisodes: View {
                         .modifier(PPSheet())
                 }
             }
+        }
+        .refreshable {
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
         }
         .padding()
         .ignoresSafeArea(edges: .all)

@@ -52,26 +52,44 @@ struct EpisodeView: View {
                             Spacer()
                             
                             HStack {
-                                Button(action: {
-                                    print("Seeking back")
-                                }) {
-                                    Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                                if episode.isQueued {
+                                    Button(action: {
+                                        print("Seeking back")
+                                    }) {
+                                        Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                                    }
+                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                    
+                                    Button(action: {
+                                        print("Playing episode")
+                                    }) {
+                                        Label("Play", systemImage: "play.fill")
+                                    }
+                                    .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
+                                    
+                                    Button(action: {
+                                        print("Going forward")
+                                    }) {
+                                        Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
+                                    }
+                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                    
+                                } else {
+                                    Button(action: {
+                                        episode.isQueued.toggle()
+                                        try? episode.managedObjectContext?.save()
+                                    }) {
+                                        Label("Add to queue", systemImage: "plus.circle")
+                                    }
+                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
+                                    
+                                    Button(action: {
+                                        print("Playing episode")
+                                    }) {
+                                        Label("Play", systemImage: "play.fill")
+                                    }
+                                    .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
                                 }
-                                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-                                
-                                Button(action: {
-                                    print("Playing episode")
-                                }) {
-                                    Label("Play", systemImage: "play.fill")
-                                }
-                                .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
-                                
-                                Button(action: {
-                                    print("Going forward")
-                                }) {
-                                    Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
-                                }
-                                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
                             }
                             
                             Spacer()

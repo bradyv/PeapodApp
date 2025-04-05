@@ -22,7 +22,7 @@ struct PodcastSearchView: View {
                         .resizable()
                         .frame(width: 12, height: 12)
                         .opacity(0.35)
-                    TextField("Search or paste URL", text: $query)
+                    TextField("Find a podcast", text: $query)
                         .focused($isTextFieldFocused)
                         .textRow()
                         .onSubmit {

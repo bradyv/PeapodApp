@@ -16,6 +16,7 @@ struct SubscriptionsView: View {
     ) var subscriptions: FetchedResults<Podcast>
     @State private var showPodcast: Bool = false
     @State private var selectedPodcast: Podcast? = nil
+    @State private var showSearch = false
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     
     var body: some View {
@@ -24,6 +25,20 @@ struct SubscriptionsView: View {
                 .headerSection()
             
             LazyVGrid(columns: columns, spacing: 16) {
+                VStack {
+                    Image(systemName: "plus.magnifyingglass")
+                    Text("Add a podcast")
+                        .textDetailEmphasis()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .aspectRatio(1, contentMode: .fit)
+                .background(Color.surface)
+                .foregroundStyle(Color.heading)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .onTapGesture {
+                    showSearch.toggle()
+                }
+                
                 ForEach(subscriptions) { podcast in
                     KFImage(URL(string:podcast.image ?? ""))
                         .resizable()
@@ -37,6 +52,10 @@ struct SubscriptionsView: View {
             }
             .sheet(item: $selectedPodcast) { podcast in
                 PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                    .modifier(PPSheet())
+            }
+            .sheet(isPresented: $showSearch) {
+                PodcastSearchView()
                     .modifier(PPSheet())
             }
         }

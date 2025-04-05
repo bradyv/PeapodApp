@@ -21,13 +21,13 @@ struct LibraryView: View {
                 
                 Spacer()
                 
-                Button(action: {
-                    showSearch.toggle()
-                    print("Open search")
-                }) {
-                    Image(systemName: "plus.magnifyingglass")
-                }
-                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+//                Button(action: {
+//                    showSearch.toggle()
+//                    print("Open search")
+//                }) {
+//                    Image(systemName: "plus.magnifyingglass")
+//                }
+//                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
             }
             
             Spacer()

@@ -48,7 +48,34 @@ struct EpisodeView: View {
                         HStack {
                             AirPlayButton()
                                 .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                            
                             Spacer()
+                            
+                            HStack {
+                                Button(action: {
+                                    print("Seeking back")
+                                }) {
+                                    Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                                }
+                                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                
+                                Button(action: {
+                                    print("Playing episode")
+                                }) {
+                                    Label("Play", systemImage: "play.fill")
+                                }
+                                .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
+                                
+                                Button(action: {
+                                    print("Going forward")
+                                }) {
+                                    Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
+                                }
+                                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                            }
+                            
+                            Spacer()
+                            
                             Button(action: {
                                 episode.isSaved.toggle()
                                 try? episode.managedObjectContext?.save()

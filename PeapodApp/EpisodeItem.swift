@@ -74,6 +74,9 @@ struct EpisodeItem: View {
                         HStack {
                             if player.isPlayingEpisode(episode) {
                                 Image(systemName: "waveform")
+                                    .if(player.isPlayingEpisode(episode)) { view in
+                                        view.symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
+                                    }
                             } else {
                                 if episode.isPlayed {
                                     if displayedInQueue {

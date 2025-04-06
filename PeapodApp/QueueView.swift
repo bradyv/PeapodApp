@@ -14,7 +14,7 @@ struct QueueView: View {
         animation: .interactiveSpring()
     )
     var queue: FetchedResults<Episode>
-    var hGridLayout = [ GridItem(.fixed(400)) ]
+    var hGridLayout = [ GridItem(.fixed(350)) ]
     @State private var selectedEpisode: Episode? = nil
     
     var body: some View {

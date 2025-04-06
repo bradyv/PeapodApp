@@ -46,14 +46,21 @@ struct EpisodeItem: View {
             VStack(alignment:.leading, spacing:8) {
                 Text(episode.title ?? "Episode title")
                     .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                    .if(displayedFullscreen,
-                        transform: { $0.titleSerif() },
-                        else: { $0.titleCondensed() }
-                    )
+                    .if(displayedFullscreen, transform: {
+                        $0.titleSerif()
+                    }, else: {
+                        $0.if(displayedInQueue, transform: {
+                            $0.headerSection()
+                        }, else: {
+                            $0.titleCondensed()
+                        })
+                    })
                 
-                Text(parseHtml(episode.episodeDescription ?? "Episode description"))
-                    .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
-                    .textBody()
+                if !displayedInQueue {
+                    Text(parseHtml(episode.episodeDescription ?? "Episode description"))
+                        .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
+                        .textBody()
+                }
             }
             .frame(maxWidth:.infinity, alignment: .leading)
             

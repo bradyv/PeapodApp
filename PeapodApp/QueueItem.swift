@@ -12,6 +12,8 @@ struct QueueItem: View {
     @ObservedObject var episode: Episode
     
     var body: some View {
+        let frame = CGFloat(250)
+        
         ZStack(alignment:.bottomLeading) {
             EpisodeItem(episode:episode, displayedInQueue: true)
                 .lineLimit(3)
@@ -21,7 +23,7 @@ struct QueueItem: View {
             VStack {
                 KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                     .resizable()
-                    .frame(width: 300, height: 300)
+                    .frame(width: frame, height: frame)
                     .mask(
                         LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                        startPoint: .top, endPoint: .init(x: 0.5, y: 0.7))
@@ -29,7 +31,7 @@ struct QueueItem: View {
                 Spacer()
             }
         }
-        .frame(width: 300, height: 400)
+        .frame(width: frame, height: 350)
         .background(Color(hex: episode.episodeTint)?.darkened(by:0.3) ?? Color(hex: episode.podcast?.podcastTint)?.darkened(by:0.3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))

@@ -13,7 +13,7 @@ struct QueueItem: View {
     
     var body: some View {
         let frame = CGFloat(250)
-        
+
         ZStack(alignment:.bottomLeading) {
             EpisodeItem(episode:episode, displayedInQueue: true)
                 .lineLimit(3)
@@ -62,11 +62,6 @@ struct EmptyQueueItem: View {
             
             VStack(alignment:.leading) {
                 Rectangle()
-                    .frame(maxWidth:.infinity).frame(height:24)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-                
-                Rectangle()
                     .frame(width:100, height:24)
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -75,10 +70,6 @@ struct EmptyQueueItem: View {
             .padding(.horizontal)
             
             VStack(alignment:.leading) {
-                Rectangle()
-                    .frame(maxWidth:.infinity).frame(height:12)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
                 
                 Rectangle()
                     .frame(width:188, height:12)
@@ -88,7 +79,7 @@ struct EmptyQueueItem: View {
             .frame(maxWidth:.infinity, alignment:.leading)
             .padding(.horizontal).padding(.bottom,16)
         }
-        .frame(width: 250, height: 350, alignment:.bottomLeading)
+        .frame(width: 250, height: 250, alignment:.bottomLeading)
         .background(Color.heading.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }

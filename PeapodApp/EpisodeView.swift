@@ -90,7 +90,9 @@ struct EpisodeView: View {
                                     
                                 } else {
                                     Button(action: {
-                                        episode.isQueued.toggle()
+                                        withAnimation {
+                                            episode.isQueued.toggle()
+                                        }
                                         try? episode.managedObjectContext?.save()
                                     }) {
                                         Label("Add to queue", systemImage: "plus.circle")
@@ -98,7 +100,9 @@ struct EpisodeView: View {
                                     .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
                                     
                                     Button(action: {
-                                        player.togglePlayback(for: episode)
+                                        withAnimation {
+                                            player.togglePlayback(for: episode)
+                                        }
                                         print("Playing episode")
                                     }) {
                                         Label("Play", systemImage: "play.fill")
@@ -106,6 +110,8 @@ struct EpisodeView: View {
                                     .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
                                 }
                             }
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                            .animation(.easeOut(duration: 0.3), value: episode.isQueued)
                             
                             Spacer()
                             

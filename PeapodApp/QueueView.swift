@@ -14,8 +14,6 @@ struct QueueView: View {
         animation: .interactiveSpring()
     )
     var queue: FetchedResults<Episode>
-    
-    var hGridLayout = [ GridItem(.fixed(350)) ]
     @State private var selectedEpisode: Episode? = nil
 
     // Add scroll proxy trigger
@@ -26,34 +24,32 @@ struct QueueView: View {
             Text("Queue")
                 .titleSerif()
                 .padding(.leading)
+                .padding(.bottom, 4)
 
             if queue.isEmpty {
                 ZStack {
-                    VStack {
-                        Text("New episodes are automatically added to the queue.")
-                            .textBody()
-                    }
-                    .frame(maxWidth:.infinity, alignment:.center)
+                    Text("New episodes are automatically added to the queue.")
+                        .textBody()
                     
                     ScrollView(.horizontal) {
-                        LazyHGrid(rows: hGridLayout, spacing: 16) {
+                        LazyHStack {
                             EmptyQueueItem()
                             EmptyQueueItem()
                         }
                         .opacity(0.15)
                         .mask(
                             LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.7))
+                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
                         )
                     }
                     .disabled(true)
-                    .contentMargins(16, for: .scrollContent)
-                    .frame(height: 350)
+                    .contentMargins(.horizontal,16, for: .scrollContent)
+                    .frame(height: 250)
                 }
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        LazyHGrid(rows: hGridLayout, spacing: 16) {
+                        HStack {
                             ForEach(queue, id: \.id) { episode in
                                 QueueItem(episode: episode)
                                     .id(episode.id)
@@ -63,13 +59,13 @@ struct QueueView: View {
                                     }
                             }
                         }
-                        .sheet(item: $selectedEpisode) { episode in
-                            EpisodeView(episode: episode)
-                                .modifier(PPSheet())
-                        }
+                    }
+                    .sheet(item: $selectedEpisode) { episode in
+                        EpisodeView(episode: episode)
+                            .modifier(PPSheet())
                     }
                     .scrollIndicators(.hidden)
-                    .contentMargins(16, for: .scrollContent)
+                    .contentMargins(.horizontal,16, for: .scrollContent)
                     .onChange(of: queue.first?.id) { newID in
                         if let id = newID {
                             DispatchQueue.main.async {

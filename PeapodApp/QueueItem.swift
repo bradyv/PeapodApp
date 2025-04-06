@@ -37,3 +37,59 @@ struct QueueItem: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
     }
 }
+
+struct EmptyQueueItem: View {
+    var body: some View {
+        VStack {
+            HStack {
+                Rectangle()
+                    .frame(width:24, height:24)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width: 96, height: 12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width: 32, height: 12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            .padding(.horizontal)
+            
+            VStack(alignment:.leading) {
+                Rectangle()
+                    .frame(maxWidth:.infinity).frame(height:24)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width:100, height:24)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            .padding(.horizontal)
+            
+            VStack(alignment:.leading) {
+                Rectangle()
+                    .frame(maxWidth:.infinity).frame(height:12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width:188, height:12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            .padding(.horizontal).padding(.bottom,16)
+        }
+        .frame(width: 250, height: 350, alignment:.bottomLeading)
+        .background(Color.heading.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}

@@ -43,26 +43,48 @@ struct EpisodeItem: View {
             .frame(maxWidth:.infinity, alignment:.leading)
             
             // Episode Meta
-            VStack(alignment:.leading, spacing:8) {
-                Text(episode.title ?? "Episode title")
-                    .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                    .if(displayedFullscreen, transform: {
-                        $0.titleSerif()
-                    }, else: {
-                        $0.if(displayedInQueue, transform: {
-                            $0.headerSection()
-                        }, else: {
-                            $0.titleCondensed()
-                        })
-                    })
-                
-                if !displayedInQueue {
+            if displayedInQueue {
+                VStack(alignment: .leading) {
+                    
+                    Text("Line\nLine\nLine\nLine")
+                        .titleCondensed()
+                        .lineLimit(4, reservesSpace: true)
+                        .frame(maxWidth: .infinity)
+                        .hidden()
+                        .overlay(alignment:.top) {
+                            VStack(alignment: .leading) {
+                                Text(episode.title ?? "Episode title")
+                                    .foregroundStyle(.white)
+                                    .titleCondensed()
+                                    .lineLimit(4)
+                                    .layoutPriority(2)
+                                
+                                Spacer().frame(height:4)
+                                
+                                Text(parseHtml(episode.episodeDescription ?? "Episode description"))
+                                    .foregroundStyle(.white.opacity(0.75))
+                                    .multilineTextAlignment(.leading)
+                                    .textBody()
+                            }
+                            .frame(maxWidth:.infinity, alignment: .leading)
+                            .background(Color.clear)
+                        }
+                }
+            } else {
+                VStack(alignment:.leading, spacing:8) {
+                    Text(episode.title ?? "Episode title")
+                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                        .if(displayedFullscreen,
+                            transform: { $0.titleSerif() },
+                            else: { $0.titleCondensed() }
+                        )
+                    
                     Text(parseHtml(episode.episodeDescription ?? "Episode description"))
                         .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                         .textBody()
                 }
+                .frame(maxWidth:.infinity, alignment: .leading)
             }
-            .frame(maxWidth:.infinity, alignment: .leading)
             
             // Episode Actions
             if !displayedFullscreen {

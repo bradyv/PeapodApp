@@ -89,7 +89,7 @@ struct EmptyQueueItem: View {
             .padding(.horizontal).padding(.bottom,16)
         }
         .frame(width: 250, height: 350, alignment:.bottomLeading)
-        .background(Color.heading.opacity(0.5))
+        .background(Color.heading.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }

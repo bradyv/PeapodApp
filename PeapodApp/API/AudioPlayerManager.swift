@@ -166,15 +166,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func moveToFront(_ episode: Episode) {
         var queue = fetchQueuedEpisodes()
 
-        // Remove any existing duplicate
         queue.removeAll { $0.id == episode.id }
-
-        // Insert at the front
         queue.insert(episode, at: 0)
 
-        // Update isQueued on all episodes — simple way
         for (index, ep) in queue.enumerated() {
             ep.isQueued = true
+            ep.queuePosition = Int64(index)
         }
 
         try? viewContext.save()
@@ -207,6 +204,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
     func play(episode: Episode) {
         guard let audio = episode.audio, let url = URL(string: audio) else { return }
+        
+        moveToFront(episode)
 
         if let previousEpisode = currentEpisode, previousEpisode.id != episode.id {
             savePlaybackPosition(for: previousEpisode, position: player?.currentTime().seconds ?? 0)

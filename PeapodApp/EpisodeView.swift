@@ -11,6 +11,7 @@ import Kingfisher
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
+    @ObservedObject var player = AudioPlayerManager.shared
     
     var body: some View {
         ZStack(alignment:.topLeading) {
@@ -30,16 +31,24 @@ struct EpisodeView: View {
                         .foregroundStyle(Color.surface)
                     VStack {
                         VStack {
-                            Rectangle()
-                                .frame(maxWidth:.infinity)
-                                .frame(height:6)
-                                .foregroundStyle(Color.surface)
-                                .clipShape(Capsule())
+                            CustomSlider(
+                                value: Binding<Double>(
+                                    get: { player.getProgress(for: episode) },
+                                    set: { newValue in player.seek(to: newValue) }
+                                ),
+                                range: 0...episode.duration,
+                                onEditingChanged: { isEditing in
+                                    if !isEditing {
+                                        player.seek(to: player.progress)
+                                    }
+                                },
+                                isDraggable: true, isQQ: false
+                            )
                             
                             HStack {
-                                Text("0.00")
+                                Text(player.getElapsedTime(for: episode))
                                 Spacer()
-                                Text("-\(countdown(seconds:Int(episode.duration)))")
+                                Text("-\(player.getRemainingTime(for: episode))")
                             }
                             .fontDesign(.monospaced)
                             .font(.caption)
@@ -54,24 +63,29 @@ struct EpisodeView: View {
                             HStack {
                                 if episode.isQueued {
                                     Button(action: {
+                                        player.skipBackward(seconds:15)
                                         print("Seeking back")
                                     }) {
                                         Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
                                     }
+                                    .disabled(!player.isPlayingEpisode(episode))
                                     .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
                                     
                                     Button(action: {
+                                        player.togglePlayback(for: episode)
                                         print("Playing episode")
                                     }) {
-                                        Label("Play", systemImage: "play.fill")
+                                        Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
                                     }
                                     .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
                                     
                                     Button(action: {
+                                        player.skipForward(seconds: 30)
                                         print("Going forward")
                                     }) {
                                         Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
                                     }
+                                    .disabled(!player.isPlayingEpisode(episode))
                                     .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
                                     
                                 } else {
@@ -84,6 +98,7 @@ struct EpisodeView: View {
                                     .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
                                     
                                     Button(action: {
+                                        player.togglePlayback(for: episode)
                                         print("Playing episode")
                                     }) {
                                         Label("Play", systemImage: "play.fill")

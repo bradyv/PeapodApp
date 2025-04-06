@@ -17,26 +17,37 @@ struct SavedEpisodes: View {
     @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
-        ScrollView {
-            Spacer().frame(height:24)
-            Text("Starred")
-                .titleSerif()
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            ForEach(saved, id: \.id) { episode in
-                EpisodeItem(episode: episode)
-                    .lineLimit(3)
-                    .padding(.bottom, 24)
-                    .onTapGesture {
-                        selectedEpisode = episode
-                    }
+        if saved.isEmpty {
+            VStack {
+                Text("No starred episodes")
+                    .titleCondensed()
+
+                Text("Tap \(Image(systemName:"star")) on any episode you'd like to save for later.")
+                    .textBody()
             }
-            .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode)
-                    .modifier(PPSheet())
+            .frame(maxWidth:.infinity, maxHeight:.infinity)
+        } else {
+            ScrollView {
+                Spacer().frame(height:24)
+                Text("Starred")
+                    .titleSerif()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                ForEach(saved, id: \.id) { episode in
+                    EpisodeItem(episode: episode, savedView:true)
+                        .lineLimit(3)
+                        .padding(.bottom, 24)
+                        .onTapGesture {
+                            selectedEpisode = episode
+                        }
+                }
+                .sheet(item: $selectedEpisode) { episode in
+                    EpisodeView(episode: episode)
+                        .modifier(PPSheet())
+                }
             }
+            .padding()
+            .ignoresSafeArea(edges: .all)
         }
-        .padding()
-        .ignoresSafeArea(edges: .all)
     }
 }

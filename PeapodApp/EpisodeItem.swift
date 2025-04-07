@@ -26,6 +26,7 @@ struct EpisodeItem: View {
                         .resizable()
                         .frame(width: 24, height: 24)
                         .cornerRadius(3)
+                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
                     
                     Text(episode.podcast?.title ?? "Podcast title")
                         .lineLimit(1)
@@ -160,7 +161,9 @@ struct EpisodeItem: View {
                             player.markAsPlayed(for: episode)
                             try? episode.managedObjectContext?.save()
                         } else {
-                            episode.isQueued.toggle()
+                            withAnimation {
+                                episode.isQueued.toggle()
+                            }
                             try? episode.managedObjectContext?.save()
                         }
                     }) {
@@ -195,6 +198,8 @@ struct EpisodeItem: View {
                                     colorStyle: .monochrome
                                 )
                     )
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
                     
                     if savedView {
                         Spacer()
@@ -221,4 +226,67 @@ struct EpisodeItem: View {
             }
         }
     }
+}
+
+struct EmptyEpisodeItem: View {
+    var body: some View {
+        VStack {
+            HStack {
+                Rectangle()
+                    .frame(width:24, height:24)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width: 96, height: 12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width: 32, height: 12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            .padding(.horizontal)
+            
+            VStack(alignment:.leading) {
+                Rectangle()
+                    .frame(maxWidth:.infinity).frame(height:24)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width:100, height:24)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            .padding(.horizontal)
+            
+            VStack(alignment:.leading) {
+                
+                Rectangle()
+                    .frame(maxWidth:.infinity).frame(height:12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(maxWidth:.infinity).frame(height:12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                
+                Rectangle()
+                    .frame(width:128, height:12)
+                    .foregroundStyle(Color.heading)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            .padding(.horizontal).padding(.bottom,16)
+        }
+    }
+}
+
+#Preview {
+    EmptyEpisodeItem()
 }

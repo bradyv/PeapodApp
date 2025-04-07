@@ -74,6 +74,7 @@ struct SavedEpisodes: View {
                         .modifier(PPSheet())
                 }
             }
+            .maskEdge(.bottom)
             .ignoresSafeArea(edges: .all)
         }
     }

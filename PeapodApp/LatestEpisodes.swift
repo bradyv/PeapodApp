@@ -43,6 +43,7 @@ struct LatestEpisodes: View {
                 }
             }
         }
+        .maskEdge(.bottom)
         .refreshable {
             EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
         }

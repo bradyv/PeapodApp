@@ -27,15 +27,15 @@ struct SavedEpisodes: View {
                         .padding(.leading)
                     
                     EmptyEpisodeItem()
-                        .opacity(0.05)
+                        .opacity(0.03)
                     EmptyEpisodeItem()
-                        .opacity(0.05)
+                        .opacity(0.03)
                     EmptyEpisodeItem()
-                        .opacity(0.05)
+                        .opacity(0.03)
                     EmptyEpisodeItem()
-                        .opacity(0.05)
+                        .opacity(0.03)
                     EmptyEpisodeItem()
-                        .opacity(0.05)
+                        .opacity(0.03)
                 }
                 .disabled(true)
                 .mask(
@@ -58,11 +58,13 @@ struct SavedEpisodes: View {
                 Text("Starred")
                     .titleSerif()
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading)
                 
                 ForEach(saved, id: \.id) { episode in
                     EpisodeItem(episode: episode, savedView:true)
                         .lineLimit(3)
                         .padding(.bottom, 24)
+                        .padding(.horizontal)
                         .onTapGesture {
                             selectedEpisode = episode
                         }
@@ -72,7 +74,6 @@ struct SavedEpisodes: View {
                         .modifier(PPSheet())
                 }
             }
-            .padding(.horizontal)
             .ignoresSafeArea(edges: .all)
         }
     }

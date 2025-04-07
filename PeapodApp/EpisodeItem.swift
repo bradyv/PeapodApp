@@ -283,7 +283,20 @@ struct EmptyEpisodeItem: View {
             }
             .frame(maxWidth:.infinity, alignment:.leading)
             .padding(.horizontal).padding(.bottom,16)
+            
+            HStack {
+                Capsule()
+                    .frame(width:96,height:40)
+                    .foregroundStyle(Color.heading)
+                
+                Capsule()
+                    .frame(width:128,height:40)
+                    .foregroundStyle(Color.heading)
+            }
+            .frame(maxWidth:.infinity,alignment:.leading)
+            .padding(.horizontal)
         }
+        .padding(.bottom,24)
     }
 }
 

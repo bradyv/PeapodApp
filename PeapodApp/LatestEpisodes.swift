@@ -25,12 +25,14 @@ struct LatestEpisodes: View {
             Text("Latest Episodes")
                 .titleSerif()
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading)
             
             LazyVStack(alignment: .leading) {
                 ForEach(latest, id: \.id) { episode in
                     EpisodeItem(episode: episode)
                         .lineLimit(3)
                         .padding(.bottom, 24)
+                        .padding(.horizontal)
                         .onTapGesture {
                             selectedEpisode = episode
                         }
@@ -44,7 +46,6 @@ struct LatestEpisodes: View {
         .refreshable {
             EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
         }
-        .padding()
         .ignoresSafeArea(edges: .all)
     }
 }

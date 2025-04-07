@@ -12,7 +12,9 @@ struct PodcastSearchView: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var query = ""
     @State private var results: [PodcastResult] = []
+    @State private var topPodcasts: [PodcastResult] = []
     @State private var selectedPodcast: PodcastResult? = nil
+    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
 
     var body: some View {
         VStack {
@@ -51,34 +53,60 @@ struct PodcastSearchView: View {
                     }
                 }
             }
-            .padding()
+            .padding(.horizontal).padding(.top)
             
-            ScrollView {
-                ForEach(results, id: \.id) { podcast in
-                    HStack {
-                        KFImage(URL(string:podcast.artworkUrl600))
-                            .resizable()
-                            .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                        
-                        VStack(alignment: .leading) {
-                            Text(podcast.title)
-                                .titleCondensed()
-                            Text(podcast.author)
-                                .textDetail()
+            if query.isEmpty {
+                ScrollView {
+                    Text("Top Podcasts")
+                        .headerSection()
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                    
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(topPodcasts, id: \.id) { podcast in
+                            VStack {
+                                KFImage(URL(string: podcast.artworkUrl600))
+                                    .resizable()
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                            }
+                            .onTapGesture {
+                                selectedPodcast = podcast
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.horizontal)
-                    .onTapGesture {
-                        selectedPodcast = podcast
                     }
                 }
+                .padding()
+            } else {
+                ScrollView {
+                    ForEach(results, id: \.id) { podcast in
+                        HStack {
+                            KFImage(URL(string:podcast.artworkUrl600))
+                                .resizable()
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                            
+                            VStack(alignment: .leading) {
+                                Text(podcast.title)
+                                    .titleCondensed()
+                                Text(podcast.author)
+                                    .textDetail()
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.horizontal)
+                        .onTapGesture {
+                            selectedPodcast = podcast
+                        }
+                    }
+                }
+                .frame(maxWidth:.infinity)
             }
-            .frame(maxWidth:.infinity)
         }
         .onAppear {
+            fetchTopPodcasts()
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isTextFieldFocused = true
             }
@@ -98,6 +126,54 @@ struct PodcastSearchView: View {
             if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
                 DispatchQueue.main.async {
                     results = decoded.results
+                }
+            }
+        }.resume()
+    }
+    
+    func fetchTopPodcasts() {
+        guard let url = URL(string: "https://itunes.apple.com/us/rss/toppodcasts/limit=21/json") else { return }
+
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            guard let data else { return }
+
+            struct FeedResponse: Codable {
+                struct Feed: Codable {
+                    struct Entry: Codable {
+                        struct ID: Codable {
+                            let attributes: Attributes
+                            struct Attributes: Codable {
+                                let imID: String
+                                enum CodingKeys: String, CodingKey { case imID = "im:id" }
+                            }
+                        }
+                        let id: ID
+                    }
+                    let entry: [Entry]
+                }
+                let feed: Feed
+            }
+
+            do {
+                let decoded = try JSONDecoder().decode(FeedResponse.self, from: data)
+                let ids = decoded.feed.entry.map { $0.id.attributes.imID }
+                fetchPodcastResults(for: ids)
+            } catch {
+                print("❌ Failed to decode top podcasts: \(error)")
+            }
+        }.resume()
+    }
+    
+    func fetchPodcastResults(for ids: [String]) {
+        let idString = ids.prefix(25).joined(separator: ",") // iTunes lookup limit is 200, but 25-50 is plenty
+        guard let url = URL(string: "https://itunes.apple.com/lookup?id=\(idString)") else { return }
+
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            guard let data else { return }
+
+            if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
+                DispatchQueue.main.async {
+                    topPodcasts = decoded.results
                 }
             }
         }.resume()

@@ -14,7 +14,7 @@ func parseHtml(_ html: String) -> String {
        let bodyHtml = try document.body()?.html() ?? ""
 
        let formattedText = bodyHtml
-           .replacingOccurrences(of: "</p>", with: "\n")
+           .replacingOccurrences(of: "</p>", with: "\n\n")
            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
 
        let decodedText = try Entities.unescape(formattedText)

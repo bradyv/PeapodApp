@@ -30,7 +30,7 @@ class EpisodeRefresher {
                             e.id = UUID().uuidString
                             e.title = title
                             e.audio = item.enclosure?.attributes?.url
-                            e.episodeDescription = item.description
+                            e.episodeDescription = item.content?.contentEncoded ?? item.description
                             e.airDate = item.pubDate
                             if let durationString = item.iTunes?.iTunesDuration {
                                 e.duration = Double(durationString)

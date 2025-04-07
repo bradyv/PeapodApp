@@ -60,12 +60,12 @@ struct QueueView: View {
                             }
                         }
                     }
+                    .scrollIndicators(.hidden)
+                    .contentMargins(.horizontal,16, for: .scrollContent)
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode)
                             .modifier(PPSheet())
                     }
-                    .scrollIndicators(.hidden)
-                    .contentMargins(.horizontal,16, for: .scrollContent)
                     .onChange(of: queue.first?.id) { oldID, newID in
                         if let id = newID {
                             DispatchQueue.main.async {

@@ -54,6 +54,11 @@ struct SavedEpisodes: View {
             }
         } else {
             ScrollView {
+                Spacer().frame(height:24)
+                Text("Starred")
+                    .titleSerif()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
                 ForEach(saved, id: \.id) { episode in
                     EpisodeItem(episode: episode, savedView:true)
                         .lineLimit(3)
@@ -67,7 +72,7 @@ struct SavedEpisodes: View {
                         .modifier(PPSheet())
                 }
             }
-            .padding()
+            .padding(.horizontal)
             .ignoresSafeArea(edges: .all)
         }
     }

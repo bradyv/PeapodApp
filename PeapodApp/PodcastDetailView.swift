@@ -30,56 +30,58 @@ struct PodcastDetailView: View {
         if let podcast {
             ZStack {
                 ScrollView {
-                    Spacer().frame(height:52)
-                    
-                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
-                        .textBody()
-                        .lineLimit(showFullDescription ? nil :  3)
-                        .frame(maxWidth:.infinity, alignment:.leading)
-                        .onTapGesture {
-                            withAnimation {
-                                showFullDescription.toggle()
-                            }
-                            print(showFullDescription)
-                        }
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
-                    
-                    Spacer().frame(height:24)
-                    
-                    LazyVStack(alignment: .leading) {
-                        if let latestEpisode = episodes.first {
-                            Text("Latest Episode")
-                                .headerSection()
-
-                            EpisodeItem(episode: latestEpisode)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .onTapGesture {
-                                    selectedEpisode = latestEpisode
+                    VStack {
+                        Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
+                            .textBody()
+                            .lineLimit(showFullDescription ? nil :  3)
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                            .onTapGesture {
+                                withAnimation {
+                                    showFullDescription.toggle()
                                 }
-                        }
-
-                        let remainingEpisodes = Array(episodes.dropFirst())
-
-                        if !remainingEpisodes.isEmpty {
-                            Text("Episodes")
-                                .headerSection()
-
-                            ForEach(remainingEpisodes, id: \.id) { episode in
-                                EpisodeItem(episode: episode)
+                                print(showFullDescription)
+                            }
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                            .animation(.easeOut(duration: 0.15), value: showFullDescription)
+                        
+                        Spacer().frame(height:24)
+                        
+                        LazyVStack(alignment: .leading) {
+                            if let latestEpisode = episodes.first {
+                                Text("Latest Episode")
+                                    .headerSection()
+                                
+                                EpisodeItem(episode: latestEpisode)
                                     .lineLimit(3)
                                     .padding(.bottom, 24)
                                     .onTapGesture {
-                                        selectedEpisode = episode
+                                        selectedEpisode = latestEpisode
                                     }
                             }
+                            
+                            let remainingEpisodes = Array(episodes.dropFirst())
+                            
+                            if !remainingEpisodes.isEmpty {
+                                Text("Episodes")
+                                    .headerSection()
+                                
+                                ForEach(remainingEpisodes, id: \.id) { episode in
+                                    EpisodeItem(episode: episode)
+                                        .lineLimit(3)
+                                        .padding(.bottom, 24)
+                                        .onTapGesture {
+                                            selectedEpisode = episode
+                                        }
+                                }
+                            }
+                        }
+                        .sheet(item: $selectedEpisode) { episode in
+                            EpisodeView(episode: episode)
+                                .modifier(PPSheet())
                         }
                     }
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode)
-                            .modifier(PPSheet())
-                    }
+                    .padding(.top,52)
+                    .padding()
                 }
                 .maskEdge(.top)
                 .maskEdge(.bottom)
@@ -125,17 +127,17 @@ struct PodcastDetailView: View {
                     }
                     Spacer()
                 }
+                .padding()
             }
             .frame(maxWidth:.infinity)
-            .padding()
             .ignoresSafeArea(edges: .all)
             .onAppear {
                 episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
 
                 Task.detached(priority: .background) {
-                    ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
+                    await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
 
-                    EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
+                    await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
                         DispatchQueue.main.async {
                             episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
                         }

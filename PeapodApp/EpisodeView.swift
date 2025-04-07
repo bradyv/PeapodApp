@@ -15,118 +15,119 @@ struct EpisodeView: View {
     
     var body: some View {
         ZStack(alignment:.topLeading) {
-            ScrollView {
-                Spacer().frame(height:76)
-                EpisodeItem(episode: episode, displayedFullscreen:true)
-            }
-            .maskEdge(.top)
-            .padding(.top,88)
-            .padding(.horizontal)
-            
             VStack {
-                Spacer()
-                VStack(spacing:16) {
-                    Rectangle()
-                        .frame(maxWidth:.infinity).frame(height:1)
-                        .foregroundStyle(Color.surface)
-                    VStack {
-                        VStack {
-                            CustomSlider(
-                                value: Binding<Double>(
-                                    get: { player.getProgress(for: episode) },
-                                    set: { newValue in player.seek(to: newValue) }
-                                ),
-                                range: 0...episode.duration,
-                                onEditingChanged: { isEditing in
-                                    if !isEditing {
-                                        player.seek(to: player.progress)
-                                    }
-                                },
-                                isDraggable: true, isQQ: false
-                            )
-                            
-                            HStack {
-                                Text(player.getElapsedTime(for: episode))
-                                Spacer()
-                                Text("-\(player.getRemainingTime(for: episode))")
-                            }
-                            .fontDesign(.monospaced)
-                            .font(.caption)
-                        }
-                        
-                        HStack {
-                            AirPlayButton()
-                                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-                            
-                            Spacer()
-                            
-                            HStack {
-                                if episode.isQueued {
-                                    Button(action: {
-                                        player.skipBackward(seconds:15)
-                                        print("Seeking back")
-                                    }) {
-                                        Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
-                                    }
-                                    .disabled(!player.isPlayingEpisode(episode))
-                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-                                    
-                                    Button(action: {
-                                        player.togglePlayback(for: episode)
-                                        print("Playing episode")
-                                    }) {
-                                        Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
-                                    }
-                                    .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
-                                    
-                                    Button(action: {
-                                        player.skipForward(seconds: 30)
-                                        print("Going forward")
-                                    }) {
-                                        Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
-                                    }
-                                    .disabled(!player.isPlayingEpisode(episode))
-                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-                                    
-                                } else {
-                                    Button(action: {
-                                        withAnimation {
-                                            episode.isQueued.toggle()
-                                        }
-                                        try? episode.managedObjectContext?.save()
-                                    }) {
-                                        Label("Add to queue", systemImage: "plus.circle")
-                                    }
-                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
-                                    
-                                    Button(action: {
-                                        withAnimation {
-                                            player.togglePlayback(for: episode)
-                                        }
-                                        print("Playing episode")
-                                    }) {
-                                        Label("Play", systemImage: "play.fill")
-                                    }
-                                    .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
-                                }
-                            }
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
-                            .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                episode.isSaved.toggle()
-                                try? episode.managedObjectContext?.save()
-                            }) {
-                                Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
-                            }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-                        }
-                    }
-                    .padding(.horizontal).padding(.bottom)
+                ScrollView {
+                    Spacer().frame(height:76)
+                    EpisodeItem(episode: episode, displayedFullscreen:true)
+                        .padding(.horizontal)
                 }
-                .background(.ultraThickMaterial)
+                .maskEdge(.top)
+                .padding(.top,88)
+                
+                VStack {
+                    VStack(spacing:16) {
+                        Rectangle()
+                            .frame(maxWidth:.infinity).frame(height:1)
+                            .foregroundStyle(Color.surface)
+                        VStack {
+                            VStack {
+                                CustomSlider(
+                                    value: Binding<Double>(
+                                        get: { player.getProgress(for: episode) },
+                                        set: { newValue in player.seek(to: newValue) }
+                                    ),
+                                    range: 0...episode.duration,
+                                    onEditingChanged: { isEditing in
+                                        if !isEditing {
+                                            player.seek(to: player.progress)
+                                        }
+                                    },
+                                    isDraggable: true, isQQ: false
+                                )
+                                
+                                HStack {
+                                    Text(player.getElapsedTime(for: episode))
+                                    Spacer()
+                                    Text("-\(player.getRemainingTime(for: episode))")
+                                }
+                                .fontDesign(.monospaced)
+                                .font(.caption)
+                            }
+                            
+                            HStack {
+                                AirPlayButton()
+                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                
+                                Spacer()
+                                
+                                HStack {
+                                    if episode.isQueued {
+                                        Button(action: {
+                                            player.skipBackward(seconds:15)
+                                            print("Seeking back")
+                                        }) {
+                                            Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                                        }
+                                        .disabled(!player.isPlayingEpisode(episode))
+                                        .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                        
+                                        Button(action: {
+                                            player.togglePlayback(for: episode)
+                                            print("Playing episode")
+                                        }) {
+                                            Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
+                                        }
+                                        .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
+                                        
+                                        Button(action: {
+                                            player.skipForward(seconds: 30)
+                                            print("Going forward")
+                                        }) {
+                                            Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
+                                        }
+                                        .disabled(!player.isPlayingEpisode(episode))
+                                        .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                        
+                                    } else {
+                                        Button(action: {
+                                            withAnimation {
+                                                episode.isQueued.toggle()
+                                            }
+                                            try? episode.managedObjectContext?.save()
+                                        }) {
+                                            Label("Add to queue", systemImage: "plus.circle")
+                                        }
+                                        .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
+                                        
+                                        Button(action: {
+                                            withAnimation {
+                                                player.togglePlayback(for: episode)
+                                            }
+                                            print("Playing episode")
+                                        }) {
+                                            Label("Play", systemImage: "play.fill")
+                                        }
+                                        .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
+                                    }
+                                }
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                                .animation(.easeOut(duration: 0.3), value: episode.isQueued)
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    episode.isSaved.toggle()
+                                    try? episode.managedObjectContext?.save()
+                                }) {
+                                    Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
+                                }
+                                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                            }
+                        }
+                        .padding(.horizontal).padding(.bottom)
+                    }
+                    .background(.ultraThickMaterial)
+                }
             }
             
             

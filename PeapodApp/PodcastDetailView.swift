@@ -37,9 +37,13 @@ struct PodcastDetailView: View {
                         .lineLimit(showFullDescription ? nil :  3)
                         .frame(maxWidth:.infinity, alignment:.leading)
                         .onTapGesture {
-                            showFullDescription.toggle()
+                            withAnimation {
+                                showFullDescription.toggle()
+                            }
                             print(showFullDescription)
                         }
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
                     
                     Spacer().frame(height:24)
                     

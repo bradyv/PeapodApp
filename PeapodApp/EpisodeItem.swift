@@ -114,9 +114,9 @@ struct EpisodeItem: View {
 
                             if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
                                 let isQQ = displayedInQueue
-                                let durationToUse = player.currentEpisode?.id == episode.id && player.duration > 1
-                                    ? player.duration
-                                    : Double(player.getRemainingTime(for: episode))
+//                                let durationToUse = player.currentEpisode?.id == episode.id && player.duration > 1
+//                                    ? player.duration
+//                                    : Double(player.getRemainingTime(for: episode)) // bv
                                 
                                 CustomSlider(
                                     value: Binding(
@@ -222,7 +222,7 @@ struct EpisodeItem: View {
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
             Task.detached(priority: .background) {
-                ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+                await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
         }
     }

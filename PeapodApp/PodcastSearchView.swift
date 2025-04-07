@@ -76,6 +76,7 @@ struct PodcastSearchView: View {
                         }
                     }
                 }
+                .maskEdge(.bottom)
                 .padding()
             } else {
                 ScrollView {

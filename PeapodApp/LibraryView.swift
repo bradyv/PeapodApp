@@ -71,10 +71,6 @@ struct LibraryView: View {
         }
         .padding(.horizontal)
         .frame(maxWidth:.infinity)
-        .sheet(isPresented: $showSearch) {
-            PodcastSearchView()
-                .modifier(PPSheet())
-        }
         .sheet(isPresented: $showSaved) {
             SavedEpisodes()
                 .modifier(PPSheet())

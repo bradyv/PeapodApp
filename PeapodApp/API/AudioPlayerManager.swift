@@ -284,18 +284,25 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
 
+        let objectID = episode.objectID
+        let isCurrentEpisode = episode.id == currentEpisode?.id
+
         let asset = AVURLAsset(url: url)
 
         Task {
             do {
                 let duration = try await asset.load(.duration)
-                DispatchQueue.main.async {
-                    episode.duration = duration.seconds
-                    if self.currentEpisode?.id == episode.id {
-                        self.duration = duration.seconds
+
+                // Work with Core Data on the main context thread
+                await MainActor.run {
+                    if let updatedEpisode = try? viewContext.existingObject(with: objectID) as? Episode {
+                        updatedEpisode.duration = duration.seconds
+                        if isCurrentEpisode {
+                            self.duration = duration.seconds
+                        }
+                        try? updatedEpisode.managedObjectContext?.save()
+                        print("🎵 Loaded Actual Episode Duration: \(duration.seconds)")
                     }
-                    print("🎵 Loaded Actual Episode Duration: \(duration.seconds)")
-                    try? episode.managedObjectContext?.save()
                 }
             } catch {
                 print("⚠️ Failed to load episode duration: \(error.localizedDescription)")
@@ -397,7 +404,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         guard let episode = currentEpisode else { return }
 
         var nowPlayingInfo: [String: Any] = [
-            MPMediaItemPropertyTitle: episode.title,
+            MPMediaItemPropertyTitle: episode.title ?? "Episode",
             MPMediaItemPropertyArtist: episode.podcast?.title ?? "Podcast",
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: progress,

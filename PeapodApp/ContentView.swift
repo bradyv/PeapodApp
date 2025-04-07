@@ -22,7 +22,7 @@ struct ContentView: View {
             .onAppear {
                 EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
             }
-            .onChange(of: scenePhase) { newPhase in
+            .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
                     EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
                 }

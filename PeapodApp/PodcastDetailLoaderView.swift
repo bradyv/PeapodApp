@@ -60,7 +60,7 @@ struct PodcastDetailLoaderView: View {
             e.episodeDescription = item.description
             e.airDate = item.pubDate
             if let durationString = item.iTunes?.iTunesDuration {
-                e.duration = Double(durationString) ?? 0
+                e.duration = Double(durationString)
             }
             e.episodeImage = item.iTunes?.iTunesImage?.attributes?.href
             e.podcast = newPodcast

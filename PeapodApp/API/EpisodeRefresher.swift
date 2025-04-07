@@ -21,7 +21,7 @@ class EpisodeRefresher {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     context.perform {
-                        var existingIDs = Set((podcast.episode?.compactMap { ($0 as? Episode)?.title }) ?? [])
+                        let existingIDs = Set((podcast.episode?.compactMap { ($0 as? Episode)?.title }) ?? [])
 
                         for item in rss.items ?? [] {
                             guard let title = item.title, !existingIDs.contains(title) else { continue }
@@ -33,7 +33,7 @@ class EpisodeRefresher {
                             e.episodeDescription = item.description
                             e.airDate = item.pubDate
                             if let durationString = item.iTunes?.iTunesDuration {
-                                e.duration = Double(durationString) ?? 0
+                                e.duration = Double(durationString)
                             }
                             e.episodeImage = item.iTunes?.iTunesImage?.attributes?.href
                             e.podcast = podcast

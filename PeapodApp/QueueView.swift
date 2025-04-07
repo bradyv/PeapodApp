@@ -66,7 +66,7 @@ struct QueueView: View {
                     }
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
-                    .onChange(of: queue.first?.id) { newID in
+                    .onChange(of: queue.first?.id) { oldID, newID in
                         if let id = newID {
                             DispatchQueue.main.async {
                                 withAnimation {

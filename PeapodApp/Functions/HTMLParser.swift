@@ -9,17 +9,41 @@ import Foundation
 import SwiftSoup
 
 func parseHtml(_ html: String) -> String {
-   do {
-       let document = try SwiftSoup.parse(html)
-       let bodyHtml = try document.body()?.html() ?? ""
+    do {
+        let document = try SwiftSoup.parse(html)
 
-       let formattedText = bodyHtml
-           .replacingOccurrences(of: "</p>", with: "\n\n")
-           .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        // If the body has no elements, treat it as plain text
+        if let body = document.body(), body.children().isEmpty {
+            let fallbackText = try body.text()
+            return fallbackText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
-       let decodedText = try Entities.unescape(formattedText)
-       return decodedText.trimmingCharacters(in: .whitespacesAndNewlines)
-   } catch {
-       return "Error parsing HTML"
-   }
+        var result = ""
+
+        for child in document.body()?.getChildNodes() ?? [] {
+            if let element = child as? Element {
+                let tag = try element.tagName()
+
+                if tag == "p" || tag == "div" {
+                    let innerText = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                    result.append(innerText.isEmpty ? "\n" : innerText + "\n\n")
+                } else if tag == "br" {
+                    result.append("\n")
+                } else {
+                    let text = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty {
+                        result.append(text + "\n")
+                    }
+                }
+            }
+        }
+
+        return result
+            .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    } catch {
+        return "Error parsing HTML"
+    }
 }
+

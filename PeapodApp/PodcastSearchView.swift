@@ -10,11 +10,8 @@ import Kingfisher
 
 struct PodcastSearchView: View {
     @FocusState private var isTextFieldFocused: Bool
-    @State private var query = ""
-    @State private var results: [PodcastResult] = []
-    @State private var topPodcasts: [PodcastResult] = []
+    @StateObject private var fetcher = PodcastFetcher()
     @State private var selectedPodcast: PodcastResult? = nil
-    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
 
     var body: some View {
         VStack {
@@ -24,17 +21,17 @@ struct PodcastSearchView: View {
                         .resizable()
                         .frame(width: 12, height: 12)
                         .opacity(0.35)
-                    TextField("Find a podcast", text: $query)
+                    TextField("Find a podcast", text: $fetcher.query)
                         .focused($isTextFieldFocused)
                         .textRow()
                         .onSubmit {
-                            search()
+                            fetcher.search()
                         }
                     
                     
-                    if !query.isEmpty {
+                    if !fetcher.query.isEmpty {
                         Button(action: {
-                            query = ""
+                            fetcher.query = ""
                             isTextFieldFocused = true
                         }) {
                             Image(systemName: "xmark.circle.fill")
@@ -55,32 +52,19 @@ struct PodcastSearchView: View {
             }
             .padding(.horizontal).padding(.top)
             
-            if query.isEmpty {
+            if fetcher.query.isEmpty {
                 ScrollView {
                     Text("Top Podcasts")
                         .headerSection()
                         .frame(maxWidth:.infinity, alignment:.leading)
                     
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(topPodcasts, id: \.id) { podcast in
-                            VStack {
-                                KFImage(URL(string: podcast.artworkUrl600))
-                                    .resizable()
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                            }
-                            .onTapGesture {
-                                selectedPodcast = podcast
-                            }
-                        }
-                    }
+                    TopPodcasts()
                 }
                 .maskEdge(.bottom)
                 .padding()
             } else {
                 ScrollView {
-                    ForEach(results, id: \.id) { podcast in
+                    ForEach(fetcher.results, id: \.id) { podcast in
                         HStack {
                             KFImage(URL(string:podcast.artworkUrl600))
                                 .resizable()
@@ -106,7 +90,7 @@ struct PodcastSearchView: View {
             }
         }
         .onAppear {
-            fetchTopPodcasts()
+            fetcher.fetchTopPodcasts()
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isTextFieldFocused = true
@@ -117,82 +101,4 @@ struct PodcastSearchView: View {
                 .modifier(PPSheet())
         }
     }
-
-    func search() {
-        guard let term = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://itunes.apple.com/search?media=podcast&term=\(term)") else { return }
-
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data else { return }
-            if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
-                DispatchQueue.main.async {
-                    results = decoded.results
-                }
-            }
-        }.resume()
-    }
-    
-    func fetchTopPodcasts() {
-        guard let url = URL(string: "https://itunes.apple.com/us/rss/toppodcasts/limit=21/json") else { return }
-
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data else { return }
-
-            struct FeedResponse: Codable {
-                struct Feed: Codable {
-                    struct Entry: Codable {
-                        struct ID: Codable {
-                            let attributes: Attributes
-                            struct Attributes: Codable {
-                                let imID: String
-                                enum CodingKeys: String, CodingKey { case imID = "im:id" }
-                            }
-                        }
-                        let id: ID
-                    }
-                    let entry: [Entry]
-                }
-                let feed: Feed
-            }
-
-            do {
-                let decoded = try JSONDecoder().decode(FeedResponse.self, from: data)
-                let ids = decoded.feed.entry.map { $0.id.attributes.imID }
-                fetchPodcastResults(for: ids)
-            } catch {
-                print("❌ Failed to decode top podcasts: \(error)")
-            }
-        }.resume()
-    }
-    
-    func fetchPodcastResults(for ids: [String]) {
-        let idString = ids.prefix(25).joined(separator: ",") // iTunes lookup limit is 200, but 25-50 is plenty
-        guard let url = URL(string: "https://itunes.apple.com/lookup?id=\(idString)") else { return }
-
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data else { return }
-
-            if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
-                DispatchQueue.main.async {
-                    topPodcasts = decoded.results
-                }
-            }
-        }.resume()
-    }
-}
-
-struct SearchResponse: Codable {
-    let results: [PodcastResult]
-}
-
-struct PodcastResult: Codable, Identifiable {
-    let feedUrl: String
-    let trackName: String
-    let artistName: String
-    let artworkUrl600: String
-    let trackId: Int
-
-    var id: String { "\(trackId)" }
-    var title: String { trackName }
-    var author: String { artistName }
 }

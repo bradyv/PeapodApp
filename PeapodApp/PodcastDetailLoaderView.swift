@@ -25,19 +25,12 @@ struct PodcastDetailLoaderView: View {
     }
 
     private func loadFeed() {
-        guard let url = URL(string: feedUrl) else { return }
-
-        FeedParser(URL: url).parseAsync { result in
-            switch result {
-            case .success(let feed):
-                if let rss = feed.rssFeed {
-                    DispatchQueue.main.async {
-                        let podcast = createPodcast(from: rss)
-                        loadedPodcast = podcast
-                    }
-                }
-            case .failure(let error):
-                print("FeedKit error:", error)
+        Task {
+            do {
+                let podcast = try await FeedLoader.loadAndCreatePodcast(from: feedUrl, in: context)
+                loadedPodcast = podcast
+            } catch {
+                print("Failed to load podcast:", error)
             }
         }
     }

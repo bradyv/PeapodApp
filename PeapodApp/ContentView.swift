@@ -11,6 +11,7 @@ import CoreData
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject var fetcher: PodcastFetcher
     
     var body: some View {
         ZStack {
@@ -18,6 +19,7 @@ struct ContentView: View {
                 QueueView()
                 LibraryView()
                 SubscriptionsView()
+//                Welcome()
             }
             .onAppear {
                 EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)

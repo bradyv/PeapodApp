@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import InfiniteCarousel
 
 struct QueueView: View {
     @FetchRequest(
@@ -54,7 +55,7 @@ struct QueueView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        LazyHStack(spacing:16) {
+                        LazyHStack(spacing:8) {
                             ForEach(queue, id: \.id) { episode in
                                 QueueItem(episode: episode)
                                     .id(episode.id)
@@ -62,11 +63,18 @@ struct QueueView: View {
                                     .onTapGesture {
                                         selectedEpisode = episode
                                     }
+                                    .scrollTransition { content, phase in
+                                        content
+                                            .opacity(phase.isIdentity ? 1 : 0.5) // Apply opacity animation
+                                            .scaleEffect(y: phase.isIdentity ? 1 : 0.95) // Apply scale animation
+                                    }
                             }
                         }
+                        .scrollTargetLayout()
                     }
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
+                    .scrollTargetBehavior(.viewAligned)
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode)
                             .modifier(PPSheet())

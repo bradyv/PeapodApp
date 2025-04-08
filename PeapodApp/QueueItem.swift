@@ -12,7 +12,7 @@ struct QueueItem: View {
     @ObservedObject var episode: Episode
     
     var body: some View {
-        let frame = CGFloat(250)
+        let frame = UIScreen.main.bounds.width - 32
 
         ZStack(alignment:.bottomLeading) {
             EpisodeItem(episode:episode, displayedInQueue: true)
@@ -31,7 +31,7 @@ struct QueueItem: View {
                 Spacer()
             }
         }
-        .frame(width: frame, height: 350)
+        .frame(width: frame, height: 450)
         .background(Color(hex: episode.episodeTint)?.darkened(by:0.3) ?? Color(hex: episode.podcast?.podcastTint)?.darkened(by:0.3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))

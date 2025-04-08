@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		231E99D42DA5AFD3008E6BF4 /* InfiniteCarousel in Frameworks */ = {isa = PBXBuildFile; productRef = 231E99D32DA5AFD3008E6BF4 /* InfiniteCarousel */; };
 		232273CF2D9E347C00EAC8F8 /* ColorThiefSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 232273CE2D9E347C00EAC8F8 /* ColorThiefSwift */; };
 		232273DC2D9EF77700EAC8F8 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 232273DB2D9EF77700EAC8F8 /* SwiftSoup */; };
 		23599E642D9B94B900F2DE3B /* FeedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 23599E632D9B94B900F2DE3B /* FeedKit */; };
@@ -61,6 +62,7 @@
 			files = (
 				23599E6D2D9B9CE000F2DE3B /* Kingfisher in Frameworks */,
 				232273DC2D9EF77700EAC8F8 /* SwiftSoup in Frameworks */,
+				231E99D42DA5AFD3008E6BF4 /* InfiniteCarousel in Frameworks */,
 				232273CF2D9E347C00EAC8F8 /* ColorThiefSwift in Frameworks */,
 				23599E642D9B94B900F2DE3B /* FeedKit in Frameworks */,
 			);
@@ -127,6 +129,7 @@
 				23599E6C2D9B9CE000F2DE3B /* Kingfisher */,
 				232273CE2D9E347C00EAC8F8 /* ColorThiefSwift */,
 				232273DB2D9EF77700EAC8F8 /* SwiftSoup */,
+				231E99D32DA5AFD3008E6BF4 /* InfiniteCarousel */,
 			);
 			productName = PeapodApp;
 			productReference = 23599E2B2D9B895C00F2DE3B /* PeapodApp.app */;
@@ -215,6 +218,7 @@
 				23599E6B2D9B9CE000F2DE3B /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				232273CD2D9E347C00EAC8F8 /* XCRemoteSwiftPackageReference "ColorThiefSwift" */,
 				232273DA2D9EF77700EAC8F8 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+				231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 23599E2C2D9B895C00F2DE3B /* Products */;
@@ -585,6 +589,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ElyesDer/InfiniteCarousel.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		232273CD2D9E347C00EAC8F8 /* XCRemoteSwiftPackageReference "ColorThiefSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/yamoridon/ColorThiefSwift";
@@ -620,6 +632,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		231E99D32DA5AFD3008E6BF4 /* InfiniteCarousel */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */;
+			productName = InfiniteCarousel;
+		};
 		232273CE2D9E347C00EAC8F8 /* ColorThiefSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 232273CD2D9E347C00EAC8F8 /* XCRemoteSwiftPackageReference "ColorThiefSwift" */;

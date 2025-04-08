@@ -94,7 +94,7 @@ struct EpisodeView: View {
                                     } else {
                                         Button(action: {
                                             withAnimation {
-                                                episode.isQueued.toggle()
+                                                toggleQueued(episode)
                                             }
                                             try? episode.managedObjectContext?.save()
                                         }) {

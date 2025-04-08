@@ -162,7 +162,7 @@ struct EpisodeItem: View {
                             try? episode.managedObjectContext?.save()
                         } else {
                             withAnimation {
-                                episode.isQueued.toggle()
+                                toggleQueued(episode)
                             }
                             try? episode.managedObjectContext?.save()
                         }

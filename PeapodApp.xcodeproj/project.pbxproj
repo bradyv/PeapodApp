@@ -37,9 +37,22 @@
 		23599E4A2D9B895D00F2DE3B /* PeapodAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PeapodAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		23A314BB2DA5D41300519189 /* Exceptions for "PeapodApp" folder in "PeapodApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 23599E2A2D9B895C00F2DE3B /* PeapodApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		23599E2D2D9B895C00F2DE3B /* PeapodApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				23A314BB2DA5D41300519189 /* Exceptions for "PeapodApp" folder in "PeapodApp" target */,
+			);
 			path = PeapodApp;
 			sourceTree = "<group>";
 		};
@@ -424,6 +437,7 @@
 				DEVELOPMENT_TEAM = L562VTCZTN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PeapodApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Peapod;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -455,6 +469,7 @@
 				DEVELOPMENT_TEAM = L562VTCZTN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PeapodApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Peapod;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

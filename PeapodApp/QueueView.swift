@@ -55,7 +55,7 @@ struct QueueView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        LazyHStack(spacing:8) {
+                        LazyHStack(spacing:16) {
                             ForEach(queue, id: \.id) { episode in
                                 QueueItem(episode: episode)
                                     .id(episode.id)
@@ -66,7 +66,7 @@ struct QueueView: View {
                                     .scrollTransition { content, phase in
                                         content
                                             .opacity(phase.isIdentity ? 1 : 0.5) // Apply opacity animation
-                                            .scaleEffect(y: phase.isIdentity ? 1 : 0.95) // Apply scale animation
+                                            .scaleEffect(y: phase.isIdentity ? 1 : 0.92) // Apply scale animation
                                     }
                             }
                         }
@@ -74,7 +74,6 @@ struct QueueView: View {
                     }
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
-                    .scrollTargetBehavior(.viewAligned)
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode)
                             .modifier(PPSheet())

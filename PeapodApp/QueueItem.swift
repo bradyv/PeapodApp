@@ -12,7 +12,7 @@ struct QueueItem: View {
     @ObservedObject var episode: Episode
     
     var body: some View {
-        let frame = UIScreen.main.bounds.width - 32
+        let frame = UIScreen.main.bounds.width - 100
 
         ZStack(alignment:.bottomLeading) {
             EpisodeItem(episode:episode, displayedInQueue: true)

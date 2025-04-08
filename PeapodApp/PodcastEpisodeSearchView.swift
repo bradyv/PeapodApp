@@ -69,9 +69,14 @@ struct PodcastEpisodeSearchView: View {
             }
 
             ScrollView {
+                Text(query.isEmpty ? "Episodes" : "Results for \(query)")
+                    .headerSection()
+                    .frame(maxWidth:.infinity, alignment:.leading)
+                
                 LazyVStack(alignment: .leading) {
                     ForEach(filteredEpisodes, id: \.id) { episode in
                         EpisodeItem(episode: episode)
+                            .lineLimit(3)
                             .padding(.bottom, 12)
                             .onTapGesture {
                                 selectedEpisode = episode

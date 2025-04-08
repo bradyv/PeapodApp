@@ -24,7 +24,7 @@ struct SavedEpisodes: View {
                     Text("Starred")
                         .titleSerif()
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading)
+                        .padding(.leading).padding(.top,24)
                     
                     EmptyEpisodeItem()
                         .opacity(0.03)
@@ -58,7 +58,7 @@ struct SavedEpisodes: View {
                 Text("Starred")
                     .titleSerif()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading)
+                    .padding(.leading).padding(.top,24)
                 
                 ForEach(saved, id: \.id) { episode in
                     EpisodeItem(episode: episode, savedView:true)

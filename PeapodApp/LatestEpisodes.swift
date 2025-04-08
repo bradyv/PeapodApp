@@ -24,7 +24,7 @@ struct LatestEpisodes: View {
         Text("Latest Episodes")
             .titleSerif()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading)
+            .padding(.leading).padding(.top,24)
         
         ScrollView {
             LazyVStack(alignment: .leading) {

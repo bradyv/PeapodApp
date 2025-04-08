@@ -91,5 +91,6 @@ struct QueueView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.top,24)
     }
 }

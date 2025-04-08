@@ -69,7 +69,7 @@ struct LibraryView: View {
                 Divider()
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal).padding(.top,24)
         .frame(maxWidth:.infinity)
         .sheet(isPresented: $showSaved) {
             SavedEpisodes()

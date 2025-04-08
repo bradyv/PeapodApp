@@ -60,7 +60,7 @@ struct EpisodeItem: View {
                                     .lineLimit(4)
                                     .layoutPriority(2)
                                 
-                                Spacer().frame(height:4)
+                                Spacer()
                                 
                                 Text(parseHtml(episode.episodeDescription ?? "Episode description"))
                                     .foregroundStyle(.white.opacity(0.75))
@@ -81,7 +81,7 @@ struct EpisodeItem: View {
                         )
                     
                     Text(parseHtml(episode.episodeDescription ?? "Episode description"))
-                        .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
+                        .foregroundStyle(Color.text)
                         .textBody()
                 }
                 .frame(maxWidth:.infinity, alignment: .leading)

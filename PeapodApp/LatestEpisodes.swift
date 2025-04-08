@@ -20,13 +20,13 @@ struct LatestEpisodes: View {
     
     
     var body: some View {
+        Spacer().frame(height:24)
+        Text("Latest Episodes")
+            .titleSerif()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading)
+        
         ScrollView {
-            Spacer().frame(height:24)
-            Text("Latest Episodes")
-                .titleSerif()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading)
-            
             LazyVStack(alignment: .leading) {
                 ForEach(latest, id: \.id) { episode in
                     EpisodeItem(episode: episode)

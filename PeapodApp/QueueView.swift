@@ -28,11 +28,16 @@ struct QueueView: View {
 
             if queue.isEmpty {
                 ZStack {
-                    Text("New episodes are automatically added to the queue.")
-                        .textBody()
+                    VStack {
+                        Text("Nothing to play")
+                            .titleCondensed()
+                        
+                        Text("New episodes are automatically added to the queue.")
+                            .textBody()
+                    }
                     
                     ScrollView(.horizontal) {
-                        LazyHStack {
+                        LazyHStack(spacing:16) {
                             EmptyQueueItem()
                             EmptyQueueItem()
                         }
@@ -49,7 +54,7 @@ struct QueueView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        HStack {
+                        LazyHStack(spacing:16) {
                             ForEach(queue, id: \.id) { episode in
                                 QueueItem(episode: episode)
                                     .id(episode.id)

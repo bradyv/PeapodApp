@@ -20,8 +20,11 @@ struct EpisodeView: View {
                     Spacer().frame(height:76)
                     EpisodeItem(episode: episode, displayedFullscreen:true)
                         .padding(.horizontal)
+                    
+                    Spacer().frame(height:64)
                 }
                 .maskEdge(.top)
+                .maskEdge(.bottom)
                 .padding(.top,88)
                 
                 VStack {

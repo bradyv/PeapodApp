@@ -47,3 +47,20 @@ func parseHtml(_ html: String) -> String {
     }
 }
 
+func parseHtmlToAttributed(_ html: String) -> AttributedString {
+    guard let data = html.data(using: .utf8) else { return AttributedString("Error loading description") }
+
+    do {
+        let attributed = try NSMutableAttributedString(
+            data: data,
+            options: [
+                .documentType: NSAttributedString.DocumentType.html,
+                .characterEncoding: String.Encoding.utf8.rawValue
+            ],
+            documentAttributes: nil
+        )
+        return try AttributedString(attributed, including: \.uiKit)
+    } catch {
+        return AttributedString("Error loading description")
+    }
+}

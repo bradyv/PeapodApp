@@ -35,8 +35,8 @@ struct EpisodeView: View {
                             Rectangle()
                                 .frame(maxWidth:.infinity).frame(height:1)
                                 .foregroundStyle(Color.surface)
-                            VStack {
-                                VStack {
+                            VStack(spacing:16) {
+                                VStack(spacing:2) {
                                     CustomSlider(
                                         value: Binding<Double>(
                                             get: { player.getProgress(for: episode) },

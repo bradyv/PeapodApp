@@ -31,7 +31,7 @@ struct QueueItem: View {
                 Spacer()
             }
         }
-        .frame(width: frame, height: 450)
+        .frame(width: frame, height: 400)
         .background(Color(hex: episode.episodeTint)?.darkened(by:0.3) ?? Color(hex: episode.podcast?.podcastTint)?.darkened(by:0.3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
@@ -40,6 +40,7 @@ struct QueueItem: View {
 
 struct EmptyQueueItem: View {
     var body: some View {
+        let frame = UIScreen.main.bounds.width - 100
         VStack {
             HStack {
                 Rectangle()
@@ -79,7 +80,7 @@ struct EmptyQueueItem: View {
             .frame(maxWidth:.infinity, alignment:.leading)
             .padding(.horizontal).padding(.bottom,16)
         }
-        .frame(width: 250, height: 250, alignment:.bottomLeading)
+        .frame(width: frame, height: 250, alignment:.bottomLeading)
         .background(Color.heading.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }

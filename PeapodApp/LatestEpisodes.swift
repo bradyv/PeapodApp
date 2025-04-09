@@ -21,15 +21,17 @@ struct LatestEpisodes: View {
     
     var body: some View {
         Spacer().frame(height:24)
-        Text("Latest Episodes")
-            .titleSerif()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading).padding(.top,24)
+        FadeInView(delay: 0.2) {
+            Text("Latest Episodes")
+                .titleSerif()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading).padding(.top,24)
+        }
         
-        ScrollView {
-            LazyVStack(alignment: .leading) {
-                ForEach(Array(latest.enumerated()), id: \.1.id) { index, episode in
-                    FadeInView(delay: Double(index) * 0.2) {
+        FadeInView(delay: 0.3) {
+            ScrollView {
+                LazyVStack(alignment: .leading) {
+                    ForEach(latest, id: \.id) { episode in
                         EpisodeItem(episode: episode)
                             .lineLimit(3)
                             .padding(.bottom, 24)
@@ -38,17 +40,17 @@ struct LatestEpisodes: View {
                                 selectedEpisode = episode
                             }
                     }
-                }
-                .sheet(item: $selectedEpisode) { episode in
-                    EpisodeView(episode: episode)
-                        .modifier(PPSheet())
+                    .sheet(item: $selectedEpisode) { episode in
+                        EpisodeView(episode: episode)
+                            .modifier(PPSheet())
+                    }
                 }
             }
+            .maskEdge(.bottom)
+            .refreshable {
+                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+            }
+            .ignoresSafeArea(edges: .all)
         }
-        .maskEdge(.bottom)
-        .refreshable {
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-        }
-        .ignoresSafeArea(edges: .all)
     }
 }

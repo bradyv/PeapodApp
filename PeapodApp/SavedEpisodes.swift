@@ -21,10 +21,12 @@ struct SavedEpisodes: View {
             ZStack {
                 ScrollView {
                     Spacer().frame(height:24)
-                    Text("Starred")
-                        .titleSerif()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,24)
+                    FadeInView(delay: 0.2) {
+                        Text("Starred")
+                            .titleSerif()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading).padding(.top,24)
+                    }
                     
                     EmptyEpisodeItem()
                         .opacity(0.03)
@@ -43,25 +45,29 @@ struct SavedEpisodes: View {
                                    startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
                 )
                 
-                VStack {
-                    Text("No starred episodes")
-                        .titleCondensed()
-                    
-                    Text("Tap \(Image(systemName:"star")) on any episode you'd like to save for later.")
-                        .textBody()
+                FadeInView(delay: 0.3) {
+                    VStack {
+                        Text("No starred episodes")
+                            .titleCondensed()
+                        
+                        Text("Tap \(Image(systemName:"star")) on any episode you'd like to save for later.")
+                            .textBody()
+                    }
+                    .frame(maxWidth:.infinity, maxHeight:.infinity)
                 }
-                .frame(maxWidth:.infinity, maxHeight:.infinity)
             }
         } else {
             ScrollView {
                 Spacer().frame(height:24)
-                Text("Starred")
-                    .titleSerif()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading).padding(.top,24)
+                FadeInView(delay: 0.2) {
+                    Text("Starred")
+                        .titleSerif()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading).padding(.top,24)
+                }
                 
-                ForEach(Array(saved.enumerated()), id: \.1.id) { index, episode in
-                    FadeInView(delay: Double(index) * 0.2) {
+                ForEach(saved, id: \.id) { episode in
+                    FadeInView(delay: 0.3) {
                         EpisodeItem(episode: episode, savedView:true)
                             .lineLimit(3)
                             .padding(.bottom, 24)

@@ -8,6 +8,12 @@
 import SwiftUI
 
 struct LibraryView: View {
+    @FetchRequest(
+        sortDescriptors: [SortDescriptor(\.title)],
+        predicate: NSPredicate(format: "isSubscribed == YES"),
+        animation: .default
+    ) var subscriptions: FetchedResults<Podcast>
+    
     @State private var showSearch = false
     @State private var showSaved = false
     @State private var showLatest = false
@@ -32,41 +38,43 @@ struct LibraryView: View {
             
             Spacer()
             
-            VStack(spacing: 8) {
-                HStack(spacing: 12) {
-                    Image(systemName: "app.badge")
-                        .frame(width: 24, alignment: .center)
-                        .textBody()
-                    Text("Latest Episodes")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textRow()
-                    Image(systemName: "chevron.right")
-                        .frame(width: 16, alignment: .trailing)
-                        .textBody()
+            if !subscriptions.isEmpty {
+                VStack(spacing: 8) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "app.badge")
+                            .frame(width: 24, alignment: .center)
+                            .textBody()
+                        Text("Latest Episodes")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textRow()
+                        Image(systemName: "chevron.right")
+                            .frame(width: 16, alignment: .trailing)
+                            .textBody()
+                    }
+                    .onTapGesture {
+                        showLatest.toggle()
+                    }
+                    
+                    Divider()
+                    
+                    HStack(spacing: 12) {
+                        Image(systemName: "star")
+                            .frame(width: 24, alignment: .center)
+                            .textBody()
+                        Text("Starred Episodes")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textRow()
+                        Image(systemName: "chevron.right")
+                            .frame(width: 16, alignment: .trailing)
+                            .textBody()
+                    }
+                    .onTapGesture {
+                        showSaved.toggle()
+                    }
+                    
+                    
+                    Divider()
                 }
-                .onTapGesture {
-                    showLatest.toggle()
-                }
-                
-                Divider()
-                
-                HStack(spacing: 12) {
-                    Image(systemName: "star")
-                        .frame(width: 24, alignment: .center)
-                        .textBody()
-                    Text("Starred Episodes")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textRow()
-                    Image(systemName: "chevron.right")
-                        .frame(width: 16, alignment: .trailing)
-                        .textBody()
-                }
-                .onTapGesture {
-                    showSaved.toggle()
-                }
-                
-                
-                Divider()
             }
         }
         .padding(.horizontal).padding(.top,24)

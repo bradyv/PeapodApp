@@ -111,9 +111,9 @@ struct PodcastDetailView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
                                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
                                     .shadow(color:
-                                                (Color(hex: podcast.podcastTint)?.opacity(0.35))
+                                                (Color(hex: podcast.podcastTint)?.opacity(0.45))
                                             ?? Color.black.opacity(0.35),
-                                            radius: 32
+                                            radius: 128
                                     )
                                 
                                 Spacer()

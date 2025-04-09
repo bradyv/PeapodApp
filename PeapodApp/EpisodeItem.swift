@@ -53,14 +53,12 @@ struct EpisodeItem: View {
                         .frame(maxWidth: .infinity)
                         .hidden()
                         .overlay(alignment:.top) {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing:8) {
                                 Text(episode.title ?? "Episode title")
                                     .foregroundStyle(.white)
                                     .titleCondensed()
                                     .lineLimit(4)
                                     .layoutPriority(2)
-                                
-                                Spacer()
                                 
                                 Text(parseHtml(episode.episodeDescription ?? "Episode description"))
                                     .foregroundStyle(.white.opacity(0.75))
@@ -114,9 +112,6 @@ struct EpisodeItem: View {
 
                             if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
                                 let isQQ = displayedInQueue
-//                                let durationToUse = player.currentEpisode?.id == episode.id && player.duration > 1
-//                                    ? player.duration
-//                                    : Double(player.getRemainingTime(for: episode)) // bv
                                 
                                 CustomSlider(
                                     value: Binding(

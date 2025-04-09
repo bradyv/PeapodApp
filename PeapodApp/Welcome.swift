@@ -21,7 +21,7 @@ struct Welcome: View {
     var body: some View {
         VStack {
             if showPodcasts {
-                Spacer().frame(height:64)
+                Spacer().frame(height:128 )
             }
             Image("Peapod")
             
@@ -64,7 +64,6 @@ struct Welcome: View {
                                         Text("Continue")
                                     }
                                     .buttonStyle(PPButton(type: .filled, colorStyle: .tinted, medium: true))
-                                    .transition(.scale)
                                     .animation(.easeInOut(duration: 0.5), value: showButton)
                                 }
                             }

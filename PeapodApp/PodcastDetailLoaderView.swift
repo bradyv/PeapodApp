@@ -18,7 +18,10 @@ struct PodcastDetailLoaderView: View {
             if let podcast = loadedPodcast {
                 PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
             } else {
-                ProgressView("Loading...")
+                VStack {
+                    ProgressView("Loading...")
+                }
+                .frame(maxWidth:.infinity,maxHeight:.infinity)
             }
         }
         .onAppear(perform: loadFeed)

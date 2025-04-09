@@ -64,12 +64,14 @@ struct PodcastDetailView: View {
                                     Spacer().frame(height:24)
                                 }
                                 
-                                FadeInView(delay: 0.4) {
-                                    LazyVStack(alignment: .leading) {
-                                        if let latestEpisode = episodes.first {
+                                LazyVStack(alignment: .leading) {
+                                    if let latestEpisode = episodes.first {
+                                        FadeInView(delay: 0.4) {
                                             Text("Latest Episode")
                                                 .headerSection()
-                                            
+                                        }
+                                        
+                                        FadeInView(delay: 0.5) {
                                             EpisodeItem(episode: latestEpisode)
                                                 .lineLimit(3)
                                                 .padding(.bottom, 24)
@@ -77,13 +79,17 @@ struct PodcastDetailView: View {
                                                     selectedEpisode = latestEpisode
                                                 }
                                         }
-                                        
-                                        let remainingEpisodes = Array(episodes.dropFirst())
-                                        
-                                        if !remainingEpisodes.isEmpty {
+                                    }
+                                    
+                                    let remainingEpisodes = Array(episodes.dropFirst())
+                                    
+                                    if !remainingEpisodes.isEmpty {
+                                        FadeInView(delay: 0.6) {
                                             Text("Episodes")
                                                 .headerSection()
-                                            
+                                        }
+                                        
+                                        FadeInView(delay: 0.7) {
                                             ForEach(Array(remainingEpisodes.enumerated()), id: \.1.id) { index, episode in
                                                 FadeInView(delay: Double(index) * 0.2) {
                                                     EpisodeItem(episode: episode)
@@ -96,10 +102,10 @@ struct PodcastDetailView: View {
                                             }
                                         }
                                     }
-                                    .sheet(item: $selectedEpisode) { episode in
-                                        EpisodeView(episode: episode)
-                                            .modifier(PPSheet())
-                                    }
+                                }
+                                .sheet(item: $selectedEpisode) { episode in
+                                    EpisodeView(episode: episode)
+                                        .modifier(PPSheet())
                                 }
 
                             }

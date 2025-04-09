@@ -21,21 +21,10 @@ struct LibraryView: View {
     var body: some View {
         VStack(alignment:.leading) {
             
-            HStack {
-                Text("Library")
-                    .titleSerif()
-                
-                Spacer()
-                
-//                Button(action: {
-//                    showSearch.toggle()
-//                    print("Open search")
-//                }) {
-//                    Image(systemName: "plus.magnifyingglass")
-//                }
-//                .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-            }
-            
+            Text("Library")
+                .titleSerif()
+                .frame(maxWidth:.infinity, alignment:.leading)
+        
             Spacer()
             
             if !subscriptions.isEmpty {

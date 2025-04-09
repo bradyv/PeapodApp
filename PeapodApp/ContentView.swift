@@ -11,6 +11,11 @@ import CoreData
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @FetchRequest(
+        sortDescriptors: [SortDescriptor(\.title)],
+        predicate: NSPredicate(format: "isSubscribed == YES"),
+        animation: .default
+    ) var subscriptions: FetchedResults<Podcast>
     
     var body: some View {
         ZStack {
@@ -27,6 +32,7 @@ struct ContentView: View {
                     EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
                 }
             }
+            .scrollDisabled(subscriptions.isEmpty)
             .refreshable {
                 EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
             }

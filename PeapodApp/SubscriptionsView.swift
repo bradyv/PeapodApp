@@ -21,8 +21,10 @@ struct SubscriptionsView: View {
     
     var body: some View {
         VStack(alignment:.leading) {
-            Text("My Shows")
-                .headerSection()
+            if !subscriptions.isEmpty {
+                Text("My Shows")
+                    .headerSection()
+            }
             
             ZStack(alignment: .topLeading) {
                 // Actual grid with Add button + (possibly empty) real subscriptions

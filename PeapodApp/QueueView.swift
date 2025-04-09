@@ -15,6 +15,11 @@ struct QueueView: View {
         animation: .interactiveSpring()
     )
     var queue: FetchedResults<Episode>
+    @FetchRequest(
+        sortDescriptors: [SortDescriptor(\.title)],
+        predicate: NSPredicate(format: "isSubscribed == YES"),
+        animation: .default
+    ) var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
 
     // Add scroll proxy trigger
@@ -33,7 +38,7 @@ struct QueueView: View {
                         Text("Nothing to play")
                             .titleCondensed()
                         
-                        Text("New episodes are automatically added to the queue.")
+                        Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes from your shows will be added to the queue.")
                             .textBody()
                     }
                     

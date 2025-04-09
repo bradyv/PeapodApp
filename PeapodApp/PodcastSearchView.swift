@@ -57,18 +57,22 @@ struct PodcastSearchView: View {
             
             if query.isEmpty {
                 ScrollView {
-                    Text("Top Podcasts")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment:.leading)
+                    FadeInView(delay: 0.2) {
+                        Text("Top Podcasts")
+                            .headerSection()
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                    }
                     
                     LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(topPodcasts, id: \.id) { podcast in
+                        ForEach(Array(topPodcasts.enumerated()), id: \.1.id) { index, podcast in
                             VStack {
-                                KFImage(URL(string: podcast.artworkUrl600))
-                                    .resizable()
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                FadeInView(delay: Double(index) * 0.05) {
+                                    KFImage(URL(string: podcast.artworkUrl600))
+                                        .resizable()
+                                        .aspectRatio(1, contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                }
                             }
                             .onTapGesture {
                                 selectedPodcast = podcast

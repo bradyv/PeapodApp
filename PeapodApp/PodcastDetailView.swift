@@ -47,54 +47,61 @@ struct PodcastDetailView: View {
                     ZStack {
                         ScrollView {
                             VStack {
-                                Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
-                                    .textBody()
-                                    .lineLimit(showFullDescription ? nil :  3)
-                                    .frame(maxWidth:.infinity, alignment:.leading)
-                                    .onTapGesture {
-                                        withAnimation {
-                                            showFullDescription.toggle()
-                                        }
-                                        print(showFullDescription)
-                                    }
-                                    .transition(.move(edge: .trailing).combined(with: .opacity))
-                                    .animation(.easeOut(duration: 0.15), value: showFullDescription)
-                                
-                                Spacer().frame(height:24)
-                                
-                                LazyVStack(alignment: .leading) {
-                                    if let latestEpisode = episodes.first {
-                                        Text("Latest Episode")
-                                            .headerSection()
-                                        
-                                        EpisodeItem(episode: latestEpisode)
-                                            .lineLimit(3)
-                                            .padding(.bottom, 24)
-                                            .onTapGesture {
-                                                selectedEpisode = latestEpisode
+                                FadeInView(delay: 0.3) {
+                                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
+                                        .textBody()
+                                        .lineLimit(showFullDescription ? nil :  3)
+                                        .frame(maxWidth:.infinity, alignment:.leading)
+                                        .onTapGesture {
+                                            withAnimation {
+                                                showFullDescription.toggle()
                                             }
-                                    }
+                                            print(showFullDescription)
+                                        }
+                                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
                                     
-                                    let remainingEpisodes = Array(episodes.dropFirst())
-                                    
-                                    if !remainingEpisodes.isEmpty {
-                                        Text("Episodes")
-                                            .headerSection()
-                                        
-                                        ForEach(remainingEpisodes, id: \.id) { episode in
-                                            EpisodeItem(episode: episode)
+                                    Spacer().frame(height:24)
+                                }
+                                
+                                FadeInView(delay: 0.4) {
+                                    LazyVStack(alignment: .leading) {
+                                        if let latestEpisode = episodes.first {
+                                            Text("Latest Episode")
+                                                .headerSection()
+                                            
+                                            EpisodeItem(episode: latestEpisode)
                                                 .lineLimit(3)
                                                 .padding(.bottom, 24)
                                                 .onTapGesture {
-                                                    selectedEpisode = episode
+                                                    selectedEpisode = latestEpisode
                                                 }
                                         }
+                                        
+                                        let remainingEpisodes = Array(episodes.dropFirst())
+                                        
+                                        if !remainingEpisodes.isEmpty {
+                                            Text("Episodes")
+                                                .headerSection()
+                                            
+                                            ForEach(Array(remainingEpisodes.enumerated()), id: \.1.id) { index, episode in
+                                                FadeInView(delay: Double(index) * 0.2) {
+                                                    EpisodeItem(episode: episode)
+                                                        .lineLimit(3)
+                                                        .padding(.bottom, 24)
+                                                        .onTapGesture {
+                                                            selectedEpisode = episode
+                                                        }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .sheet(item: $selectedEpisode) { episode in
+                                        EpisodeView(episode: episode)
+                                            .modifier(PPSheet())
                                     }
                                 }
-                                .sheet(item: $selectedEpisode) { episode in
-                                    EpisodeView(episode: episode)
-                                        .modifier(PPSheet())
-                                }
+
                             }
                             .padding(.top,52)
                             .padding()
@@ -105,41 +112,45 @@ struct PodcastDetailView: View {
                         
                         VStack {
                             HStack(alignment:.top) {
-                                KFImage(URL(string:podcast.image ?? ""))
-                                    .resizable()
-                                    .frame(width: 128, height: 128)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                    .shadow(color:
-                                                (Color(hex: podcast.podcastTint)?.opacity(0.45))
-                                            ?? Color.black.opacity(0.35),
-                                            radius: 128
-                                    )
-                                
-                                Spacer()
-                                
-                                Button(action: {
-                                    showSearch.toggle()
-                                }) {
-                                    Label("Search \(podcast.title ?? "episodes"))", systemImage: "text.magnifyingglass")
-                                }
-                                .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                                
-                                Button(action: {
-                                    podcast.isSubscribed.toggle()
+                                FadeInView(delay: 0.1) {
+                                    KFImage(URL(string:podcast.image ?? ""))
+                                        .resizable()
+                                        .frame(width: 128, height: 128)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                        .shadow(color:
+                                                    (Color(hex: podcast.podcastTint)?.opacity(0.45))
+                                                ?? Color.black.opacity(0.35),
+                                                radius: 128
+                                        )
                                     
-                                    if podcast.isSubscribed,
-                                       let latest = (podcast.episode?.array as? [Episode])?
-                                        .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                        .first {
-                                        latest.isQueued = true
+                                    Spacer()
+                                }
+                                
+                                FadeInView(delay: 0.5) {
+                                    Button(action: {
+                                        showSearch.toggle()
+                                    }) {
+                                        Label("Search \(podcast.title ?? "episodes"))", systemImage: "text.magnifyingglass")
                                     }
+                                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                                     
-                                    try? podcast.managedObjectContext?.save()
-                                }) {
-                                    Text(podcast.isSubscribed ? "Unfollow" : "Follow")
+                                    Button(action: {
+                                        podcast.isSubscribed.toggle()
+                                        
+                                        if podcast.isSubscribed,
+                                           let latest = (podcast.episode?.array as? [Episode])?
+                                            .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                                            .first {
+                                            latest.isQueued = true
+                                        }
+                                        
+                                        try? podcast.managedObjectContext?.save()
+                                    }) {
+                                        Text(podcast.isSubscribed ? "Unfollow" : "Follow")
+                                    }
+                                    .buttonStyle(PPButton(type:podcast.isSubscribed ? .transparent : .filled, colorStyle:podcast.isSubscribed ? .tinted : .monochrome))
                                 }
-                                .buttonStyle(PPButton(type:podcast.isSubscribed ? .transparent : .filled, colorStyle:podcast.isSubscribed ? .tinted : .monochrome))
                             }
                             Spacer()
                         }

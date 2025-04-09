@@ -28,14 +28,16 @@ struct LatestEpisodes: View {
         
         ScrollView {
             LazyVStack(alignment: .leading) {
-                ForEach(latest, id: \.id) { episode in
-                    EpisodeItem(episode: episode)
-                        .lineLimit(3)
-                        .padding(.bottom, 24)
-                        .padding(.horizontal)
-                        .onTapGesture {
-                            selectedEpisode = episode
-                        }
+                ForEach(Array(latest.enumerated()), id: \.1.id) { index, episode in
+                    FadeInView(delay: Double(index) * 0.2) {
+                        EpisodeItem(episode: episode)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
+                    }
                 }
                 .sheet(item: $selectedEpisode) { episode in
                     EpisodeView(episode: episode)

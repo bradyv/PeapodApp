@@ -60,14 +60,16 @@ struct SavedEpisodes: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading).padding(.top,24)
                 
-                ForEach(saved, id: \.id) { episode in
-                    EpisodeItem(episode: episode, savedView:true)
-                        .lineLimit(3)
-                        .padding(.bottom, 24)
-                        .padding(.horizontal)
-                        .onTapGesture {
-                            selectedEpisode = episode
-                        }
+                ForEach(Array(saved.enumerated()), id: \.1.id) { index, episode in
+                    FadeInView(delay: Double(index) * 0.2) {
+                        EpisodeItem(episode: episode, savedView:true)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
+                    }
                 }
                 .sheet(item: $selectedEpisode) { episode in
                     EpisodeView(episode: episode)

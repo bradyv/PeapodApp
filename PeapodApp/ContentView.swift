@@ -20,9 +20,15 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             ScrollView {
-                QueueView()
-                LibraryView()
-                SubscriptionsView()
+                FadeInView(delay: 0.1) {
+                    QueueView()
+                }
+                FadeInView(delay: 0.2) {
+                    LibraryView()
+                }
+                FadeInView(delay: 0.3) {
+                    SubscriptionsView()
+                }
             }
             .onAppear {
                 EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)

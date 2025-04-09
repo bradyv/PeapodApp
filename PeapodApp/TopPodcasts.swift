@@ -32,9 +32,14 @@ struct TopPodcasts: View {
 
                     if let _ = onTapPodcast {
                         if subscribedFeedURLs.contains(podcast.feedUrl) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.green)
-                                .padding(6)
+                            Circle()
+                                .frame(width:24,height:24)
+                                .foregroundStyle(Color.accentColor)
+                                .overlay(
+                                    Image(systemName: "checkmark").foregroundColor(.background)
+                                        .font(.system(size: 10, weight: .semibold))
+                                )
+                                .overlay(Circle().stroke(Color.background, lineWidth: 2))
                         } else if loadingFeedURLs.contains(podcast.feedUrl) {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle())
@@ -42,10 +47,13 @@ struct TopPodcasts: View {
                                 .padding(6)
                         } else {
                             Circle()
-                                .frame(width: 36, height: 36)
-                                .foregroundStyle(Color.red)
-                                .overlay(Image(systemName: "plus").foregroundColor(.white))
-                                .padding(6)
+                                .frame(width:24,height:24)
+                                .foregroundStyle(Color.gray)
+                                .overlay(
+                                    Image(systemName: "plus").foregroundColor(.white)
+                                        .font(.system(size: 12, weight: .semibold))
+                                )
+                                .overlay(Circle().stroke(Color.background, lineWidth: 2))
                                 .onTapGesture {
                                     Task {
                                         loadingFeedURLs.insert(podcast.feedUrl)

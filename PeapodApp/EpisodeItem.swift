@@ -109,7 +109,7 @@ struct EpisodeItem: View {
                                     Image(systemName: "play.circle.fill")
                                 }
                             }
-
+                            
                             if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
                                 let isQQ = displayedInQueue
                                 
@@ -127,7 +127,7 @@ struct EpisodeItem: View {
                                     isDraggable: false, isQQ: isQQ
                                 )
                                 .frame(width: 32)
-
+                                
                                 Text(player.getRemainingTimePretty(for: episode))
                             } else {
                                 Text(formatDuration(seconds: Int((episode.duration))))
@@ -136,18 +136,18 @@ struct EpisodeItem: View {
                     }
                     .buttonStyle(
                         displayedInQueue
-                            ? PPButton(
-                                type: .filled,
-                                colorStyle: .monochrome,
-                                customColors: ButtonCustomColors(
-                                    foreground: .black,
-                                    background: .white
-                                )
+                        ? PPButton(
+                            type: .filled,
+                            colorStyle: .monochrome,
+                            customColors: ButtonCustomColors(
+                                foreground: .black,
+                                background: .white
                             )
-                            : PPButton(
-                                type: .filled,
-                                colorStyle: .monochrome
-                            )
+                        )
+                        : PPButton(
+                            type: .filled,
+                            colorStyle: .monochrome
+                        )
                     )
                     
                     Button(action: {
@@ -174,24 +174,24 @@ struct EpisodeItem: View {
                     }
                     .buttonStyle(
                         displayedInQueue
-                            ? PPButton(
-                                type: .transparent,
-                                colorStyle: .monochrome,
-                                iconOnly: true,
-                                customColors: ButtonCustomColors(
-                                    foreground: .white,
-                                    background: .white.opacity(0.15)
-                                )
+                        ? PPButton(
+                            type: .transparent,
+                            colorStyle: .monochrome,
+                            iconOnly: true,
+                            customColors: ButtonCustomColors(
+                                foreground: .white,
+                                background: .white.opacity(0.15)
                             )
-                            : episode.isQueued
-                                ? PPButton(
-                                    type: .filled,
-                                    colorStyle: .tinted
-                                    )
-                                : PPButton(
-                                    type: .transparent,
-                                    colorStyle: .monochrome
-                                )
+                        )
+                        : episode.isQueued
+                        ? PPButton(
+                            type: .filled,
+                            colorStyle: .tinted
+                        )
+                        : PPButton(
+                            type: .transparent,
+                            colorStyle: .monochrome
+                        )
                     )
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                     .animation(.easeOut(duration: 0.3), value: episode.isQueued)

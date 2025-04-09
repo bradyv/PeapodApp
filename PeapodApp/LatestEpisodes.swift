@@ -28,7 +28,7 @@ struct LatestEpisodes: View {
                 .padding(.leading).padding(.top,24)
         }
         
-        FadeInView(delay: 0.3) {
+        FadeInView(delay: 0.4) {
             ScrollView {
                 LazyVStack(alignment: .leading) {
                     ForEach(latest, id: \.id) { episode in

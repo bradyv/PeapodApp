@@ -44,7 +44,7 @@ struct SubscriptionsView: View {
 
                     // Real podcasts
                     if !subscriptions.isEmpty {
-                        ForEach(subscriptions) { podcast in
+                        ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" })) { podcast in
                             KFImage(URL(string: podcast.image ?? ""))
                                 .resizable()
                                 .clipShape(RoundedRectangle(cornerRadius: 16))

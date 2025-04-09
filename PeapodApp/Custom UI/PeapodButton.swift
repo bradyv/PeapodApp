@@ -12,6 +12,43 @@ struct ButtonCustomColors {
     var background: Color
 }
 
+struct ShadowButton: ButtonStyle {
+    var iconOnly: Bool = false
+    var filled: Bool = false
+    var borderless: Bool = false
+    
+    func makeBody(configuration: Configuration) -> some View {
+        let isPressed = configuration.isPressed
+        
+        return HStack(spacing: iconOnly ? 0 : 2) {
+            configuration.label
+        }
+        .if(iconOnly, transform: { $0.labelStyle(.iconOnly) })
+        .padding(.horizontal,iconOnly ? 9 : 12)
+        .padding(.vertical, 8)
+        .if(!borderless,
+            transform: {
+                $0.background(filled ? Color.accentColor : .white)
+        })
+        .foregroundStyle(Color.heading)
+        .textBody()
+        .clipShape(Capsule())
+        .if(!borderless,
+            transform: {
+            $0.shadow(color: filled ? Color.accentColor.opacity(0.25) : .black.opacity(0.03), radius: 1, x: 0, y: 2)
+        })
+        .if(!borderless,
+            transform: {
+            $0.overlay(
+                Capsule()
+                .stroke(.black.opacity(0.1), lineWidth: 1)
+            )
+        })
+        .scaleEffect(isPressed ? 0.95 : 1)
+        .animation(.easeOut(duration: 0.2), value: isPressed)
+    }
+}
+
 struct PPButton: ButtonStyle {
     enum ButtonType {
         case filled, transparent

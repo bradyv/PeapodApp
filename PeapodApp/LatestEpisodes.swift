@@ -20,16 +20,16 @@ struct LatestEpisodes: View {
     
     
     var body: some View {
-        Spacer().frame(height:24)
-        FadeInView(delay: 0.2) {
-            Text("Latest Episodes")
-                .titleSerif()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading).padding(.top,24)
-        }
-        
-        FadeInView(delay: 0.4) {
-            ScrollView {
+        ScrollView {
+            Spacer().frame(height:24)
+            FadeInView(delay: 0.2) {
+                Text("Latest Episodes")
+                    .titleSerif()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading).padding(.top,24)
+            }
+            
+            FadeInView(delay: 0.4) {
                 LazyVStack(alignment: .leading) {
                     ForEach(latest, id: \.id) { episode in
                         EpisodeItem(episode: episode)
@@ -46,11 +46,11 @@ struct LatestEpisodes: View {
                     }
                 }
             }
-            .maskEdge(.bottom)
-            .refreshable {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-            }
-            .ignoresSafeArea(edges: .all)
         }
+        .maskEdge(.bottom)
+        .onAppear {
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+        }
+        .ignoresSafeArea(edges: .all)
     }
 }

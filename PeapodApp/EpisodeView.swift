@@ -58,13 +58,13 @@ struct EpisodeView: View {
                                 }
                                 
                                 HStack {
-                                    AirPlayButton()
-                                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
-                                    
-                                    Spacer()
-                                    
                                     HStack {
                                         if episode.isQueued {
+                                            AirPlayButton()
+                                                .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                                            
+                                            Spacer()
+                                            
                                             HStack(spacing:16) {
                                                 Button(action: {
                                                     player.skipBackward(seconds:15)
@@ -100,41 +100,41 @@ struct EpisodeView: View {
                                             .background(Color.surface)
                                             .clipShape(Capsule())
                                             
+                                            Spacer()
+                                            
+                                            Button(action: {
+                                                episode.isSaved.toggle()
+                                                try? episode.managedObjectContext?.save()
+                                            }) {
+                                                Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
+                                            }
+                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                                            .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+                                            
                                         } else {
+                                            Button(action: {
+                                                withAnimation {
+                                                    player.togglePlayback(for: episode)
+                                                }
+                                            }) {
+                                                Label("Listen now", systemImage: "play.fill")
+                                                    .frame(maxWidth:.infinity)
+                                            }
+                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+                                            
                                             Button(action: {
                                                 withAnimation {
                                                     toggleQueued(episode)
                                                 }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label("Add to queue", systemImage: "plus.circle")
+                                                Label("Queue", systemImage: "plus.circle")
                                             }
-                                            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))
-                                            
-                                            Button(action: {
-                                                withAnimation {
-                                                    player.togglePlayback(for: episode)
-                                                }
-                                                print("Playing episode")
-                                            }) {
-                                                Label("Play", systemImage: "play.fill")
-                                            }
-                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, iconOnly: true))
+                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                                         }
                                     }
                                     .transition(.move(edge: .trailing).combined(with: .opacity))
                                     .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        episode.isSaved.toggle()
-                                        try? episode.managedObjectContext?.save()
-                                    }) {
-                                        Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
-                                    }
-                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
-                                    .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
 
                                 }
                             }
@@ -145,12 +145,12 @@ struct EpisodeView: View {
                 }
             }
             
-            if episode.isQueued {
-                FadeInView(delay: 0.5) {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            
+            FadeInView(delay: 0.5) {
+                VStack {
+                    HStack {
+                        Spacer()
+                        
+                        if episode.isQueued {
                             Button(action: {
                                 episode.isQueued.toggle()
                                 try? episode.managedObjectContext?.save()
@@ -158,12 +158,19 @@ struct EpisodeView: View {
                                 Label("Archive", systemImage: "archivebox")
                             }
                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                        } else {
+                            Button(action: {
+                                episode.isSaved.toggle()
+                                try? episode.managedObjectContext?.save()
+                            }) {
+                                Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
+                            }
+                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                            .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                         }
-                        
-                        Spacer()
                     }
-                    .padding()
                 }
+                .padding()
             }
             
             VStack {

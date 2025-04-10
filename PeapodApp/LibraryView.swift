@@ -29,7 +29,7 @@ struct LibraryView: View {
             
             if !subscriptions.isEmpty {
                 VStack(spacing: 8) {
-                    HStack(spacing: 12) {
+                    HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "app.badge")
                             .frame(width: 24, alignment: .center)
                             .textBody()
@@ -39,14 +39,17 @@ struct LibraryView: View {
                         Image(systemName: "chevron.right")
                             .frame(width: 16, alignment: .trailing)
                             .textBody()
+                            .opacity(0.25)
                     }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         showLatest.toggle()
                     }
                     
                     Divider()
                     
-                    HStack(spacing: 12) {
+                    HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "star")
                             .frame(width: 24, alignment: .center)
                             .textBody()
@@ -56,7 +59,10 @@ struct LibraryView: View {
                         Image(systemName: "chevron.right")
                             .frame(width: 16, alignment: .trailing)
                             .textBody()
+                            .opacity(0.25)
                     }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         showSaved.toggle()
                     }

@@ -10,7 +10,7 @@ import Foundation
 func formatDuration(seconds: Int) -> String {
     let hours = seconds / 3600
     let minutes = (seconds % 3600) / 60
-    return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+    return hours > 0 ? "\(hours)h \(minutes)m" : (minutes > 1 ? "\(minutes)m" : "\(seconds)s")
 }
 
 func countdown(seconds: Int) -> String {

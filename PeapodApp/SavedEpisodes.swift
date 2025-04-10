@@ -17,35 +17,28 @@ struct SavedEpisodes: View {
     @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
-        if saved.isEmpty {
-            ZStack {
-                ScrollView {
-                    Spacer().frame(height:24)
-                    FadeInView(delay: 0.2) {
-                        Text("Starred")
-                            .titleSerif()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading).padding(.top,24)
+        ScrollView {
+            Spacer().frame(height:24)
+            FadeInView(delay: 0.2) {
+                Text("Starred")
+                    .titleSerif()
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                    .padding(.leading).padding(.top,24)
+            }
+            
+            if saved.isEmpty {
+                ZStack {
+                    VStack {
+                        ForEach(0..<2, id: \.self) { _ in
+                            EmptyEpisodeItem()
+                                .opacity(0.03)
+                        }
                     }
+                    .mask(
+                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+                    )
                     
-                    EmptyEpisodeItem()
-                        .opacity(0.03)
-                    EmptyEpisodeItem()
-                        .opacity(0.03)
-                    EmptyEpisodeItem()
-                        .opacity(0.03)
-                    EmptyEpisodeItem()
-                        .opacity(0.03)
-                    EmptyEpisodeItem()
-                        .opacity(0.03)
-                }
-                .disabled(true)
-                .mask(
-                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                   startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
-                )
-                
-                FadeInView(delay: 0.3) {
                     VStack {
                         Text("No starred episodes")
                             .titleCondensed()
@@ -53,19 +46,8 @@ struct SavedEpisodes: View {
                         Text("Tap \(Image(systemName:"star")) on any episode you'd like to save for later.")
                             .textBody()
                     }
-                    .frame(maxWidth:.infinity, maxHeight:.infinity)
                 }
-            }
-        } else {
-            ScrollView {
-                Spacer().frame(height:24)
-                FadeInView(delay: 0.2) {
-                    Text("Starred")
-                        .titleSerif()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,24)
-                }
-                
+            } else {
                 ForEach(saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
                         EpisodeItem(episode: episode, savedView:true)
@@ -82,8 +64,7 @@ struct SavedEpisodes: View {
                         .modifier(PPSheet())
                 }
             }
-            .maskEdge(.bottom)
-            .ignoresSafeArea(edges: .all)
         }
+        .disabled(saved.isEmpty)
     }
 }

@@ -39,7 +39,7 @@ struct PodcastDetailView: View {
                     .transition(
                         .asymmetric(
                             insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .scale.combined(with: .opacity)
+                            removal: .move(edge: .bottom).combined(with: .opacity)
                         )
                     )
                     .padding()

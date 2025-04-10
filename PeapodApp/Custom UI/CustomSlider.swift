@@ -32,13 +32,11 @@ struct CustomSlider: View {
                         .frame(height: isDragging ? 12 : (isQQ ? 4 : 6))
                         .animation(.easeInOut(duration: 0.2), value: isDragging)
                     
-                    if layoutReady {
-                        // Progress Track (Dynamic Height)
-                        Capsule()
-                            .fill(isQQ ? Color.black : (isDraggable ? Color.heading : Color.background))
-                            .frame(width: isQQ || !isDraggable ? max(3, CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound)) * sliderWidth) : CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound)) * sliderWidth, height: isDragging ? 12 : (isQQ || !isDraggable ? 4 : 6))
-                            .animation(.easeInOut(duration: 0.2), value: isDragging)
-                    }
+                    // Progress Track (Dynamic Height)
+                    Capsule()
+                        .fill(isQQ ? Color.black : (isDraggable ? Color.heading : Color.background))
+                        .frame(width: isQQ || !isDraggable ? max(3, CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound)) * sliderWidth) : CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound)) * sliderWidth, height: isDragging ? 12 : (isQQ || !isDraggable ? 4 : 6))
+                        .animation(.easeInOut(duration: 0.2), value: isDragging)
                     
                     // Timestamp Display Above Thumb (Only show if draggable)
                     if isDragging && isDraggable {

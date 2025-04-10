@@ -153,7 +153,7 @@ struct PodcastDetailView: View {
                                     }) {
                                         Text(podcast.isSubscribed ? "Unfollow" : "Follow")
                                     }
-                                    .buttonStyle(PPButton(type:podcast.isSubscribed ? .transparent : .filled, colorStyle:.tinted))
+                                    .buttonStyle(PPButton(type:podcast.isSubscribed ? .transparent : .filled, colorStyle:.monochrome))
                                 }
                             }
                             Spacer()

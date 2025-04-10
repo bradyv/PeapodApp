@@ -53,7 +53,7 @@ struct EpisodeItem: View {
                         .frame(maxWidth: .infinity)
                         .hidden()
                         .overlay(alignment:.top) {
-                            VStack(alignment: .leading, spacing:8) {
+                            VStack(alignment: .leading, spacing:4) {
                                 Text(episode.title ?? "Episode title")
                                     .foregroundStyle(.white)
                                     .titleCondensed()
@@ -72,7 +72,7 @@ struct EpisodeItem: View {
             } else {
                 VStack(alignment:.leading, spacing:8) {
                     Text(episode.title ?? "Episode title")
-                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                        .foregroundStyle(Color.heading)
                         .if(displayedFullscreen,
                             transform: { $0.titleSerif() },
                             else: { $0.titleCondensed() }

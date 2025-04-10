@@ -86,7 +86,7 @@ struct PPButton: ButtonStyle {
         .if(large, transform: { $0.font(.system(size:26))})
         .background(borderless ? .clear : effectiveBackground(isPressed))
         .foregroundColor(effectiveForeground)
-        .textDetailEmphasis()
+        .textBodyEmphasis()
         .clipShape(Capsule())
         .scaleEffect(isPressed ? 0.95 : 1)
         .animation(.easeOut(duration: 0.2), value: isPressed)

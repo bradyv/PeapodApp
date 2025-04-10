@@ -40,7 +40,7 @@ struct PodcastEpisodeSearchView: View {
 
                     TextField("Find an episode of \(podcast.title ?? "Podcast title")", text: $query)
                         .focused($isTextFieldFocused)
-                        .textRow()
+                        .textBody()
 
                     if !query.isEmpty {
                         Button(action: {

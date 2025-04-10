@@ -27,9 +27,8 @@ extension View {
     func titleSerif() -> some View { self.typography(size: 34, weight: .regular).fontDesign(.serif) }
     func titleCondensed() -> some View { self.typography(size: 20, weight: .regular).fontWidth(.condensed) }
     func headerSection() -> some View { self.typography(size: 17, weight: .medium).fontWidth(.condensed) }
-    func textRow() -> some View { self.typography(size: 17).fontWidth(.condensed) }
-    func textBody() -> some View { self.typography(size: 15, color: .text).fontWidth(.condensed) }
-    func textDetailEmphasis() -> some View { self.modifier(TextStyle(size: 13, weight: .medium)).fontWidth(.condensed) }
-    func textDetail() -> some View { self.modifier(TextStyle(size: 13, color: .text)).fontWidth(.condensed) }
-    func textMini() -> some View { self.modifier(TextStyle(size:11, color: .text)).fontWidth(.condensed) }
+    func textBody() -> some View { self.typography(size: 17, color: .text).fontWidth(.condensed) }
+    func textBodyEmphasis() -> some View { self.typography(size: 17, weight: .medium, color: .text).fontWidth(.condensed) }
+    func textDetailEmphasis() -> some View { self.modifier(TextStyle(size: 14, weight: .medium)).fontWidth(.condensed) }
+    func textDetail() -> some View { self.modifier(TextStyle(size: 14, color: .text)).fontWidth(.condensed) }
 }

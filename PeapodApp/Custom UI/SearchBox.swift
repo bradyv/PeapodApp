@@ -16,7 +16,7 @@ struct SearchBox: View {
                 .opacity(0.35)
             
             Text("Find a podcast")
-                .textRow()
+                .textBody()
         }
         .padding(.horizontal,12)
         .padding(.vertical,8)

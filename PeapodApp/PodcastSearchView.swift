@@ -26,7 +26,7 @@ struct PodcastSearchView: View {
                         .opacity(0.35)
                     TextField("Find a podcast", text: $query)
                         .focused($isTextFieldFocused)
-                        .textRow()
+                        .textBody()
                         .onSubmit {
                             search()
                         }

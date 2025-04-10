@@ -175,7 +175,7 @@ struct EpisodeItem: View {
                                 Label("Archive", systemImage: "archivebox")
                             }
                         } else {
-                            Label(episode.isQueued ? "Queued" : "Add to queue", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
+                            Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
                         }
                     }
                     .buttonStyle(

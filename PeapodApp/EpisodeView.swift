@@ -117,7 +117,7 @@ struct EpisodeView: View {
                                                     player.togglePlayback(for: episode)
                                                 }
                                             }) {
-                                                Label("Listen now", systemImage: "play.fill")
+                                                Label("Listen Now", systemImage: "play.fill")
                                                     .frame(maxWidth:.infinity)
                                             }
                                             .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
@@ -128,7 +128,7 @@ struct EpisodeView: View {
                                                 }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label("Queue", systemImage: "plus.circle")
+                                                Label("Up Next", systemImage: "plus.circle")
                                             }
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                                         }

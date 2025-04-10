@@ -31,3 +31,15 @@ extension Color {
         return Color(uiColor.darkened(by: percentage))
     }
 }
+
+extension Color {
+    static func tint(for episode: Episode, opacity: CGFloat = 1) -> Color {
+        return (Color(hex: episode.episodeTint)?.opacity(opacity)) ??
+               tint(for: episode.podcast, opacity: opacity)
+    }
+    
+    static func tint(for podcast: Podcast?, opacity: CGFloat = 1) -> Color {
+        return (Color(hex: podcast?.podcastTint)?.opacity(opacity)) ??
+               Color.black.opacity(opacity)
+    }
+}

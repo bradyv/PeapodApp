@@ -84,27 +84,43 @@ struct PodcastSearchView: View {
                 .padding()
             } else {
                 ScrollView {
-                    ForEach(results, id: \.id) { podcast in
-                        HStack {
-                            KFImage(URL(string:podcast.artworkUrl600))
-                                .resizable()
-                                .frame(width: 44, height: 44)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                            
-                            VStack(alignment: .leading) {
-                                Text(podcast.title)
-                                    .titleCondensed()
-                                Text(podcast.author)
-                                    .textDetail()
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(.horizontal)
-                        .onTapGesture {
-                            selectedPodcast = podcast
+                    if !results.isEmpty {
+                        FadeInView(delay: 0.2) {
+                            Text("Search Results")
+                                .headerSection()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .padding(.horizontal)
                         }
                     }
+                    
+                    ForEach(results, id: \.id) { podcast in
+                        FadeInView(delay: 0.3) {
+                            HStack {
+                                KFImage(URL(string:podcast.artworkUrl600))
+                                    .resizable()
+                                    .frame(width: 44, height: 44)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                
+                                VStack(alignment: .leading) {
+                                    Text(podcast.title)
+                                        .titleCondensed()
+                                        .lineLimit(1)
+                                    Text(podcast.author)
+                                        .textDetail()
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                Image(systemName: "chevron.right")
+                                    .frame(width:12)
+                                    .textDetail()
+                            }
+                            .onTapGesture {
+                                selectedPodcast = podcast
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
                 }
                 .frame(maxWidth:.infinity)
             }

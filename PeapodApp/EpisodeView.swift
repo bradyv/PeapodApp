@@ -32,9 +32,6 @@ struct EpisodeView: View {
                 FadeInView(delay: 0.4) {
                     VStack {
                         VStack(spacing:16) {
-                            Rectangle()
-                                .frame(maxWidth:.infinity).frame(height:1)
-                                .foregroundStyle(Color.surface)
                             VStack(spacing:16) {
                                 VStack(spacing:2) {
                                     CustomSlider(
@@ -62,37 +59,46 @@ struct EpisodeView: View {
                                 
                                 HStack {
                                     AirPlayButton()
-                                        .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
                                     
                                     Spacer()
                                     
                                     HStack {
                                         if episode.isQueued {
-                                            Button(action: {
-                                                player.skipBackward(seconds:15)
-                                                print("Seeking back")
-                                            }) {
-                                                Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                                            HStack(spacing:16) {
+                                                Button(action: {
+                                                    player.skipBackward(seconds:15)
+                                                    print("Seeking back")
+                                                }) {
+                                                    Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                                                }
+                                                .disabled(!player.isPlayingEpisode(episode))
+                                                .labelStyle(.iconOnly)
+                                                .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
+                                                
+                                                Button(action: {
+                                                    player.togglePlayback(for: episode)
+                                                    print("Playing episode")
+                                                }) {
+                                                    Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
+                                                        .font(.title)
+                                                }
+                                                .labelStyle(.iconOnly)
+                                                .foregroundStyle(Color.heading)
+                                                
+                                                Button(action: {
+                                                    player.skipForward(seconds: 30)
+                                                    print("Going forward")
+                                                }) {
+                                                    Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
+                                                }
+                                                .disabled(!player.isPlayingEpisode(episode))
+                                                .labelStyle(.iconOnly)
+                                                .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
                                             }
-                                            .disabled(!player.isPlayingEpisode(episode))
-                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-                                            
-                                            Button(action: {
-                                                player.togglePlayback(for: episode)
-                                                print("Playing episode")
-                                            }) {
-                                                Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
-                                            }
-                                            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
-                                            
-                                            Button(action: {
-                                                player.skipForward(seconds: 30)
-                                                print("Going forward")
-                                            }) {
-                                                Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
-                                            }
-                                            .disabled(!player.isPlayingEpisode(episode))
-                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                            .padding(.vertical).padding(.horizontal,18)
+                                            .background(Color.surface)
+                                            .clipShape(Capsule())
                                             
                                         } else {
                                             Button(action: {
@@ -103,7 +109,7 @@ struct EpisodeView: View {
                                             }) {
                                                 Label("Add to queue", systemImage: "plus.circle")
                                             }
-                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
+                                            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))
                                             
                                             Button(action: {
                                                 withAnimation {
@@ -113,7 +119,7 @@ struct EpisodeView: View {
                                             }) {
                                                 Label("Play", systemImage: "play.fill")
                                             }
-                                            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
+                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, iconOnly: true))
                                         }
                                     }
                                     .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -127,12 +133,14 @@ struct EpisodeView: View {
                                     }) {
                                         Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
                                     }
-                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                                    .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+
                                 }
                             }
                             .padding(.horizontal).padding(.bottom)
                         }
-                        .background(.ultraThickMaterial)
+                        .background(Color.background)
                     }
                 }
             }

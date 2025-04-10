@@ -90,8 +90,8 @@ struct PodcastDetailView: View {
                                         }
                                         
                                         FadeInView(delay: 0.7) {
-                                            ForEach(Array(remainingEpisodes.enumerated()), id: \.1.id) { index, episode in
-                                                FadeInView(delay: Double(index) * 0.2) {
+                                            ForEach(remainingEpisodes, id: \.id) { episode in
+                                                FadeInView(delay: 0.3) {
                                                     EpisodeItem(episode: episode)
                                                         .lineLimit(3)
                                                         .padding(.bottom, 24)

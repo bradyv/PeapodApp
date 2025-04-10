@@ -60,7 +60,7 @@ struct EpisodeItem: View {
                                     .lineLimit(4)
                                     .layoutPriority(2)
                                 
-                                Text(parseHtml(episode.episodeDescription ?? "Episode description"))
+                                Text(parseHtmlFlat(episode.episodeDescription ?? "Episode description"))
                                     .foregroundStyle(.white.opacity(0.75))
                                     .multilineTextAlignment(.leading)
                                     .textBody()
@@ -78,9 +78,15 @@ struct EpisodeItem: View {
                             else: { $0.titleCondensed() }
                         )
                     
-                    Text(parseHtml(episode.episodeDescription ?? "Episode description"))
-                        .foregroundStyle(Color.text)
-                        .textBody()
+                    if displayedFullscreen {
+                        Text(parseHtml(episode.episodeDescription ?? "Episode description"))
+                            .foregroundStyle(Color.text)
+                            .textBody()
+                    } else {
+                        Text(parseHtmlFlat(episode.episodeDescription ?? "Episode description"))
+                            .foregroundStyle(Color.text)
+                            .textBody()
+                    }
                 }
                 .frame(maxWidth:.infinity, alignment: .leading)
             }

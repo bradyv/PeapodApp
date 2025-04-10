@@ -152,8 +152,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         queue.insert(episode, at: 0)
 
         // Re-x episodes as queued
-        for ep in queue {
+        for (index, ep) in queue.enumerated() {
             ep.isQueued = true
+            ep.queuePosition = Int64(index)
         }
         try? viewContext.save()
         print("📦 Queued: \(episode.title ?? "Episode")")

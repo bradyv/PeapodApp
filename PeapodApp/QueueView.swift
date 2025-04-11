@@ -32,35 +32,38 @@ struct QueueView: View {
                 .padding(.leading)
                 .padding(.bottom, 4)
 
-            if queue.isEmpty {
-                ZStack {
-                    VStack {
-                        Text("Nothing to play")
-                            .titleCondensed()
-                        
-                        Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes are automatically added.")
-                            .textBody()
-                    }
-                    
-                    ScrollView(.horizontal) {
-                        LazyHStack(spacing:16) {
-                            EmptyQueueItem()
-                            EmptyQueueItem()
-                        }
-                        .opacity(0.15)
-                        .mask(
-                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
-                        )
-                    }
-                    .disabled(true)
-                    .contentMargins(.horizontal,16, for: .scrollContent)
-                    .frame(height: 250)
-                }
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView(.horizontal) {
-                        LazyHStack(spacing:16) {
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing:16) {
+                        if queue.isEmpty {
+                            ZStack {
+                                GeometryReader { geometry in
+                                    HStack(spacing:16) {
+                                        ForEach(0..<2, id: \.self) { _ in
+                                            EmptyQueueItem()
+                                                .opacity(0.15)
+                                        }
+                                    }
+                                    .frame(width: geometry.size.width, alignment:.leading)
+                                    .mask(
+                                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+                                    )
+                                }
+                                
+                                VStack {
+                                    Text("Nothing to play")
+                                        .titleCondensed()
+                                    
+                                    Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes are automatically added.")
+                                        .textBody()
+                                }
+                                .offset(x:-16)
+                                .frame(maxWidth: .infinity)
+                                .zIndex(1)
+                            }
+                            .frame(width: UIScreen.main.bounds.width, height: 250)
+                        } else {
                             ForEach(queue, id: \.id) { episode in
                                 QueueItem(episode: episode)
                                     .id(episode.id)
@@ -75,20 +78,21 @@ struct QueueView: View {
                                     }
                             }
                         }
-                        .scrollTargetLayout()
                     }
-                    .scrollIndicators(.hidden)
-                    .contentMargins(.horizontal,16, for: .scrollContent)
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode)
-                            .modifier(PPSheet())
-                    }
-                    .onChange(of: queue.first?.id) { oldID, newID in
-                        if let id = newID {
-                            DispatchQueue.main.async {
-                                withAnimation {
-                                    proxy.scrollTo(id, anchor: .leading)
-                                }
+                    .scrollTargetLayout()
+                }
+                .disabled(queue.isEmpty)
+                .scrollIndicators(.hidden)
+                .contentMargins(.horizontal,16, for: .scrollContent)
+                .sheet(item: $selectedEpisode) { episode in
+                    EpisodeView(episode: episode)
+                        .modifier(PPSheet())
+                }
+                .onChange(of: queue.first?.id) { oldID, newID in
+                    if let id = newID {
+                        DispatchQueue.main.async {
+                            withAnimation {
+                                proxy.scrollTo(id, anchor: .leading)
                             }
                         }
                     }

@@ -357,6 +357,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             episode.isPlayed = true
             episode.isQueued = false
             episode.playedDate = Date.now
+            episode.podcast?.playCount += 1
+            episode.podcast?.playedSeconds += episode.duration
         }
         
         try? episode.managedObjectContext?.save()

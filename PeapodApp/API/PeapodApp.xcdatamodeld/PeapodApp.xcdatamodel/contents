@@ -24,6 +24,8 @@
         <attribute name="id" attributeType="String"/>
         <attribute name="image" attributeType="String"/>
         <attribute name="isSubscribed" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="playCount" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="playedSeconds" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="podcastDescription" attributeType="String"/>
         <attribute name="podcastTint" optional="YES" attributeType="String"/>
         <attribute name="title" attributeType="String" defaultValueString="Podcast Title"/>

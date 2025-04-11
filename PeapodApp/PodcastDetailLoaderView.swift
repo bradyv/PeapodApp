@@ -51,8 +51,13 @@ struct PodcastDetailLoaderView: View {
         newPodcast.feedUrl = feedUrl
         newPodcast.title = rss.title ?? "Untitled"
         newPodcast.author = rss.iTunes?.iTunesAuthor ?? "Unknown"
-        newPodcast.image = rss.image?.url
-        newPodcast.podcastDescription = rss.description
+        newPodcast.image = rss.image?.url ??
+                           rss.iTunes?.iTunesImage?.attributes?.href ??
+                           rss.items?.first?.iTunes?.iTunesImage?.attributes?.href // fallback to episode image
+        newPodcast.podcastDescription = rss.description ??
+                                         rss.iTunes?.iTunesSummary ??
+                                         rss.items?.first?.iTunes?.iTunesSummary ??
+                                         rss.items?.first?.description // fallback to episode description
         newPodcast.isSubscribed = false
 
         for item in rss.items ?? [] {

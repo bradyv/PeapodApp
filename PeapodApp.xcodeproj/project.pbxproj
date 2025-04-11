@@ -7,11 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		231E99D42DA5AFD3008E6BF4 /* InfiniteCarousel in Frameworks */ = {isa = PBXBuildFile; productRef = 231E99D32DA5AFD3008E6BF4 /* InfiniteCarousel */; };
-		232273CF2D9E347C00EAC8F8 /* ColorThiefSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 232273CE2D9E347C00EAC8F8 /* ColorThiefSwift */; };
-		232273DC2D9EF77700EAC8F8 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 232273DB2D9EF77700EAC8F8 /* SwiftSoup */; };
-		23599E642D9B94B900F2DE3B /* FeedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 23599E632D9B94B900F2DE3B /* FeedKit */; };
-		23599E6D2D9B9CE000F2DE3B /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 23599E6C2D9B9CE000F2DE3B /* Kingfisher */; };
+		2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD2F2DA88952007348BC /* ColorThiefSwift */; };
+		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
+		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
+		2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD3B2DA889BA007348BC /* FeedKit */; };
+		2354DD3E2DA889ED007348BC /* InfiniteCarousel in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD3D2DA889ED007348BC /* InfiniteCarousel */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,11 +73,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				23599E6D2D9B9CE000F2DE3B /* Kingfisher in Frameworks */,
-				232273DC2D9EF77700EAC8F8 /* SwiftSoup in Frameworks */,
-				231E99D42DA5AFD3008E6BF4 /* InfiniteCarousel in Frameworks */,
-				232273CF2D9E347C00EAC8F8 /* ColorThiefSwift in Frameworks */,
-				23599E642D9B94B900F2DE3B /* FeedKit in Frameworks */,
+				2354DD362DA88968007348BC /* Kingfisher in Frameworks */,
+				2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */,
+				2354DD3E2DA889ED007348BC /* InfiniteCarousel in Frameworks */,
+				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
+				2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,11 +138,11 @@
 			);
 			name = PeapodApp;
 			packageProductDependencies = (
-				23599E632D9B94B900F2DE3B /* FeedKit */,
-				23599E6C2D9B9CE000F2DE3B /* Kingfisher */,
-				232273CE2D9E347C00EAC8F8 /* ColorThiefSwift */,
-				232273DB2D9EF77700EAC8F8 /* SwiftSoup */,
-				231E99D32DA5AFD3008E6BF4 /* InfiniteCarousel */,
+				2354DD2F2DA88952007348BC /* ColorThiefSwift */,
+				2354DD322DA8895E007348BC /* SwiftSoup */,
+				2354DD352DA88968007348BC /* Kingfisher */,
+				2354DD3B2DA889BA007348BC /* FeedKit */,
+				2354DD3D2DA889ED007348BC /* InfiniteCarousel */,
 			);
 			productName = PeapodApp;
 			productReference = 23599E2B2D9B895C00F2DE3B /* PeapodApp.app */;
@@ -227,11 +227,11 @@
 			mainGroup = 23599E222D9B895C00F2DE3B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				23599E622D9B94B900F2DE3B /* XCRemoteSwiftPackageReference "FeedKit" */,
-				23599E6B2D9B9CE000F2DE3B /* XCRemoteSwiftPackageReference "Kingfisher" */,
-				232273CD2D9E347C00EAC8F8 /* XCRemoteSwiftPackageReference "ColorThiefSwift" */,
-				232273DA2D9EF77700EAC8F8 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 				231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */,
+				2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */,
+				2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+				2354DD342DA88968007348BC /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 23599E2C2D9B895C00F2DE3B /* Products */;
@@ -614,7 +614,7 @@
 				kind = branch;
 			};
 		};
-		232273CD2D9E347C00EAC8F8 /* XCRemoteSwiftPackageReference "ColorThiefSwift" */ = {
+		2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/yamoridon/ColorThiefSwift";
 			requirement = {
@@ -622,7 +622,7 @@
 				minimumVersion = 0.5.0;
 			};
 		};
-		232273DA2D9EF77700EAC8F8 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+		2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
 			requirement = {
@@ -630,7 +630,15 @@
 				minimumVersion = 2.8.7;
 			};
 		};
-		23599E622D9B94B900F2DE3B /* XCRemoteSwiftPackageReference "FeedKit" */ = {
+		2354DD342DA88968007348BC /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.3.2;
+			};
+		};
+		2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/nmdias/FeedKit";
 			requirement = {
@@ -638,41 +646,33 @@
 				minimumVersion = 9.1.2;
 			};
 		};
-		23599E6B2D9B9CE000F2DE3B /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 8.3.1;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		231E99D32DA5AFD3008E6BF4 /* InfiniteCarousel */ = {
+		2354DD2F2DA88952007348BC /* ColorThiefSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */;
+			productName = ColorThiefSwift;
+		};
+		2354DD322DA8895E007348BC /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			productName = SwiftSoup;
+		};
+		2354DD352DA88968007348BC /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2354DD342DA88968007348BC /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		2354DD3B2DA889BA007348BC /* FeedKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */;
+			productName = FeedKit;
+		};
+		2354DD3D2DA889ED007348BC /* InfiniteCarousel */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */;
 			productName = InfiniteCarousel;
-		};
-		232273CE2D9E347C00EAC8F8 /* ColorThiefSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 232273CD2D9E347C00EAC8F8 /* XCRemoteSwiftPackageReference "ColorThiefSwift" */;
-			productName = ColorThiefSwift;
-		};
-		232273DB2D9EF77700EAC8F8 /* SwiftSoup */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 232273DA2D9EF77700EAC8F8 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
-			productName = SwiftSoup;
-		};
-		23599E632D9B94B900F2DE3B /* FeedKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 23599E622D9B94B900F2DE3B /* XCRemoteSwiftPackageReference "FeedKit" */;
-			productName = FeedKit;
-		};
-		23599E6C2D9B9CE000F2DE3B /* Kingfisher */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 23599E6B2D9B9CE000F2DE3B /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -21,6 +21,18 @@ class EpisodeRefresher {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     context.perform {
+                        if podcast.image == nil {
+                            podcast.image = rss.image?.url ??
+                                            rss.iTunes?.iTunesImage?.attributes?.href ??
+                                            rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
+                        }
+
+                        if podcast.podcastDescription == nil {
+                            podcast.podcastDescription = rss.description ??
+                                                          rss.iTunes?.iTunesSummary ??
+                                                          rss.items?.first?.iTunes?.iTunesSummary ??
+                                                          rss.items?.first?.description
+                        }
                         let existingIDs = Set((podcast.episode?.compactMap { ($0 as? Episode)?.title }) ?? [])
 
                         for item in rss.items ?? [] {
@@ -35,7 +47,9 @@ class EpisodeRefresher {
                             if let durationString = item.iTunes?.iTunesDuration {
                                 e.duration = Double(durationString)
                             }
-                            e.episodeImage = item.iTunes?.iTunesImage?.attributes?.href
+                            e.episodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
+//                                item.extensions?["itunes"]?["image"]?.attributes?["href"] // bv saving for when FeedKit is updated
+                            
                             e.podcast = podcast
                             
                             if let podcast = e.podcast, podcast.isSubscribed {

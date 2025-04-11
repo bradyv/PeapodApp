@@ -4,6 +4,8 @@
 
 *Podcasts. Plain and simple*
 
+[Join the TestFlight](testflight.apple.com/join/7S1mJ3sv)
+
 <img width="1360" alt="Group 2@2x" src="https://github.com/user-attachments/assets/45123fb9-7273-497a-977a-50aa0c8290a3" />
 
 Coming soon.

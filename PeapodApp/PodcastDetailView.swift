@@ -140,7 +140,8 @@ struct PodcastDetailView: View {
                         VStack {
                             let minSize: CGFloat = 64
                             let maxSize: CGFloat = 128
-                            let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset)))
+                            let threshold: CGFloat = 72
+                            let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
                             
                             HStack(alignment:.top) {
                                 KFImage(URL(string: podcast.image ?? ""))
@@ -151,7 +152,7 @@ struct PodcastDetailView: View {
                                     .shadow(color:Color.tint(for:podcast),
                                             radius: 128
                                     )
-                                    .animation(.easeOut(duration: 0.2), value: shrink)
+                                    .animation(.easeOut(duration: 0.1), value: shrink)
                                 
                                 Spacer()
                                 

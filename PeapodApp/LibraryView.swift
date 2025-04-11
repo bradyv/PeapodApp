@@ -17,6 +17,7 @@ struct LibraryView: View {
     @State private var showSearch = false
     @State private var showSaved = false
     @State private var showLatest = false
+    @State private var showActivity = false
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -69,6 +70,27 @@ struct LibraryView: View {
                     
                     
                     Divider()
+                    
+                    HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "checkmark.arrow.trianglehead.counterclockwise")
+                            .frame(width: 24, alignment: .center)
+                            .textBody()
+                        Text("My Activity")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textBody()
+                        Image(systemName: "chevron.right")
+                            .frame(width: 16, alignment: .trailing)
+                            .textBody()
+                            .opacity(0.25)
+                    }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showActivity.toggle()
+                    }
+                    
+                    
+                    Divider()
                 }
             }
         }
@@ -80,6 +102,10 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $showLatest) {
             LatestEpisodes()
+                .modifier(PPSheet())
+        }
+        .sheet(isPresented: $showActivity) {
+            ActivityView()
                 .modifier(PPSheet())
         }
     }

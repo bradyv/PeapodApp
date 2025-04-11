@@ -152,7 +152,9 @@ struct EpisodeView: View {
                         
                         if episode.isQueued {
                             Button(action: {
-                                episode.isQueued.toggle()
+                                withAnimation {
+                                    toggleQueued(episode)
+                                }
                                 try? episode.managedObjectContext?.save()
                             }) {
                                 Label("Archive", systemImage: "archivebox")

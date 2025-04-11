@@ -9,7 +9,7 @@ import SwiftUI
 
 struct LatestEpisodes: View {
     @Environment(\.managedObjectContext) private var context
-
+    @EnvironmentObject var toastManager: ToastManager
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
         predicate: NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES"),
@@ -47,9 +47,12 @@ struct LatestEpisodes: View {
                 }
             }
         }
+        .toast()
         .maskEdge(.bottom)
         .onAppear {
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+            }
         }
         .ignoresSafeArea(edges: .all)
     }

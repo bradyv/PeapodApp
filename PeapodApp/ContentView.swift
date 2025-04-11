@@ -11,6 +11,7 @@ import CoreData
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject var toastManager: ToastManager
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.title)],
         predicate: NSPredicate(format: "isSubscribed == YES"),
@@ -31,16 +32,26 @@ struct ContentView: View {
                 }
             }
             .onAppear {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                }
             }
+
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                    }
                 }
             }
             .scrollDisabled(subscriptions.isEmpty)
             .refreshable {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                await withCheckedContinuation { continuation in
+                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                        continuation.resume()
+                    }
+                }
             }
             
 //            NowPlaying()
@@ -54,6 +65,7 @@ struct ContentView: View {
                 center: UnitPoint(x: 0, y: 0)
             )
         )
+//        .toast()
     }
 }
 

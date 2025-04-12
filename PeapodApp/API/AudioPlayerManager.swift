@@ -243,6 +243,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         player?.seek(to: .zero)
         isPlaying = false
         progress = 0
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
     func getProgress(for episode: Episode) -> Double {

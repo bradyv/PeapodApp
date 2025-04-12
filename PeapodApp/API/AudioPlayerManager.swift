@@ -359,9 +359,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             episode.playedDate = Date.now
             episode.podcast?.playCount += 1
 
-            let actualProgress = min(episode.playbackPosition, episode.duration)
+            let actualProgress = manually && currentEpisode?.id == episode.id
+                ? min(player?.currentTime().seconds ?? 0, episode.duration)
+                : min(episode.playbackPosition, episode.duration)
+
             let playedSecondsToAdd = manually ? actualProgress : episode.duration
             episode.podcast?.playedSeconds += playedSecondsToAdd
+            print("Recorded \(playedSecondsToAdd) for \(episode.title ?? "episode")")
         }
 
         try? episode.managedObjectContext?.save()

@@ -11,6 +11,10 @@ import SwiftUI
 struct PeapodAppApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var toastManager = ToastManager()
+    
+    init() {
+        CloudKitMigrator.migrateSubscribedContentIfNeeded(context: persistenceController.container.viewContext)
+    }
 
     var body: some Scene {
         WindowGroup {

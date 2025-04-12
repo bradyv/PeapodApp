@@ -38,7 +38,7 @@ struct NowPlaying: View {
                     
                     Button(action: {
                         player.stop()
-                        player.markAsPlayed(for: episode)
+                        player.markAsPlayed(for: episode, manually: true)
                         try? episode.managedObjectContext?.save()
                     }) {
                         Label("Mark as played", systemImage:"checkmark.circle")

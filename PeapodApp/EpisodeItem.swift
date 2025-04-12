@@ -159,7 +159,7 @@ struct EpisodeItem: View {
                     Button(action: {
                         if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
                             player.stop()
-                            player.markAsPlayed(for: episode)
+                            player.markAsPlayed(for: episode, manually: true)
                             try? episode.managedObjectContext?.save()
                         } else {
                             withAnimation {

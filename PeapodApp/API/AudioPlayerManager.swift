@@ -348,7 +348,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         return episode.playbackPosition
     }
     
-    func markAsPlayed(for episode: Episode) {
+    func markAsPlayed(for episode: Episode, manually: Bool = false) {
         if episode.isPlayed {
             episode.isPlayed = false
             episode.playedDate = nil
@@ -358,9 +358,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             episode.isQueued = false
             episode.playedDate = Date.now
             episode.podcast?.playCount += 1
-            episode.podcast?.playedSeconds += episode.duration
+
+            let actualProgress = min(episode.playbackPosition, episode.duration)
+            let playedSecondsToAdd = manually ? actualProgress : episode.duration
+            episode.podcast?.playedSeconds += playedSecondsToAdd
         }
-        
+
         try? episode.managedObjectContext?.save()
     }
 

@@ -32,7 +32,7 @@ struct QueueItem: View {
             }
         }
         .frame(width: frame, height: 400)
-        .background(Color.tint(for:episode).darkened(by:0.25))
+        .background(Color.tint(for:episode).darkened(by:0.3))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
     }

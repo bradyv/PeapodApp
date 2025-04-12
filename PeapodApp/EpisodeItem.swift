@@ -121,7 +121,7 @@ struct EpisodeItem: View {
                                 
                                 CustomSlider(
                                     value: Binding(
-                                        get: { player.getSavedPlaybackPosition(for: episode) },
+                                        get: { player.getProgress(for: episode) },
                                         set: { player.seek(to: $0) }
                                     ),
                                     range: 0...episode.duration,

@@ -239,6 +239,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 
     func stop() {
+        if let player = player {
+            savePlaybackPosition(for: currentEpisode, position: player.currentTime().seconds)
+        }
         player?.pause()
         player?.seek(to: .zero)
         isPlaying = false
@@ -512,6 +515,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             if self.progress != roundedTime {
                 self.progress = roundedTime
                 self.updateNowPlayingInfo()
+                
+                if let episode = self.currentEpisode {
+                    self.savePlaybackPosition(for: episode, position: roundedTime)
+                }
             }
         }
     }

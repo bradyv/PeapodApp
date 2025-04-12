@@ -32,26 +32,29 @@ struct ContentView: View {
                 }
             }
             .onAppear {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                }
+                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+//                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+//                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+//                }
             }
 
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                    }
+                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+//                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+//                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+//                    }
                 }
             }
             .scrollDisabled(subscriptions.isEmpty)
             .refreshable {
-                await withCheckedContinuation { continuation in
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                        continuation.resume()
-                    }
-                }
+                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+//                await withCheckedContinuation { continuation in
+//                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+//                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+//                        continuation.resume()
+//                    }
+//                }
             }
             
 //            NowPlaying()

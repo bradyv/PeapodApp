@@ -51,7 +51,7 @@ struct LatestEpisodes: View {
         .maskEdge(.bottom)
         .onAppear {
             EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+//                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
             }
         }
         .ignoresSafeArea(edges: .all)

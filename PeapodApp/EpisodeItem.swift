@@ -124,7 +124,7 @@ struct EpisodeItem: View {
                                         get: { player.getProgress(for: episode) },
                                         set: { player.seek(to: $0) }
                                     ),
-                                    range: 0...episode.duration,
+                                    range: 0...(player.isPlayingEpisode(episode) ? player.duration : episode.duration),
                                     onEditingChanged: { isEditing in
                                         if !isEditing {
                                             player.seek(to: player.progress)

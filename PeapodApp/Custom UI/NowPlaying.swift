@@ -32,7 +32,7 @@ struct NowPlaying: View {
                         colorStyle: .monochrome,
                         iconOnly: true,
                         customColors: ButtonCustomColors(
-                            foreground: .white,
+                            foreground: .heading,
                             background: .white.opacity(0)
                         )))
                     
@@ -48,7 +48,7 @@ struct NowPlaying: View {
                         colorStyle: .monochrome,
                         iconOnly: true,
                         customColors: ButtonCustomColors(
-                            foreground: .white,
+                            foreground: .heading,
                             background: .white.opacity(0)
                         )))
                     
@@ -79,7 +79,7 @@ struct NowPlaying: View {
                         colorStyle: .monochrome,
                         iconOnly: true,
                         customColors: ButtonCustomColors(
-                            foreground: .white,
+                            foreground: .heading,
                             background: .white.opacity(0)
                         )))
                     
@@ -95,12 +95,12 @@ struct NowPlaying: View {
                         colorStyle: .monochrome,
                         iconOnly: true,
                         customColors: ButtonCustomColors(
-                            foreground: .white,
+                            foreground: .heading,
                             background: .white.opacity(0)
                         )))
                 }
                 .padding(.horizontal,8).padding(.vertical,4)
-                .background(Color(hex: episode.episodeTint)?.darkened(by:0.3) ?? Color(hex: episode.podcast?.podcastTint)?.darkened(by:0.3))
+                .background(.thinMaterial)
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
@@ -119,5 +119,23 @@ struct NowPlaying: View {
                     .modifier(PPSheet())
             }
         }
+    }
+}
+
+struct NowPlayingModifier: ViewModifier {
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .bottom) {
+                Group {
+                    NowPlaying()
+                }
+            }
+    }
+}
+
+extension View {
+    func NowPlaying() -> some View {
+        self.modifier(NowPlayingModifier())
     }
 }

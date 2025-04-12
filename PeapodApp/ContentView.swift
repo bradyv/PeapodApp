@@ -68,13 +68,7 @@ struct ContentView: View {
                 center: UnitPoint(x: 0, y: 0)
             )
         )
+//        .NowPlaying()
 //        .toast()
     }
 }
-
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()

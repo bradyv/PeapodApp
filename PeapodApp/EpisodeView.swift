@@ -34,24 +34,26 @@ struct EpisodeView: View {
                         VStack(spacing:16) {
                             VStack(spacing:16) {
                                 VStack(spacing:2) {
+                                    let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
                                     CustomSlider(
-                                        value: Binding<Double>(
+                                        value: Binding(
                                             get: { player.getProgress(for: episode) },
-                                            set: { newValue in player.seek(to: newValue) }
+                                            set: { player.seek(to: $0) }
                                         ),
-                                        range: 0...(player.isPlayingEpisode(episode) ? player.duration : episode.duration),
+                                        range: 0...safeDuration,
                                         onEditingChanged: { isEditing in
                                             if !isEditing {
                                                 player.seek(to: player.progress)
                                             }
                                         },
-                                        isDraggable: true, isQQ: false
+                                        isDraggable: true,
+                                        isQQ: false
                                     )
                                     
                                     HStack {
                                         Text(player.getElapsedTime(for: episode))
                                         Spacer()
-                                        Text("-\(player.getRemainingTime(for: episode))")
+                                        Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
                                     }
                                     .fontDesign(.monospaced)
                                     .font(.caption)
@@ -192,6 +194,9 @@ struct EpisodeView: View {
             .padding()
         }
         .frame(maxWidth:.infinity)
+        .onAppear {
+            player.writeActualDuration(for: episode)
+        }
     }
 }
 

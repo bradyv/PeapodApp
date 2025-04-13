@@ -29,16 +29,15 @@ func fetchQueuedEpisodes() -> [Episode] {
 }
 
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
-    
     static let shared = AudioPlayerManager()
     
     private var player: AVPlayer?
     private var timeObserver: Any?
-    
+    private var playerItemObservation: NSKeyValueObservation?
     @Published var isPlaying: Bool = false
     @Published var progress: Double = 0
-    @Published var duration: Double = 1
     @Published var currentEpisode: Episode?
+    @Published var isLoading: Bool = false
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player else { return }
@@ -108,14 +107,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         NotificationCenter.default.addObserver(self, selector: #selector(savePlaybackOnExit), name: UIApplication.willTerminateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying), name: .AVPlayerItemDidPlayToEndTime, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioRouteChange), name: AVAudioSession.routeChangeNotification, object: nil)
-    }
-    
-    private func duration(for episode: Episode) -> Int {
-        if currentEpisode?.id == episode.id, duration > 1 {
-            return Int(duration)
-        } else {
-            return Int(episode.duration)
-        }
     }
     
     func togglePlayback(for episode: Episode) {
@@ -201,11 +192,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         player?.pause()
         player = nil
+        playerItemObservation?.invalidate()
+        playerItemObservation = nil
     }
 
     func play(episode: Episode) {
         guard let audio = episode.audio, let url = URL(string: audio) else { return }
-        
+
         moveToFront(episode)
 
         if let previousEpisode = currentEpisode, previousEpisode.id != episode.id {
@@ -213,21 +206,37 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
 
         if currentEpisode?.id != episode.id {
-            cleanupPlayer() // ✅ Properly dispose previous playback
-            player = AVPlayer(url: url)
+            cleanupPlayer()
+            let playerItem = AVPlayerItem(url: url)
+            player = AVPlayer(playerItem: playerItem)
             currentEpisode = episode
             cachedArtwork = nil
             addTimeObserver()
+
+            isLoading = true // begin loading
+
+            // Observe loading status
+            playerItemObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, change in
+                DispatchQueue.main.async {
+                    if item.isPlaybackLikelyToKeepUp {
+                        self?.isLoading = false
+                    }
+                }
+            }
         }
 
         let lastPosition = getSavedPlaybackPosition(for: episode)
         if lastPosition > 0 {
-            player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1))
+            player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
+                self?.player?.play()
+                self?.isPlaying = true
+                self?.updateNowPlayingInfo()
+            }
+        } else {
+            player?.play()
+            isPlaying = true
+            updateNowPlayingInfo()
         }
-
-        player?.play()
-        isPlaying = true
-        updateNowPlayingInfo()
     }
 
     func pause() {
@@ -251,9 +260,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func getProgress(for episode: Episode) -> Double {
         guard let currentEpisode = currentEpisode, currentEpisode.id == episode.id else {
-            return getSavedPlaybackPosition(for: episode)
+            return episode.playbackPosition
         }
+
+        if progress == 0, episode.playbackPosition > 0 {
+            return episode.playbackPosition  // Freeze on saved position until real progress is available
+        }
+
         return progress
+    }
+    
+    func isLoadingEpisode(_ episode: Episode) -> Bool {
+        return isLoading && currentEpisode?.id == episode.id
     }
 
     func isPlayingEpisode(_ episode: Episode) -> Bool {
@@ -283,38 +301,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         player.seek(to: newTime)
     }
     
-    func loadEpisodeMetadata(for episode: Episode) {
-        guard let url = URL(string: episode.audio!) else {
-            print("❌ Invalid URL: \(episode.audio ?? "Episode")")
-            return
-        }
-
-        let objectID = episode.objectID
-        let isCurrentEpisode = episode.id == currentEpisode?.id
-
-        let asset = AVURLAsset(url: url)
-
-        Task {
-            do {
-                let duration = try await asset.load(.duration)
-
-                // Work with Core Data on the main context thread
-                await MainActor.run {
-                    if let updatedEpisode = try? viewContext.existingObject(with: objectID) as? Episode {
-                        updatedEpisode.duration = duration.seconds
-                        if isCurrentEpisode {
-                            self.duration = duration.seconds
-                        }
-                        try? updatedEpisode.managedObjectContext?.save()
-                        print("🎵 Loaded Actual Episode Duration: \(duration.seconds)")
-                    }
-                }
-            } catch {
-                print("⚠️ Failed to load episode duration: \(error.localizedDescription)")
-            }
-        }
-    }
-    
     func formatView(seconds: Int) -> String {
         let hours = seconds / 3600
         let minutes = (seconds % 3600) / 60
@@ -327,14 +313,50 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
-    func getRemainingTime(for episode: Episode) -> String {
-        let remainingTime = max(0, duration(for: episode) - Int(getProgress(for: episode)))
-        return formatView(seconds: remainingTime)
+    func writeActualDuration(for episode: Episode) {
+        guard let urlString = episode.audio, let url = URL(string: urlString) else {
+            print("❌ Invalid audio URL for duration extraction.")
+            return
+        }
+
+        let asset = AVURLAsset(url: url)
+        let objectID = episode.objectID
+
+        Task {
+            do {
+                let duration = try await asset.load(.duration)
+
+                await MainActor.run {
+                    if let updatedEpisode = try? viewContext.existingObject(with: objectID) as? Episode {
+                        updatedEpisode.actualDuration = duration.seconds
+                        try? updatedEpisode.managedObjectContext?.save()
+                        print("✅ Actual duration saved: \(duration.seconds) for \(updatedEpisode.title ?? "Episode")")
+                    }
+                }
+            } catch {
+                print("⚠️ Failed to load actual duration: \(error.localizedDescription)")
+            }
+        }
     }
 
-    func getRemainingTimePretty(for episode: Episode) -> String {
-        let remainingTime = max(0, duration(for: episode) - Int(getProgress(for: episode)))
-        return formatDuration(seconds: remainingTime)
+    func getStableRemainingTime(for episode: Episode, pretty: Bool = true) -> String {
+        let actual = episode.actualDuration
+        let feed = episode.duration
+        let progress = getProgress(for: episode)
+
+        let usingActual = actual > 0
+        let playingOrResumed = isPlayingEpisode(episode) || hasStartedPlayback(for: episode)
+        let duration = usingActual ? actual : feed
+
+        let valueToShow: Double
+        if usingActual && playingOrResumed && progress > 0 {
+            valueToShow = max(0, actual - progress)
+        } else {
+            valueToShow = duration
+        }
+
+        let seconds = Int(valueToShow)
+        return pretty ? formatDuration(seconds: seconds) : formatView(seconds: seconds)
     }
 
     func getElapsedTime(for episode: Episode) -> String {
@@ -423,6 +445,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
     private func updateNowPlayingInfo() {
         guard let episode = currentEpisode else { return }
+        let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
 
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: episode.title ?? "Episode",
@@ -492,14 +515,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         Task {
             do {
                 let duration = try await currentItem.asset.load(.duration)
-                DispatchQueue.main.async {
-                    self.duration = duration.seconds
-                }
             } catch {
                 print("⚠️ Failed to load duration: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.duration = 1 // Default fallback
-                }
             }
         }
 
@@ -512,7 +529,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                   current == player.currentItem else { return }
 
             let roundedTime = floor(time.seconds)
-            if self.progress != roundedTime {
+            if self.isPlaying && self.progress != roundedTime {
                 self.progress = roundedTime
                 self.updateNowPlayingInfo()
                 

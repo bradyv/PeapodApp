@@ -365,9 +365,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 
     private func savePlaybackPosition(for episode: Episode?, position: Double) {
-        guard let episode = episode else { return }
-        episode.playbackPosition = position
-        try? episode.managedObjectContext?.save()
+        guard let episode = episode,
+              let context = episode.managedObjectContext else { return }
+
+        context.perform {
+            episode.playbackPosition = position
+            do {
+                try context.save()
+            } catch {
+                print("❌ Failed to save playback position: \(error)")
+            }
+        }
     }
 
     func getSavedPlaybackPosition(for episode: Episode) -> Double {
@@ -397,12 +405,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         try? episode.managedObjectContext?.save()
     }
 
-    private func configureAudioSession() {
+    func configureAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default)
+            try session.setActive(true)
+            print("🎧 AVAudioSession set to .playback and activated")
         } catch {
-            print("Failed to set up AVAudioSession: \(error)")
+            print("❌ Failed to configure AVAudioSession: \(error)")
         }
     }
 

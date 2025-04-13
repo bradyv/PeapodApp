@@ -100,10 +100,13 @@ struct EpisodeItem: View {
                     }) {
                         HStack {
                             if player.isPlayingEpisode(episode) {
-                                Image(systemName: "waveform")
-                                    .if(player.isPlayingEpisode(episode)) { view in
-                                        view.symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
-                                    }
+                                if player.isLoadingEpisode(episode) {
+                                    PPSpinner(color: displayedInQueue ? Color.black : Color.background)
+                                } else {
+                                    Image(systemName: "waveform")
+                                        .symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
+                                        .transition(.opacity.combined(with: .scale))
+                                }
                             } else {
                                 if episode.isPlayed {
                                     if displayedInQueue {
@@ -118,26 +121,29 @@ struct EpisodeItem: View {
                             
                             if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
                                 let isQQ = displayedInQueue
+                                let safeDuration: Double = {
+                                    let actual = episode.actualDuration
+                                    return actual > 1 ? actual : episode.duration
+                                }()
                                 
                                 CustomSlider(
                                     value: Binding(
                                         get: { player.getProgress(for: episode) },
                                         set: { player.seek(to: $0) }
                                     ),
-                                    range: 0...(player.isPlayingEpisode(episode) ? player.duration : episode.duration),
+                                    range: 0...safeDuration,
                                     onEditingChanged: { isEditing in
                                         if !isEditing {
                                             player.seek(to: player.progress)
                                         }
                                     },
-                                    isDraggable: false, isQQ: isQQ
+                                    isDraggable: false,
+                                    isQQ: isQQ
                                 )
                                 .frame(width: 32)
-                                
-                                Text(player.getRemainingTimePretty(for: episode))
-                            } else {
-                                Text(formatDuration(seconds: Int((episode.duration))))
                             }
+                            
+                            Text(player.getStableRemainingTime(for: episode))
                         }
                     }
                     .buttonStyle(
@@ -223,6 +229,7 @@ struct EpisodeItem: View {
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
             Task.detached(priority: .background) {
+                await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
         }

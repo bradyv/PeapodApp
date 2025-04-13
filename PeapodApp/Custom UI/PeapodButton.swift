@@ -64,7 +64,7 @@ struct PPButton: ButtonStyle {
     var medium: Bool = false
     var large: Bool = false
     var borderless: Bool = false
-    var customColors: ButtonCustomColors? = nil  // ← Optional override
+    var customColors: ButtonCustomColors? = nil
 
     func makeBody(configuration: Configuration) -> some View {
         let isPressed = configuration.isPressed

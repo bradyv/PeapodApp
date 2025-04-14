@@ -14,6 +14,7 @@ struct PodcastSearchView: View {
     @State private var results: [PodcastResult] = []
     @State private var topPodcasts: [PodcastResult] = []
     @State private var selectedPodcast: PodcastResult? = nil
+    @State private var hasSearched = false
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
 
     var body: some View {
@@ -84,43 +85,51 @@ struct PodcastSearchView: View {
                 .padding()
             } else {
                 ScrollView {
-                    if !results.isEmpty {
+                    if results.isEmpty && hasSearched {
+                        FadeInView(delay: 0.2) {
+                            VStack {
+                                Text("No results for \(query)")
+                                    .textBody()
+                            }
+                            .padding(.top,32)
+                        }
+                    } else if !results.isEmpty && hasSearched {
                         FadeInView(delay: 0.2) {
                             Text("Search Results")
                                 .headerSection()
                                 .frame(maxWidth:.infinity, alignment:.leading)
                                 .padding(.horizontal)
                         }
-                    }
-                    
-                    ForEach(results, id: \.id) { podcast in
-                        FadeInView(delay: 0.3) {
-                            HStack {
-                                KFImage(URL(string:podcast.artworkUrl600))
-                                    .resizable()
-                                    .frame(width: 44, height: 44)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                
-                                VStack(alignment: .leading) {
-                                    Text(podcast.title)
-                                        .titleCondensed()
-                                        .lineLimit(1)
-                                    Text(podcast.author)
+                        
+                        ForEach(results, id: \.id) { podcast in
+                            FadeInView(delay: 0.3) {
+                                HStack {
+                                    KFImage(URL(string:podcast.artworkUrl600))
+                                        .resizable()
+                                        .frame(width: 44, height: 44)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                    
+                                    VStack(alignment: .leading) {
+                                        Text(podcast.title)
+                                            .titleCondensed()
+                                            .lineLimit(1)
+                                        Text(podcast.author)
+                                            .textDetail()
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .frame(width:12)
                                         .textDetail()
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                Image(systemName: "chevron.right")
-                                    .frame(width:12)
-                                    .textDetail()
-                            }
-                            .onTapGesture {
-                                selectedPodcast = podcast
+                                .onTapGesture {
+                                    selectedPodcast = podcast
+                                }
                             }
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
                 }
                 .frame(maxWidth:.infinity)
             }
@@ -147,6 +156,7 @@ struct PodcastSearchView: View {
             if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
                 DispatchQueue.main.async {
                     results = decoded.results
+                    hasSearched = true
                 }
             }
         }.resume()

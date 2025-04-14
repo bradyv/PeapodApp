@@ -70,8 +70,13 @@ struct ActivityView: View {
                 }
                 .padding(.horizontal)
                 .sheet(item: $selectedPodcast) { podcast in
-                    PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                        .modifier(PPSheet())
+                    if podcast.isSubscribed {
+                        PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                            .modifier(PPSheet())
+                    } else {
+                        PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
+                            .modifier(PPSheet())
+                    }
                 }
             }
         }

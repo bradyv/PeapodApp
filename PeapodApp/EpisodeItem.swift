@@ -223,8 +223,13 @@ struct EpisodeItem: View {
             }
         }
         .sheet(item: $selectedPodcast) { podcast in
-            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                .modifier(PPSheet())
+            if podcast.isSubscribed {
+                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                    .modifier(PPSheet())
+            } else {
+                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
+                    .modifier(PPSheet())
+            }
         }
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {

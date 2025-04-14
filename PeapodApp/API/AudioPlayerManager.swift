@@ -94,7 +94,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func playerDidFinishPlaying(notification: Notification) {
         guard let finishedEpisode = currentEpisode else { return }
         print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
-        
+        progress = 0
         markAsPlayed(for: finishedEpisode)
         try? finishedEpisode.managedObjectContext?.save()
         stop()
@@ -264,10 +264,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return episode.playbackPosition
         }
 
-        if progress == 0, episode.playbackPosition > 0 {
-            return episode.playbackPosition  // Freeze on saved position until real progress is available
-        }
-
         return progress
     }
     
@@ -382,11 +378,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
+        episode.playbackPosition = 0
+        
         if episode.isPlayed {
             episode.isPlayed = false
             episode.playedDate = nil
         } else {
-            episode.playbackPosition = 0
             episode.isPlayed = true
             episode.isQueued = false
             episode.playedDate = Date.now

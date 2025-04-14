@@ -119,7 +119,7 @@ struct EpisodeItem: View {
                                 }
                             }
                             
-                            if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
+                            if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {
                                 let isQQ = displayedInQueue
                                 let safeDuration: Double = {
                                     let actual = episode.actualDuration

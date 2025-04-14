@@ -316,6 +316,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func writeActualDuration(for episode: Episode) {
+        // Skip if actualDuration appears to already be set
+        if episode.actualDuration > 0 {
+            print("⏩ Skipping duration load – already exists: \(episode.actualDuration) for \(episode.title ?? "Episode")")
+            return
+        }
+
         guard let urlString = episode.audio, let url = URL(string: urlString) else {
             print("❌ Invalid audio URL for duration extraction.")
             return

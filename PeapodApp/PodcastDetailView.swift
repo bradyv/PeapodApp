@@ -55,7 +55,7 @@ struct PodcastDetailView: View {
                             FadeInView(delay: 0.3) {
                                 Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
                                     .textBody()
-                                    .lineLimit(showFullDescription ? nil :  3)
+                                    .lineLimit(showFullDescription ? nil :  4)
                                     .frame(maxWidth:.infinity, alignment:.leading)
                                     .onTapGesture {
                                         withAnimation {
@@ -63,7 +63,7 @@ struct PodcastDetailView: View {
                                         }
                                         print(showFullDescription)
                                     }
-                                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                                    .transition(.opacity)
                                     .animation(.easeOut(duration: 0.15), value: showFullDescription)
                                 
                                 Spacer().frame(height:24)

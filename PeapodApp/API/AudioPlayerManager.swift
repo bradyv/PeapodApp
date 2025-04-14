@@ -225,6 +225,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
 
+        configureAudioSession(activePlayback: true)
         let lastPosition = getSavedPlaybackPosition(for: episode)
         if lastPosition > 0 {
             player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
@@ -243,6 +244,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         guard let player = player else { return }
         savePlaybackPosition(for: currentEpisode, position: player.currentTime().seconds)
         player.pause()
+        configureAudioSession(activePlayback: false)
         isPlaying = false
         updateNowPlayingInfo()
     }
@@ -397,12 +399,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         try? episode.managedObjectContext?.save()
     }
 
-    private func configureAudioSession() {
+    private func configureAudioSession(activePlayback: Bool = false) {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            let session = AVAudioSession.sharedInstance()
+            let options: AVAudioSession.CategoryOptions = activePlayback ? [] : [.mixWithOthers]
+            try session.setCategory(.playback, mode: .default, options: options)
+            try session.setActive(true)
         } catch {
-            print("Failed to set up AVAudioSession: \(error)")
+            print("❌ Failed to set up AVAudioSession: \(error)")
         }
     }
 

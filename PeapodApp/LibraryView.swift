@@ -14,7 +14,6 @@ struct LibraryView: View {
         animation: .default
     ) var subscriptions: FetchedResults<Podcast>
     
-    @State private var showSearch = false
     @State private var activeSheet: ActiveSheet?
     
     var body: some View {
@@ -32,17 +31,10 @@ struct LibraryView: View {
                         .onTapGesture {
                             activeSheet = .latest
                         }
-                    Divider()
                     RowItem(icon: "star", label: "Starred Episodes")
                         .onTapGesture {
                             activeSheet = .saved
                         }
-                    Divider()
-                    RowItem(icon: "checkmark.arrow.trianglehead.counterclockwise", label: "My Activity")
-                        .onTapGesture {
-                            activeSheet = .activity
-                        }
-                    Divider()
                 }
             }
         }

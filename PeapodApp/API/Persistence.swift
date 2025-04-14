@@ -38,5 +38,9 @@ final class PersistenceController {
         // Merge changes from other devices
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
+            UserDefaults.standard.set(Date(), forKey: "lastCloudSyncDate")
+        }
     }
 }

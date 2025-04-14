@@ -17,6 +17,7 @@ struct ContentView: View {
         predicate: NSPredicate(format: "isSubscribed == YES"),
         animation: .default
     ) var subscriptions: FetchedResults<Podcast>
+    @State private var showSettings = false
     
     var body: some View {
         ZStack {
@@ -55,6 +56,23 @@ struct ContentView: View {
 //                        continuation.resume()
 //                    }
 //                }
+            }
+            
+            VStack(alignment:.trailing) {
+                Button(action: {
+                    showSettings.toggle()
+                }) {
+                    Label("Settings", systemImage: "person.crop.circle")
+                }
+                .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                
+                Spacer()
+            }
+            .frame(maxWidth:.infinity, alignment:.trailing)
+            .padding(.horizontal)
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .modifier(PPSheet())
             }
             
 //            NowPlaying()

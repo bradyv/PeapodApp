@@ -69,21 +69,31 @@ struct PodcastEpisodeSearchView: View {
             }
 
             ScrollView {
-                Text(query.isEmpty ? "Episodes" : "Results for \(query)")
-                    .headerSection()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-                
-                LazyVStack(alignment: .leading) {
-                    ForEach(filteredEpisodes, id: \.id) { episode in
-                        EpisodeItem(episode: episode)
-                            .lineLimit(3)
-                            .padding(.bottom, 12)
-                            .onTapGesture {
-                                selectedEpisode = episode
-                            }
+                if filteredEpisodes.isEmpty && !query.isEmpty {
+                    FadeInView(delay: 0.2) {
+                        VStack {
+                            Text("No results for \(query)")
+                                .textBody()
+                        }
+                        .padding(.top,32)
                     }
+                } else {
+                    Text(query.isEmpty ? "Episodes" : "Results for \(query)")
+                        .headerSection()
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                    
+                    LazyVStack(alignment: .leading) {
+                        ForEach(filteredEpisodes, id: \.id) { episode in
+                            EpisodeItem(episode: episode)
+                                .lineLimit(3)
+                                .padding(.bottom, 12)
+                                .onTapGesture {
+                                    selectedEpisode = episode
+                                }
+                        }
+                    }
+                    .padding(.top, 8)
                 }
-                .padding(.top, 8)
             }
             .sheet(item: $selectedEpisode) { episode in
                 EpisodeView(episode: episode)

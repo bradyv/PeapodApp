@@ -37,6 +37,7 @@ struct PodcastSearchView: View {
                         Button(action: {
                             query = ""
                             isTextFieldFocused = true
+                            hasSearched = false
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.gray)

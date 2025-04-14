@@ -28,66 +28,20 @@ struct LibraryView: View {
             
             if !subscriptions.isEmpty {
                 VStack(spacing: 8) {
-                    HStack(alignment: .center, spacing: 12) {
-                        Image(systemName: "app.badge")
-                            .frame(width: 24, alignment: .center)
-                            .textBody()
-                        Text("Latest Episodes")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textBody()
-                        Image(systemName: "chevron.right")
-                            .frame(width: 16, alignment: .trailing)
-                            .textBody()
-                            .opacity(0.25)
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        activeSheet = .latest
-                    }
-                    
+                    RowItem(icon: "app.badge", label: "Latest Episodes")
+                        .onTapGesture {
+                            activeSheet = .latest
+                        }
                     Divider()
-                    
-                    HStack(alignment: .center, spacing: 12) {
-                        Image(systemName: "star")
-                            .frame(width: 24, alignment: .center)
-                            .textBody()
-                        Text("Starred Episodes")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textBody()
-                        Image(systemName: "chevron.right")
-                            .frame(width: 16, alignment: .trailing)
-                            .textBody()
-                            .opacity(0.25)
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        activeSheet = .saved
-                    }
-                    
-                    
+                    RowItem(icon: "star", label: "Starred Episodes")
+                        .onTapGesture {
+                            activeSheet = .saved
+                        }
                     Divider()
-                    
-                    HStack(alignment: .center, spacing: 12) {
-                        Image(systemName: "checkmark.arrow.trianglehead.counterclockwise")
-                            .frame(width: 24, alignment: .center)
-                            .textBody()
-                        Text("My Activity")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textBody()
-                        Image(systemName: "chevron.right")
-                            .frame(width: 16, alignment: .trailing)
-                            .textBody()
-                            .opacity(0.25)
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        activeSheet = .activity
-                    }
-                    
-                    
+                    RowItem(icon: "checkmark.arrow.trianglehead.counterclockwise", label: "My Activity")
+                        .onTapGesture {
+                            activeSheet = .activity
+                        }
                     Divider()
                 }
             }

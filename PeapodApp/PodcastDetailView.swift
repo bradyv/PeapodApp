@@ -124,14 +124,16 @@ struct PodcastDetailView: View {
                         .frame(maxWidth:.infinity)
                         .ignoresSafeArea(edges: .all)
                         .onAppear {
-                            episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                            let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                            episodes = episodesArray
                             
                             Task.detached(priority: .background) {
                                 await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
                                 
                                 await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
                                     DispatchQueue.main.async {
-                                        episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                                        let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                                        episodes = episodesArray
                                     }
                                 }
                             }
@@ -167,7 +169,7 @@ struct PodcastDetailView: View {
                                     Button(action: {
                                         podcast.isSubscribed.toggle()
                                         if podcast.isSubscribed,
-                                           let latest = (podcast.episode?.array as? [Episode])?
+                                           let latest = (podcast.episode as? Set<Episode>)?
                                             .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
                                             .first {
                                             latest.isQueued = true

@@ -15,9 +15,7 @@ struct LibraryView: View {
     ) var subscriptions: FetchedResults<Podcast>
     
     @State private var showSearch = false
-    @State private var showSaved = false
-    @State private var showLatest = false
-    @State private var showActivity = false
+    @State private var activeSheet: ActiveSheet?
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -45,7 +43,7 @@ struct LibraryView: View {
                     .padding(.vertical, 4)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        showLatest.toggle()
+                        activeSheet = .latest
                     }
                     
                     Divider()
@@ -65,7 +63,7 @@ struct LibraryView: View {
                     .padding(.vertical, 4)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        showSaved.toggle()
+                        activeSheet = .saved
                     }
                     
                     
@@ -86,7 +84,7 @@ struct LibraryView: View {
                     .padding(.vertical, 4)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        showActivity.toggle()
+                        activeSheet = .activity
                     }
                     
                     
@@ -96,17 +94,15 @@ struct LibraryView: View {
         }
         .padding(.horizontal).padding(.top,24)
         .frame(maxWidth:.infinity)
-        .sheet(isPresented: $showLatest) {
-            OldEpisodes()
-                .modifier(PPSheet())
-        }
-        .sheet(isPresented: $showSaved) {
-            SavedEpisodes()
-                .modifier(PPSheet())
-        }
-        .sheet(isPresented: $showActivity) {
-            ActivityView()
-                .modifier(PPSheet())
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .latest:
+                LatestEpisodes().modifier(PPSheet())
+            case .saved:
+                SavedEpisodes().modifier(PPSheet())
+            case .activity:
+                ActivityView().modifier(PPSheet())
+            }
         }
     }
 }

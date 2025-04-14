@@ -30,3 +30,15 @@ struct PPSheet: ViewModifier {
             .background(Color.background)
     }
 }
+
+enum ActiveSheet: Identifiable {
+    case latest, saved, activity
+
+    var id: Int {
+        switch self {
+        case .latest: return 0
+        case .saved: return 1
+        case .activity: return 2
+        }
+    }
+}

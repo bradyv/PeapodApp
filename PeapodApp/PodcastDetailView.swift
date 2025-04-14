@@ -33,9 +33,7 @@ struct PodcastDetailView: View {
             if let podcast {
                 if showSearch {
                     VStack(alignment:.leading) {
-                        
                         PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
-                        
                     }
                     .transition(
                         .asymmetric(
@@ -57,7 +55,7 @@ struct PodcastDetailView: View {
                             FadeInView(delay: 0.3) {
                                 Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
                                     .textBody()
-                                    .lineLimit(showFullDescription ? nil :  3)
+                                    .lineLimit(showFullDescription ? nil :  4)
                                     .frame(maxWidth:.infinity, alignment:.leading)
                                     .onTapGesture {
                                         withAnimation {
@@ -65,7 +63,7 @@ struct PodcastDetailView: View {
                                         }
                                         print(showFullDescription)
                                     }
-                                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                                    .transition(.opacity)
                                     .animation(.easeOut(duration: 0.15), value: showFullDescription)
                                 
                                 Spacer().frame(height:24)
@@ -122,16 +120,17 @@ struct PodcastDetailView: View {
                         .padding(.top,88)
                         .transition(.opacity)
                         .frame(maxWidth:.infinity)
-                        .ignoresSafeArea(edges: .all)
                         .onAppear {
-                            episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                            let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                            episodes = episodesArray
                             
                             Task.detached(priority: .background) {
                                 await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
                                 
                                 await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
                                     DispatchQueue.main.async {
-                                        episodes = (podcast.episode?.array as? [Episode])?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                                        let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+                                        episodes = episodesArray
                                     }
                                 }
                             }
@@ -167,7 +166,7 @@ struct PodcastDetailView: View {
                                     Button(action: {
                                         podcast.isSubscribed.toggle()
                                         if podcast.isSubscribed,
-                                           let latest = (podcast.episode?.array as? [Episode])?
+                                           let latest = (podcast.episode as? Set<Episode>)?
                                             .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
                                             .first {
                                             latest.isQueued = true
@@ -187,6 +186,7 @@ struct PodcastDetailView: View {
                 }
             }
         }
+        .ignoresSafeArea(.all)
         .animation(.interactiveSpring(duration: 0.25), value: showSearch)
     }
 }

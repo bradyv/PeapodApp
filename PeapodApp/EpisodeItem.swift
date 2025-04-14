@@ -37,7 +37,7 @@ struct EpisodeItem: View {
                     selectedPodcast = episode.podcast
                 }
                 
-                Text(episode.airDate ?? Date.distantPast, style: .date)
+                Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textDetail()
             }
@@ -119,7 +119,7 @@ struct EpisodeItem: View {
                                 }
                             }
                             
-                            if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
+                            if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {
                                 let isQQ = displayedInQueue
                                 let safeDuration: Double = {
                                     let actual = episode.actualDuration
@@ -215,7 +215,7 @@ struct EpisodeItem: View {
                             episode.isSaved.toggle()
                             try? episode.managedObjectContext?.save()
                         }) {
-                            Label("Remove from starred", systemImage: "star.slash")
+                            Label("Remove from starred", systemImage: "bookmark.slash")
                         }
                         .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
                     }

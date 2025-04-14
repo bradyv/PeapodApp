@@ -11,8 +11,8 @@ struct ScrollMask: View {
     let isTop: Bool
 
     var body: some View {
-        LinearGradient(colors: [.black, .black.opacity(0)], startPoint: UnitPoint(x: 0.5, y: isTop ? 0 : 1), endPoint: UnitPoint(x: 0.5, y: isTop ? 1 : 0))
-            .frame(height: isTop ? 64 : 64)
+        LinearGradient(colors: [.black, .black.opacity(0)], startPoint: UnitPoint(x: 0, y: isTop ? 0 : 1), endPoint: UnitPoint(x: 0, y: isTop ? 1 : 0))
+            .frame(height: 44)
             .frame(maxWidth: .infinity)
             .blendMode(.destinationOut)
     }

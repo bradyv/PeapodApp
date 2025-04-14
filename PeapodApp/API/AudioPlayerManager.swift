@@ -94,7 +94,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func playerDidFinishPlaying(notification: Notification) {
         guard let finishedEpisode = currentEpisode else { return }
         print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
-        
+        progress = 0
         markAsPlayed(for: finishedEpisode)
         try? finishedEpisode.managedObjectContext?.save()
         stop()
@@ -225,6 +225,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
 
+        configureAudioSession(activePlayback: true)
         let lastPosition = getSavedPlaybackPosition(for: episode)
         if lastPosition > 0 {
             player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
@@ -261,10 +262,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func getProgress(for episode: Episode) -> Double {
         guard let currentEpisode = currentEpisode, currentEpisode.id == episode.id else {
             return episode.playbackPosition
-        }
-
-        if progress == 0, episode.playbackPosition > 0 {
-            return episode.playbackPosition  // Freeze on saved position until real progress is available
         }
 
         return progress
@@ -314,6 +311,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func writeActualDuration(for episode: Episode) {
+        // Skip if actualDuration appears to already be set
+        if episode.actualDuration > 0 {
+            print("⏩ Skipping duration load – already exists: \(episode.actualDuration) for \(episode.title ?? "Episode")")
+            return
+        }
+
         guard let urlString = episode.audio, let url = URL(string: urlString) else {
             print("❌ Invalid audio URL for duration extraction.")
             return
@@ -375,11 +378,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
+        episode.playbackPosition = 0
+        
         if episode.isPlayed {
             episode.isPlayed = false
             episode.playedDate = nil
         } else {
-            episode.playbackPosition = 0
             episode.isPlayed = true
             episode.isQueued = false
             episode.playedDate = Date.now
@@ -397,12 +401,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         try? episode.managedObjectContext?.save()
     }
 
-    private func configureAudioSession() {
+    private func configureAudioSession(activePlayback: Bool = false) {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            let session = AVAudioSession.sharedInstance()
+            let options: AVAudioSession.CategoryOptions = activePlayback ? [] : [.mixWithOthers]
+            try session.setCategory(.playback, mode: .default, options: options)
+            try session.setActive(true)
         } catch {
-            print("Failed to set up AVAudioSession: \(error)")
+            print("❌ Failed to set up AVAudioSession: \(error)")
         }
     }
 

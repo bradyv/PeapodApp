@@ -10,7 +10,7 @@ import SwiftUI
 struct OldEpisodes: View {
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
-        predicate: NSPredicate(format: "podcast = nil || podcast.isSubscribed != YES"),
+        predicate: NSPredicate(format: "(podcast = nil OR podcast.isSubscribed != YES) AND isSaved == NO AND isPlayed == NO"),
         animation: .interactiveSpring()
     )
     var old: FetchedResults<Episode>

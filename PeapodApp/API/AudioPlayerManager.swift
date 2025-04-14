@@ -244,7 +244,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         guard let player = player else { return }
         savePlaybackPosition(for: currentEpisode, position: player.currentTime().seconds)
         player.pause()
-        configureAudioSession(activePlayback: false)
         isPlaying = false
         updateNowPlayingInfo()
     }

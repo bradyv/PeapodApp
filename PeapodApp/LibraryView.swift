@@ -96,12 +96,12 @@ struct LibraryView: View {
         }
         .padding(.horizontal).padding(.top,24)
         .frame(maxWidth:.infinity)
-        .sheet(isPresented: $showSaved) {
-            SavedEpisodes()
+        .sheet(isPresented: $showLatest) {
+            OldEpisodes()
                 .modifier(PPSheet())
         }
-        .sheet(isPresented: $showLatest) {
-            LatestEpisodes()
+        .sheet(isPresented: $showSaved) {
+            SavedEpisodes()
                 .modifier(PPSheet())
         }
         .sheet(isPresented: $showActivity) {

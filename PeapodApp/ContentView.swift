@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var toastManager: ToastManager
+    @EnvironmentObject var syncMonitor: CloudSyncMonitor
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.title)],
         predicate: NSPredicate(format: "isSubscribed == YES"),
@@ -29,6 +30,16 @@ struct ContentView: View {
                 }
                 FadeInView(delay: 0.3) {
                     SubscriptionsView()
+                }
+            }
+            .onChange(of: syncMonitor.isSyncing) { newValue in
+                print("🧪 isSyncing changed: \(newValue)")
+                
+                if newValue {
+                    toastManager.show(message: "Restoring data from iCloud...", icon: "icloud", duration: nil, loading: true)
+                } else {
+                    toastManager.show(message: "iCloud sync complete", icon: "checkmark.circle", duration: nil)
+                    toastManager.dismissAfterDelay(1.0)
                 }
             }
             .onAppear {
@@ -69,6 +80,6 @@ struct ContentView: View {
             )
         )
 //        .NowPlaying()
-//        .toast()
+        .toast()
     }
 }

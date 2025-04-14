@@ -164,14 +164,18 @@ struct EpisodeItem: View {
                     
                     Button(action: {
                         if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
-                            player.stop()
-                            player.markAsPlayed(for: episode, manually: true)
-                            try? episode.managedObjectContext?.save()
-                        } else {
-                            withAnimation {
-                                toggleQueued(episode)
+                            context.perform {
+                                player.markAsPlayed(for: episode, manually: true)
+                                // This manually triggers a change the view will notice
+                                episode.objectWillChange.send()
                             }
-                            try? episode.managedObjectContext?.save()
+                        } else {
+                            context.perform {
+                                withAnimation {
+                                    toggleQueued(episode)
+                                }
+                                try? context.save()
+                            }
                         }
                     }) {
                         if displayedInQueue {

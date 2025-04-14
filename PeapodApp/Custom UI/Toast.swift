@@ -10,10 +10,15 @@ import SwiftUI
 struct Toast: View {
     let message: String
     let icon: String
+    let loading: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon)
+            if loading {
+                PPSpinner(color: Color.heading)
+            } else {
+                Image(systemName: icon)
+            }
             Text(message)
                 .lineLimit(1)
         }
@@ -42,31 +47,45 @@ struct Toast: View {
 class ToastManager: ObservableObject {
     @Published var message: String? = nil
     @Published var icon: String? = nil
+    @Published var isLoading: Bool = false
 
-    func show(message: String, icon: String = "checkmark.circle", duration: TimeInterval = 2.0) {
-        // Trigger haptic immediately
+
+    func show(message: String, icon: String = "checkmark.circle", duration: TimeInterval? = 2.0, loading: Bool = false) {
         let feedbackType: UINotificationFeedbackGenerator.FeedbackType = {
             switch icon {
-            case "sparkles": return .success
-            case "checkmark.circle": return .success
+            case "sparkles", "checkmark.circle": return .success
             case "xmark.circle": return .error
             case "exclamationmark.triangle": return .warning
             default: return .success
             }
         }()
+        
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(feedbackType)
 
-        // Show toast
         withAnimation(.easeInOut(duration: 0.3)) {
             self.message = message
             self.icon = icon
+            self.isLoading = loading
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+        if let duration = duration {
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    self.message = nil
+                    self.icon = nil
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+    
+    func dismissAfterDelay(_ delay: TimeInterval = 1.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 self.message = nil
                 self.icon = nil
+                self.isLoading = false
             }
         }
     }
@@ -81,7 +100,7 @@ struct ToastModifier: ViewModifier {
                 Group {
                     if let message = toastManager.message,
                        let icon = toastManager.icon {
-                        Toast(message: message, icon: icon)
+                        Toast(message: message, icon: icon, loading: toastManager.isLoading)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }

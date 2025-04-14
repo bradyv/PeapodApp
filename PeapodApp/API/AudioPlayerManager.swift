@@ -383,6 +383,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
+        if currentEpisode?.id == episode.id {
+                stop()
+                currentEpisode = nil
+            }
+
         if episode.isPlayed {
             episode.isPlayed = false
             episode.playedDate = nil
@@ -393,12 +398,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             episode.playedDate = Date.now
             episode.podcast?.playCount += 1
 
-            let actualProgress = manually && currentEpisode?.id == episode.id
-                ? min(player?.currentTime().seconds ?? 0, episode.duration)
-                : min(episode.playbackPosition, episode.duration)
-
-            let playedSecondsToAdd = manually ? actualProgress : episode.duration
+            let playedSecondsToAdd = manually ? min(player?.currentTime().seconds ?? 0, episode.duration) : episode.duration
             episode.podcast?.playedSeconds += playedSecondsToAdd
+
             print("Recorded \(playedSecondsToAdd) for \(episode.title ?? "episode")")
         }
 

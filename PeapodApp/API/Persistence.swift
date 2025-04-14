@@ -29,6 +29,7 @@ final class PersistenceController {
 
         // Enable remote change notifications
         description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
 
         container.loadPersistentStores { _, error in
             if let error = error as NSError? {

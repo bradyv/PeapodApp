@@ -11,9 +11,12 @@ import SwiftUI
 struct PeapodAppApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var toastManager = ToastManager()
+    @StateObject private var syncMonitor: CloudSyncMonitor
     
     init() {
         CloudKitMigrator.migrateSubscribedContentIfNeeded(context: persistenceController.container.viewContext)
+        let container = persistenceController.container
+        _syncMonitor = StateObject(wrappedValue: CloudSyncMonitor(container: container))
     }
 
     var body: some Scene {
@@ -21,6 +24,7 @@ struct PeapodAppApp: App {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(toastManager)
+                .environmentObject(syncMonitor)
         }
     }
 }

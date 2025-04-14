@@ -108,9 +108,9 @@ struct EpisodeView: View {
                                                 episode.isSaved.toggle()
                                                 try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
+                                                Label(episode.isSaved ? "Remove from starred" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
                                             }
-                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true))
                                             .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                                             
                                         } else {
@@ -167,9 +167,9 @@ struct EpisodeView: View {
                                 episode.isSaved.toggle()
                                 try? episode.managedObjectContext?.save()
                             }) {
-                                Label(episode.isSaved ? "Remove from starred" : "Star episode", systemImage: episode.isSaved ? "star.fill" : "star")
+                                Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
                             }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true))
                             .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                         }
                     }

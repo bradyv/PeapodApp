@@ -20,7 +20,7 @@ struct SavedEpisodes: View {
         ScrollView {
             Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
-                Text("Starred")
+                Text("Saved Episodes")
                     .titleSerif()
                     .frame(maxWidth:.infinity, alignment: .leading)
                     .padding(.leading).padding(.top,24)
@@ -40,10 +40,10 @@ struct SavedEpisodes: View {
                     )
                     
                     VStack {
-                        Text("No starred episodes")
+                        Text("No saved episodes")
                             .titleCondensed()
                         
-                        Text("Tap \(Image(systemName:"star")) on any episode you'd like to save for later.")
+                        Text("Tap \(Image(systemName:"bookmark")) on any episode you'd like to save for later.")
                             .textBody()
                     }
                 }

@@ -31,7 +31,7 @@ struct LibraryView: View {
                         .onTapGesture {
                             activeSheet = .latest
                         }
-                    RowItem(icon: "star", label: "Starred Episodes")
+                    RowItem(icon: "bookmark", label: "Saved Episodes")
                         .onTapGesture {
                             activeSheet = .saved
                         }

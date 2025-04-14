@@ -215,7 +215,7 @@ struct EpisodeItem: View {
                             episode.isSaved.toggle()
                             try? episode.managedObjectContext?.save()
                         }) {
-                            Label("Remove from starred", systemImage: "star.slash")
+                            Label("Remove from starred", systemImage: "bookmark.slash")
                         }
                         .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
                     }

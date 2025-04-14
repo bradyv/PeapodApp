@@ -33,9 +33,7 @@ struct PodcastDetailView: View {
             if let podcast {
                 if showSearch {
                     VStack(alignment:.leading) {
-                        
                         PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
-                        
                     }
                     .transition(
                         .asymmetric(
@@ -122,7 +120,6 @@ struct PodcastDetailView: View {
                         .padding(.top,88)
                         .transition(.opacity)
                         .frame(maxWidth:.infinity)
-                        .ignoresSafeArea(edges: .all)
                         .onAppear {
                             let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
                             episodes = episodesArray
@@ -189,6 +186,7 @@ struct PodcastDetailView: View {
                 }
             }
         }
+        .ignoresSafeArea(.all)
         .animation(.interactiveSpring(duration: 0.25), value: showSearch)
     }
 }

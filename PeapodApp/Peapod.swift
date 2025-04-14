@@ -1,6 +1,6 @@
 //
-//  PeapodAppApp.swift
-//  PeapodApp
+//  Peapod.swift
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-03-31.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct PeapodAppApp: App {
+struct Peapod: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var toastManager = ToastManager()
 

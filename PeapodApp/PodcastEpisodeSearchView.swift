@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PodcastEpisodeSearchView: View {
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.dismiss) private var dismiss
     var podcast: Podcast
     @Binding var showSearch: Bool
     @Binding var selectedEpisode: Episode?
@@ -30,43 +31,15 @@ struct PodcastEpisodeSearchView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Search bar
-            HStack {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .resizable()
-                        .frame(width: 12, height: 12)
-                        .opacity(0.35)
-
-                    TextField("Find an episode of \(podcast.title ?? "Podcast title")", text: $query)
-                        .focused($isTextFieldFocused)
-                        .textBody()
-
-                    if !query.isEmpty {
-                        Button(action: {
-                            query = ""
-                            isTextFieldFocused = true
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.surface)
-                .cornerRadius(44)
-
-                Button(action: {
+            SearchBox(
+                query: $query,
+                label: "Find an episode of \(podcast.title ?? "Podcast title")",
+                onCancel: {
                     isTextFieldFocused = false
-                    showSearch.toggle()
                     query = ""
-                }) {
-                    Text("Cancel")
+                    showSearch.toggle()
                 }
-                .textBody()
-            }
+            )
 
             ScrollView {
                 if filteredEpisodes.isEmpty && !query.isEmpty {

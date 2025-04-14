@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct PodcastSearchView: View {
+    @Environment(\.dismiss) private var dismiss
     @FocusState private var isTextFieldFocused: Bool
     @State private var query = ""
     @State private var results: [PodcastResult] = []
@@ -20,40 +21,18 @@ struct PodcastSearchView: View {
     var body: some View {
         VStack {
             VStack {
-                HStack {
-                    Image(systemName: "plus.magnifyingglass")
-                        .resizable()
-                        .frame(width: 12, height: 12)
-                        .opacity(0.35)
-                    TextField("Find a podcast", text: $query)
-                        .focused($isTextFieldFocused)
-                        .textBody()
-                        .onSubmit {
-                            search()
-                        }
-                    
-                    
-                    if !query.isEmpty {
-                        Button(action: {
-                            query = ""
-                            isTextFieldFocused = true
-                            hasSearched = false
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                SearchBox(
+                    query: $query,
+                    label: "Find a podcast",
+                    onSubmit: {
+                        search()
+                    },
+                    onCancel: {
+                        query = ""
+                        hasSearched = false
+                        dismiss()
                     }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.surface)
-                .cornerRadius(44)
-                .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        isTextFieldFocused = true
-                    }
-                }
+                )
             }
             .padding(.horizontal).padding(.top)
             

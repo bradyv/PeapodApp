@@ -37,7 +37,7 @@ struct EpisodeItem: View {
                     selectedPodcast = episode.podcast
                 }
                 
-                Text(episode.airDate ?? Date.distantPast, style: .date)
+                Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textDetail()
             }

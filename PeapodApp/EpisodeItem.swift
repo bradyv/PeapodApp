@@ -60,7 +60,7 @@ struct EpisodeItem: View {
                                     .lineLimit(4)
                                     .layoutPriority(2)
                                 
-                                Text(parseHtmlFlat(episode.episodeDescription ?? "Episode description"))
+                                Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: true))
                                     .foregroundStyle(.white.opacity(0.75))
                                     .multilineTextAlignment(.leading)
                                     .textBody()
@@ -78,15 +78,9 @@ struct EpisodeItem: View {
                             else: { $0.titleCondensed() }
                         )
                     
-                    if displayedFullscreen {
-                        Text(parseHtml(episode.episodeDescription ?? "Episode description"))
-                            .foregroundStyle(Color.text)
-                            .textBody()
-                    } else {
-                        Text(parseHtmlFlat(episode.episodeDescription ?? "Episode description"))
-                            .foregroundStyle(Color.text)
-                            .textBody()
-                    }
+                    Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: displayedFullscreen ? false : true))
+                        .foregroundStyle(Color.text)
+                        .textBody()
                 }
                 .frame(maxWidth:.infinity, alignment: .leading)
             }
@@ -233,6 +227,7 @@ struct EpisodeItem: View {
         }
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
+            print("📝 UI showing description:", episode.episodeDescription ?? "nil")
             Task.detached(priority: .background) {
                 await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)

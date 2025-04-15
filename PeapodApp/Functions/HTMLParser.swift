@@ -8,38 +8,47 @@
 import Foundation
 import SwiftSoup
 
-func parseHtml(_ html: String) -> String {
+func parseHtml(_ html: String, flat: Bool = false) -> String {
     do {
         let document = try SwiftSoup.parse(html)
 
-        // If the body has no elements, treat it as plain text
-        if let body = document.body(), body.children().isEmpty {
+        guard let body = document.body() else {
+            return html.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // If the body has no children, treat as plain text
+        if body.children().isEmpty {
             let fallbackText = try body.text()
             return fallbackText.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         var result = ""
 
-        for child in document.body()?.getChildNodes() ?? [] {
+        for child in body.getChildNodes() {
             if let element = child as? Element {
                 let tag = try element.tagName()
+                let innerText = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
 
-                if tag == "p" || tag == "div" {
-                    let innerText = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
-                    result.append(innerText.isEmpty ? "\n" : innerText + "\n\n")
-                } else if tag == "br" {
-                    result.append("\n")
-                } else {
-                    let text = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !text.isEmpty {
-                        result.append(text + "\n")
-                    }
+                if innerText.isEmpty { continue }
+
+                switch tag {
+                case "p", "div":
+                    result.append(flat ? innerText : innerText + "\n\n")
+                case "br":
+                    if !flat { result.append("\n") }
+                default:
+                    result.append(flat ? innerText : innerText + "\n")
+                }
+            } else if let textNode = child as? TextNode {
+                let text = textNode.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    result.append(flat ? text : text + "\n\n")
                 }
             }
         }
 
         return result
-            .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .replacingOccurrences(of: flat ? "\n" : "\n{3,}", with: flat ? "" : "\n\n", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
     } catch {
@@ -47,44 +56,6 @@ func parseHtml(_ html: String) -> String {
     }
 }
 
-func parseHtmlFlat(_ html: String) -> String {
-    do {
-        let document = try SwiftSoup.parse(html)
-
-        // If the body has no elements, treat it as plain text
-        if let body = document.body(), body.children().isEmpty {
-            let fallbackText = try body.text()
-            return fallbackText.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        var result = ""
-
-        for child in document.body()?.getChildNodes() ?? [] {
-            if let element = child as? Element {
-                let tag = try element.tagName()
-
-                if tag == "p" || tag == "div" {
-                    let innerText = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
-                    result.append(innerText.isEmpty ? "" : innerText + "")
-                } else if tag == "br" {
-                    result.append("")
-                } else {
-                    let text = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !text.isEmpty {
-                        result.append(text + "")
-                    }
-                }
-            }
-        }
-
-        return result
-            .replacingOccurrences(of: "\n{3,}", with: "", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-    } catch {
-        return "Error parsing HTML"
-    }
-}
 
 func parseHtmlToAttributed(_ html: String) -> AttributedString {
     guard let data = html.data(using: .utf8) else { return AttributedString("Error loading description") }

@@ -90,7 +90,6 @@ struct EpisodeItem: View {
                 HStack {
                     Button(action: {
                         player.togglePlayback(for: episode)
-                        print("Playing \(episode.title ?? "Episode title")")
                     }) {
                         HStack {
                             if player.isPlayingEpisode(episode) {
@@ -227,7 +226,6 @@ struct EpisodeItem: View {
         }
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
-            print("📝 UI showing description:", episode.episodeDescription ?? "nil")
             Task.detached(priority: .background) {
                 await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)

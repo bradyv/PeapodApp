@@ -61,7 +61,6 @@ struct PodcastDetailView: View {
                                         withAnimation {
                                             showFullDescription.toggle()
                                         }
-                                        print(showFullDescription)
                                     }
                                     .transition(.opacity)
                                     .animation(.easeOut(duration: 0.15), value: showFullDescription)

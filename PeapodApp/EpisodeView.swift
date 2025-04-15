@@ -194,9 +194,6 @@ struct EpisodeView: View {
             .padding()
         }
         .frame(maxWidth:.infinity)
-        .onAppear {
-            player.writeActualDuration(for: episode)
-        }
     }
 }
 

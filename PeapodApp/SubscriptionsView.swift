@@ -28,7 +28,7 @@ struct SubscriptionsView: View {
             
             ZStack(alignment: .topLeading) {
                 // Actual grid with Add button + (possibly empty) real subscriptions
-                LazyVGrid(columns: columns, spacing: 16) {
+                LazyVGrid(columns: columns) {
                     // Always-visible Add button
                     VStack {
                         Image(systemName: "plus.magnifyingglass")
@@ -61,7 +61,7 @@ struct SubscriptionsView: View {
 
                 // Overlayed placeholder grid, masked as a single unit
                 if subscriptions.isEmpty {
-                    LazyVGrid(columns: columns, spacing: 16) {
+                    LazyVGrid(columns: columns) {
                         // Add empty placeholder to maintain grid offset (position 0)
                         Color.clear
                             .aspectRatio(1, contentMode: .fit)

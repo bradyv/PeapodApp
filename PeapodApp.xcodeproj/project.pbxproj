@@ -11,7 +11,6 @@
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
 		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
 		2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD3B2DA889BA007348BC /* FeedKit */; };
-		2354DD3E2DA889ED007348BC /* InfiniteCarousel in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD3D2DA889ED007348BC /* InfiniteCarousel */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,7 +74,6 @@
 			files = (
 				2354DD362DA88968007348BC /* Kingfisher in Frameworks */,
 				2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */,
-				2354DD3E2DA889ED007348BC /* InfiniteCarousel in Frameworks */,
 				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
 				2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */,
 			);
@@ -142,7 +140,6 @@
 				2354DD322DA8895E007348BC /* SwiftSoup */,
 				2354DD352DA88968007348BC /* Kingfisher */,
 				2354DD3B2DA889BA007348BC /* FeedKit */,
-				2354DD3D2DA889ED007348BC /* InfiniteCarousel */,
 			);
 			productName = PeapodApp;
 			productReference = 23599E2B2D9B895C00F2DE3B /* PeapodApp.app */;
@@ -227,7 +224,6 @@
 			mainGroup = 23599E222D9B895C00F2DE3B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */,
 				2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */,
 				2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 				2354DD342DA88968007348BC /* XCRemoteSwiftPackageReference "Kingfisher" */,
@@ -616,14 +612,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ElyesDer/InfiniteCarousel.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
 		2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/yamoridon/ColorThiefSwift";
@@ -678,11 +666,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */;
 			productName = FeedKit;
-		};
-		2354DD3D2DA889ED007348BC /* InfiniteCarousel */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 231E99D22DA5AFD3008E6BF4 /* XCRemoteSwiftPackageReference "InfiniteCarousel" */;
-			productName = InfiniteCarousel;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

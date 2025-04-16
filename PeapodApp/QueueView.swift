@@ -86,6 +86,9 @@ struct QueueView: View {
                                                 .opacity(phase.isIdentity ? 1 : 0.5) // Apply opacity animation
                                                 .scaleEffect(y: phase.isIdentity ? 1 : 0.92) // Apply scale animation
                                         }
+                                        .onTapGesture {
+                                            selectedEpisode = queue[index]
+                                        }
                                 }
                             }
                         }
@@ -122,60 +125,27 @@ struct QueueView: View {
                 }
                 
                 if queue.count > 1 {
-                    GeometryReader { geo in
-                        let width = geo.size.width
+                    HStack(spacing: 8) {
+                        ForEach(queue.indices, id: \.self) { index in
+                            let isCurrent = index == Int(scrollOffset)
 
-                        VStack {
-                            HStack(spacing: 6) {
-                                ForEach(queue.indices, id: \.self) { index in
-                                    let isCurrent = index == Int(scrollOffset)
-                                    
-                                    Circle()
-                                        .fill(isCurrent ? Color.heading : Color.heading.opacity(0.5))
-                                        .frame(width: 8, height: 8)
-                                        .scaleEffect(isScrubbing && isCurrent ? 1.1 : 1.0)
-                                        .contentShape(Circle())
-                                        .onTapGesture {
-                                            if let id = queue[index].id {
-                                                withAnimation {
-                                                    scrollTarget = id
-                                                }
-                                            }
+                            Capsule()
+                                .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
+                                .frame(width: 18, height: 4)
+                                .scaleEffect(isScrubbing && isCurrent ? 1.1 : 1.0)
+                                .contentShape(Circle())
+                                .onTapGesture {
+                                    if let id = queue[index].id {
+                                        withAnimation {
+                                            scrollTarget = id
                                         }
+                                    }
                                 }
-                            }
-                            .padding(.horizontal)
-                            .frame(height: 44)
-                            .background(
-                                isScrubbing ?
-                                Capsule()
-                                    .fill(Color.surface)
-                                    .transition(.opacity)
-                                : nil
-                            )
-                            .contentShape(Rectangle())
-                            .gesture(
-                                DragGesture(minimumDistance: 0)
-                                    .onChanged { value in
-                                        isScrubbing = true
-                                        
-                                        let percent = min(max(value.location.x / width, 0), 1)
-                                        let index = min(max(Int(percent * CGFloat(queue.count)), 0), queue.count - 1)
-                                        
-                                        if let episodeID = queue[index].id {
-                                            scrollTarget = episodeID
-                                        }
-                                    }
-                                    .onEnded { _ in
-                                        withAnimation(.easeOut(duration: 0.2)) {
-                                            isScrubbing = false
-                                        }
-                                    }
-                            )
                         }
-                        .frame(maxWidth:.infinity)
                     }
-                    .frame(height: 44)
+                    .padding(.horizontal)
+                    .frame(maxWidth:.infinity).frame(height: 44)
+                    .contentShape(Rectangle())
                 }
             }
         }

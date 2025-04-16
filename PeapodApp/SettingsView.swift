@@ -175,6 +175,7 @@ struct SettingsView: View {
                         }
                         .padding(1)
                     }
+                    .scrollIndicators(.hidden)
                 }
                 .contentMargins(.horizontal,16, for: .scrollContent)
                 

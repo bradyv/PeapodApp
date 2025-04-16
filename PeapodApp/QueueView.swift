@@ -122,15 +122,17 @@ struct QueueView: View {
                 }
                 
                 if queue.count > 1 {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 8) {
                         ForEach(queue.indices, id: \.self) { index in
                             let isCurrent = index == Int(scrollOffset)
 
                             VStack {
                                 Capsule()
                                     .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
-                                    .frame(width: 18, height: 4)
+                                    .frame(width: isCurrent ? 18 : 6, height: 6)
                                     .contentShape(Circle())
+                                    .transition(.opacity)
+                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
                             }
                             .frame(height:44)
                             .onTapGesture {

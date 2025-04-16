@@ -17,7 +17,6 @@ struct Acknowledgements: View {
                 VStack {
                     RowItem(icon: "link", label:"ColorThief")
                     RowItem(icon: "link", label:"FeedKit")
-                    RowItem(icon: "link", label:"InfiniteCarousel")
                     RowItem(icon: "link", label:"Kingfisher")
                     RowItem(icon: "link", label:"SwiftSoup")
                 }

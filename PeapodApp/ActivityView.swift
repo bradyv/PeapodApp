@@ -27,12 +27,17 @@ struct ActivityView: View {
     
     var body: some View {
         ScrollView {
+            Text("My Activity")
+                .titleSerif()
+                .frame(maxWidth:.infinity, alignment:.leading)
+                .padding(.top,44).padding(.horizontal)
+            
             if !played.isEmpty {
                 FadeInView(delay: 0.2) {
                     Text("Top Shows")
                         .headerSection()
                         .frame(maxWidth:.infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,24)
+                        .padding(.leading).padding(.top,16)
                 }
                 
                 let podiumOrder = [1, 0, 2]

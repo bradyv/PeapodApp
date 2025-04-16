@@ -17,7 +17,8 @@ struct SettingsView: View {
     @State private var totalPlayedSeconds: Double = 0
     @State private var subscribedCount: Int = 0
     @State private var playCount: Int = 0
-
+    @State private var showActivity = false
+    @State private var showAcknowledgements = false
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -36,207 +37,215 @@ struct SettingsView: View {
     ]
     
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                Spacer().frame(height:24)
+        ScrollView {
+            Spacer().frame(height:24)
+            
+            VStack(spacing:24) {
+                VStack(spacing:4) {
+                    Image("Peapod.logo")
+                    Text("Peapod")
+                        .titleSerif()
+                }
                 
-                VStack(spacing:24) {
-                    VStack(spacing:4) {
-                        Image("Peapod.logo")
-                        Text("Peapod")
-                            .titleSerif()
-                    }
-                    
-                    HStack {
-                        LazyVGrid(columns:columns) {
-                            VStack(alignment:.leading, spacing: 8) {
-                                let hours = Int(totalPlayedSeconds) / 3600
-                                Image(systemName:"airpods.max")
-                                VStack(alignment:.leading) {
-                                    Text("\(hours)")
-                                        .titleSerif()
-                                        .monospaced()
-                                    
-                                    Text("Hours listened")
-                                        .textDetail()
-                                }
-                            }
-                            .frame(maxWidth:.infinity,alignment:.leading)
-                            
-                            VStack(alignment:.leading, spacing:8) {
-                                Image(systemName:"heart.text.square")
+                HStack {
+                    LazyVGrid(columns:columns) {
+                        VStack(alignment:.leading, spacing: 8) {
+                            let hours = Int(totalPlayedSeconds) / 3600
+                            Image(systemName:"airpods.max")
+                            VStack(alignment:.leading) {
+                                Text("\(hours)")
+                                    .titleSerif()
+                                    .monospaced()
                                 
-                                VStack(alignment:.leading) {
-                                    Text("\(subscribedCount)")
-                                        .titleSerif()
-                                    
-                                    Text("Subscriptions")
-                                        .textDetail()
-                                }
+                                Text("Hours listened")
+                                    .textDetail()
                             }
-                            .frame(maxWidth:.infinity,alignment:.leading)
-                            
-                            VStack(alignment:.leading, spacing:8) {
-                                Image(systemName:"play.circle")
-                                
-                                VStack(alignment:.leading) {
-                                    Text("\(playCount)")
-                                        .titleSerif()
-                                    
-                                    Text("Episodes played")
-                                        .textDetail()
-                                }
-                            }
-                            .frame(maxWidth:.infinity,alignment:.leading)
                         }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                        
+                        VStack(alignment:.leading, spacing:8) {
+                            Image(systemName:"heart.text.square")
+                            
+                            VStack(alignment:.leading) {
+                                Text("\(subscribedCount)")
+                                    .titleSerif()
+                                
+                                Text("Subscriptions")
+                                    .textDetail()
+                            }
+                        }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                        
+                        VStack(alignment:.leading, spacing:8) {
+                            Image(systemName:"play.circle")
+                            
+                            VStack(alignment:.leading) {
+                                Text("\(playCount)")
+                                    .titleSerif()
+                                
+                                Text("Episodes played")
+                                    .textDetail()
+                            }
+                        }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                    }
+                }
+                .frame(maxWidth:.infinity, alignment:.leading)
+                .padding()
+                .background(Color.surface)
+                .clipShape(RoundedRectangle(cornerRadius:12))
+                
+                RowItem(icon: "trophy", label: "My Activity")
+                    .onTapGesture {
+                        showActivity.toggle()
+                    }
+            }
+            .padding(.horizontal)
+            
+            Text("Appearance")
+                .headerSection()
+                .frame(maxWidth:.infinity, alignment: .leading)
+                .padding(.leading).padding(.top,24)
+            
+            LazyVGrid(columns: columns) {
+                ForEach(AppTheme.allCases) { theme in
+                    let isSelected = appTheme == theme
+                    VStack(alignment:.leading, spacing: 8) {
+                        Image(systemName: theme.icon)
+                        Text(theme.label)
+                            .textBody()
                     }
                     .frame(maxWidth:.infinity, alignment:.leading)
                     .padding()
-                    .background(Color.surface)
-                    .clipShape(RoundedRectangle(cornerRadius:12))
-                    
-                    NavigationLink(destination: ActivityView()) {
-                        RowItem(icon: "trophy", label: "My Activity")
+                    .clipShape(RoundedRectangle(cornerRadius:8))
+                    .contentShape(RoundedRectangle(cornerRadius:8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius:8)
+                            .stroke(isSelected ? Color.heading : Color.surface, lineWidth: 2)
+                    )
+                    .onTapGesture {
+                        appThemeRawValue = theme.rawValue
                     }
                 }
-                .padding(.horizontal)
-                
-                Text("Appearance")
+            }
+            .padding(.horizontal)
+            
+            VStack {
+                Text("App Icon")
                     .headerSection()
                     .frame(maxWidth:.infinity, alignment: .leading)
                     .padding(.leading).padding(.top,24)
                 
-                LazyVGrid(columns: columns) {
-                    ForEach(AppTheme.allCases) { theme in
-                        let isSelected = appTheme == theme
-                        VStack(alignment:.leading, spacing: 8) {
-                            Image(systemName: theme.icon)
-                            Text(theme.label)
-                                .textBody()
-                        }
-                        .frame(maxWidth:.infinity, alignment:.leading)
-                        .padding()
-                        .clipShape(RoundedRectangle(cornerRadius:8))
-                        .contentShape(RoundedRectangle(cornerRadius:8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius:8)
-                                .stroke(isSelected ? Color.heading : Color.surface, lineWidth: 2)
-                        )
-                        .onTapGesture {
-                            appThemeRawValue = theme.rawValue
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                
-                VStack {
-                    Text("App Icon")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,24)
-                    
-                    ScrollView(.horizontal) {
-                        HStack(spacing:12) {
-                            ForEach(appIcons, id: \.name) { icon in
-                                let isSelected = selectedIconName == icon.asset
-                                VStack {
-                                    ZStack(alignment:.bottomTrailing) {
-                                        Image(icon.name)
-                                            .resizable()
-                                            .aspectRatio(1,contentMode: .fit)
-                                            .frame(width:64,height:64)
-                                            .onTapGesture {
-                                                UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon" ? nil : icon.asset) { error in
-                                                    if let error = error {
-                                                        print("❌ Failed to switch icon: \(error)")
-                                                    } else {
-                                                        print("✅ Icon switched to \(icon.name)")
-                                                        selectedIconName = icon.asset
-                                                    }
+                ScrollView(.horizontal) {
+                    HStack(spacing:12) {
+                        ForEach(appIcons, id: \.name) { icon in
+                            let isSelected = selectedIconName == icon.asset
+                            VStack {
+                                ZStack(alignment:.bottomTrailing) {
+                                    Image(icon.name)
+                                        .resizable()
+                                        .aspectRatio(1,contentMode: .fit)
+                                        .frame(width:64,height:64)
+                                        .onTapGesture {
+                                            UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon" ? nil : icon.asset) { error in
+                                                if let error = error {
+                                                    print("❌ Failed to switch icon: \(error)")
+                                                } else {
+                                                    print("✅ Icon switched to \(icon.name)")
+                                                    selectedIconName = icon.asset
                                                 }
                                             }
-                                        
-                                        VStack {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundStyle(Color.heading)
                                         }
-                                        .padding(2)
-                                        .background(Color.background)
-                                        .clipShape(Circle())
-                                        .opacity(isSelected ? 1 : 0)
-                                        .offset(x:4,y:4)
+                                    
+                                    VStack {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Color.heading)
                                     }
-
-                                    Text(icon.name)
-                                        .foregroundStyle(isSelected ? .heading : .text)
-                                        .textDetail()
+                                    .padding(2)
+                                    .background(Color.background)
+                                    .clipShape(Circle())
+                                    .opacity(isSelected ? 1 : 0)
+                                    .offset(x:4,y:4)
                                 }
+
+                                Text(icon.name)
+                                    .foregroundStyle(isSelected ? .heading : .text)
+                                    .textDetail()
                             }
                         }
-                        .padding(1)
                     }
-                    .scrollIndicators(.hidden)
+                    .padding(1)
                 }
-                .contentMargins(.horizontal,16, for: .scrollContent)
+                .scrollIndicators(.hidden)
+            }
+            .contentMargins(.horizontal,16, for: .scrollContent)
+            
+            VStack {
+                Text("About")
+                    .headerSection()
+                    .frame(maxWidth:.infinity, alignment:.leading)
+                    .padding(.top,24)
                 
-                VStack {
-                    Text("About")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment:.leading)
-                        .padding(.top,24)
-                    
-                    RowItem(icon: "info.circle", label: "Version") {
-                        Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
+                RowItem(icon: "info.circle", label: "Version") {
+                    Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
+                        .textBody()
+                }
+                
+                RowItem(icon: "icloud", label: "Synced") {
+                    if let lastSynced = lastSynced {
+                        Text("\(lastSynced.formatted(date: .abbreviated, time: .shortened))")
+                            .textBody()
+                    } else {
+                        Text("Never")
                             .textBody()
                     }
-                    
-                    RowItem(icon: "icloud", label: "Synced") {
-                        if let lastSynced = lastSynced {
-                            Text("\(lastSynced.formatted(date: .abbreviated, time: .shortened))")
-                                .textBody()
-                        } else {
-                            Text("Never")
-                                .textBody()
-                        }
-                    }
-                    
-                    NavigationLink(destination: Acknowledgements()) {
-                        RowItem(icon: "hands.clap", label: "Libraries")
-                    }
                 }
-                .padding(.horizontal)
                 
-                VStack {
-                    Text("Made in Canada")
-                        .textBody()
-                    
-                    Text("Built by a cute lil guy with a nose ring.")
-                        .textDetail()
-                    
-                    Text("Love to Kat, Brad, Dave, and JD for their support and guidance.")
-                        .textDetail()
-                    
-                    Spacer().frame(height:24)
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(Color.surface)
-                }
-                .padding(.top,24)
-                .padding(.horizontal)
+                RowItem(icon: "hands.clap", label: "Libraries")
+                    .onTapGesture {
+                        showAcknowledgements.toggle()
+                    }
             }
-            .background(Color.background)
-            .task {
-                let context = PersistenceController.shared.container.viewContext
-                podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0
-                episodeCount = (try? context.count(for: Episode.fetchRequest())) ?? 0
+            .padding(.horizontal)
+            
+            VStack {
+                Text("Made in Canada")
+                    .textBody()
                 
-                totalPlayedSeconds = (try? await Podcast.totalPlayedDuration(in: context)) ?? 0
-                subscribedCount = (try? Podcast.totalSubscribedCount(in: context)) ?? 0
-                playCount = (try? Podcast.totalPlayCount(in: context)) ?? 0
+                Text("Built by a cute lil guy with a nose ring.")
+                    .textDetail()
+                
+                Text("Love to Kat, Brad, Dave, and JD for their support and guidance.")
+                    .textDetail()
+                
+                Spacer().frame(height:24)
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(Color.surface)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
-                lastSynced = Date()
-                UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
-            }
+            .padding(.top,24)
+            .padding(.horizontal)
+        }
+        .background(Color.background)
+        .task {
+            let context = PersistenceController.shared.container.viewContext
+            podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0
+            episodeCount = (try? context.count(for: Episode.fetchRequest())) ?? 0
+            
+            totalPlayedSeconds = (try? await Podcast.totalPlayedDuration(in: context)) ?? 0
+            subscribedCount = (try? Podcast.totalSubscribedCount(in: context)) ?? 0
+            playCount = (try? Podcast.totalPlayCount(in: context)) ?? 0
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
+            lastSynced = Date()
+            UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
+        }
+        .sheet(isPresented: $showActivity) {
+            ActivityView()
+                .modifier(PPSheet())
+        }
+        .sheet(isPresented: $showAcknowledgements) {
+            Acknowledgements()
+                .modifier(PPSheet())
         }
     }
 }

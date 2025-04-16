@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct Acknowledgements: View {
+    @Environment(\.openURL) var openURL
+    
     var body: some View {
         ScrollView {
             VStack(alignment:.leading, spacing:16) {
@@ -15,10 +17,30 @@ struct Acknowledgements: View {
                     .textBody()
                 
                 VStack {
-                    RowItem(icon: "link", label:"ColorThief")
+                    RowItem(icon: "link", label:"ColorThiefSwift")
+                        .onTapGesture {
+                            if let url = URL(string: "https://github.com/yamoridon/ColorThiefSwift") {
+                                openURL(url)
+                            }
+                        }
                     RowItem(icon: "link", label:"FeedKit")
+                        .onTapGesture {
+                            if let url = URL(string: "https://github.com/nmdias/FeedKit") {
+                                openURL(url)
+                            }
+                        }
                     RowItem(icon: "link", label:"Kingfisher")
+                        .onTapGesture {
+                            if let url = URL(string: "https://github.com/onevcat/Kingfisher") {
+                                openURL(url)
+                            }
+                        }
                     RowItem(icon: "link", label:"SwiftSoup")
+                        .onTapGesture {
+                            if let url = URL(string: "https://github.com/scinfu/SwiftSoup") {
+                                openURL(url)
+                            }
+                        }
                 }
             }
             .frame(maxWidth:.infinity,alignment:.leading)

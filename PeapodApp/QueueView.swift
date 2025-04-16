@@ -27,7 +27,7 @@ struct QueueView: View {
 
     var body: some View {
             VStack(alignment: .leading, spacing: 12) {
-                if queue.count > 1 {
+                if queue.count > 0 {
                     Text("Up Next")
                         .headerSection()
                         .padding(.leading)

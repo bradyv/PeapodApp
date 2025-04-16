@@ -130,11 +130,30 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
 
         // Case 3: episode is new — promote to Now Playing
-        let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "nowPlayingItem == YES AND id != %@", episode.id ?? "")
-        if let others = try? context?.fetch(request) {
-            for other in others {
-                other.nowPlayingItem = false
+        if let id = episode.id {
+            let request = Episode.fetchRequest()
+            request.predicate = NSPredicate(format: "nowPlayingItem == YES AND id != %@", id)
+            if let others = try? viewContext.fetch(request) {
+                for other in others {
+                    other.nowPlayingItem = false
+                    other.isQueued = true
+                }
+                
+                // Shift existing queued episodes down to make room
+                var queue = fetchQueuedEpisodes()
+                    .filter { $0.id != episode.id && $0.id != others.first?.id } // skip new nowPlaying + old nowPlaying (temporarily)
+                    .sorted { $0.queuePosition < $1.queuePosition }
+                
+                if let requeued = others.first {
+                    // Insert at front
+                    requeued.queuePosition = 0
+                    queue.insert(requeued, at: 0)
+                }
+                
+                // Renumber everything to ensure sequential order
+                for (index, ep) in queue.enumerated() {
+                    ep.queuePosition = Int64(index)
+                }
             }
         }
 

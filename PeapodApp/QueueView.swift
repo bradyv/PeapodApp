@@ -24,11 +24,8 @@ struct QueueView: View {
     // Add scroll proxy trigger
     @State private var frontEpisodeID: UUID? = nil
     
-    let itemWidth: CGFloat = 280
-    let itemSpacing: CGFloat = 16
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
-    @State private var isScrubbing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -125,26 +122,28 @@ struct QueueView: View {
                 }
                 
                 if queue.count > 1 {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 12) {
                         ForEach(queue.indices, id: \.self) { index in
                             let isCurrent = index == Int(scrollOffset)
 
-                            Capsule()
-                                .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
-                                .frame(width: 18, height: 4)
-                                .scaleEffect(isScrubbing && isCurrent ? 1.1 : 1.0)
-                                .contentShape(Circle())
-                                .onTapGesture {
-                                    if let id = queue[index].id {
-                                        withAnimation {
-                                            scrollTarget = id
-                                        }
+                            VStack {
+                                Capsule()
+                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
+                                    .frame(width: 18, height: 4)
+                                    .contentShape(Circle())
+                            }
+                            .frame(height:44)
+                            .onTapGesture {
+                                if let id = queue[index].id {
+                                    withAnimation {
+                                        scrollTarget = id
                                     }
                                 }
+                            }
                         }
                     }
                     .padding(.horizontal)
-                    .frame(maxWidth:.infinity).frame(height: 44)
+                    .frame(maxWidth:.infinity)
                     .contentShape(Rectangle())
                 }
             }

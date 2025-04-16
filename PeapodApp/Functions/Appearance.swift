@@ -16,15 +16,15 @@ enum AppTheme: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .system: return "Match System"
-        case .dark: return "Dark Mode"
-        case .light: return "Light Mode"
+        case .system: return "System"
+        case .dark: return "Dark"
+        case .light: return "Light"
         }
     }
     
     var icon: String {
         switch self {
-        case .system: return "sparkles"
+        case .system: return "circle.righthalf.filled.inverse"
         case .dark: return "moon.stars"
         case .light: return "sun.max"
         }

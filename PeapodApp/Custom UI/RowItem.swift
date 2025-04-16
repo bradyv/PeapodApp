@@ -27,7 +27,6 @@ struct RowItem<Accessory: View>: View {
                 Text(label)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textBody()
-                
                 if Accessory.self == EmptyView.self {
                     Image(systemName: "chevron.right")
                         .frame(width: 16, alignment: .trailing)

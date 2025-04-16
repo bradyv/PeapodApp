@@ -24,7 +24,9 @@ struct FadeInView<Content: View>: View {
             .offset(y: isVisible ? 0 : 10)
             .animation(.easeOut(duration: 0.3).delay(delay), value: isVisible)
             .onAppear {
-                isVisible = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    isVisible = true
+                }
             }
     }
 }

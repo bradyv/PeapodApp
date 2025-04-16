@@ -112,76 +112,20 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func togglePlayback(for episode: Episode) {
         print("▶️ togglePlayback called for episode: \(episode.title ?? "Episode")")
         
-        // Remove from PlayedManager AFTER playback starts
-        
         if episode.isPlayed {
-            episode.isPlayed.toggle()
+            episode.isPlayed = false
             try? episode.managedObjectContext?.save()
             print("🗑️ Removed \(episode.title ?? "Episode") from played list")
         }
 
-        // If it's already playing, pause it
+        // If it's already playing, pause
         if isPlayingEpisode(episode) {
             print("⏸ Already playing — pausing.")
             pause()
             return
         }
 
-        // Save previous playback position
-        if let current = currentEpisode, current.id != episode.id {
-            let pos = player?.currentTime().seconds ?? 0
-            savePlaybackPosition(for: current, position: pos)
-            print("💾 Saved position for \(current.title ?? "Episode"): \(pos)s")
-        }
-
-        // Move episode to front of queue
-        var queue = fetchQueuedEpisodes()
-        // Remove the episode if it's already in the queue
-        queue.removeAll { $0.id == episode.id }
-
-        // Insert it at the front
-        queue.insert(episode, at: 0)
-
-        // Re-x episodes as queued
-        for (index, ep) in queue.enumerated() {
-            ep.isQueued = true
-            ep.queuePosition = Int64(index)
-        }
-        try? viewContext.save()
-        print("📦 Queued: \(episode.title ?? "Episode")")
-
-        // Start playback
-        play(episode: episode)
-        print("🎧 Playback started for \(episode.title ?? "Episode")")
-    }
-    
-    func moveToFront(_ episode: Episode) {
-        var queue = fetchQueuedEpisodes()
-
-        queue.removeAll { $0.id == episode.id }
-        queue.insert(episode, at: 0)
-
-        for (index, ep) in queue.enumerated() {
-            ep.isQueued = true
-            ep.queuePosition = Int64(index)
-        }
-
-        try? viewContext.save()
-    }
-    
-    private func addToQueueAndPlay(_ episode: Episode) {
-        var queue = fetchQueuedEpisodes()
-
-        if let existingIndex = queue.firstIndex(where: { $0.id == episode.id }) {
-            print("🔄 Moving episode to front of queue: \(episode.title ?? "Episode")")
-            let existingEpisode = queue.remove(at: existingIndex)
-            queue.insert(existingEpisode, at: 0)
-        } else {
-            print("🔄 Adding episode to front of queue: \(episode.title ?? "Episode")")
-            queue.insert(episode, at: 0)
-        }
-
-        // ✅ Start playback
+        // Otherwise, play
         play(episode: episode)
     }
     
@@ -196,15 +140,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         playerItemObservation = nil
     }
 
-    func play(episode: Episode) {
+    private func play(episode: Episode) {
         guard let audio = episode.audio, let url = URL(string: audio) else { return }
 
-        moveToFront(episode)
-
+        // Save current position of the previous episode, if switching
         if let previousEpisode = currentEpisode, previousEpisode.id != episode.id {
             savePlaybackPosition(for: previousEpisode, position: player?.currentTime().seconds ?? 0)
         }
 
+        // Move to front of queue and push previous episode to position 1
+        toggleQueued(episode, toFront: true, pushingPrevious: currentEpisode?.id != episode.id ? currentEpisode : nil)
+
+        // Replace current player only if switching episodes
         if currentEpisode?.id != episode.id {
             cleanupPlayer()
             let playerItem = AVPlayerItem(url: url)
@@ -213,10 +160,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             cachedArtwork = nil
             addTimeObserver()
 
-            isLoading = true // begin loading
+            isLoading = true
 
-            // Observe loading status
-            playerItemObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, change in
+            // Observe playback readiness
+            playerItemObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
                 DispatchQueue.main.async {
                     if item.isPlaybackLikelyToKeepUp {
                         self?.isLoading = false
@@ -225,7 +172,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
 
+        // Activate audio session and resume playback
         configureAudioSession(activePlayback: true)
+
         let lastPosition = getSavedPlaybackPosition(for: episode)
         if lastPosition > 0 {
             player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
@@ -238,6 +187,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             isPlaying = true
             updateNowPlayingInfo()
         }
+
+        print("🎧 Playback started for \(episode.title ?? "Episode")")
     }
 
     func pause() {

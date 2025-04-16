@@ -24,12 +24,15 @@ struct ContentView: View {
             ZStack(alignment:.topTrailing) {
                 ScrollView {
                     FadeInView(delay: 0.1) {
-                        QueueView()
+                        NowPlaying()
                     }
                     FadeInView(delay: 0.2) {
-                        LibraryView()
+                        QueueView()
                     }
                     FadeInView(delay: 0.3) {
+                        LibraryView()
+                    }
+                    FadeInView(delay: 0.4) {
                         SubscriptionsView()
                     }
                 }
@@ -39,7 +42,7 @@ struct ContentView: View {
                     //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
                     //                }
                 }
-                
+                .ignoresSafeArea(.all)
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     if newPhase == .active {
                         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
@@ -76,7 +79,6 @@ struct ContentView: View {
                         .modifier(PPSheet())
                 }
                 
-                //            NowPlaying()
             }
             .background(
                 EllipticalGradient(
@@ -88,7 +90,6 @@ struct ContentView: View {
                 )
             )
         }
-//        .NowPlaying()
 //        .toast()
     }
 }

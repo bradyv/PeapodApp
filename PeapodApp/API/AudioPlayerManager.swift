@@ -107,25 +107,43 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         NotificationCenter.default.addObserver(self, selector: #selector(savePlaybackOnExit), name: UIApplication.willTerminateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying), name: .AVPlayerItemDidPlayToEndTime, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioRouteChange), name: AVAudioSession.routeChangeNotification, object: nil)
+        loadPersistedCurrentEpisode()
     }
     
     func togglePlayback(for episode: Episode) {
         print("▶️ togglePlayback called for episode: \(episode.title ?? "Episode")")
-        
-        if episode.isPlayed {
-            episode.isPlayed = false
-            try? episode.managedObjectContext?.save()
-            print("🗑️ Removed \(episode.title ?? "Episode") from played list")
-        }
 
-        // If it's already playing, pause
+        let context = episode.managedObjectContext
+
+        // Case 1: episode is now playing and currently playing — pause
         if isPlayingEpisode(episode) {
             print("⏸ Already playing — pausing.")
             pause()
             return
         }
 
-        // Otherwise, play
+        // Case 2: episode is the current Now Playing — resume
+        if episode.nowPlayingItem {
+            print("▶️ Resuming playback on current episode")
+            play(episode: episode)
+            return
+        }
+
+        // Case 3: episode is new — promote to Now Playing
+        let request = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "nowPlayingItem == YES AND id != %@", episode.id ?? "")
+        if let others = try? context?.fetch(request) {
+            for other in others {
+                other.nowPlayingItem = false
+            }
+        }
+
+        episode.nowPlayingItem = true
+        episode.isQueued = true
+
+        try? context?.save()
+
+        // NOW that everything is flushed, start playback
         play(episode: episode)
     }
     
@@ -138,31 +156,37 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         player = nil
         playerItemObservation?.invalidate()
         playerItemObservation = nil
+        currentEpisode = nil
+        persistCurrentEpisodeID(nil)
     }
 
-    private func play(episode: Episode) {
-        guard let audio = episode.audio, let url = URL(string: audio) else { return }
-
-        // Save current position of the previous episode, if switching
-        if let previousEpisode = currentEpisode, previousEpisode.id != episode.id {
-            savePlaybackPosition(for: previousEpisode, position: player?.currentTime().seconds ?? 0)
+    func play(episode: Episode) {
+        guard let urlString = episode.audio,
+              let url = URL(string: urlString) else {
+            print("❌ Invalid audio URL")
+            return
         }
 
-        // Move to front of queue and push previous episode to position 1
-        toggleQueued(episode, toFront: true, pushingPrevious: currentEpisode?.id != episode.id ? currentEpisode : nil)
+        let previousEpisode = currentEpisode // 🧠 capture before overwrite
 
-        // Replace current player only if switching episodes
-        if currentEpisode?.id != episode.id {
+        let context = episode.managedObjectContext
+
+        try? context?.save()
+
+        // Step 3: Properly initialize player
+        let shouldInitializePlayer = player == nil || previousEpisode?.id != episode.id
+
+        if shouldInitializePlayer {
             cleanupPlayer()
+
             let playerItem = AVPlayerItem(url: url)
             player = AVPlayer(playerItem: playerItem)
-            currentEpisode = episode
+
             cachedArtwork = nil
             addTimeObserver()
 
             isLoading = true
 
-            // Observe playback readiness
             playerItemObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
                 DispatchQueue.main.async {
                     if item.isPlaybackLikelyToKeepUp {
@@ -171,24 +195,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 }
             }
         }
+        
+        currentEpisode = episode
 
-        // Activate audio session and resume playback
-        configureAudioSession(activePlayback: true)
-
-        let lastPosition = getSavedPlaybackPosition(for: episode)
-        if lastPosition > 0 {
-            player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
-                self?.player?.play()
-                self?.isPlaying = true
-                self?.updateNowPlayingInfo()
-            }
-        } else {
-            player?.play()
-            isPlaying = true
-            updateNowPlayingInfo()
-        }
-
-        print("🎧 Playback started for \(episode.title ?? "Episode")")
+        player?.play()
+        isPlaying = true
+        print("🎧 Playback started for \(episode.title ?? "Unknown")")
     }
 
     func pause() {
@@ -329,24 +341,34 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
+        let wasNowPlaying = episode.nowPlayingItem
         episode.playbackPosition = 0
-        
-        if episode.isPlayed {
-            episode.isPlayed = false
-            episode.playedDate = nil
-        } else {
-            episode.isPlayed = true
-            episode.isQueued = false
-            episode.playedDate = Date.now
-            episode.podcast?.playCount += 1
+        episode.isPlayed = true
+        episode.isQueued = false
+        episode.queuePosition = -1
+        episode.nowPlayingItem = false
+        episode.playedDate = Date.now
+        episode.podcast?.playCount += 1
 
-            let actualProgress = manually && currentEpisode?.id == episode.id
-                ? min(player?.currentTime().seconds ?? 0, episode.duration)
-                : min(episode.playbackPosition, episode.duration)
+        let actualProgress = manually && currentEpisode?.id == episode.id
+            ? min(player?.currentTime().seconds ?? 0, episode.duration)
+            : min(episode.playbackPosition, episode.duration)
 
-            let playedSecondsToAdd = manually ? actualProgress : episode.duration
-            episode.podcast?.playedSeconds += playedSecondsToAdd
-            print("Recorded \(playedSecondsToAdd) for \(episode.title ?? "episode")")
+        let playedSecondsToAdd = manually ? actualProgress : episode.duration
+        episode.podcast?.playedSeconds += playedSecondsToAdd
+
+        if wasNowPlaying {
+            currentEpisode = nil
+            persistCurrentEpisodeID(nil)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                if let next = fetchQueuedEpisodes().sorted(by: { $0.queuePosition < $1.queuePosition }).first {
+                    next.nowPlayingItem = true
+                    self.currentEpisode = next
+                    self.persistCurrentEpisodeID(next.id)
+                    try? next.managedObjectContext?.save()
+                }
+            }
         }
 
         try? episode.managedObjectContext?.save()
@@ -427,6 +449,23 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+    }
+    
+    private let currentEpisodeKey = "currentEpisodeID"
+
+    func persistCurrentEpisodeID(_ id: String?) {
+        UserDefaults.standard.set(id, forKey: currentEpisodeKey)
+    }
+
+    private func loadPersistedCurrentEpisode() {
+        guard let idString = UserDefaults.standard.string(forKey: currentEpisodeKey),
+              let uuid = UUID(uuidString: idString) else { return }
+        let request = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
+        if let match = try? viewContext.fetch(request).first {
+            currentEpisode = match
+        }
     }
     
     private var cachedArtwork: MPMediaItemArtwork?

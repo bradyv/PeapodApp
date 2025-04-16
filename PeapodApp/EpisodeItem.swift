@@ -156,19 +156,29 @@ struct EpisodeItem: View {
                     )
                     
                     Button(action: {
-                        if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
+                        let isNowPlaying = player.currentEpisode?.id == episode.id
+                        let hasStarted = player.hasStartedPlayback(for: episode)
+
+                        if hasStarted {
                             player.stop()
                             player.markAsPlayed(for: episode, manually: true)
-                            try? episode.managedObjectContext?.save()
                         } else {
                             withAnimation {
                                 toggleQueued(episode)
                             }
-                            try? episode.managedObjectContext?.save()
+
+                            // ✅ Only remove from Now Playing *if* the episode was already now playing before tap
+                            // and NOT just added via toggleQueued
+                            if isNowPlaying {
+                                player.currentEpisode = nil
+                                player.persistCurrentEpisodeID(nil)
+                            }
                         }
+
+                        try? episode.managedObjectContext?.save()
                     }) {
                         if displayedInQueue {
-                            if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
+                            if player.hasStartedPlayback(for: episode) {
                                 Label("Mark as played", systemImage: "checkmark.circle")
                             } else {
                                 Label("Archive", systemImage: "archivebox")

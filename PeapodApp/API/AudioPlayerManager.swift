@@ -149,7 +149,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
 
         // Move to front of queue and push previous episode to position 1
-        toggleQueued(episode, toFront: true, pushingPrevious: currentEpisode?.id != episode.id ? currentEpisode : nil)
+        if let previous = currentEpisode, previous.id != episode.id {
+            addToQueue(previous, prepend: true, in: viewContext)
+            previous.nowPlayingItem = false
+        }
+
+        if let previous = currentEpisode, previous.id != episode.id {
+            previous.nowPlayingItem = false
+        }
+
+        // Set nowPlaying on new one
+        moveToNowPlaying(episode, context: viewContext)
+
+        // Keep it in the queue for logic, but hide from UI
+        normalizeQueuePositions(in: viewContext)
+        try? viewContext.save()
 
         // Replace current player only if switching episodes
         if currentEpisode?.id != episode.id {
@@ -336,9 +350,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             episode.playedDate = nil
         } else {
             episode.isPlayed = true
+            episode.nowPlayingItem = false
             episode.isQueued = false
             episode.playedDate = Date.now
             episode.podcast?.playCount += 1
+            episode.playlist = nil
 
             let actualProgress = manually && currentEpisode?.id == episode.id
                 ? min(player?.currentTime().seconds ?? 0, episode.duration)

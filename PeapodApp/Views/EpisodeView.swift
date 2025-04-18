@@ -126,7 +126,11 @@ struct EpisodeView: View {
                                             
                                             Button(action: {
                                                 withAnimation {
-                                                    toggleQueued(episode)
+                                                    if episode.playlist != nil {
+                                                        removeFromQueue(episode, in: context)
+                                                    } else {
+                                                        addToQueue(episode, in: context)
+                                                    }
                                                 }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
@@ -155,7 +159,11 @@ struct EpisodeView: View {
                         if episode.isQueued {
                             Button(action: {
                                 withAnimation {
-                                    toggleQueued(episode)
+                                    if episode.playlist != nil {
+                                        removeFromQueue(episode, in: context)
+                                    } else {
+                                        addToQueue(episode, in: context)
+                                    }
                                 }
                                 try? episode.managedObjectContext?.save()
                             }) {

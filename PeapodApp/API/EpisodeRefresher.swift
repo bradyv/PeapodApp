@@ -53,7 +53,7 @@ class EpisodeRefresher {
                             e.podcast = podcast
                             
                             if let podcast = e.podcast, podcast.isSubscribed {
-                                toggleQueued(e)
+                                addToQueue(e, in: context)
                             }
                         }
 

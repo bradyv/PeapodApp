@@ -162,7 +162,11 @@ struct EpisodeItem: View {
                             try? episode.managedObjectContext?.save()
                         } else {
                             withAnimation {
-                                toggleQueued(episode)
+                                if episode.playlist != nil {
+                                    removeFromQueue(episode, in: context)
+                                } else {
+                                    addToQueue(episode, in: context)
+                                }
                             }
                             try? episode.managedObjectContext?.save()
                         }

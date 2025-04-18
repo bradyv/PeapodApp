@@ -168,7 +168,12 @@ struct PodcastDetailView: View {
                                            let latest = (podcast.episode as? Set<Episode>)?
                                             .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
                                             .first {
-                                            toggleQueued(latest)
+                                            if latest.playlist != nil {
+                                                removeFromQueue(latest, in: context)
+                                            } else {
+                                                addToQueue(latest, in: context)
+                                            }
+
                                         }
                                         try? podcast.managedObjectContext?.save()
                                     }) {

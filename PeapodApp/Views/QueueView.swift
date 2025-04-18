@@ -9,11 +9,16 @@ import SwiftUI
 
 struct QueueView: View {
     @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.queuePosition)],
-        predicate: NSPredicate(format: "isQueued == YES"),
+        sortDescriptors: [],
+        predicate: NSPredicate(format: "name == %@", "Queue"),
         animation: .interactiveSpring()
-    )
-    var queue: FetchedResults<Episode>
+    ) var queuePlaylists: FetchedResults<Playlist>
+
+    var queue: [Episode] {
+        (queuePlaylists.first?.episodes as? Set<Episode>)?
+            .filter { !$0.nowPlayingItem }
+            .sorted(by: { $0.queuePosition < $1.queuePosition }) ?? []
+    }
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.title)],
         predicate: NSPredicate(format: "isSubscribed == YES"),
@@ -26,8 +31,10 @@ struct QueueView: View {
     
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
+    @State private var activeCard: Episode?
 
     var body: some View {
+        
         VStack(alignment: .leading, spacing: 12) {
             Text("Up Next")
                 .titleSerif()
@@ -67,17 +74,12 @@ struct QueueView: View {
                                 }
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
+                                NowPlayingItem()
+                                
                                 ForEach(queue.indices, id: \.self) { index in
                                     QueueItem(episode: queue[index])
-                                        .id(queue[index].id)
                                         .lineLimit(3)
-                                        .background(
-                                            GeometryReader { geo in
-                                                Color.clear
-                                                    .preference(key: ScrollOffsetKey.self,
-                                                                value: [index: geo.frame(in: .global).minX])
-                                            }
-                                        )
+                                        .id(queue[index])
                                         .scrollTransition { content, phase in
                                             content
                                                 .opacity(phase.isIdentity ? 1 : 0.5) // Apply opacity animation
@@ -91,56 +93,28 @@ struct QueueView: View {
                         }
                         .scrollTargetLayout()
                     }
-                    .onPreferenceChange(ScrollOffsetKey.self) { values in
-                        if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
-                            scrollOffset = CGFloat(nearest.key)
-                        }
-                    }
-                    .onChange(of: scrollTarget) { id in
-                        if let id = id {
-                            withAnimation {
-                                proxy.scrollTo(id, anchor: .leading)
-                            }
-                        }
-                    }
                     .disabled(queue.isEmpty)
                     .scrollIndicators(.hidden)
+                    .scrollTargetBehavior(.viewAligned)
+                    .scrollPosition(id: $activeCard)
                     .contentMargins(.horizontal,16, for: .scrollContent)
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode)
                             .modifier(PPSheet())
-                    }
-                    .onChange(of: queue.first?.id) { oldID, newID in
-                        if let id = newID {
-                            DispatchQueue.main.async {
-                                withAnimation {
-                                    proxy.scrollTo(id, anchor: .leading)
-                                }
-                            }
-                        }
                     }
                 }
                 
                 if queue.count > 1 {
                     HStack(spacing: 8) {
                         ForEach(queue.indices, id: \.self) { index in
-                            let isCurrent = index == Int(scrollOffset)
-
-                            VStack {
-                                Capsule()
-                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
-                                    .frame(width: isCurrent ? 18 : 6, height: 6)
-                                    .contentShape(Circle())
-                                    .transition(.opacity)
-                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
-                            }
-                            .frame(height:44)
-                            .onTapGesture {
-                                if let id = queue[index].id {
-                                    withAnimation {
-                                        scrollTarget = id
-                                    }
+                            let episode = queue[index]
+                            Button {
+                                withAnimation {
+                                    activeCard = episode
                                 }
+                            } label: {
+                                Image(systemName: activeCard == episode ? "circle.fill" : "circle")
+                                .foregroundStyle(Color(uiColor: .systemGray3))
                             }
                         }
                     }
@@ -152,12 +126,23 @@ struct QueueView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top,24)
+        .onAppear {
+            activeCard = queue.first
+        }
+        .onChange(of: queue.first) { newFirst in
+            if let newFirst = newFirst {
+                DispatchQueue.main.async {
+                    activeCard = newFirst
+                }
+            }
+        }
     }
 }
 
 private struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: [Int: CGFloat] = [:]
-    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+    static var defaultValue: [UUID: CGFloat] = [:] // UUID not Int
+
+    static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }

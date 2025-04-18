@@ -91,6 +91,7 @@ struct QueueView: View {
                         }
                         .scrollTargetLayout()
                     }
+                    .scrollTargetBehavior(.viewAligned)
                     .onPreferenceChange(ScrollOffsetKey.self) { values in
                         if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
                             scrollOffset = CGFloat(nearest.key)

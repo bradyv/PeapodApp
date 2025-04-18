@@ -21,6 +21,7 @@ struct ContentView: View {
     
     var body: some View {
         ZStack(alignment:.topTrailing) {
+            NowPlaying()
             ScrollView {
                 FadeInView(delay: 0.1) {
                     QueueView()

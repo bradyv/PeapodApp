@@ -34,7 +34,7 @@ struct QueueView: View {
                 .padding(.leading)
                 .padding(.bottom, 4)
 
-            VStack {
+            VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         LazyHStack(spacing:16) {

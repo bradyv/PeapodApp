@@ -48,7 +48,8 @@ func parseHtmlToAttributedString(_ html: String) -> AttributedString {
     let color = Color.text
 
     do {
-        let doc = try SwiftSoup.parse(html)
+        let cleanHtml = sanitizeHtml(html)
+        let doc = try SwiftSoup.parse(cleanHtml)
         guard let body = try doc.body() else { return AttributedString("No content") }
 
         for node in body.getChildNodes() {
@@ -61,6 +62,29 @@ func parseHtmlToAttributedString(_ html: String) -> AttributedString {
         return AttributedString("Error parsing description")
     }
 }
+
+func sanitizeHtml(_ html: String) -> String {
+    var cleaned = html
+
+    // Normalize all <br> to consistent tag
+    cleaned = cleaned.replacingOccurrences(of: "<br ?/?>", with: "<br>", options: .regularExpression)
+
+    // Remove empty <p><br></p>
+    cleaned = cleaned.replacingOccurrences(of: "<p>\\s*<br>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
+
+    // Remove entirely empty paragraphs
+    cleaned = cleaned.replacingOccurrences(of: "<p>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
+
+    // Trim leading whitespace inside paragraphs (spaces, tabs, &nbsp;)
+    cleaned = cleaned.replacingOccurrences(
+        of: "<p>\\s+",
+        with: "<p>",
+        options: [.regularExpression, .caseInsensitive]
+    )
+
+    return cleaned
+}
+
 
 func linkifyPlainUrls(in input: AttributedString) -> AttributedString {
     var result = input

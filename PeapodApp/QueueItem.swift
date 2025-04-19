@@ -15,12 +15,6 @@ struct QueueItem: View {
         let frame = UIScreen.main.bounds.width - 32
 
         ZStack(alignment:.bottomLeading) {
-            HStack {
-                Text("Episode tint: \(episode.episodeTint ?? "No episode tint")")
-                Text("Episode tint darkened: \(episode.episodeTintDarkened ?? "No darkened episode tint")")
-                Text("Podcast tint: \(episode.podcast?.podcastTint ?? "No podcast tint")")
-                Text("Podcast darkened tint: \(episode.podcast?.podcastTintDarkened ?? "No darkened podcast tint")")
-            }
             EpisodeItem(episode:episode, displayedInQueue: true)
                 .lineLimit(3)
                 .padding()

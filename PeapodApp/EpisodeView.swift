@@ -13,6 +13,7 @@ struct EpisodeView: View {
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var parsedDescription: NSAttributedString?
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ZStack(alignment:.topLeading) {
@@ -44,7 +45,7 @@ struct EpisodeView: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
                             
-                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
+                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? "", linkColor: Color.tint(for:episode, darkened: colorScheme == .dark ? false : true)))
                                 .multilineTextAlignment(.leading)
                             
 //                            Text(parseHtml(episode.episodeDescription ?? ""))

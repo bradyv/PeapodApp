@@ -11,37 +11,56 @@ import SwiftSoup
 
 func parseHtml(_ html: String, flat: Bool = false) -> String {
     do {
-        let cleanedHtml = html
-            .replacingOccurrences(of: "<br ?/?>", with: "</p><p>", options: .regularExpression)
-            .replacingOccurrences(of: "\\n", with: "</p><p>", options: .regularExpression)
+        let document = try SwiftSoup.parse(html)
 
-        let wrappedHtml = "<div>\(cleanedHtml)</div>"
 
-        let document = try SwiftSoup.parse(wrappedHtml)
+
         guard let body = document.body() else {
-            return "Error: Missing body tag"
+            return html.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        var paragraphs: [String] = []
-        var seen = Set<String>()
+        // If the body has no children, treat as plain text
+        if body.children().isEmpty {
+            let fallbackText = try body.text()
+            return fallbackText.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
 
-        for el in try body.select("p") {
-            let text = try el.text().trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-            guard !text.isEmpty else { continue }
+        var result = ""
 
-            if seen.insert(text).inserted {
-                paragraphs.append(text)
+
+        for child in body.getChildNodes() {
+            if let element = child as? Element {
+                let tag = try element.tagName()
+                let innerText = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if innerText.isEmpty { continue }
+
+                switch tag {
+                case "p", "div":
+                    result.append(flat ? innerText : innerText + "\n\n")
+                case "br":
+                    if !flat { result.append("\n") }
+                default:
+                    result.append(flat ? innerText : innerText + "\n")
+                }
+            } else if let textNode = child as? TextNode {
+                let text = textNode.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty {
+                    result.append(flat ? text : text + "\n\n")
+                }
             }
         }
 
-        return paragraphs.joined(separator: flat ? " " : "\n\n")
+        return result
+            .replacingOccurrences(of: flat ? "\n" : "\n{3,}", with: flat ? "" : "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
     } catch {
         return "Error parsing HTML"
     }
 }
 
-func parseHtmlToAttributedString(_ html: String) -> AttributedString {
+func parseHtmlToAttributedString(_ html: String, linkColor: Color = .blue) -> AttributedString {
     var result = AttributedString()
 
     let font = Font.system(size: 17, weight: .regular, design: .default).width(.condensed)
@@ -53,10 +72,10 @@ func parseHtmlToAttributedString(_ html: String) -> AttributedString {
         guard let body = try doc.body() else { return AttributedString("No content") }
 
         for node in body.getChildNodes() {
-            result.append(parseNode(node, font: font, color: color))
+            result.append(parseNode(node, font: font, color: color, linkColor: linkColor))
         }
 
-        return linkifyPlainUrls(in: result)
+        return linkifyPlainUrls(in: result, linkColor: linkColor)
 
     } catch {
         return AttributedString("Error parsing description")
@@ -85,8 +104,7 @@ func sanitizeHtml(_ html: String) -> String {
     return cleaned
 }
 
-
-func linkifyPlainUrls(in input: AttributedString) -> AttributedString {
+func linkifyPlainUrls(in input: AttributedString, linkColor: Color = .blue) -> AttributedString {
     var result = input
     let nsString = NSString(string: String(input.characters))
     let fullRange = NSRange(location: 0, length: nsString.length)
@@ -101,14 +119,14 @@ func linkifyPlainUrls(in input: AttributedString) -> AttributedString {
         guard let range = Range(match.range, in: result) else { continue }
         if let url = match.url {
             result[range].link = url
-            result[range].foregroundColor = .blue // Optional: make it visibly styled
+            result[range].foregroundColor = linkColor
         }
     }
 
     return result
 }
 
-private func parseNode(_ node: Node, font: Font, color: Color) -> AttributedString {
+private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color) -> AttributedString {
     var output = AttributedString()
 
     if let textNode = node as? TextNode {
@@ -122,7 +140,7 @@ private func parseNode(_ node: Node, font: Font, color: Color) -> AttributedStri
         switch element.tagName().lowercased() {
         case "p":
             for child in element.getChildNodes() {
-                output.append(parseNode(child, font: font, color: color))
+                output.append(parseNode(child, font: font, color: color, linkColor: linkColor))
             }
             output.append(AttributedString("\n\n"))
 
@@ -135,14 +153,14 @@ private func parseNode(_ node: Node, font: Font, color: Color) -> AttributedStri
             if let label, let href, let url = URL(string: href) {
                 var link = AttributedString(label)
                 link.font = font
-                link.foregroundColor = .blue
+                link.foregroundColor = linkColor
                 link.link = url
                 output.append(link)
             }
 
         default:
             for child in element.getChildNodes() {
-                output.append(parseNode(child, font: font, color: color))
+                output.append(parseNode(child, font: font, color: color, linkColor: linkColor))
             }
         }
     }

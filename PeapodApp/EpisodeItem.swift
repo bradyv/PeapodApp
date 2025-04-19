@@ -151,11 +151,7 @@ struct EpisodeItem: View {
                         )
                         : PPButton(
                             type: .filled,
-                            colorStyle: .monochrome,
-                            customColors: ButtonCustomColors(
-                                foreground: .white,
-                                background: Color.tint(for:episode.podcast, darkened: true)
-                            )
+                            colorStyle: .monochrome
                         )
                     )
                     

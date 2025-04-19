@@ -157,33 +157,6 @@ enum ColorTintManager {
     }
 }
 
-
-//MARK: - ColorDarkener
-extension UIColor {
-    func darkened(by percentage: CGFloat) -> UIColor {
-        var hue: CGFloat = 0
-        var saturation: CGFloat = 0
-        var brightness: CGFloat = 0
-        var alpha: CGFloat = 0
-
-        guard self.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else {
-            return self
-        }
-
-        return UIColor(hue: hue,
-                       saturation: saturation,
-                       brightness: max(brightness - percentage, 0),
-                       alpha: alpha)
-    }
-}
-
-extension Color {
-    func darkened(by percentage: CGFloat) -> Color {
-        let uiColor = UIColor(self)
-        return Color(uiColor.darkened(by: percentage))
-    }
-}
-
 extension Color {
     static func tint(for episode: Episode, opacity: CGFloat = 1, darkened: Bool = false) -> Color {
         return (Color(hex: darkened ? episode.episodeTintDarkened : episode.episodeTint)?.opacity(opacity)) ??
@@ -193,5 +166,32 @@ extension Color {
     static func tint(for podcast: Podcast?, opacity: CGFloat = 1, darkened: Bool = false) -> Color {
         return (Color(hex: darkened ? podcast?.podcastTintDarkened : podcast?.podcastTint)?.opacity(opacity)) ??
                Color.black.opacity(opacity)
+    }
+}
+
+func resetAllTints(in context: NSManagedObjectContext) {
+    context.perform {
+        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+
+        do {
+            let podcasts = try context.fetch(podcastRequest)
+            for podcast in podcasts {
+                podcast.podcastTint = nil
+                podcast.podcastTintDarkened = nil
+            }
+
+            let episodes = try context.fetch(episodeRequest)
+            for episode in episodes {
+                episode.episodeTint = nil
+                episode.episodeTintDarkened = nil
+            }
+
+            try context.save()
+            print("✅ Successfully reset all tint values.")
+
+        } catch {
+            print("❌ Failed to reset tints: \(error.localizedDescription)")
+        }
     }
 }

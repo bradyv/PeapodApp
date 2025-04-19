@@ -10,14 +10,21 @@ import Kingfisher
 
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.colorScheme) var colorScheme
     @Environment(\.openURL) private var openURL
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var parsedDescription: NSAttributedString?
+    @State private var scrollOffset: CGFloat = 0
     
     var body: some View {
         ZStack(alignment:.topLeading) {
             VStack {
+                let fadeStart: CGFloat = 0
+                let fadeEnd: CGFloat = 300
+                let clamped = min(max(scrollOffset, fadeStart), fadeEnd)
+                let opacity = 0 + (clamped - fadeStart) / (fadeEnd - fadeStart)
+                
                 FadeInView(delay: 0.1) {
                     KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                         .resizable()
@@ -26,6 +33,8 @@ struct EpisodeView: View {
                             LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                            startPoint: .top, endPoint: .init(x: 0.5, y: 0.85))
                         )
+                        .opacity(opacity)
+                        .animation(.easeOut(duration: 0.1), value: opacity)
                 }
                 
                 Spacer()
@@ -40,12 +49,15 @@ struct EpisodeView: View {
                             .opacity(0)
                             
                         VStack(spacing:24) {
+                            
                             Text(episode.title ?? "Episode title")
                                 .titleSerif()
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal)
+                                .trackScrollOffset("scroll") { value in
+                                    scrollOffset = value
+                                }
                             
-                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? "", linkColor: Color.tint(for:episode, darkened: true)))
+                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? "", linkColor: Color.tint(for:episode, darkened: colorScheme == .dark ? false : true)))
                                 .multilineTextAlignment(.leading)
                                 .environment(\.openURL, OpenURLAction { url in
                                     if url.scheme == "peapod", url.host == "seek",
@@ -66,8 +78,9 @@ struct EpisodeView: View {
 //                                .textBody()
                         }
                         .offset(y:-64)
-                        .padding(.horizontal)
                     }
+                    .contentMargins(16, for: .scrollContent)
+                    .coordinateSpace(name: "scroll")
                     .maskEdge(.top)
                     .maskEdge(.bottom)
                 }
@@ -202,8 +215,24 @@ struct EpisodeView: View {
             }
             
             FadeInView(delay: 0.5) {
+                let fadeStart: CGFloat = 0
+                let fadeEnd: CGFloat = 300
+                let clamped = min(max(scrollOffset, fadeStart), fadeEnd)
+                let opacity = 1 - (clamped - fadeStart) / (fadeEnd - fadeStart)
+                
                 VStack {
                     HStack {
+                        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
+                            .shadow(color:Color.tint(for:episode),
+                                    radius: 32
+                            )
+                            .opacity(opacity)
+                            .animation(.easeOut(duration: 0.1), value: opacity)
+                        
                         Spacer()
                         
                         if episode.isQueued {

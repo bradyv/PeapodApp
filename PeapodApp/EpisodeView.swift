@@ -16,17 +16,43 @@ struct EpisodeView: View {
     var body: some View {
         ZStack(alignment:.topLeading) {
             VStack {
+                FadeInView(delay: 0.1) {
+                    KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                        .resizable()
+                        .aspectRatio(1, contentMode:.fit)
+                        .mask(
+                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.85))
+                        )
+                }
+                
+                Spacer()
+            }
+            
+            VStack {
                 FadeInView(delay: 0.3) {
                     ScrollView {
-                        Spacer().frame(height:76)
-                        EpisodeItem(episode: episode, displayedFullscreen:true)
-                            .padding(.horizontal)
-                        
-                        Spacer().frame(height:64)
+                        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                            .resizable()
+                            .aspectRatio(1, contentMode:.fit)
+                            .opacity(0)
+                            
+                        VStack(spacing:24) {
+                            Text(episode.title ?? "Episode title")
+                                .titleSerif()
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                            
+                            Text(parseHtml(episode.episodeDescription ?? ""))
+                                .foregroundStyle(.white.opacity(0.75))
+                                .multilineTextAlignment(.leading)
+                                .textBody()
+                        }
+                        .offset(y:-64)
+                        .padding(.horizontal)
                     }
                     .maskEdge(.top)
                     .maskEdge(.bottom)
-                    .padding(.top,88)
                 }
                 
                 FadeInView(delay: 0.4) {
@@ -85,8 +111,19 @@ struct EpisodeView: View {
                                                     Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
                                                         .font(.title)
                                                 }
-                                                .labelStyle(.iconOnly)
-                                                .foregroundStyle(Color.heading)
+                                                .buttonStyle(PPButton(
+                                                    type:.transparent,
+                                                    colorStyle:.monochrome,
+                                                    iconOnly: true,
+                                                    large: true,
+                                                    customColors: ButtonCustomColors(
+                                                        foreground: .white,
+                                                        background: Color.tint(for:episode, darkened: true)
+                                                        )
+                                                    )
+                                                )
+//                                                .labelStyle(.iconOnly)
+//                                                .foregroundStyle(Color.heading)
                                                 
                                                 Button(action: {
                                                     player.skipForward(seconds: 30)
@@ -98,9 +135,9 @@ struct EpisodeView: View {
                                                 .labelStyle(.iconOnly)
                                                 .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
                                             }
-                                            .padding(.vertical).padding(.horizontal,18)
-                                            .background(Color.surface)
-                                            .clipShape(Capsule())
+//                                            .padding(.vertical).padding(.horizontal,18)
+//                                            .background(Color.surface)
+//                                            .clipShape(Capsule())
                                             
                                             Spacer()
                                             
@@ -122,7 +159,7 @@ struct EpisodeView: View {
                                                 Label("Listen Now", systemImage: "play.fill")
                                                     .frame(maxWidth:.infinity)
                                             }
-                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, customColors: ButtonCustomColors(foreground: .white, background: Color.tint(for:episode, darkened: true))))
                                             
                                             Button(action: {
                                                 withAnimation {
@@ -176,22 +213,6 @@ struct EpisodeView: View {
                 }
                 .padding()
             }
-            
-            VStack {
-                FadeInView(delay: 0.1) {
-                    KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                        .resizable()
-                        .frame(width: 128, height: 128)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                        .shadow(color:Color.tint(for:episode),
-                                radius: 128
-                        )
-                }
-                
-                Spacer()
-            }
-            .padding()
         }
         .frame(maxWidth:.infinity)
     }

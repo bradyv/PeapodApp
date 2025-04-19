@@ -93,6 +93,14 @@ func sanitizeHtml(_ html: String) -> String {
 
     // Remove entirely empty paragraphs
     cleaned = cleaned.replacingOccurrences(of: "<p>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
+    
+    // ✅ Flatten nested paragraphs: <p><p>...</p></p> → <p>...</p>
+    // This works by repeatedly replacing outer <p><p> and inner </p></p> until they’re flattened
+    while cleaned.contains("<p><p>") || cleaned.contains("</p></p>") {
+        cleaned = cleaned
+            .replacingOccurrences(of: "<p><p>", with: "<p>", options: .caseInsensitive)
+            .replacingOccurrences(of: "</p></p>", with: "</p>", options: .caseInsensitive)
+    }
 
     // Trim leading whitespace inside paragraphs (spaces, tabs, &nbsp;)
     cleaned = cleaned.replacingOccurrences(

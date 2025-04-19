@@ -37,7 +37,7 @@ struct QueueView: View {
             VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        LazyHStack(spacing:16) {
+                        LazyHStack(spacing:8) {
                             if queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
@@ -81,7 +81,7 @@ struct QueueView: View {
                                         .scrollTransition { content, phase in
                                             content
                                                 .opacity(phase.isIdentity ? 1 : 0.5) // Apply opacity animation
-                                                .scaleEffect(y: phase.isIdentity ? 1 : 0.92) // Apply scale animation
+                                                .scaleEffect(y: phase.isIdentity ? 1 : 0.85) // Apply scale animation
                                         }
                                         .onTapGesture {
                                             selectedEpisode = queue[index]

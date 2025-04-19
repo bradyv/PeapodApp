@@ -12,9 +12,15 @@ struct QueueItem: View {
     @ObservedObject var episode: Episode
     
     var body: some View {
-        let frame = UIScreen.main.bounds.width - 100
+        let frame = UIScreen.main.bounds.width - 32
 
         ZStack(alignment:.bottomLeading) {
+            HStack {
+                Text("Episode tint: \(episode.episodeTint ?? "No episode tint")")
+                Text("Episode tint darkened: \(episode.episodeTintDarkened ?? "No darkened episode tint")")
+                Text("Podcast tint: \(episode.podcast?.podcastTint ?? "No podcast tint")")
+                Text("Podcast darkened tint: \(episode.podcast?.podcastTintDarkened ?? "No darkened podcast tint")")
+            }
             EpisodeItem(episode:episode, displayedInQueue: true)
                 .lineLimit(3)
                 .padding()
@@ -26,13 +32,13 @@ struct QueueItem: View {
                     .frame(width: frame, height: frame)
                     .mask(
                         LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.7))
+                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.6))
                     )
                 Spacer()
             }
         }
         .frame(width: frame, height: 400)
-        .background(Color.tint(for:episode).darkened(by:0.3))
+        .background(Color.tint(for:episode, darkened: true))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
     }
@@ -40,7 +46,7 @@ struct QueueItem: View {
 
 struct EmptyQueueItem: View {
     var body: some View {
-        let frame = UIScreen.main.bounds.width - 100
+        let frame = UIScreen.main.bounds.width - 32
         VStack {
             HStack {
                 Rectangle()

@@ -8,6 +8,7 @@
         <attribute name="episodeDescription" optional="YES" attributeType="String"/>
         <attribute name="episodeImage" optional="YES" attributeType="String"/>
         <attribute name="episodeTint" optional="YES" attributeType="String"/>
+        <attribute name="episodeTintDarkened" optional="YES" attributeType="String"/>
         <attribute name="hasBeenSeen" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="String"/>
         <attribute name="isPlayed" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
@@ -29,6 +30,7 @@
         <attribute name="playedSeconds" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="podcastDescription" optional="YES" attributeType="String"/>
         <attribute name="podcastTint" optional="YES" attributeType="String"/>
+        <attribute name="podcastTintDarkened" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String" defaultValueString="Podcast Title"/>
         <relationship name="episode" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Episode" inverseName="podcast" inverseEntity="Episode"/>
     </entity>

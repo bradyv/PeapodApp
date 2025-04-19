@@ -119,6 +119,7 @@ enum ColorTintManager {
                     context.perform {
                         if let object = try? context.existingObject(with: objectID) as? Podcast {
                             object.podcastTint = variants.accent
+                            object.podcastTintDarkened = variants.highContrast
                             try? context.save()
                         }
                     }
@@ -144,6 +145,7 @@ enum ColorTintManager {
                     context.perform {
                         if let object = try? context.existingObject(with: objectID) as? Episode {
                             object.episodeTint = variants.accent
+                            object.episodeTintDarkened = variants.highContrast
                             try? context.save()
                         }
                     }
@@ -183,13 +185,13 @@ extension Color {
 }
 
 extension Color {
-    static func tint(for episode: Episode, opacity: CGFloat = 1) -> Color {
-        return (Color(hex: episode.episodeTint)?.opacity(opacity)) ??
-               tint(for: episode.podcast, opacity: opacity)
+    static func tint(for episode: Episode, opacity: CGFloat = 1, darkened: Bool = false) -> Color {
+        return (Color(hex: darkened ? episode.episodeTintDarkened : episode.episodeTint)?.opacity(opacity)) ??
+        tint(for: episode.podcast, opacity: opacity, darkened: darkened ? true : false)
     }
     
-    static func tint(for podcast: Podcast?, opacity: CGFloat = 1) -> Color {
-        return (Color(hex: podcast?.podcastTint)?.opacity(opacity)) ??
+    static func tint(for podcast: Podcast?, opacity: CGFloat = 1, darkened: Bool = false) -> Color {
+        return (Color(hex: darkened ? podcast?.podcastTintDarkened : podcast?.podcastTint)?.opacity(opacity)) ??
                Color.black.opacity(opacity)
     }
 }

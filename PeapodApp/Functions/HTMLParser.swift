@@ -5,8 +5,9 @@
 //  Created by Brady Valentino on 2025-03-26.
 //
 
-import Foundation
+import SwiftUI
 import SwiftSoup
+
 
 func parseHtml(_ html: String, flat: Bool = false) -> String {
     do {
@@ -40,55 +41,87 @@ func parseHtml(_ html: String, flat: Bool = false) -> String {
     }
 }
 
-func parseHtmlToAttributed(_ html: String) -> AttributedString {
+func parseHtmlToAttributedString(_ html: String) -> AttributedString {
+    var result = AttributedString()
+
+    let font = Font.system(size: 17, weight: .regular, design: .default).width(.condensed)
+    let color = Color.text
+
     do {
-        let cleanedHtml = html
-            .replacingOccurrences(of: "<br ?/?>", with: "</p><p>", options: .regularExpression)
-            .replacingOccurrences(of: "\\n", with: "</p><p>", options: .regularExpression)
+        let doc = try SwiftSoup.parse(html)
+        guard let body = try doc.body() else { return AttributedString("No content") }
 
-        let wrappedHtml = "<div>\(cleanedHtml)</div>"
-
-        guard let data = wrappedHtml.data(using: .utf8) else {
-            return AttributedString("Error loading description")
+        for node in body.getChildNodes() {
+            result.append(parseNode(node, font: font, color: color))
         }
 
-        let attributed = try NSMutableAttributedString(
-            data: data,
-            options: [
-                .documentType: NSAttributedString.DocumentType.html,
-                .characterEncoding: String.Encoding.utf8.rawValue
-            ],
-            documentAttributes: nil
-        )
-
-        // Keep existing links and clear everything else
-        let fullRange = NSRange(location: 0, length: attributed.length)
-        attributed.enumerateAttributes(in: fullRange, options: []) { attributes, range, _ in
-            var newAttributes: [NSAttributedString.Key: Any] = [:]
-            if let link = attributes[.link] {
-                newAttributes[.link] = link
-            }
-            attributed.setAttributes(newAttributes, range: range)
-        }
-
-        // 🔍 Detect plain URLs not already linked
-        let detector = try NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-        let plainString = attributed.string
-        let matches = detector.matches(in: plainString, options: [], range: NSRange(location: 0, length: plainString.utf16.count))
-
-        for match in matches {
-            guard let url = match.url else { continue }
-
-            let range = match.range
-            // Avoid overriding existing links
-            if attributed.attribute(.link, at: range.location, effectiveRange: nil) == nil {
-                attributed.addAttribute(.link, value: url, range: range)
-            }
-        }
-
-        return try AttributedString(attributed, including: \.uiKit)
+        return linkifyPlainUrls(in: result)
 
     } catch {
-        return AttributedString("Error loading description")
+        return AttributedString("Error parsing description")
     }
+}
+
+func linkifyPlainUrls(in input: AttributedString) -> AttributedString {
+    var result = input
+    let nsString = NSString(string: String(input.characters))
+    let fullRange = NSRange(location: 0, length: nsString.length)
+
+    guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+        return result
+    }
+
+    let matches = detector.matches(in: String(input.characters), options: [], range: fullRange)
+
+    for match in matches {
+        guard let range = Range(match.range, in: result) else { continue }
+        if let url = match.url {
+            result[range].link = url
+            result[range].foregroundColor = .blue // Optional: make it visibly styled
+        }
+    }
+
+    return result
+}
+
+private func parseNode(_ node: Node, font: Font, color: Color) -> AttributedString {
+    var output = AttributedString()
+
+    if let textNode = node as? TextNode {
+        var text = AttributedString(textNode.text())
+        text.font = font
+        text.foregroundColor = color
+        output.append(text)
+    }
+
+    else if let element = node as? Element {
+        switch element.tagName().lowercased() {
+        case "p":
+            for child in element.getChildNodes() {
+                output.append(parseNode(child, font: font, color: color))
+            }
+            output.append(AttributedString("\n\n"))
+
+        case "br":
+            output.append(AttributedString("\n"))
+
+        case "a":
+            let label = try? element.text()
+            let href = try? element.attr("href")
+            if let label, let href, let url = URL(string: href) {
+                var link = AttributedString(label)
+                link.font = font
+                link.foregroundColor = .blue
+                link.link = url
+                output.append(link)
+            }
+
+        default:
+            for child in element.getChildNodes() {
+                output.append(parseNode(child, font: font, color: color))
+            }
+        }
+    }
+
+    return output
 }

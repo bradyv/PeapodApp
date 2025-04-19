@@ -12,6 +12,7 @@ struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
+    @State private var parsedDescription: NSAttributedString?
     
     var body: some View {
         ZStack(alignment:.topLeading) {
@@ -43,10 +44,13 @@ struct EpisodeView: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
                             
-                            Text(parseHtml(episode.episodeDescription ?? ""))
-                                .foregroundStyle(.white.opacity(0.75))
+                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
                                 .multilineTextAlignment(.leading)
-                                .textBody()
+                            
+//                            Text(parseHtml(episode.episodeDescription ?? ""))
+//                                .foregroundStyle(.white.opacity(0.75))
+//                                .multilineTextAlignment(.leading)
+//                                .textBody()
                         }
                         .offset(y:-64)
                         .padding(.horizontal)
@@ -217,5 +221,3 @@ struct EpisodeView: View {
         .frame(maxWidth:.infinity)
     }
 }
-
-

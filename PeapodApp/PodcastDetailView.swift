@@ -52,6 +52,15 @@ struct PodcastDetailView: View {
                                     scrollOffset = value
                                 }
                             
+                            FadeInView(delay: 0.2) {
+                                VStack(alignment:.leading) {
+                                    Text(podcast.title ?? "Podcast title")
+                                        .titleSerif()
+                                }
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .padding(.bottom,12)
+                            }
+                            
                             FadeInView(delay: 0.3) {
                                 Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
                                     .textBody()
@@ -174,7 +183,7 @@ struct PodcastDetailView: View {
                                     }) {
                                         Text(podcast.isSubscribed ? "Unfollow" : "Follow")
                                     }
-                                    .buttonStyle(PPButton(type: podcast.isSubscribed ? .transparent : .filled, colorStyle: .monochrome))
+                                    .buttonStyle(PPButton(type: podcast.isSubscribed ? .transparent : .filled, colorStyle: .monochrome, customColors: ButtonCustomColors(foreground: .white, background: Color.tint(for:podcast, darkened: true))))
                                 }
                             }
                             

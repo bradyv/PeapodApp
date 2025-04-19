@@ -10,6 +10,7 @@ import Kingfisher
 
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.openURL) private var openURL
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var parsedDescription: NSAttributedString?
@@ -46,6 +47,18 @@ struct EpisodeView: View {
                             
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? "", linkColor: Color.tint(for:episode, darkened: true)))
                                 .multilineTextAlignment(.leading)
+                                .environment(\.openURL, OpenURLAction { url in
+                                    if url.scheme == "peapod", url.host == "seek",
+                                       let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                                       let seconds = query.queryItems?.first(where: { $0.name == "t" })?.value,
+                                       let time = Double(seconds) {
+
+                                        AudioPlayerManager.shared.seek(to: time)
+                                        return .handled
+                                    }
+
+                                    return .systemAction
+                                })
                             
 //                            Text(parseHtml(episode.episodeDescription ?? ""))
 //                                .foregroundStyle(.white.opacity(0.75))

@@ -75,7 +75,8 @@ func parseHtmlToAttributedString(_ html: String, linkColor: Color = .blue) -> At
             result.append(parseNode(node, font: font, color: color, linkColor: linkColor))
         }
 
-        return linkifyPlainUrls(in: result, linkColor: linkColor)
+        let result = linkifyPlainUrls(in: result, linkColor: linkColor)
+        return linkifyTimestamps(in: result, linkColor: linkColor)
 
     } catch {
         return AttributedString("Error parsing description")
@@ -134,7 +135,49 @@ func linkifyPlainUrls(in input: AttributedString, linkColor: Color = .blue) -> A
     return result
 }
 
-private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color) -> AttributedString {
+func linkifyTimestamps(in input: AttributedString, linkColor: Color = .blue) -> AttributedString {
+    var result = input
+    let text = String(input.characters)
+    let nsString = NSString(string: text)
+    let fullRange = NSRange(location: 0, length: nsString.length)
+
+    // Match timestamps like 1:23:45, 12:34, or 5:06
+    let regex = try! NSRegularExpression(pattern: #"\b(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\b"#)
+
+    let matches = regex.matches(in: text, options: [], range: fullRange)
+
+    for match in matches.reversed() {
+        let range = match.range
+        guard let swiftRange = Range(range, in: result) else { continue }
+
+        // Extract time components
+        let fullMatch = nsString.substring(with: range)
+        let components = fullMatch.split(separator: ":").compactMap { Int($0) }
+        guard !components.isEmpty else { continue }
+
+        let seconds: Int
+        switch components.count {
+        case 3:
+            seconds = components[0] * 3600 + components[1] * 60 + components[2]
+        case 2:
+            seconds = components[0] * 60 + components[1]
+        default:
+            continue
+        }
+
+        let url = URL(string: "peapod://seek?t=\(seconds)")!
+
+        var linked = result[swiftRange]
+        linked.link = url
+        linked.foregroundColor = linkColor // Optional: color it like a link
+        result.replaceSubrange(swiftRange, with: linked)
+    }
+
+    return result
+}
+
+
+private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color = .blue) -> AttributedString {
     var output = AttributedString()
 
     if let textNode = node as? TextNode {
@@ -175,3 +218,4 @@ private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color)
 
     return output
 }
+

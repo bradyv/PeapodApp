@@ -16,15 +16,16 @@ struct EpisodeView: View {
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var parsedDescription: NSAttributedString?
     @State private var scrollOffset: CGFloat = 0
+    @State private var selectedPodcast: Podcast? = nil
     
     var body: some View {
+        let fadeStart: CGFloat = 0
+        let fadeEnd: CGFloat = 300
+        let clamped = min(max(scrollOffset, fadeStart), fadeEnd)
+        let opacity = 0 + (clamped - fadeStart) / (fadeEnd - fadeStart)
+        
         ZStack(alignment:.topLeading) {
             VStack {
-                let fadeStart: CGFloat = 0
-                let fadeEnd: CGFloat = 300
-                let clamped = min(max(scrollOffset, fadeStart), fadeEnd)
-                let opacity = 0 + (clamped - fadeStart) / (fadeEnd - fadeStart)
-                
                 FadeInView(delay: 0.1) {
                     KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                         .resizable()
@@ -49,15 +50,23 @@ struct EpisodeView: View {
                             .opacity(0)
                             
                         VStack(spacing:24) {
-                            
-                            Text(episode.title ?? "Episode title")
-                                .titleSerif()
-                                .multilineTextAlignment(.center)
-                                .trackScrollOffset("scroll") { value in
-                                    scrollOffset = value
+                            VStack(spacing:8) {
+                                HStack(spacing: 2) {
+                                    Text("Released ")
+                                        .textDetail()
+                                    Text(getRelativeDateString(from: episode.airDate ?? .distantPast))
+                                        .textDetailEmphasis()
                                 }
+                                
+                                Text(episode.title ?? "Episode title")
+                                    .titleSerif()
+                                    .multilineTextAlignment(.center)
+                                    .trackScrollOffset("scroll") { value in
+                                        scrollOffset = value
+                                    }
+                            }
                             
-                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? "", linkColor: Color.tint(for:episode, darkened: colorScheme == .dark ? false : true)))
+                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
                                 .multilineTextAlignment(.leading)
                                 .environment(\.openURL, OpenURLAction { url in
                                     if url.scheme == "peapod", url.host == "seek",
@@ -79,6 +88,7 @@ struct EpisodeView: View {
                         }
                         .offset(y:-64)
                     }
+                    .scrollIndicators(.hidden)
                     .contentMargins(16, for: .scrollContent)
                     .coordinateSpace(name: "scroll")
                     .maskEdge(.top)
@@ -141,17 +151,7 @@ struct EpisodeView: View {
                                                     Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
                                                         .font(.title)
                                                 }
-                                                .buttonStyle(PPButton(
-                                                    type:.transparent,
-                                                    colorStyle:.monochrome,
-                                                    iconOnly: true,
-                                                    large: true,
-                                                    customColors: ButtonCustomColors(
-                                                        foreground: .white,
-                                                        background: Color.tint(for:episode, darkened: true)
-                                                        )
-                                                    )
-                                                )
+                                                .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
 //                                                .labelStyle(.iconOnly)
 //                                                .foregroundStyle(Color.heading)
                                                 
@@ -189,7 +189,7 @@ struct EpisodeView: View {
                                                 Label("Listen Now", systemImage: "play.fill")
                                                     .frame(maxWidth:.infinity)
                                             }
-                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, customColors: ButtonCustomColors(foreground: .white, background: Color.tint(for:episode, darkened: true))))
+                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
                                             
                                             Button(action: {
                                                 withAnimation {
@@ -232,6 +232,9 @@ struct EpisodeView: View {
                             )
                             .opacity(opacity)
                             .animation(.easeOut(duration: 0.1), value: opacity)
+                            .onTapGesture {
+                                selectedPodcast = episode.podcast
+                            }
                         
                         Spacer()
                         
@@ -261,5 +264,14 @@ struct EpisodeView: View {
             }
         }
         .frame(maxWidth:.infinity)
+        .sheet(item: $selectedPodcast) { podcast in
+            if podcast.isSubscribed {
+                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                    .modifier(PPSheet())
+            } else {
+                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
+                    .modifier(PPSheet())
+            }
+        }
     }
 }

@@ -60,7 +60,7 @@ func parseHtml(_ html: String, flat: Bool = false) -> String {
     }
 }
 
-func parseHtmlToAttributedString(_ html: String, linkColor: Color = .blue) -> AttributedString {
+func parseHtmlToAttributedString(_ html: String, linkColor: Color = .accentColor) -> AttributedString {
     var result = AttributedString()
 
     let font = Font.system(size: 17, weight: .regular, design: .default).width(.condensed)
@@ -113,7 +113,7 @@ func sanitizeHtml(_ html: String) -> String {
     return cleaned
 }
 
-func linkifyPlainUrls(in input: AttributedString, linkColor: Color = .blue) -> AttributedString {
+func linkifyPlainUrls(in input: AttributedString, linkColor: Color = .accentColor) -> AttributedString {
     var result = input
     let nsString = NSString(string: String(input.characters))
     let fullRange = NSRange(location: 0, length: nsString.length)
@@ -135,7 +135,7 @@ func linkifyPlainUrls(in input: AttributedString, linkColor: Color = .blue) -> A
     return result
 }
 
-func linkifyTimestamps(in input: AttributedString, linkColor: Color = .blue) -> AttributedString {
+func linkifyTimestamps(in input: AttributedString, linkColor: Color = .accentColor) -> AttributedString {
     var result = input
     let text = String(input.characters)
     let nsString = NSString(string: text)
@@ -177,7 +177,7 @@ func linkifyTimestamps(in input: AttributedString, linkColor: Color = .blue) -> 
 }
 
 
-private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color = .blue) -> AttributedString {
+private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color = .accentColor) -> AttributedString {
     var output = AttributedString()
 
     if let textNode = node as? TextNode {

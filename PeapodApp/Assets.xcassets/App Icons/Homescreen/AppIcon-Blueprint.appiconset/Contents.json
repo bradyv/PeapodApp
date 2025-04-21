@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "dev-icon-light.png",
+      "filename" : "icon-blueprint-light.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "dev-icon-dark.png",
+      "filename" : "icon-blueprint-dark.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,7 +25,7 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "dev-icon-tinted.png",
+      "filename" : "icon-blueprint-tinted.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

@@ -24,7 +24,7 @@ struct SettingsView: View {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
         set { appThemeRawValue = newValue.rawValue }
     }
-    private let columns = Array(repeating: GridItem(.flexible(), spacing:8), count: 3)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing:8), count: 4)
     
     @State var appIcons = [
         AppIcons(name: "Peapod", asset: "AppIcon-Peapod"),
@@ -32,8 +32,9 @@ struct SettingsView: View {
         AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
         AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino"),
         AppIcons(name: "Pride", asset: "AppIcon-Pride"),
-        AppIcons(name: "The Grid", asset: "AppIcon-Grid"),
-        AppIcons(name: "Angel", asset: "AppIcon-Angel"),
+        AppIcons(name: "Coachella", asset: "AppIcon-Coachella"),
+        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler"),
+        AppIcons(name: "Clouds", asset: "AppIcon-Clouds"),
     ]
     
     var body: some View {
@@ -136,47 +137,45 @@ struct SettingsView: View {
                     .frame(maxWidth:.infinity, alignment: .leading)
                     .padding(.leading).padding(.top,24)
                 
-                ScrollView(.horizontal) {
-                    HStack(spacing:12) {
-                        ForEach(appIcons, id: \.name) { icon in
-                            let isSelected = selectedIconName == icon.asset
-                            VStack {
-                                ZStack(alignment:.bottomTrailing) {
-                                    Image(icon.name)
-                                        .resizable()
-                                        .aspectRatio(1,contentMode: .fit)
-                                        .frame(width:64,height:64)
-                                        .onTapGesture {
-                                            UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon" ? nil : icon.asset) { error in
-                                                if let error = error {
-                                                    print("❌ Failed to switch icon: \(error)")
-                                                } else {
-                                                    print("✅ Icon switched to \(icon.name)")
-                                                    selectedIconName = icon.asset
-                                                }
+                LazyVGrid(columns:columns) {
+                    ForEach(appIcons, id: \.name) { icon in
+                        let isSelected = selectedIconName == icon.asset
+                        VStack {
+                            ZStack(alignment:.bottomTrailing) {
+                                Image(icon.name)
+                                    .resizable()
+                                    .aspectRatio(1,contentMode: .fit)
+                                    .frame(width:64,height:64)
+                                    .onTapGesture {
+                                        UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon" ? nil : icon.asset) { error in
+                                            if let error = error {
+                                                print("❌ Failed to switch icon: \(error)")
+                                            } else {
+                                                print("✅ Icon switched to \(icon.name)")
+                                                selectedIconName = icon.asset
                                             }
                                         }
-                                    
-                                    VStack {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Color.heading)
                                     }
-                                    .padding(2)
-                                    .background(Color.background)
-                                    .clipShape(Circle())
-                                    .opacity(isSelected ? 1 : 0)
-                                    .offset(x:4,y:4)
+                                
+                                VStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Color.heading)
                                 }
-
-                                Text(icon.name)
-                                    .foregroundStyle(isSelected ? .heading : .text)
-                                    .textDetail()
+                                .padding(2)
+                                .background(Color.background)
+                                .clipShape(Circle())
+                                .opacity(isSelected ? 1 : 0)
+                                .offset(x:4,y:4)
                             }
+                            
+                            Text(icon.name)
+                                .foregroundStyle(isSelected ? .heading : .text)
+                                .textDetail()
+                            
                         }
                     }
-                    .padding(1)
                 }
-                .scrollIndicators(.hidden)
+                .padding(1)
             }
             .contentMargins(.horizontal,16, for: .scrollContent)
             

@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "cupertino-icon-light.png",
+      "filename" : "icon-cupertino-light.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "cupertino-icon-dark.png",
+      "filename" : "icon-cupertino-dark.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

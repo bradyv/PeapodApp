@@ -247,7 +247,7 @@ struct EpisodeView: View {
                             }) {
                                 Label("Archive", systemImage: "archivebox")
                             }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: .heading, background: .thinMaterial)))
                         } else {
                             Button(action: {
                                 episode.isSaved.toggle()

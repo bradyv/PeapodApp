@@ -35,7 +35,9 @@ struct ContentView: View {
                 
                 Spacer().frame(height:96)
             }
+            .maskEdge(.top)
             .maskEdge(.bottom)
+            .ignoresSafeArea(.all)
             .onAppear {
                 EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
                 //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
@@ -81,7 +83,6 @@ struct ContentView: View {
             
             //            NowPlaying()
         }
-        .ignoresSafeArea(edges: .bottom)
         .background(
             EllipticalGradient(
                 stops: [

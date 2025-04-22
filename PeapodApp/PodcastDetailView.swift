@@ -17,6 +17,7 @@ struct PodcastDetailView: View {
     @State var showFullDescription: Bool = false
     @State private var showSearch = false
     @State private var scrollOffset: CGFloat = 0
+    @State private var selectedDetent: PresentationDetent = .medium
     var podcast: Podcast? { podcastResults.first }
 
     init(feedUrl: String) {
@@ -118,8 +119,10 @@ struct PodcastDetailView: View {
                                     }
                                 }
                                 .sheet(item: $selectedEpisode) { episode in
-                                    EpisodeView(episode: episode)
-                                        .modifier(PPSheet())
+                                    EpisodeView(episode: episode, selectedDetent: $selectedDetent)
+                                        .modifier(PPSheet(shortStack: true))
+                                        .presentationDetents([.medium, .large], selection: $selectedDetent)
+                                        .presentationContentInteraction(.resizes)
                                 }
                             }
                             .coordinateSpace(name: "scroll")

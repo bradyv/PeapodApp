@@ -28,6 +28,7 @@ struct QueueView: View {
     @State private var scrollTarget: String? = nil
 
     var body: some View {
+        Spacer().frame(height:64)
         VStack(alignment: .leading, spacing: 12) {
             Text("Up Next")
                 .titleSerif()

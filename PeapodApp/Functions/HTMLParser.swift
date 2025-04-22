@@ -5,21 +5,17 @@
 //  Created by Brady Valentino on 2025-03-26.
 //
 
+
 import SwiftUI
 import SwiftSoup
-
 
 func parseHtml(_ html: String, flat: Bool = false) -> String {
     do {
         let document = try SwiftSoup.parse(html)
-
-
-
         guard let body = document.body() else {
             return html.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // If the body has no children, treat as plain text
         if body.children().isEmpty {
             let fallbackText = try body.text()
             return fallbackText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -27,12 +23,10 @@ func parseHtml(_ html: String, flat: Bool = false) -> String {
 
         var result = ""
 
-
         for child in body.getChildNodes() {
             if let element = child as? Element {
                 let tag = try element.tagName()
                 let innerText = try element.text().trimmingCharacters(in: .whitespacesAndNewlines)
-
                 if innerText.isEmpty { continue }
 
                 switch tag {
@@ -62,13 +56,11 @@ func parseHtml(_ html: String, flat: Bool = false) -> String {
 
 func parseHtmlToAttributedString(_ html: String, linkColor: Color = .accentColor) -> AttributedString {
     var result = AttributedString()
-
     let font = Font.system(size: 17, weight: .regular, design: .default).width(.condensed)
     let color = Color.text
 
     do {
-        let cleanHtml = sanitizeHtml(html)
-        let doc = try SwiftSoup.parse(cleanHtml)
+        let doc = try SwiftSoup.parse(normalizeHtml(html))
         guard let body = try doc.body() else { return AttributedString("No content") }
 
         for node in body.getChildNodes() {
@@ -83,32 +75,47 @@ func parseHtmlToAttributedString(_ html: String, linkColor: Color = .accentColor
     }
 }
 
-func sanitizeHtml(_ html: String) -> String {
+func normalizeHtml(_ html: String) -> String {
     var cleaned = html
 
-    // Normalize all <br> to consistent tag
-    cleaned = cleaned.replacingOccurrences(of: "<br ?/?>", with: "<br>", options: .regularExpression)
+    // Normalize line breaks
+    cleaned = cleaned.replacingOccurrences(of: "<br ?/?>", with: "\n", options: .regularExpression)
 
-    // Remove empty <p><br></p>
-    cleaned = cleaned.replacingOccurrences(of: "<p>\\s*<br>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
-
-    // Remove entirely empty paragraphs
+    // Remove empty or whitespace-only paragraphs
     cleaned = cleaned.replacingOccurrences(of: "<p>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
-    
-    // ✅ Flatten nested paragraphs: <p><p>...</p></p> → <p>...</p>
-    // This works by repeatedly replacing outer <p><p> and inner </p></p> until they’re flattened
-    while cleaned.contains("<p><p>") || cleaned.contains("</p></p>") {
-        cleaned = cleaned
-            .replacingOccurrences(of: "<p><p>", with: "<p>", options: .caseInsensitive)
-            .replacingOccurrences(of: "</p></p>", with: "</p>", options: .caseInsensitive)
+
+    // Convert <div> to <p>
+    if let regex = try? NSRegularExpression(pattern: "<div>(.*?)</div>", options: [.dotMatchesLineSeparators, .caseInsensitive]) {
+        let range = NSRange(cleaned.startIndex..., in: cleaned)
+        cleaned = regex.stringByReplacingMatches(in: cleaned, options: [], range: range, withTemplate: "<p>$1</p>")
     }
 
-    // Trim leading whitespace inside paragraphs (spaces, tabs, &nbsp;)
-    cleaned = cleaned.replacingOccurrences(
-        of: "<p>\\s+",
-        with: "<p>",
-        options: [.regularExpression, .caseInsensitive]
-    )
+    // Extract all text inside <p>...</p> and manually segment if too long or containing timestamps
+    let pattern = "<p>(.*?)</p>"
+    if let paragraphRegex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive]) {
+        let nsCleaned = cleaned as NSString
+        let matches = paragraphRegex.matches(in: cleaned, options: [], range: NSRange(location: 0, length: nsCleaned.length))
+
+        var reconstructed = ""
+
+        for match in matches {
+            let content = nsCleaned.substring(with: match.range(at: 1))
+
+            // Split at newlines or timestamp markers
+            let segments = content
+                .components(separatedBy: "\n")
+                .flatMap { $0.components(separatedBy: #"(?=\b\d{1,2}:\d{2}(:\d{2})?)"#) } // split on timestamps
+                .flatMap { $0.components(separatedBy: #"(?=https?://)"#) } // split on links
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            for segment in segments {
+                reconstructed.append("<p>\(segment)</p>")
+            }
+        }
+
+        cleaned = reconstructed
+    }
 
     return cleaned
 }
@@ -141,7 +148,6 @@ func linkifyTimestamps(in input: AttributedString, linkColor: Color = .accentCol
     let nsString = NSString(string: text)
     let fullRange = NSRange(location: 0, length: nsString.length)
 
-    // Match timestamps like 1:23:45, 12:34, or 5:06
     let regex = try! NSRegularExpression(pattern: #"\b(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\b"#)
 
     let matches = regex.matches(in: text, options: [], range: fullRange)
@@ -150,7 +156,6 @@ func linkifyTimestamps(in input: AttributedString, linkColor: Color = .accentCol
         let range = match.range
         guard let swiftRange = Range(range, in: result) else { continue }
 
-        // Extract time components
         let fullMatch = nsString.substring(with: range)
         let components = fullMatch.split(separator: ":").compactMap { Int($0) }
         guard !components.isEmpty else { continue }
@@ -166,16 +171,14 @@ func linkifyTimestamps(in input: AttributedString, linkColor: Color = .accentCol
         }
 
         let url = URL(string: "peapod://seek?t=\(seconds)")!
-
         var linked = result[swiftRange]
         linked.link = url
-        linked.foregroundColor = linkColor // Optional: color it like a link
+        linked.foregroundColor = linkColor
         result.replaceSubrange(swiftRange, with: linked)
     }
 
     return result
 }
-
 
 private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color = .accentColor) -> AttributedString {
     var output = AttributedString()
@@ -218,4 +221,3 @@ private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color 
 
     return output
 }
-

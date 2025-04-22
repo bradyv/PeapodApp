@@ -9,14 +9,19 @@ import SwiftUI
 
 struct PPSheet: ViewModifier {
     let hasBackground: Bool
+    let shortStack: Bool
     
-    init(bg: Bool = false) {
+    init(bg: Bool = false, shortStack: Bool = false) {
         self.hasBackground = bg
+        self.shortStack = shortStack
     }
 
     func body(content: Content) -> some View {
         content
             .presentationCornerRadius(32)
+            .if(shortStack, transform: {
+                $0.presentationDetents([.medium, .large])
+            })
             .presentationDragIndicator(.hidden)
             .background(
                 hasBackground ? nil : EllipticalGradient(

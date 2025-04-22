@@ -27,7 +27,7 @@ struct SettingsView: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing:8), count: 4)
     
     @State var appIcons = [
-        AppIcons(name: "Peapod", asset: "AppIcon-Peapod"),
+        AppIcons(name: "Peapod", asset: "AppIcon-Green"),
         AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint"),
         AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
         AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino"),
@@ -49,7 +49,7 @@ struct SettingsView: View {
                 }
                 
                 HStack {
-                    LazyVGrid(columns:columns) {
+                    LazyVGrid(columns:Array(repeating: GridItem(.flexible(), spacing:8), count: 3)) {
                         VStack(alignment:.leading, spacing: 8) {
                             let hours = Int(totalPlayedSeconds) / 3600
                             Image(systemName:"airpods.max")
@@ -108,7 +108,7 @@ struct SettingsView: View {
                 .frame(maxWidth:.infinity, alignment: .leading)
                 .padding(.leading).padding(.top,24)
             
-            LazyVGrid(columns: columns) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing:8), count: 3)) {
                 ForEach(AppTheme.allCases) { theme in
                     let isSelected = appTheme == theme
                     VStack(alignment:.leading, spacing: 8) {

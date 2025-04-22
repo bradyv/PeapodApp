@@ -17,12 +17,13 @@ struct EpisodeView: View {
     @State private var parsedDescription: NSAttributedString?
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedPodcast: Podcast? = nil
+    var selectedDetent: Binding<PresentationDetent>? = nil
     
     var body: some View {
-        let fadeStart: CGFloat = 0
-        let fadeEnd: CGFloat = 300
-        let clamped = min(max(scrollOffset, fadeStart), fadeEnd)
-        let opacity = 0 + (clamped - fadeStart) / (fadeEnd - fadeStart)
+        let splashFadeStart: CGFloat = -256
+        let splashFadeEnd: CGFloat = 0
+        let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
+        let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
         
         ZStack(alignment:.topLeading) {
             VStack {
@@ -44,12 +45,31 @@ struct EpisodeView: View {
             VStack {
                 FadeInView(delay: 0.3) {
                     ScrollView {
+                        Color.clear
+                            .frame(maxWidth:.infinity).frame(height:1)
+                            .trackScrollOffset("scroll") { value in
+                                print("Scroll offset onAppear:", value)
+                                scrollOffset = value
+                            }
                         KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                             .resizable()
                             .aspectRatio(1, contentMode:.fit)
                             .opacity(0)
                             
                         VStack(spacing:24) {
+//                            HStack {
+//                                KFImage(URL(string:episode.podcast?.image ?? ""))
+//                                    .resizable()
+//                                    .frame(width: 24, height: 24)
+//                                    .cornerRadius(3)
+//                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
+//                                
+//                                Text(episode.podcast?.title ?? "Podcast title")
+//                                    .textDetailEmphasis()
+//                            }
+//                            .opacity(opacity)
+//                            .animation(.easeOut(duration: 0.1), value: opacity)
+                            
                             VStack(spacing:8) {
                                 HStack(spacing: 2) {
                                     Text("Released ")
@@ -61,9 +81,6 @@ struct EpisodeView: View {
                                 Text(episode.title ?? "Episode title")
                                     .titleSerif()
                                     .multilineTextAlignment(.center)
-                                    .trackScrollOffset("scroll") { value in
-                                        scrollOffset = value
-                                    }
                             }
                             
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
@@ -80,16 +97,11 @@ struct EpisodeView: View {
 
                                     return .systemAction
                                 })
-                            
-//                            Text(parseHtml(episode.episodeDescription ?? ""))
-//                                .foregroundStyle(.white.opacity(0.75))
-//                                .multilineTextAlignment(.leading)
-//                                .textBody()
                         }
+                        .padding(.horizontal)
                         .offset(y:-64)
                     }
                     .scrollIndicators(.hidden)
-                    .contentMargins(16, for: .scrollContent)
                     .coordinateSpace(name: "scroll")
                     .maskEdge(.top)
                     .maskEdge(.bottom)
@@ -99,30 +111,32 @@ struct EpisodeView: View {
                     VStack {
                         VStack(spacing:16) {
                             VStack(spacing:16) {
-                                VStack(spacing:2) {
-                                    let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
-                                    CustomSlider(
-                                        value: Binding(
-                                            get: { player.getProgress(for: episode) },
-                                            set: { player.seek(to: $0) }
-                                        ),
-                                        range: 0...safeDuration,
-                                        onEditingChanged: { isEditing in
-                                            if !isEditing {
-                                                player.seek(to: player.progress)
-                                            }
-                                        },
-                                        isDraggable: true,
-                                        isQQ: false
-                                    )
-                                    
-                                    HStack {
-                                        Text(player.getElapsedTime(for: episode))
-                                        Spacer()
-                                        Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
+                                if selectedDetent?.wrappedValue != .medium {
+                                    VStack(spacing:2) {
+                                        let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+                                        CustomSlider(
+                                            value: Binding(
+                                                get: { player.getProgress(for: episode) },
+                                                set: { player.seek(to: $0) }
+                                            ),
+                                            range: 0...safeDuration,
+                                            onEditingChanged: { isEditing in
+                                                if !isEditing {
+                                                    player.seek(to: player.progress)
+                                                }
+                                            },
+                                            isDraggable: true,
+                                            isQQ: false
+                                        )
+                                        
+                                        HStack {
+                                            Text(player.getElapsedTime(for: episode))
+                                            Spacer()
+                                            Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
+                                        }
+                                        .fontDesign(.monospaced)
+                                        .font(.caption)
                                     }
-                                    .fontDesign(.monospaced)
-                                    .font(.caption)
                                 }
                                 
                                 HStack {
@@ -215,10 +229,10 @@ struct EpisodeView: View {
             }
             
             FadeInView(delay: 0.5) {
-                let fadeStart: CGFloat = 0
-                let fadeEnd: CGFloat = 300
-                let clamped = min(max(scrollOffset, fadeStart), fadeEnd)
-                let opacity = 1 - (clamped - fadeStart) / (fadeEnd - fadeStart)
+                let miniFadeStart: CGFloat = 0
+                let miniFadeEnd: CGFloat = -192
+                let miniClamped = min(max(scrollOffset, miniFadeEnd), miniFadeStart)
+                let miniOpacity = 1 - (miniClamped - miniFadeEnd) / (miniFadeStart - miniFadeEnd)
                 
                 VStack {
                     HStack {
@@ -230,8 +244,8 @@ struct EpisodeView: View {
                             .shadow(color:Color.tint(for:episode),
                                     radius: 32
                             )
-                            .opacity(opacity)
-                            .animation(.easeOut(duration: 0.1), value: opacity)
+                            .opacity(miniOpacity)
+                            .animation(.easeOut(duration: 0.1), value: miniOpacity)
                             .onTapGesture {
                                 selectedPodcast = episode.podcast
                             }
@@ -255,7 +269,7 @@ struct EpisodeView: View {
                             }) {
                                 Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
                             }
-                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true))
+                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: .heading, background: .thinMaterial)))
                             .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                         }
                     }

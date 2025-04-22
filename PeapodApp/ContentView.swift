@@ -21,7 +21,7 @@ struct ContentView: View {
     
     var body: some View {
         ZStack(alignment:.topTrailing) {
-            NowPlaying()
+            NowPlayingSplash()
             ScrollView {
                 FadeInView(delay: 0.1) {
                     QueueView()
@@ -32,7 +32,12 @@ struct ContentView: View {
                 FadeInView(delay: 0.3) {
                     SubscriptionsView()
                 }
+                
+                Spacer().frame(height:96)
             }
+            .maskEdge(.top)
+            .maskEdge(.bottom)
+            .ignoresSafeArea(.all)
             .onAppear {
                 EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
                 //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
@@ -76,7 +81,7 @@ struct ContentView: View {
                     .modifier(PPSheet())
             }
             
-            //            NowPlaying()
+            NowPlaying()
         }
         .background(
             EllipticalGradient(

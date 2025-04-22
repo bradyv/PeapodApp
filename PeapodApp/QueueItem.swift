@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct QueueItem: View {
+    @Environment(\.colorScheme) var colorScheme
     @ObservedObject var episode: Episode
     
     var body: some View {
@@ -28,13 +29,14 @@ struct QueueItem: View {
                         LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                        startPoint: .top, endPoint: .init(x: 0.5, y: 0.6))
                     )
+                    .allowsHitTesting(false)
                 Spacer()
             }
         }
         .frame(width: frame, height: 400)
         .background(Color.tint(for:episode, darkened: true))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
     }
 }
 

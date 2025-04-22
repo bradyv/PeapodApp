@@ -12,6 +12,7 @@ struct Peapod: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var toastManager = ToastManager()
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
+    @AppStorage("didFlushTints") private var didFlushTints: Bool = false
     
     var appTheme: AppTheme {
        AppTheme(rawValue: appThemeRawValue) ?? .system
@@ -23,6 +24,18 @@ struct Peapod: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(toastManager)
                 .preferredColorScheme(preferredColorScheme(for: appTheme))
+                .onAppear {
+//                    Task {
+//                        await persistenceController.container.viewContext.perform {
+//                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)
+//                            print("Episodes flushed")
+//                        }
+//                    }
+                    if !didFlushTints {
+                        resetAllTints(in: persistenceController.container.viewContext)
+                        didFlushTints = true
+                    }
+                }
         }
     }
     

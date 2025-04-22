@@ -10,53 +10,122 @@ import Kingfisher
 
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.openURL) private var openURL
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
+    @State private var parsedDescription: NSAttributedString?
+    @State private var scrollOffset: CGFloat = 0
+    @State private var selectedPodcast: Podcast? = nil
+    var selectedDetent: Binding<PresentationDetent>? = nil
+    var mediumHeight: CGFloat = 500
+    var largeHeight: CGFloat = 600
     
     var body: some View {
+        let splashFadeStart: CGFloat = -150
+        let splashFadeEnd: CGFloat = 0
+        let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
+        let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) - 0.5
+        
         ZStack(alignment:.topLeading) {
+            ZStack(alignment:.bottom) {
+                FadeInView(delay: 0.1) {
+                    KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                        .resizable()
+                        .aspectRatio(1, contentMode:.fit)
+                        .mask(
+                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+                        )
+                        .opacity(opacity)
+                        .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
+                }
+            }
+            
             VStack {
                 FadeInView(delay: 0.3) {
                     ScrollView {
-                        Spacer().frame(height:76)
-                        EpisodeItem(episode: episode, displayedFullscreen:true)
-                            .padding(.horizontal)
+                        Color.clear
+                            .frame(maxWidth:.infinity).frame(height:1)
+                            .trackScrollOffset("scroll") { value in
+                                scrollOffset = value
+                            }
                         
-                        Spacer().frame(height:64)
+                        VStack {
+                            Spacer().frame(height:200)
+                            VStack(spacing:2) {
+                                Spacer().frame(height:32)
+                                HStack(spacing: 2) {
+                                    Text("Released ")
+                                        .textDetail()
+                                    Text(getRelativeDateString(from: episode.airDate ?? .distantPast))
+                                        .textDetailEmphasis()
+                                }
+                                
+                                Text(episode.title ?? "Episode title")
+                                    .titleSerif()
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                
+                                Spacer().frame(height:44)
+                            }
+                            .frame(maxWidth:.infinity)
+                            
+                            Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
+                                .padding(.horizontal)
+                                .multilineTextAlignment(.leading)
+                                .environment(\.openURL, OpenURLAction { url in
+                                    if url.scheme == "peapod", url.host == "seek",
+                                       let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                                       let seconds = query.queryItems?.first(where: { $0.name == "t" })?.value,
+                                       let time = Double(seconds) {
+                                        
+                                        AudioPlayerManager.shared.seek(to: time)
+                                        return .handled
+                                    }
+                                    
+                                    return .systemAction
+                                })
+                        }
+                        
+                        Spacer().frame(height:32)
                     }
+                    .scrollIndicators(.hidden)
+                    .coordinateSpace(name: "scroll")
                     .maskEdge(.top)
                     .maskEdge(.bottom)
-                    .padding(.top,88)
                 }
                 
                 FadeInView(delay: 0.4) {
                     VStack {
                         VStack(spacing:16) {
                             VStack(spacing:16) {
-                                VStack(spacing:2) {
-                                    let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
-                                    CustomSlider(
-                                        value: Binding(
-                                            get: { player.getProgress(for: episode) },
-                                            set: { player.seek(to: $0) }
-                                        ),
-                                        range: 0...safeDuration,
-                                        onEditingChanged: { isEditing in
-                                            if !isEditing {
-                                                player.seek(to: player.progress)
-                                            }
-                                        },
-                                        isDraggable: true,
-                                        isQQ: false
-                                    )
-                                    
-                                    HStack {
-                                        Text(player.getElapsedTime(for: episode))
-                                        Spacer()
-                                        Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
+                                if selectedDetent?.wrappedValue != .medium {
+                                    VStack(spacing:2) {
+                                        let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+                                        CustomSlider(
+                                            value: Binding(
+                                                get: { player.getProgress(for: episode) },
+                                                set: { player.seek(to: $0) }
+                                            ),
+                                            range: 0...safeDuration,
+                                            onEditingChanged: { isEditing in
+                                                if !isEditing {
+                                                    player.seek(to: player.progress)
+                                                }
+                                            },
+                                            isDraggable: true,
+                                            isQQ: false
+                                        )
+                                        
+                                        HStack {
+                                            Text(player.getElapsedTime(for: episode))
+                                            Spacer()
+                                            Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
+                                        }
+                                        .fontDesign(.monospaced)
+                                        .font(.caption)
                                     }
-                                    .fontDesign(.monospaced)
-                                    .font(.caption)
                                 }
                                 
                                 HStack {
@@ -85,8 +154,9 @@ struct EpisodeView: View {
                                                     Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
                                                         .font(.title)
                                                 }
-                                                .labelStyle(.iconOnly)
-                                                .foregroundStyle(Color.heading)
+                                                .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
+                                                //                                                .labelStyle(.iconOnly)
+                                                //                                                .foregroundStyle(Color.heading)
                                                 
                                                 Button(action: {
                                                     player.skipForward(seconds: 30)
@@ -98,9 +168,9 @@ struct EpisodeView: View {
                                                 .labelStyle(.iconOnly)
                                                 .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
                                             }
-                                            .padding(.vertical).padding(.horizontal,18)
-                                            .background(Color.surface)
-                                            .clipShape(Capsule())
+                                            //                                            .padding(.vertical).padding(.horizontal,18)
+                                            //                                            .background(Color.surface)
+                                            //                                            .clipShape(Capsule())
                                             
                                             Spacer()
                                             
@@ -137,7 +207,7 @@ struct EpisodeView: View {
                                     }
                                     .transition(.move(edge: .trailing).combined(with: .opacity))
                                     .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-
+                                    
                                 }
                             }
                             .padding(.horizontal).padding(.bottom)
@@ -148,8 +218,27 @@ struct EpisodeView: View {
             }
             
             FadeInView(delay: 0.5) {
+                let miniFadeStart: CGFloat = 0
+                let miniFadeEnd: CGFloat = -64
+                let miniClamped = min(max(scrollOffset, miniFadeEnd), miniFadeStart)
+                let miniOpacity = 1 - (miniClamped - miniFadeEnd) / (miniFadeStart - miniFadeEnd)
+                
                 VStack {
                     HStack {
+                        KFImage(URL(string:episode.podcast?.image ?? ""))
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
+                            .shadow(color:Color.tint(for:episode),
+                                    radius: 32
+                            )
+                            .opacity(miniOpacity)
+                            .animation(.easeOut(duration: 0.1), value: miniOpacity)
+                            .onTapGesture {
+                                selectedPodcast = episode.podcast
+                            }
+                        
                         Spacer()
                         
                         if episode.isQueued {
@@ -161,7 +250,7 @@ struct EpisodeView: View {
                             }) {
                                 Label("Archive", systemImage: "archivebox")
                             }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: .heading, background: .thinMaterial)))
                         } else {
                             Button(action: {
                                 episode.isSaved.toggle()
@@ -169,32 +258,23 @@ struct EpisodeView: View {
                             }) {
                                 Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
                             }
-                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true))
+                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: .heading, background: .thinMaterial)))
                             .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                         }
                     }
                 }
                 .padding()
             }
-            
-            VStack {
-                FadeInView(delay: 0.1) {
-                    KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                        .resizable()
-                        .frame(width: 128, height: 128)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                        .shadow(color:Color.tint(for:episode),
-                                radius: 128
-                        )
-                }
-                
-                Spacer()
-            }
-            .padding()
         }
         .frame(maxWidth:.infinity)
+        .sheet(item: $selectedPodcast) { podcast in
+            if podcast.isSubscribed {
+                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                    .modifier(PPSheet())
+            } else {
+                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
+                    .modifier(PPSheet())
+            }
+        }
     }
 }
-
-

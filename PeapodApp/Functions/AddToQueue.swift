@@ -15,7 +15,6 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
         var reordered = [episode]
 
         if let current = current {
-            current.isQueued = true
             reordered.append(current)
         }
 

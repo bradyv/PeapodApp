@@ -9,7 +9,16 @@ import SwiftUI
 
 struct ButtonCustomColors {
     var foreground: Color
-    var background: Color
+    private var _background: AnyShapeStyle
+
+    var background: AnyShapeStyle {
+        _background
+    }
+
+    init(foreground: Color, background: some ShapeStyle) {
+        self.foreground = foreground
+        self._background = AnyShapeStyle(background)
+    }
 }
 
 struct ShadowButton: ButtonStyle {
@@ -84,7 +93,7 @@ struct PPButton: ButtonStyle {
             })
         .if(medium, transform: { $0.font(.system(size:20))})
         .if(large, transform: { $0.font(.system(size:26))})
-        .background(borderless ? .clear : effectiveBackground(isPressed))
+        .background(borderless ? AnyShapeStyle(.clear) : effectiveBackground(isPressed))
         .foregroundColor(effectiveForeground)
         .textBodyEmphasis()
         .clipShape(Capsule())
@@ -92,11 +101,11 @@ struct PPButton: ButtonStyle {
         .animation(.easeOut(duration: 0.2), value: isPressed)
     }
 
-    private func effectiveBackground(_ isPressed: Bool) -> Color {
+    private func effectiveBackground(_ isPressed: Bool) -> AnyShapeStyle {
         if let custom = customColors {
             return custom.background
         }
-        return backgroundColor(isPressed)
+        return AnyShapeStyle(backgroundColor(isPressed))
     }
 
     private var effectiveForeground: Color {

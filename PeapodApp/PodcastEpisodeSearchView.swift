@@ -16,6 +16,7 @@ struct PodcastEpisodeSearchView: View {
 
     @FetchRequest private var latest: FetchedResults<Episode>
     @State private var query = ""
+    @State private var selectedDetent: PresentationDetent = .medium
     @FocusState private var isTextFieldFocused: Bool
 
     init(podcast: Podcast, showSearch: Binding<Bool>, selectedEpisode: Binding<Episode?>) {
@@ -69,8 +70,10 @@ struct PodcastEpisodeSearchView: View {
                 }
             }
             .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode)
+                EpisodeView(episode: episode, selectedDetent: $selectedDetent)
                     .modifier(PPSheet())
+                    .presentationDetents([.medium, .large], selection: $selectedDetent)
+                    .presentationContentInteraction(.resizes)
             }
         }
         .onAppear {

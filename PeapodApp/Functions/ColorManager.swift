@@ -18,7 +18,7 @@ struct ColorVariants: Codable, Equatable {
 
 // MARK: - ColorExtractor
 enum ColorExtractor {
-    static func extractColorVariants(from image: UIImage) -> ColorVariants? {
+    static func extractAccentAndContrast(from image: UIImage) -> (accent: String, highContrast: String)? {
         guard let resized = image.resized(to: CGSize(width: 100, height: 100)),
               let palette = ColorThief.getPalette(from: resized, colorCount: 5, quality: 1) else {
             return nil
@@ -31,25 +31,27 @@ enum ColorExtractor {
 
             let brightness = (r * 299 + g * 587 + b * 114) / 1000
             let saturation = max(r, g, b) - min(r, g, b)
-
             return brightness > 0.2 && brightness < 0.9 && saturation > 0.1
         }
 
         guard let best = filtered.first ?? palette.first else { return nil }
 
-        let accentColor = UIColor(
+        let base = UIColor(
             red: CGFloat(best.r) / 255,
             green: CGFloat(best.g) / 255,
             blue: CGFloat(best.b) / 255,
             alpha: 1.0
         )
 
-        let highContrast = accentColor.highContrastVariant()
+        let contrastWithWhite = base.contrastRatio(with: UIColor.white)
+        if contrastWithWhite >= 3.5 {
+            return (base.toHexString(), base.toHexString())
+        }
 
-        return ColorVariants(
-            accent: accentColor.toHexString(),
-            highContrast: highContrast.toHexString()
-        )
+        let darkened = base.highContrastVariant()
+        let final = darkened.contrastRatio(with: UIColor.white) >= 3.5 ? darkened : base
+
+        return (base.toHexString(), final.toHexString())
     }
 }
 
@@ -99,6 +101,31 @@ extension UIColor {
         }
         return self
     }
+    
+    func contrastRatio(with other: UIColor) -> CGFloat {
+        func luminance(_ color: UIColor) -> CGFloat {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            color.getRed(&r, green: &g, blue: &b, alpha: &a)
+
+            func adjust(_ c: CGFloat) -> CGFloat {
+                return (c < 0.03928) ? (c / 12.92) : pow((c + 0.055) / 1.055, 2.4)
+            }
+
+            let lR = adjust(r)
+            let lG = adjust(g)
+            let lB = adjust(b)
+
+            return 0.2126 * lR + 0.7152 * lG + 0.0722 * lB
+        }
+
+        let lum1 = luminance(self)
+        let lum2 = luminance(other)
+
+        let lighter = max(lum1, lum2)
+        let darker = min(lum1, lum2)
+
+        return (lighter + 0.05) / (darker + 0.05)
+    }
 }
 
 // MARK: - ColorTintManager
@@ -109,17 +136,16 @@ enum ColorTintManager {
               !imageUrlString.isEmpty,
               let imageUrl = URL(string: imageUrlString) else { return }
 
-        // Only pass Sendable types (URL + objectID)
         let objectID = podcast.objectID
 
         KingfisherManager.shared.retrieveImage(with: imageUrl) { result in
             switch result {
             case .success(let value):
-                if let variants = ColorExtractor.extractColorVariants(from: value.image) {
+                if let (accent, highContrast) = ColorExtractor.extractAccentAndContrast(from: value.image) {
                     context.perform {
                         if let object = try? context.existingObject(with: objectID) as? Podcast {
-                            object.podcastTint = variants.accent
-                            object.podcastTintDarkened = variants.highContrast
+                            object.podcastTint = accent
+                            object.podcastTintDarkened = highContrast
                             try? context.save()
                         }
                     }
@@ -141,11 +167,11 @@ enum ColorTintManager {
         KingfisherManager.shared.retrieveImage(with: imageUrl) { result in
             switch result {
             case .success(let value):
-                if let variants = ColorExtractor.extractColorVariants(from: value.image) {
+                if let (accent, highContrast) = ColorExtractor.extractAccentAndContrast(from: value.image) {
                     context.perform {
                         if let object = try? context.existingObject(with: objectID) as? Episode {
-                            object.episodeTint = variants.accent
-                            object.episodeTintDarkened = variants.highContrast
+                            object.episodeTint = accent
+                            object.episodeTintDarkened = highContrast
                             try? context.save()
                         }
                     }
@@ -157,41 +183,41 @@ enum ColorTintManager {
     }
 }
 
-
-//MARK: - ColorDarkener
-extension UIColor {
-    func darkened(by percentage: CGFloat) -> UIColor {
-        var hue: CGFloat = 0
-        var saturation: CGFloat = 0
-        var brightness: CGFloat = 0
-        var alpha: CGFloat = 0
-
-        guard self.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else {
-            return self
-        }
-
-        return UIColor(hue: hue,
-                       saturation: saturation,
-                       brightness: max(brightness - percentage, 0),
-                       alpha: alpha)
-    }
-}
-
-extension Color {
-    func darkened(by percentage: CGFloat) -> Color {
-        let uiColor = UIColor(self)
-        return Color(uiColor.darkened(by: percentage))
-    }
-}
-
 extension Color {
     static func tint(for episode: Episode, opacity: CGFloat = 1, darkened: Bool = false) -> Color {
         return (Color(hex: darkened ? episode.episodeTintDarkened : episode.episodeTint)?.opacity(opacity)) ??
-        tint(for: episode.podcast, opacity: opacity, darkened: darkened ? true : false)
+               tint(for: episode.podcast, opacity: opacity, darkened: darkened)
     }
-    
+
     static func tint(for podcast: Podcast?, opacity: CGFloat = 1, darkened: Bool = false) -> Color {
         return (Color(hex: darkened ? podcast?.podcastTintDarkened : podcast?.podcastTint)?.opacity(opacity)) ??
                Color.black.opacity(opacity)
+    }
+}
+
+func resetAllTints(in context: NSManagedObjectContext) {
+    context.perform {
+        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+
+        do {
+            let podcasts = try context.fetch(podcastRequest)
+            for podcast in podcasts {
+                podcast.podcastTint = nil
+                podcast.podcastTintDarkened = nil
+            }
+
+            let episodes = try context.fetch(episodeRequest)
+            for episode in episodes {
+                episode.episodeTint = nil
+                episode.episodeTintDarkened = nil
+            }
+
+            try context.save()
+            print("✅ Successfully reset all tint values.")
+
+        } catch {
+            print("❌ Failed to reset tints: \(error.localizedDescription)")
+        }
     }
 }

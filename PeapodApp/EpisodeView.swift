@@ -101,7 +101,7 @@ struct EpisodeView: View {
                     VStack {
                         VStack(spacing:16) {
                             VStack(spacing:16) {
-                                if selectedDetent?.wrappedValue != .medium {
+                                if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) || selectedDetent?.wrappedValue != .medium {
                                     VStack(spacing:2) {
                                         let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
                                         CustomSlider(
@@ -130,8 +130,8 @@ struct EpisodeView: View {
                                 }
                                 
                                 HStack {
-                                    HStack {
-                                        if episode.isQueued {
+                                    if episode.isQueued {
+                                        Group {
                                             AirPlayButton()
                                                 .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
                                             
@@ -156,8 +156,6 @@ struct EpisodeView: View {
                                                         .font(.title)
                                                 }
                                                 .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
-                                                //                                                .labelStyle(.iconOnly)
-                                                //                                                .foregroundStyle(Color.heading)
                                                 
                                                 Button(action: {
                                                     player.skipForward(seconds: 30)
@@ -169,22 +167,10 @@ struct EpisodeView: View {
                                                 .labelStyle(.iconOnly)
                                                 .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
                                             }
-                                            //                                            .padding(.vertical).padding(.horizontal,18)
-                                            //                                            .background(Color.surface)
-                                            //                                            .clipShape(Capsule())
-                                            
-                                            Spacer()
-                                            
-                                            Button(action: {
-                                                episode.isSaved.toggle()
-                                                try? episode.managedObjectContext?.save()
-                                            }) {
-                                                Label(episode.isSaved ? "Remove from starred" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
-                                            }
-                                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true))
-                                            .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
-                                            
-                                        } else {
+                                        }
+                                        .transition(.opacity)
+                                    } else {
+                                        Group {
                                             Button(action: {
                                                 withAnimation {
                                                     player.togglePlayback(for: episode)
@@ -201,15 +187,23 @@ struct EpisodeView: View {
                                                 }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label("Up Next", systemImage: "plus.circle")
+                                                Label("Up Next", systemImage: "text.append")
                                             }
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                                         }
+                                        .transition(.opacity)
                                     }
-                                    .transition(.move(edge: .trailing).combined(with: .opacity))
-                                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-                                    
+                                    Spacer()
+                                    Button(action: {
+                                        episode.isSaved.toggle()
+                                        try? episode.managedObjectContext?.save()
+                                    }) {
+                                        Label(episode.isSaved ? "Remove from starred" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+                                    }
+                                    .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: episode.isSaved ? .background : .heading, background: episode.isSaved ? .yellow : .surface)))
+                                    .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                                 }
+                                .animation(.easeOut(duration: 0.5), value: episode.isQueued)
                             }
                             .padding(.horizontal).padding(.bottom)
                         }
@@ -245,22 +239,19 @@ struct EpisodeView: View {
                         if episode.isQueued {
                             Button(action: {
                                 withAnimation {
-                                    toggleQueued(episode)
+                                    if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
+                                        player.stop()
+                                        player.markAsPlayed(for: episode, manually: true)
+                                        try? episode.managedObjectContext?.save()
+                                    } else {
+                                        toggleQueued(episode)
+                                    }
                                 }
                                 try? episode.managedObjectContext?.save()
                             }) {
-                                Label("Archive", systemImage: "archivebox")
+                                Label(player.isPlayingEpisode(episode) || player.hasStartedPlayback(for:episode) ? "Mark as played" : "Archive", systemImage: player.isPlayingEpisode(episode) || player.hasStartedPlayback(for:episode) ? "checkmark.circle" : "archivebox")
                             }
                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: .heading, background: .thinMaterial)))
-                        } else {
-                            Button(action: {
-                                episode.isSaved.toggle()
-                                try? episode.managedObjectContext?.save()
-                            }) {
-                                Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
-                            }
-                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: .heading, background: .thinMaterial)))
-                            .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                         }
                     }
                 }

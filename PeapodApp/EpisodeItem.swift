@@ -217,17 +217,6 @@ struct EpisodeItem: View {
                             )
                         )
                     }
-                    if savedView {
-                        Spacer()
-                        
-                        Button(action: {
-                            episode.isSaved.toggle()
-                            try? episode.managedObjectContext?.save()
-                        }) {
-                            Label("Remove from starred", systemImage: "bookmark.slash")
-                        }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
-                    }
                 }
             } else {
                 HStack {
@@ -308,6 +297,19 @@ struct EpisodeItem: View {
                     )
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                     .animation(.easeOut(duration: 0.3), value: episode.isQueued)
+                    
+                    if savedView {
+                        Spacer()
+                        
+                        Button(action: {
+                            episode.isSaved.toggle()
+                            try? episode.managedObjectContext?.save()
+                        }) {
+                            Label(episode.isSaved ? "Remove from starred" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
+                        }
+                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                        .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+                    }
                 }
             }
         }

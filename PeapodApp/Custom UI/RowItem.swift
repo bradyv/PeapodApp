@@ -38,9 +38,9 @@ struct RowItem<Accessory: View>: View {
                 }
             }
             .padding(.vertical, 2)
-            .contentShape(Rectangle())
             Divider()
         }
+        .contentShape(Rectangle())
     }
 
     private var accessoryIsEmpty: Bool {

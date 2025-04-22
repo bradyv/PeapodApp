@@ -306,6 +306,7 @@ struct EpisodeItem: View {
                 }
             }
         }
+        .contentShape(Rectangle())
         .sheet(item: $selectedPodcast) { podcast in
             if podcast.isSubscribed {
                 PodcastDetailView(feedUrl: podcast.feedUrl ?? "")

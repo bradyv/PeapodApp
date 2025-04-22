@@ -225,6 +225,7 @@ struct SettingsView: View {
             .padding(.horizontal)
         }
         .background(Color.background)
+        .maskEdge(.bottom)
         .task {
             let context = PersistenceController.shared.container.viewContext
             podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0

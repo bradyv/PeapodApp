@@ -10,7 +10,7 @@ import SwiftUI
 struct QueueView: View {
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.queuePosition)],
-        predicate: NSPredicate(format: "isQueued == YES"),
+        predicate: NSPredicate(format: "playlist.name == %@", "Queue"),
         animation: .interactiveSpring()
     )
     var queue: FetchedResults<Episode>

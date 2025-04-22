@@ -19,7 +19,13 @@
         <attribute name="playedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="queuePosition" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="playlist" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Playlist" inverseName="items" inverseEntity="Playlist"/>
         <relationship name="podcast" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Podcast" inverseName="episode" inverseEntity="Podcast"/>
+    </entity>
+    <entity name="Playlist" representedClassName="Playlist" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="items" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Episode" inverseName="playlist" inverseEntity="Episode"/>
     </entity>
     <entity name="Podcast" representedClassName="Podcast" syncable="YES" codeGenerationType="class">
         <attribute name="author" optional="YES" attributeType="String"/>

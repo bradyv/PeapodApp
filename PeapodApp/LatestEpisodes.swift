@@ -42,9 +42,12 @@ struct LatestEpisodes: View {
                     }
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                            .modifier(PPSheet())
-                            .presentationDetents([.medium, .large], selection: $selectedDetent)
-                            .presentationContentInteraction(.resizes)
+                            .modifier(PPSheet(shortStack: true, detent: $selectedDetent))
+                            .onChange(of: selectedDetent) { newValue in
+                                if newValue == .medium {
+                                    selectedEpisode = nil
+                                }
+                            }
                     }
                 }
             }

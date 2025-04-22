@@ -12,6 +12,7 @@ struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var parsedDescription: NSAttributedString?

@@ -25,6 +25,7 @@ struct Peapod: App {
                 .environmentObject(toastManager)
                 .preferredColorScheme(preferredColorScheme(for: appTheme))
                 .onAppear {
+                    ensureQueuePlaylistExists(context: PersistenceController.shared.container.viewContext)
 //                    Task {
 //                        await persistenceController.container.viewContext.perform {
 //                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)

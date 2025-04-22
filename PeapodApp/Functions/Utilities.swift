@@ -40,3 +40,16 @@ func removeDuplicateEpisodes(context: NSManagedObjectContext) {
         print("❌ Error removing duplicates: \(error)")
     }
 }
+
+func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
+    let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
+    request.predicate = NSPredicate(format: "name == %@", "Queue")
+
+    let existing = (try? context.fetch(request))?.first
+    if existing == nil {
+        let playlist = Playlist(context: context)
+        playlist.name = "Queue"
+        try? context.save()
+        print("✅ Created 'Queue' playlist")
+    }
+}

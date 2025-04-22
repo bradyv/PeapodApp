@@ -10,19 +10,28 @@ import SwiftUI
 struct PPSheet: ViewModifier {
     let hasBackground: Bool
     let shortStack: Bool
+    @Binding var dismissTrigger: Bool
+    @Binding var detent: PresentationDetent
     
-    init(bg: Bool = false, shortStack: Bool = false) {
+    init(bg: Bool = false, shortStack: Bool = false,dismissTrigger: Binding<Bool> = .constant(false),detent: Binding<PresentationDetent> = .constant(.large)) {
         self.hasBackground = bg
         self.shortStack = shortStack
+        self._dismissTrigger = dismissTrigger
+        self._detent = detent
     }
 
     func body(content: Content) -> some View {
         content
             .presentationCornerRadius(32)
-            .if(shortStack, transform: {
-                $0.presentationDetents([.medium, .large])
-            })
+            .presentationDetents(shortStack ? [.medium, .large] : [.large], selection: $detent)
+            .presentationContentInteraction(.resizes)
+            .interactiveDismissDisabled(false)
             .presentationDragIndicator(.hidden)
+            .onChange(of: detent) { newValue in
+                if shortStack && newValue == .medium {
+                    dismissTrigger = true
+                }
+            }
             .background(
                 hasBackground ? nil : EllipticalGradient(
                     stops: [

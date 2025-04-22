@@ -27,7 +27,7 @@ struct LibraryView: View {
             
             if !subscriptions.isEmpty {
                 VStack(spacing: 8) {
-                    RowItem(icon: "app.badge", label: "Latest Episodes")
+                    RowItem(icon: "app.badge", label: "Unplayed Episodes")
                         .onTapGesture {
                             activeSheet = .latest
                         }

@@ -71,7 +71,7 @@ struct PodcastEpisodeSearchView: View {
             }
             .sheet(item: $selectedEpisode) { episode in
                 EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                    .modifier(PPSheet())
+                    .modifier(PPSheet(showOverlay: false))
                     .presentationDetents([.medium, .large], selection: $selectedDetent)
                     .presentationContentInteraction(.resizes)
             }

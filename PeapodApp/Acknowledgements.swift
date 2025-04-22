@@ -50,9 +50,6 @@ struct Acknowledgements: View {
             }
             .frame(maxWidth:.infinity,alignment:.leading)
         }
-        .background(Color.background)
         .contentMargins(.horizontal,16, for: .scrollContent)
-        .navigationTitle("Libraries")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }

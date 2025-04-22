@@ -110,7 +110,7 @@ struct QueueView: View {
                     .contentMargins(.horizontal,16, for: .scrollContent)
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode)
-                            .modifier(PPSheet())
+                            .modifier(PPSheet(showOverlay: false))
                     }
                     .onChange(of: queue.first?.id) { oldID, newID in
                         if let id = newID {

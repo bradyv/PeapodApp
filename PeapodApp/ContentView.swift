@@ -78,7 +78,7 @@ struct ContentView: View {
             .padding(.horizontal)
             .sheet(isPresented: $showSettings) {
                 SettingsView()
-                    .modifier(PPSheet())
+                    .modifier(PPSheet(bg:false))
             }
             
             NowPlaying()

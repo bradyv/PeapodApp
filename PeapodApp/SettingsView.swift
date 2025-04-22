@@ -224,8 +224,8 @@ struct SettingsView: View {
             .padding(.top,24)
             .padding(.horizontal)
         }
-        .background(Color.background)
         .maskEdge(.bottom)
+        .ignoresSafeArea(edges:.bottom)
         .task {
             let context = PersistenceController.shared.container.viewContext
             podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0
@@ -241,11 +241,11 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showActivity) {
             ActivityView()
-                .modifier(PPSheet())
+                .modifier(PPSheet(bg:false))
         }
         .sheet(isPresented: $showAcknowledgements) {
             Acknowledgements()
-                .modifier(PPSheet())
+                .modifier(PPSheet(bg:false))
         }
     }
 }

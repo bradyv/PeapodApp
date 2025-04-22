@@ -12,7 +12,7 @@ struct LatestEpisodes: View {
     @EnvironmentObject var toastManager: ToastManager
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
-        predicate: NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES"),
+        predicate: NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES AND isPlayed == NO AND playbackPosition == 0 AND nowPlaying = NO"),
         animation: .interactiveSpring()
     )
     var latest: FetchedResults<Episode>
@@ -23,7 +23,7 @@ struct LatestEpisodes: View {
         ScrollView {
             Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
-                Text("Latest Episodes")
+                Text("Unplayed Episodes")
                     .titleSerif()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.leading).padding(.top,24)
@@ -42,7 +42,7 @@ struct LatestEpisodes: View {
                     }
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                            .modifier(PPSheet(shortStack: true, detent: $selectedDetent))
+                            .modifier(PPSheet(shortStack: true, showOverlay: false, detent: $selectedDetent))
                             .onChange(of: selectedDetent) { newValue in
                                 if newValue == .medium {
                                     selectedEpisode = nil

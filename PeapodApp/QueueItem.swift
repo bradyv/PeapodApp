@@ -16,9 +16,6 @@ struct QueueItem: View {
         let frame = UIScreen.main.bounds.width - 32
 
         ZStack(alignment:.bottomLeading) {
-            
-            Text("Position: \(episode.queuePosition)")
-            
             EpisodeItem(episode:episode, displayedInQueue: true)
                 .lineLimit(3)
                 .padding()

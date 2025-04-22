@@ -162,7 +162,7 @@ struct NowPlaying: View {
             .frame(maxWidth:.infinity)
             .sheet(item: $selectedEpisode) { episode in
                 EpisodeView(episode: episode)
-                    .modifier(PPSheet())
+                    .modifier(PPSheet(showOverlay: false))
             }
         }
     }

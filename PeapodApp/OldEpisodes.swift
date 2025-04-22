@@ -67,7 +67,7 @@ struct OldEpisodes: View {
                     }
                     .sheet(item: $selectedEpisode) { episode in
                         EpisodeView(episode: episode)
-                            .modifier(PPSheet())
+                            .modifier(PPSheet(showOverlay: false))
                     }
                 }
             }

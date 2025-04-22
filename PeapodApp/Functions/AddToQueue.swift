@@ -29,7 +29,9 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
         episode.isQueued = true
         queuePlaylist.addToItems(episode)
 
-        if let current = current {
+        // Only push previous episode if it's already queued
+        if let current = current,
+           (queuePlaylist.items as? Set<Episode>)?.contains(current) == true {
             current.isQueued = true
             queuePlaylist.addToItems(current)
         }

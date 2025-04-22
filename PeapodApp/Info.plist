@@ -9,5 +9,75 @@
 		<string>audio</string>
 		<string>remote-notification</string>
 	</array>
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundleAlternateIcons</key>
+        <dict>
+            <key>Blueprint</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Blueprint</string>
+                </array>
+            </dict>
+            <key>Clouds</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Clouds</string>
+                </array>
+            </dict>
+            <key>Coachella</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Coachella</string>
+                </array>
+            </dict>
+            <key>Cupertino</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Cupertino</string>
+                </array>
+            </dict>
+            <key>Dev</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Dev</string>
+                </array>
+            </dict>
+            <key>Green</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Green</string>
+                </array>
+            </dict>
+            <key>Pastel</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Pastel</string>
+                </array>
+            </dict>
+            <key>Pride</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Pride</string>
+                </array>
+            </dict>
+            <key>Rinzler</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Rinzler</string>
+                </array>
+            </dict>
+        </dict>
+    </dict>
+
 </dict>
 </plist>

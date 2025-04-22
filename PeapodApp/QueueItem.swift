@@ -29,6 +29,7 @@ struct QueueItem: View {
                         LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                        startPoint: .top, endPoint: .init(x: 0.5, y: 0.6))
                     )
+                    .allowsHitTesting(false)
                 Spacer()
             }
         }

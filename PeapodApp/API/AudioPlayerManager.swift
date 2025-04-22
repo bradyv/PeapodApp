@@ -146,6 +146,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Save current position of the previous episode, if switching
         if let previousEpisode = currentEpisode, previousEpisode.id != episode.id {
             savePlaybackPosition(for: previousEpisode, position: player?.currentTime().seconds ?? 0)
+            previousEpisode.nowPlaying = false
+            try? previousEpisode.managedObjectContext?.save()
         }
 
         // Move to front of queue and push previous episode to position 1
@@ -170,6 +172,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     }
                 }
             }
+        }
+        
+        if !episode.nowPlaying {
+            episode.nowPlaying = true
         }
 
         // Activate audio session and resume playback
@@ -337,6 +343,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         } else {
             episode.isPlayed = true
             episode.isQueued = false
+            episode.nowPlaying = false
             episode.playedDate = Date.now
             episode.podcast?.playCount += 1
 

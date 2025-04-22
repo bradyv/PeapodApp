@@ -17,7 +17,7 @@ struct LatestEpisodes: View {
     )
     var latest: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
-    
+    @State private var selectedDetent: PresentationDetent = .medium
     
     var body: some View {
         ScrollView {
@@ -41,8 +41,10 @@ struct LatestEpisodes: View {
                             }
                     }
                     .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode)
+                        EpisodeView(episode: episode, selectedDetent: $selectedDetent)
                             .modifier(PPSheet())
+                            .presentationDetents([.medium, .large], selection: $selectedDetent)
+                            .presentationContentInteraction(.resizes)
                     }
                 }
             }

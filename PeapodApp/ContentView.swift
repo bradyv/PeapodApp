@@ -21,7 +21,7 @@ struct ContentView: View {
     
     var body: some View {
         ZStack(alignment:.topTrailing) {
-            NowPlaying()
+            NowPlayingSplash()
             ScrollView {
                 FadeInView(delay: 0.1) {
                     QueueView()
@@ -81,7 +81,7 @@ struct ContentView: View {
                     .modifier(PPSheet())
             }
             
-            //            NowPlaying()
+            NowPlaying()
         }
         .background(
             EllipticalGradient(

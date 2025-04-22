@@ -23,6 +23,7 @@ struct ActivityView: View {
     var topPodcasts: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
+    @State private var selectedDetent: PresentationDetent = .medium
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     
     var body: some View {
@@ -132,8 +133,10 @@ struct ActivityView: View {
                     }
                 }
                 .sheet(item: $selectedEpisode) { episode in
-                    EpisodeView(episode: episode)
+                    EpisodeView(episode: episode, selectedDetent: $selectedDetent)
                         .modifier(PPSheet())
+                        .presentationDetents([.medium, .large], selection: $selectedDetent)
+                        .presentationContentInteraction(.resizes)
                 }
             }
         }

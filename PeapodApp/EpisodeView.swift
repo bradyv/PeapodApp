@@ -18,28 +18,28 @@ struct EpisodeView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedPodcast: Podcast? = nil
     var selectedDetent: Binding<PresentationDetent>? = nil
+    var mediumHeight: CGFloat = 500
+    var largeHeight: CGFloat = 600
     
     var body: some View {
-        let splashFadeStart: CGFloat = -256
+        let splashFadeStart: CGFloat = -150
         let splashFadeEnd: CGFloat = 0
         let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
-        let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
+        let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) - 0.5
         
         ZStack(alignment:.topLeading) {
-            VStack {
+            ZStack(alignment:.bottom) {
                 FadeInView(delay: 0.1) {
                     KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                         .resizable()
                         .aspectRatio(1, contentMode:.fit)
                         .mask(
                             LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.85))
+                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
                         )
                         .opacity(opacity)
-                        .animation(.easeOut(duration: 0.1), value: opacity)
+                        .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
                 }
-                
-                Spacer()
             }
             
             VStack {
@@ -48,29 +48,13 @@ struct EpisodeView: View {
                         Color.clear
                             .frame(maxWidth:.infinity).frame(height:1)
                             .trackScrollOffset("scroll") { value in
-                                print("Scroll offset onAppear:", value)
                                 scrollOffset = value
                             }
-                        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                            .resizable()
-                            .aspectRatio(1, contentMode:.fit)
-                            .opacity(0)
-                            
-                        VStack(spacing:24) {
-//                            HStack {
-//                                KFImage(URL(string:episode.podcast?.image ?? ""))
-//                                    .resizable()
-//                                    .frame(width: 24, height: 24)
-//                                    .cornerRadius(3)
-//                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
-//                                
-//                                Text(episode.podcast?.title ?? "Podcast title")
-//                                    .textDetailEmphasis()
-//                            }
-//                            .opacity(opacity)
-//                            .animation(.easeOut(duration: 0.1), value: opacity)
-                            
-                            VStack(spacing:8) {
+                        
+                        VStack {
+                            Spacer().frame(height:200)
+                            VStack(spacing:2) {
+                                Spacer().frame(height:32)
                                 HStack(spacing: 2) {
                                     Text("Released ")
                                         .textDetail()
@@ -81,25 +65,30 @@ struct EpisodeView: View {
                                 Text(episode.title ?? "Episode title")
                                     .titleSerif()
                                     .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                
+                                Spacer().frame(height:44)
                             }
+                            .frame(maxWidth:.infinity)
                             
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
+                                .padding(.horizontal)
                                 .multilineTextAlignment(.leading)
                                 .environment(\.openURL, OpenURLAction { url in
                                     if url.scheme == "peapod", url.host == "seek",
                                        let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
                                        let seconds = query.queryItems?.first(where: { $0.name == "t" })?.value,
                                        let time = Double(seconds) {
-
+                                        
                                         AudioPlayerManager.shared.seek(to: time)
                                         return .handled
                                     }
-
+                                    
                                     return .systemAction
                                 })
                         }
-                        .padding(.horizontal)
-                        .offset(y:-64)
+                        
+                        Spacer().frame(height:32)
                     }
                     .scrollIndicators(.hidden)
                     .coordinateSpace(name: "scroll")
@@ -166,8 +155,8 @@ struct EpisodeView: View {
                                                         .font(.title)
                                                 }
                                                 .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
-//                                                .labelStyle(.iconOnly)
-//                                                .foregroundStyle(Color.heading)
+                                                //                                                .labelStyle(.iconOnly)
+                                                //                                                .foregroundStyle(Color.heading)
                                                 
                                                 Button(action: {
                                                     player.skipForward(seconds: 30)
@@ -179,9 +168,9 @@ struct EpisodeView: View {
                                                 .labelStyle(.iconOnly)
                                                 .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
                                             }
-//                                            .padding(.vertical).padding(.horizontal,18)
-//                                            .background(Color.surface)
-//                                            .clipShape(Capsule())
+                                            //                                            .padding(.vertical).padding(.horizontal,18)
+                                            //                                            .background(Color.surface)
+                                            //                                            .clipShape(Capsule())
                                             
                                             Spacer()
                                             
@@ -218,7 +207,7 @@ struct EpisodeView: View {
                                     }
                                     .transition(.move(edge: .trailing).combined(with: .opacity))
                                     .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-
+                                    
                                 }
                             }
                             .padding(.horizontal).padding(.bottom)
@@ -230,13 +219,13 @@ struct EpisodeView: View {
             
             FadeInView(delay: 0.5) {
                 let miniFadeStart: CGFloat = 0
-                let miniFadeEnd: CGFloat = -192
+                let miniFadeEnd: CGFloat = -64
                 let miniClamped = min(max(scrollOffset, miniFadeEnd), miniFadeStart)
                 let miniOpacity = 1 - (miniClamped - miniFadeEnd) / (miniFadeStart - miniFadeEnd)
                 
                 VStack {
                     HStack {
-                        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                        KFImage(URL(string:episode.podcast?.image ?? ""))
                             .resizable()
                             .frame(width: 64, height: 64)
                             .clipShape(RoundedRectangle(cornerRadius: 16))

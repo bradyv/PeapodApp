@@ -25,12 +25,12 @@ struct Peapod: App {
                 .environmentObject(toastManager)
                 .preferredColorScheme(preferredColorScheme(for: appTheme))
                 .onAppear {
-                    Task {
-                        await persistenceController.container.viewContext.perform {
-                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)
-                            print("Episodes flushed")
-                        }
-                    }
+//                    Task {
+//                        await persistenceController.container.viewContext.perform {
+//                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)
+//                            print("Episodes flushed")
+//                        }
+//                    }
                     if !didFlushTints {
                         resetAllTints(in: persistenceController.container.viewContext)
                         didFlushTints = true

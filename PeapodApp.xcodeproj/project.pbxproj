@@ -431,7 +431,7 @@
 				CODE_SIGN_ENTITLEMENTS = PeapodApp/PeapodApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_ASSET_PATHS = "\"PeapodApp/Preview Content\"";
 				DEVELOPMENT_TEAM = L562VTCZTN;
 				ENABLE_PREVIEWS = YES;
@@ -469,7 +469,7 @@
 				CODE_SIGN_ENTITLEMENTS = PeapodApp/PeapodApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_ASSET_PATHS = "\"PeapodApp/Preview Content\"";
 				DEVELOPMENT_TEAM = L562VTCZTN;
 				ENABLE_PREVIEWS = YES;

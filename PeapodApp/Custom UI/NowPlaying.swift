@@ -88,7 +88,6 @@ struct NowPlaying: View {
                             .resizable()
                             .frame(width: player.isPlayingEpisode(episode) ? 32 : 24, height: player.isPlayingEpisode(episode) ? 32 : 24)
                             .cornerRadius(player.isPlayingEpisode(episode) ? 6 : 3)
-                            .opacity(player.isPlayingEpisode(episode) ? 1 : 0.5)
                             .onTapGesture {
                                 selectedEpisode = episode
                             }

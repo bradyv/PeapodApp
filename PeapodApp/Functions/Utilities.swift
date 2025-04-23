@@ -53,3 +53,34 @@ func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
         print("✅ Created 'Queue' playlist")
     }
 }
+
+func migrateOldQueueToPlaylist(context: NSManagedObjectContext) {
+    // Fetch or create the "Queue" playlist
+    let playlistRequest = Playlist.fetchRequest()
+    playlistRequest.predicate = NSPredicate(format: "name == %@", "Queue")
+    playlistRequest.fetchLimit = 1
+
+    let playlist: Playlist
+    if let existing = try? context.fetch(playlistRequest).first {
+        playlist = existing
+    } else {
+        playlist = Playlist(context: context)
+        playlist.name = "Queue"
+    }
+
+    // Fetch episodes that were previously queued using the old system
+    let request = Episode.fetchRequest()
+    request.predicate = NSPredicate(format: "isQueued == YES AND playlist == nil")
+    
+    do {
+        let oldQueuedEpisodes = try context.fetch(request)
+        for episode in oldQueuedEpisodes {
+            episode.playlist = playlist
+            episode.isQueued = true // optional: ensure legacy flag is aligned
+        }
+        try context.save()
+        print("✅ Migrated \(oldQueuedEpisodes.count) episodes to the playlist queue.")
+    } catch {
+        print("❌ Failed to migrate queue episodes: \(error.localizedDescription)")
+    }
+}

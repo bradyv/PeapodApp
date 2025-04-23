@@ -26,7 +26,7 @@ struct EpisodeView: View {
         let splashFadeStart: CGFloat = -150
         let splashFadeEnd: CGFloat = 0
         let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
-        let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) - 0.5
+        let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
         
         ZStack(alignment:.topLeading) {
             ZStack(alignment:.bottom) {
@@ -36,7 +36,7 @@ struct EpisodeView: View {
                         .aspectRatio(1, contentMode:.fit)
                         .mask(
                             LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.7))
                         )
                         .opacity(opacity)
                         .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
@@ -62,6 +62,8 @@ struct EpisodeView: View {
                                     Text(getRelativeDateString(from: episode.airDate ?? .distantPast))
                                         .textDetailEmphasis()
                                 }
+                                .padding(.horizontal,6).padding(.vertical,2)
+                                .shadow(color: Color.background, radius: 8)
                                 
                                 Text(episode.title ?? "Episode title")
                                     .titleSerif()
@@ -97,7 +99,7 @@ struct EpisodeView: View {
                     .maskEdge(.bottom)
                 }
                 
-                FadeInView(delay: 0.4) {
+                FadeInView(delay: 0) {
                     VStack {
                         VStack(spacing:16) {
                             VStack(spacing:16) {
@@ -137,7 +139,7 @@ struct EpisodeView: View {
                                             
                                             Spacer()
                                             
-                                            HStack(spacing:16) {
+                                            HStack(spacing: player.isPlayingEpisode(episode) ? -4 : -22) {
                                                 Button(action: {
                                                     player.skipBackward(seconds:15)
                                                     print("Seeking back")
@@ -145,17 +147,20 @@ struct EpisodeView: View {
                                                     Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
                                                 }
                                                 .disabled(!player.isPlayingEpisode(episode))
-                                                .labelStyle(.iconOnly)
-                                                .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
+                                                .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0), background: .surface)))
                                                 
-                                                Button(action: {
-                                                    player.togglePlayback(for: episode)
-                                                    print("Playing episode")
-                                                }) {
-                                                    Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
-                                                        .font(.title)
+                                                VStack {
+                                                    Button(action: {
+                                                        player.togglePlayback(for: episode)
+                                                        print("Playing episode")
+                                                    }) {
+                                                        Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
+                                                            .font(.title)
+                                                    }
+                                                    .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
                                                 }
-                                                .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
+                                                .overlay(Circle().stroke(Color.background, lineWidth:5))
+                                                .zIndex(1)
                                                 
                                                 Button(action: {
                                                     player.skipForward(seconds: 30)
@@ -164,9 +169,9 @@ struct EpisodeView: View {
                                                     Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
                                                 }
                                                 .disabled(!player.isPlayingEpisode(episode))
-                                                .labelStyle(.iconOnly)
-                                                .foregroundStyle(player.isPlayingEpisode(episode) ? Color.heading : Color.heading.opacity(0.5))
+                                                .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0), background: .surface)))
                                             }
+                                            .animation(.easeInOut(duration: 0.25), value: player.isPlayingEpisode(episode))
                                         }
                                         .transition(.opacity)
                                     } else {
@@ -191,7 +196,12 @@ struct EpisodeView: View {
                                             }
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                                         }
-                                        .transition(.opacity)
+                                        .transition(
+                                            .asymmetric(
+                                                insertion: .scale(scale: 1, anchor: .center).combined(with: .opacity),
+                                                removal: .scale(scale: 0, anchor: .center).combined(with: .opacity)
+                                            )
+                                        )
                                     }
                                     Spacer()
                                     Button(action: {
@@ -203,7 +213,7 @@ struct EpisodeView: View {
                                     .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: episode.isSaved ? .background : .heading, background: episode.isSaved ? .yellow : .surface)))
                                     .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                                 }
-                                .animation(.easeOut(duration: 0.5), value: episode.isQueued)
+                                .animation(.easeOut(duration: 0.3), value: episode.isQueued)
                             }
                             .padding(.horizontal).padding(.bottom)
                         }

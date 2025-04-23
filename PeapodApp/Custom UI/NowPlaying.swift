@@ -42,98 +42,73 @@ struct NowPlaying: View {
         animation: .interactiveSpring()
     )
     var nowPlaying: FetchedResults<Episode>
+    var displayedInQueue: Bool = false
     
     var body: some View {
         
         if let episode = nowPlaying.first {
             VStack(alignment:.center) {
                 Spacer()
-                HStack(spacing:4) {
-                    Button(action: {
-                        selectedEpisode = episode
-                    }) {
-                        Label("Episode details", systemImage:"chevron.up")
-                    }
-                    .buttonStyle(PPButton(
-                        type: .transparent,
-                        colorStyle: .monochrome,
-                        iconOnly: true,
-                        customColors: ButtonCustomColors(
-                            foreground: .heading,
-                            background: .white.opacity(0)
-                        )))
-                    
-                    Button(action: {
-                        player.skipBackward(seconds:15)
-                        print("Seeking back")
-                    }) {
-                        Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
-                    }
-                    .disabled(!player.isPlayingEpisode(episode))
-                    .opacity(player.isPlayingEpisode(episode) ? 1 : 0.5)
-                    .transition(.opacity)
-                    .animation(.easeOut(duration: 0.3), value: player.isPlaying)
-                    .buttonStyle(PPButton(
-                        type: .transparent,
-                        colorStyle: .monochrome,
-                        iconOnly: true,
-                        customColors: ButtonCustomColors(
-                            foreground: .heading,
-                            background: .white.opacity(0)
-                        )))
-                    
-                    ZStack {
+                HStack(spacing:8) {
+                    HStack {
                         KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                             .resizable()
-                            .frame(width: player.isPlayingEpisode(episode) ? 42 : 36, height: player.isPlayingEpisode(episode) ? 42 : 36)
+                            .frame(width:36,height:36)
                             .clipShape(Circle())
                             .transition(.opacity)
                             .animation(.easeOut(duration: 0.3), value: player.isPlaying)
-                            .opacity(0.3)
                         
-                        Button(action: {
-                            withAnimation {
-                                player.togglePlayback(for: episode)
-                            }
-                            print("Playing episode")
-                        }) {
-                            Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
+                        VStack(alignment:.leading, spacing: 2) {
+                            let safeDuration: Double = {
+                                let actual = episode.actualDuration
+                                return actual > 1 ? actual : episode.duration
+                            }()
+                            
+                            Text(episode.title ?? "Episode title")
+                                .textDetailEmphasis()
+                                .lineLimit(1)
+                            
+                            CustomSlider(
+                                value: Binding(
+                                    get: { player.getProgress(for: episode) },
+                                    set: { player.seek(to: $0) }
+                                ),
+                                range: 0...safeDuration,
+                                onEditingChanged: { isEditing in
+                                    if !isEditing {
+                                        player.seek(to: player.progress)
+                                    }
+                                },
+                                isDraggable: true,
+                                isQQ: false
+                            )
                         }
-                        .buttonStyle(PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            iconOnly: true,
-                            customColors: ButtonCustomColors(
-                                foreground: .heading,
-                                background: .white.opacity(0)
-                            )))
+                        .frame(alignment:.leading)
+                        
+                        Spacer()
                     }
-                    .frame(width:32,height:32)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedEpisode = episode
+                    }
                     
                     Button(action: {
-                        player.skipForward(seconds: 30)
-                        print("Going forward")
+                        withAnimation {
+                            player.togglePlayback(for: episode)
+                        }
+                        print("Playing episode")
                     }) {
-                        Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
-                    }
-                    .disabled(!player.isPlayingEpisode(episode))
-                    .opacity(player.isPlayingEpisode(episode) ? 1 : 0.5)
-                    .transition(.opacity)
-                    .animation(.easeOut(duration: 0.3), value: player.isPlaying)
-                    .buttonStyle(PPButton(
-                        type: .transparent,
-                        colorStyle: .monochrome,
-                        iconOnly: true,
-                        customColors: ButtonCustomColors(
-                            foreground: .heading,
-                            background: .white.opacity(0)
-                        )))
-                    
-                    Button(action: {
-                        player.stop()
-                        player.markAsPlayed(for: episode, manually: true)
-                    }) {
-                        Label("Mark as played", systemImage:"checkmark.circle")
+                        if player.isPlayingEpisode(episode) {
+                            if player.isLoadingEpisode(episode) {
+                                PPSpinner(color: Color.heading)
+                            } else {
+                                Image(systemName: "waveform")
+                                    .symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
+                                    .transition(.opacity.combined(with: .scale))
+                            }
+                        } else {
+                            Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.fill")
+                        }
                     }
                     .buttonStyle(PPButton(
                         type: .transparent,
@@ -141,10 +116,11 @@ struct NowPlaying: View {
                         iconOnly: true,
                         customColors: ButtonCustomColors(
                             foreground: .heading,
-                            background: .white.opacity(0)
+                            background: .surface
                         )))
                 }
-                .padding(.horizontal,10).padding(.vertical,5)
+                .frame(maxWidth:.infinity)
+                .padding(6)
                 .background(.thinMaterial)
                 .clipShape(Capsule())
                 .overlay(
@@ -157,8 +133,8 @@ struct NowPlaying: View {
                         .inset(by: 0.5)
                         .stroke(Color.black.opacity(0.15), lineWidth: 1)
                 )
-                
             }
+            .padding(8)
             .frame(maxWidth:.infinity)
             .sheet(item: $selectedEpisode) { episode in
                 EpisodeView(episode: episode)

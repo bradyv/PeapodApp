@@ -70,36 +70,6 @@ struct EpisodeItem: View {
                         }
                 }
             } else {
-                // Tags
-//                HStack {
-//                    if !episode.isPlayed && !episode.isQueued {
-//                        Text("Unplayed")
-//                            .textDetail()
-//                            .padding(.horizontal,3)
-//                            .padding(.vertical,1)
-//                            .background(.surface)
-//                            .clipShape(RoundedRectangle(cornerRadius:3))
-//                    }
-//                    if episode.isQueued {
-//                        Text("Queued")
-//                            .foregroundStyle(.black.opacity(0.75))
-//                            .textDetail()
-//                            .padding(.horizontal,3)
-//                            .padding(.vertical,1)
-//                            .background(Color.accentColor)
-//                            .clipShape(RoundedRectangle(cornerRadius:3))
-//                    }
-//                    if episode.isSaved {
-//                        Text("Saved")
-//                            .foregroundStyle(.black.opacity(0.75))
-//                            .textDetail()
-//                            .padding(.horizontal,3)
-//                            .padding(.vertical,1)
-//                            .background(.yellow)
-//                            .clipShape(RoundedRectangle(cornerRadius:3))
-//                    }
-//                }
-                
                 // Body
                 VStack(alignment:.leading, spacing:8) {
                     Text(episode.title ?? "Episode title")

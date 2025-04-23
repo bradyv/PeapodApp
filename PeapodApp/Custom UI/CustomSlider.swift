@@ -36,7 +36,7 @@ struct CustomSlider: View {
                     // Progress Track
                     Capsule()
                         .fill(isQQ ? Color.black : (isDraggable ? Color.heading : Color.background))
-                        .frame(width: isQQ || !isDraggable ? max(3, progressWidth) : progressWidth,
+                        .frame(width: max(isQQ || !isDraggable ? 4 : 6, progressWidth),
                                height: isDragging ? 12 : (isQQ || !isDraggable ? 4 : 6))
                         .animation(.easeInOut(duration: 0.2), value: isDragging)
 

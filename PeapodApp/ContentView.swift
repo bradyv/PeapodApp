@@ -44,7 +44,6 @@ struct ContentView: View {
                 //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
                 //                }
             }
-            
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
                     EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)

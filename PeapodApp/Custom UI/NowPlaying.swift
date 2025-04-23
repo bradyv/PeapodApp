@@ -64,43 +64,11 @@ struct NowPlaying: View {
     var body: some View {
         
         if let episode = nowPlaying.first {
-            VStack {
-                VStack(alignment:.center) {
-                    Spacer()
-                    HStack(spacing:8) {
-                        HStack {
-                            KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                                .resizable()
-                                .frame(width:36,height:36)
-                                .clipShape(Circle())
-                                .transition(.opacity)
-                                .animation(.easeOut(duration: 0.3), value: player.isPlaying)
-                            
-                            
-                            Button(action: {
-                                player.skipBackward(seconds:15)
-                                print("Seeking back")
-                            }) {
-                                Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
-                            }
-                            .disabled(!player.isPlayingEpisode(episode))
-                            .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0.15), background: .surface)))
-                            
-                            Button(action: {
-                                player.skipForward(seconds:30)
-                                print("Seeking back")
-                            }) {
-                                Label("Go back", systemImage: "30.arrow.trianglehead.clockwise")
-                            }
-                            .disabled(!player.isPlayingEpisode(episode))
-                            .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0.15), background: .surface)))
-                            
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedEpisode = episode
-                        }
-                        
+            VStack(alignment:.center) {
+                Spacer()
+                
+                HStack {
+                    HStack(spacing:2) {
                         Button(action: {
                             withAnimation {
                                 player.togglePlayback(for: episode)
@@ -109,14 +77,12 @@ struct NowPlaying: View {
                         }) {
                             if player.isPlayingEpisode(episode) {
                                 if player.isLoadingEpisode(episode) {
-                                    PPSpinner(color: Color.heading)
+                                    PPSpinner(color: Color.background)
                                 } else {
-                                    Image(systemName: "waveform")
-                                        .symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
-                                        .transition(.opacity.combined(with: .scale))
+                                    Image(systemName: "pause")
                                 }
                             } else {
-                                Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.fill")
+                                Image(systemName: "play.fill")
                             }
                         }
                         .buttonStyle(PPButton(
@@ -124,11 +90,29 @@ struct NowPlaying: View {
                             colorStyle: .monochrome,
                             iconOnly: true,
                             customColors: ButtonCustomColors(
-                                foreground: .heading,
-                                background: .surface
+                                foreground: .background,
+                                background: .heading
                             )))
+                        
+                        Button(action: {
+                            player.skipBackward(seconds:15)
+                            print("Seeking back")
+                        }) {
+                            Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                        }
+                        .disabled(!player.isPlayingEpisode(episode))
+                        .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0.15), background: .clear)))
+                        
+                        Button(action: {
+                            player.skipForward(seconds:30)
+                            print("Seeking back")
+                        }) {
+                            Label("Go back", systemImage: "30.arrow.trianglehead.clockwise")
+                        }
+                        .disabled(!player.isPlayingEpisode(episode))
+                        .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0.15), background: .clear)))
                     }
-                    .padding(6)
+                    .padding(2)
                     .background(.thinMaterial)
                     .clipShape(Capsule())
                     .overlay(
@@ -141,13 +125,38 @@ struct NowPlaying: View {
                             .inset(by: 0.5)
                             .stroke(Color.black.opacity(0.15), lineWidth: 1)
                     )
+                    
+                    VStack {
+                        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                            .resizable()
+                            .frame(width:36,height:36)
+                            .clipShape(Circle())
+                            .transition(.opacity)
+                            .animation(.easeOut(duration: 0.3), value: player.isPlaying)
+                    }
+                    .padding(2)
+                    .background(.thinMaterial)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .inset(by: 1)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .overlay(
+                        Circle()
+                            .inset(by: 0.5)
+                            .stroke(Color.black.opacity(0.15), lineWidth: 1)
+                    )
+                    .onTapGesture {
+                        selectedEpisode = episode
+                    }
                 }
-                .frame(maxWidth:300)
-                .padding(8)
-                .sheet(item: $selectedEpisode) { episode in
-                    EpisodeView(episode: episode)
-                        .modifier(PPSheet(showOverlay: false))
-                }
+                .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 3)
+            }
+            .padding(8)
+            .sheet(item: $selectedEpisode) { episode in
+                EpisodeView(episode: episode)
+                    .modifier(PPSheet(showOverlay: false))
             }
             .frame(maxWidth:.infinity)
         }

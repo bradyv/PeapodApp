@@ -15,6 +15,7 @@ struct EpisodeItem: View {
     var displayedFullscreen: Bool = false
     var savedView: Bool = false
     @State private var selectedPodcast: Podcast? = nil
+    @State private var isPlaying = false
     @ObservedObject var player = AudioPlayerManager.shared
     
     var body: some View {
@@ -93,13 +94,11 @@ struct EpisodeItem: View {
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
-                            if player.isPlayingEpisode(episode) {
+                            if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
                                 if player.isLoadingEpisode(episode) {
                                     PPSpinner(color: displayedInQueue ? Color.black : Color.background)
                                 } else {
-                                    Image(systemName: "waveform")
-                                        .symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
-                                        .transition(.opacity.combined(with: .scale))
+                                    WaveformView(isPlaying: $isPlaying, color: .black)
                                 }
                             } else {
                                 if episode.isPlayed {
@@ -298,6 +297,13 @@ struct EpisodeItem: View {
             Task.detached(priority: .background) {
                 await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+            }
+        }
+        .onReceive(player.$isPlaying) { newValue in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isPlaying = newValue && player.currentEpisode?.id == episode.id
+                }
             }
         }
     }

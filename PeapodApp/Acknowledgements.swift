@@ -28,6 +28,12 @@ struct Acknowledgements: View {
                                 openURL(url)
                             }
                         }
+                    RowItem(icon: "link", label:"DotLottie-iOS")
+                        .onTapGesture {
+                            if let url = URL(string: "https://github.com/LottieFiles/dotlottie-ios") {
+                                openURL(url)
+                            }
+                        }
                     RowItem(icon: "link", label:"FeedKit")
                         .onTapGesture {
                             if let url = URL(string: "https://github.com/nmdias/FeedKit") {

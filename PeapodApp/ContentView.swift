@@ -21,78 +21,78 @@ struct ContentView: View {
     @State private var currentEpisodeID: String? = nil
     
     var body: some View {
-        ZStack(alignment:.topTrailing) {
-            NowPlayingSplash(episodeID: currentEpisodeID)
-
-            ScrollView {
-                FadeInView(delay: 0.1) {
-                    QueueView(currentEpisodeID: $currentEpisodeID)
-                }
-                FadeInView(delay: 0.2) {
-                    LibraryView()
-                }
-                FadeInView(delay: 0.3) {
-                    SubscriptionsView()
-                }
+        NavigationStack {
+            ZStack(alignment:.topTrailing) {
+                NowPlayingSplash(episodeID: currentEpisodeID)
                 
-                Spacer().frame(height:96)
-            }
-            .maskEdge(.top)
-            .maskEdge(.bottom)
-            .ignoresSafeArea(.all)
-            .onAppear {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                //                }
-            }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                if newPhase == .active {
+                ScrollView {
+                    FadeInView(delay: 0.1) {
+                        QueueView(currentEpisodeID: $currentEpisodeID)
+                    }
+                    FadeInView(delay: 0.2) {
+                        LibraryView()
+                    }
+                    FadeInView(delay: 0.3) {
+                        SubscriptionsView()
+                    }
+                    
+                    Spacer().frame(height:96)
+                }
+                .maskEdge(.top)
+                .maskEdge(.bottom)
+                .ignoresSafeArea(.all)
+                .onAppear {
                     EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                    //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                    //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                    //                }
+                }
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    if newPhase == .active {
+                        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                        //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                        //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                        //                    }
+                    }
+                }
+                .scrollDisabled(subscriptions.isEmpty)
+                .refreshable {
+                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                    //                await withCheckedContinuation { continuation in
                     //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
                     //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                    //                        continuation.resume()
                     //                    }
+                    //                }
                 }
-            }
-            .scrollDisabled(subscriptions.isEmpty)
-            .refreshable {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                //                await withCheckedContinuation { continuation in
-                //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                //                        continuation.resume()
-                //                    }
-                //                }
-            }
-            
-            VStack(alignment:.trailing) {
-                Button(action: {
-                    showSettings.toggle()
-                }) {
-                    Label("Settings", systemImage: "person.crop.circle")
+                
+                VStack(alignment:.trailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Label("Settings", systemImage: "person.crop.circle")
+                    }
+                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                    
+                    Spacer()
                 }
-                .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-
-                Spacer()
+                .frame(maxWidth:.infinity, alignment:.trailing)
+                .padding(.horizontal)
+                .sheet(isPresented: $showSettings) {
+                    SettingsView()
+                        .modifier(PPSheet(bg:false))
+                }
+                
+                NowPlaying()
             }
-            .frame(maxWidth:.infinity, alignment:.trailing)
-            .padding(.horizontal)
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .modifier(PPSheet(bg:false))
-            }
-            
-            NowPlaying()
-        }
-        .background(
-            EllipticalGradient(
-                stops: [
-                    Gradient.Stop(color: Color.surface, location: 0.00),
-                    Gradient.Stop(color: Color.background, location: 1.00),
-                ],
-                center: UnitPoint(x: 0, y: 0)
+            .background(
+                EllipticalGradient(
+                    stops: [
+                        Gradient.Stop(color: Color.surface, location: 0.00),
+                        Gradient.Stop(color: Color.background, location: 1.00),
+                    ],
+                    center: UnitPoint(x: 0, y: 0)
+                )
             )
-        )
+        }
 //        .NowPlaying()
 //        .toast()
     }

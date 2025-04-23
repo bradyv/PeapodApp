@@ -89,6 +89,7 @@ struct QueueView: View {
                                         .onTapGesture {
                                             selectedEpisode = queue[index]
                                         }
+                                    
                                 }
                             }
                         }

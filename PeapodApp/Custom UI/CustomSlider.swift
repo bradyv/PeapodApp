@@ -67,13 +67,7 @@ struct CustomSlider: View {
                                             range.lowerBound + (gesture.location.x / sliderWidth) * (range.upperBound - range.lowerBound)),
                                         range.upperBound
                                     )
-                                    let roundedNew = round(newValue)
-                                    let roundedCurrent = round(value)
-
-                                    if roundedNew != roundedCurrent {
-                                        impactFeedback.impactOccurred()
-                                    }
-
+                                    
                                     value = newValue
                                     isDragging = true
                                     onEditingChanged(true)
@@ -81,6 +75,7 @@ struct CustomSlider: View {
                                 .onEnded { _ in
                                     isDragging = false
                                     onEditingChanged(false)
+                                    impactFeedback.impactOccurred()
                                 }
                             : nil
                         )

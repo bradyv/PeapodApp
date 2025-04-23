@@ -90,7 +90,7 @@ struct SubscriptionsView: View {
             }
             .sheet(isPresented: $showSearch) {
                 PodcastSearchView()
-                    .modifier(PPSheet())
+                    .modifier(PPSheet(showOverlay:false))
             }
         }
         .frame(maxWidth:.infinity)

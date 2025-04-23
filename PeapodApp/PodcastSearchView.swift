@@ -16,6 +16,7 @@ struct PodcastSearchView: View {
     @State private var topPodcasts: [PodcastResult] = []
     @State private var selectedPodcast: PodcastResult? = nil
     @State private var hasSearched = false
+    @State private var debounceWorkItem: DispatchWorkItem?
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
 
     var body: some View {
@@ -125,6 +126,21 @@ struct PodcastSearchView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isTextFieldFocused = true
             }
+        }
+        .onChange(of: query) { newValue in
+            debounceWorkItem?.cancel()
+
+            let task = DispatchWorkItem {
+                guard !newValue.trimmingCharacters(in: .whitespaces).isEmpty else {
+                    results = []
+                    hasSearched = false
+                    return
+                }
+                search()
+            }
+
+            debounceWorkItem = task
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: task)
         }
         .sheet(item: $selectedPodcast) { podcast in
             PodcastDetailLoaderView(feedUrl: podcast.feedUrl)

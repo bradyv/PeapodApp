@@ -16,27 +16,45 @@ struct Peapod: App {
     
     var appTheme: AppTheme {
        AppTheme(rawValue: appThemeRawValue) ?? .system
-   }
+    }
+    
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(toastManager)
-                .preferredColorScheme(preferredColorScheme(for: appTheme))
-                .onAppear {
-                    ensureQueuePlaylistExists(context: PersistenceController.shared.container.viewContext)
-//                    Task {
-//                        await persistenceController.container.viewContext.perform {
-//                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)
-//                            print("Episodes flushed")
-//                        }
-//                    }
-                    if !didFlushTints {
-                        resetAllTints(in: persistenceController.container.viewContext)
-                        didFlushTints = true
+            ZStack {
+                if showSplash {
+                    SplashView()
+                        .transition(.opacity)
+                } else {
+                    ContentView()
+                        .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                        .environmentObject(toastManager)
+                        .preferredColorScheme(preferredColorScheme(for: appTheme))
+                        .onAppear {
+                            ensureQueuePlaylistExists(context: PersistenceController.shared.container.viewContext)
+                            //                    Task {
+                            //                        await persistenceController.container.viewContext.perform {
+                            //                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)
+                            //                            print("Episodes flushed")
+                            //                        }
+                            //                    }
+                            if !didFlushTints {
+                                resetAllTints(in: persistenceController.container.viewContext)
+                                didFlushTints = true
+                            }
+                        }
+                        .transition(.opacity)
+                }
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    withAnimation {
+                        showSplash = false
                     }
                 }
+            }
+            .animation(.easeInOut(duration: 0.6), value: showSplash)
         }
     }
     

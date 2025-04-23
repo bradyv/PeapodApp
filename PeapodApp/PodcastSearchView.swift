@@ -104,6 +104,7 @@ struct PodcastSearchView: View {
                                             .frame(width:12)
                                             .textDetail()
                                     }
+                                    .contentShape(Rectangle())
                                     .onTapGesture {
                                         selectedPodcast = podcast
                                     }

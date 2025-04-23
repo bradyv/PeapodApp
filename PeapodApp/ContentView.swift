@@ -18,13 +18,15 @@ struct ContentView: View {
         animation: .default
     ) var subscriptions: FetchedResults<Podcast>
     @State private var showSettings = false
+    @State private var currentEpisodeID: String? = nil
     
     var body: some View {
         ZStack(alignment:.topTrailing) {
-            NowPlayingSplash()
+            NowPlayingSplash(episodeID: currentEpisodeID)
+
             ScrollView {
                 FadeInView(delay: 0.1) {
-                    QueueView()
+                    QueueView(currentEpisodeID: $currentEpisodeID)
                 }
                 FadeInView(delay: 0.2) {
                     LibraryView()

@@ -11,6 +11,7 @@
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
 		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
 		2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD3B2DA889BA007348BC /* FeedKit */; };
+		23C2E8EA2DB9420D007C59FA /* DotLottie in Frameworks */ = {isa = PBXBuildFile; productRef = 23C2E8E92DB9420D007C59FA /* DotLottie */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +77,7 @@
 				2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */,
 				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
 				2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */,
+				23C2E8EA2DB9420D007C59FA /* DotLottie in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,6 +142,7 @@
 				2354DD322DA8895E007348BC /* SwiftSoup */,
 				2354DD352DA88968007348BC /* Kingfisher */,
 				2354DD3B2DA889BA007348BC /* FeedKit */,
+				23C2E8E92DB9420D007C59FA /* DotLottie */,
 			);
 			productName = PeapodApp;
 			productReference = 23599E2B2D9B895C00F2DE3B /* PeapodApp.app */;
@@ -228,6 +231,7 @@
 				2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 				2354DD342DA88968007348BC /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */,
+				23C2E8E82DB9420D007C59FA /* XCRemoteSwiftPackageReference "dotlottie-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 23599E2C2D9B895C00F2DE3B /* Products */;
@@ -644,6 +648,14 @@
 				minimumVersion = 9.1.2;
 			};
 		};
+		23C2E8E82DB9420D007C59FA /* XCRemoteSwiftPackageReference "dotlottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/LottieFiles/dotlottie-ios";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -666,6 +678,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */;
 			productName = FeedKit;
+		};
+		23C2E8E92DB9420D007C59FA /* DotLottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 23C2E8E82DB9420D007C59FA /* XCRemoteSwiftPackageReference "dotlottie-ios" */;
+			productName = DotLottie;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

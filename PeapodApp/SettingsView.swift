@@ -13,7 +13,7 @@ struct SettingsView: View {
     @State private var podcastCount = 0
     @State private var episodeCount = 0
     @State private var lastSynced: Date? = UserDefaults.standard.object(forKey: "lastCloudSyncDate") as? Date
-    @State private var selectedIconName: String = UIApplication.shared.alternateIconName ?? "AppIcon"
+    @State private var selectedIconName: String = UIApplication.shared.alternateIconName ?? "AppIcon-Green"
     @State private var totalPlayedSeconds: Double = 0
     @State private var subscribedCount: Int = 0
     @State private var playCount: Int = 0
@@ -43,7 +43,10 @@ struct SettingsView: View {
             
             VStack(spacing:24) {
                 VStack(spacing:4) {
-                    Image("Peapod.logo")
+                    Image("Peapod.logo.new")
+                        .resizable()
+                        .frame(width:64,height:46)
+                    
                     Text("Peapod")
                         .titleSerif()
                 }

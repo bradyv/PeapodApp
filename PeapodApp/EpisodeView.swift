@@ -66,7 +66,7 @@ struct EpisodeView: View {
                                 .shadow(color: Color.background, radius: 8)
                                 
                                 Text(episode.title ?? "Episode title")
-                                    .titleSerif()
+                                    .titleSerifSm()
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal)
                                 

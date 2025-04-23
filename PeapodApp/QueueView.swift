@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct QueueView: View {
+    @Binding var currentEpisodeID: String?
+    
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.queuePosition)],
         predicate: NSPredicate(format: "playlist.name == %@", "Queue"),
@@ -96,6 +98,9 @@ struct QueueView: View {
                     .onPreferenceChange(ScrollOffsetKey.self) { values in
                         if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
                             scrollOffset = CGFloat(nearest.key)
+                            if queue.indices.contains(Int(scrollOffset)) {
+                                currentEpisodeID = queue[Int(scrollOffset)].id
+                            }
                         }
                     }
                     .onChange(of: scrollTarget) { id in

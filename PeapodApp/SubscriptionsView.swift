@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct SubscriptionsView: View {
+    @Environment(\.colorScheme) var colorScheme
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.title)],
         predicate: NSPredicate(format: "isSubscribed == YES"),
@@ -52,7 +53,7 @@ struct SubscriptionsView: View {
                                 .resizable()
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                                 .aspectRatio(1, contentMode: .fit)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
                                 .onTapGesture {
                                     selectedPodcast = podcast
                                 }

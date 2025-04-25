@@ -73,6 +73,28 @@ struct OldEpisodes: View {
                 }
             }
             .padding()
+            .onAppear {
+                context.refreshAllObjects()
+
+                for episode in old {
+                    if let podcast = episode.podcast {
+                        context.refresh(podcast, mergeChanges: true)
+                    }
+
+                    let title = episode.title ?? "Unknown Title"
+                    let podcastTitle = episode.podcast?.title ?? "None"
+                    let isSubscribed = episode.podcast?.isSubscribed == true ? "YES" : "NO"
+
+                    print("Episode: \(title)")
+                    print("  Podcast: \(podcastTitle)")
+                    print("  isSubscribed: \(isSubscribed)")
+                    print("  isSaved: \(episode.isSaved ? "YES" : "NO")")
+                    print("  isPlayed: \(episode.isPlayed ? "YES" : "NO")")
+                    print("  Podcast feedUrl: \(episode.podcast?.feedUrl ?? "none")")
+                    print("  Podcast objectID: \(episode.podcast?.objectID.uriRepresentation().absoluteString ?? "none")")
+                    print("---")
+                }
+            }
             .ignoresSafeArea(edges: .all)
             .alert("Delete all old episodes?", isPresented: $showDeleteConfirmation) {
                 Button("Delete", role: .destructive) {

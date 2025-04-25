@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import BackgroundTasks
 
 @main
 struct Peapod: App {
@@ -14,6 +15,7 @@ struct Peapod: App {
     @StateObject private var nowPlayingManager = NowPlayingVisibilityManager()
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @AppStorage("didFlushTints") private var didFlushTints: Bool = false
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var appTheme: AppTheme {
        AppTheme(rawValue: appThemeRawValue) ?? .system
@@ -27,6 +29,10 @@ struct Peapod: App {
                 if showSplash {
                     SplashView()
                         .transition(.opacity)
+                        .onAppear {
+                            runDeduplicationOnceIfNeeded(context: PersistenceController.shared.container.viewContext)
+                            scheduleEpisodeCleanup()
+                        }
                 } else {
                     ContentView()
                         .environmentObject(nowPlayingManager)
@@ -76,6 +82,21 @@ struct Peapod: App {
         case .system: return nil
         case .dark: return .dark
         case .light: return .light
+        }
+    }
+    
+    func scheduleEpisodeCleanup() {
+        let identifier = "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1"
+        print("📆 Scheduling background task: \(identifier)")
+
+        let request = BGAppRefreshTaskRequest(identifier: identifier)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60 * 24 * 7)
+
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("✅ Scheduled background task")
+        } catch {
+            print("❌ Failed to schedule background task: \(error)")
         }
     }
 }

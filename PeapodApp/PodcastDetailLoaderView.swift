@@ -36,7 +36,7 @@ struct PodcastDetailLoaderView: View {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     DispatchQueue.main.async {
-                        let podcast = createPodcast(from: rss)
+                        let podcast = createOrUpdatePodcast(from: rss)
                         loadedPodcast = podcast
                     }
                 }
@@ -46,20 +46,21 @@ struct PodcastDetailLoaderView: View {
         }
     }
 
-    private func createPodcast(from rss: RSSFeed) -> Podcast {
-        let newPodcast = Podcast(context: context)
-        newPodcast.id = UUID().uuidString
-        newPodcast.feedUrl = feedUrl
-        newPodcast.title = rss.title ?? "Untitled"
-        newPodcast.author = rss.iTunes?.iTunesAuthor ?? "Unknown"
-        newPodcast.image = rss.image?.url ??
-                           rss.iTunes?.iTunesImage?.attributes?.href ??
-                           rss.items?.first?.iTunes?.iTunesImage?.attributes?.href // fallback to episode image
-        newPodcast.podcastDescription = rss.description ??
-                                         rss.iTunes?.iTunesSummary ??
-                                         rss.items?.first?.iTunes?.iTunesSummary ??
-                                         rss.items?.first?.description // fallback to episode description
-        newPodcast.isSubscribed = false
+    private func createOrUpdatePodcast(from rss: RSSFeed) -> Podcast {
+        let podcast = fetchOrCreatePodcast(feedUrl: feedUrl, context: context, title: rss.title, author: rss.iTunes?.iTunesAuthor)
+
+        podcast.image = podcast.image ?? rss.image?.url ??
+                        rss.iTunes?.iTunesImage?.attributes?.href ??
+                        rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
+
+        podcast.podcastDescription = podcast.podcastDescription ?? rss.description ??
+                                      rss.iTunes?.iTunesSummary ??
+                                      rss.items?.first?.iTunes?.iTunesSummary ??
+                                      rss.items?.first?.description
+
+        if podcast.isInserted {
+            podcast.isSubscribed = false
+        }
 
         for item in rss.items ?? [] {
             let e = Episode(context: context)
@@ -72,11 +73,10 @@ struct PodcastDetailLoaderView: View {
                 e.duration = Double(durationString)
             }
             e.episodeImage = item.iTunes?.iTunesImage?.attributes?.href
-            e.podcast = newPodcast
+            e.podcast = podcast
         }
 
         try? context.save()
-        return newPodcast
+        return podcast
     }
 }
-

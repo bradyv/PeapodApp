@@ -220,6 +220,18 @@ struct SettingsView: View {
                     RowItem(icon: "hands.clap", label: "Libraries")
                         .matchedTransitionSource(id: "Acks", in: namespace)
                 }
+                
+                #if DEBUG
+                NavigationLink {
+                    PPPopover {
+                        //
+                    }
+                    .navigationTransition(.zoom(sourceID: "Debug Menu", in: namespace))
+                } label: {
+                    RowItem(icon: "ladybug", label: "Debug")
+                        .matchedTransitionSource(id: "Debug Menu", in: namespace)
+                }
+                #endif
             }
             .padding(.horizontal)
             

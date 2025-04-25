@@ -33,7 +33,7 @@ struct SubscriptionsView: View {
                 LazyVGrid(columns: columns, spacing: 16) {
                     // Always-visible Add button
                     NavigationLink {
-                        PPPopover {
+                        PPPopover(showDismiss: false) {
                             PodcastSearchView(namespace:namespace)
                         }
                         .navigationTransition(.zoom(sourceID: "ppsearch", in: namespace))

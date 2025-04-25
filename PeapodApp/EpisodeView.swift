@@ -30,18 +30,16 @@ struct EpisodeView: View {
         let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
         
         ZStack(alignment:.topLeading) {
-            FadeInView(delay: 0.1) {
-                KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                    .resizable()
-                    .aspectRatio(1, contentMode:.fit)
-                    .mask(
-                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                       startPoint: .top, endPoint: .bottom)
-                    )
-                    .opacity(opacity)
-                    .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
-                    .ignoresSafeArea(.all)
-            }
+            KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                .resizable()
+                .aspectRatio(1, contentMode:.fit)
+                .mask(
+                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                   startPoint: .top, endPoint: .bottom)
+                )
+                .opacity(opacity)
+                .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
+                .ignoresSafeArea(.all)
             
             VStack {
                 FadeInView(delay: 0.3) {

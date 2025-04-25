@@ -185,5 +185,6 @@ struct QueueItemView: View {
                         .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
                 }
         }
+        .buttonStyle(NoHighlight())
     }
 }

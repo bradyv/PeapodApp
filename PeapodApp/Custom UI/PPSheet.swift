@@ -43,11 +43,9 @@ struct PPSheet: ViewModifier {
                         ],
                         center: UnitPoint(x: 0, y: 0)
                     )
+                    .ignoresSafeArea(edges:.top)
                 )
                 .background(Color.background)
-//            if showOverlay {
-//                NowPlaying()
-//            }
         }
     }
 }

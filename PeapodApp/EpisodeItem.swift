@@ -17,25 +17,37 @@ struct EpisodeItem: View {
     @State private var selectedPodcast: Podcast? = nil
     @State private var isPlaying = false
     @ObservedObject var player = AudioPlayerManager.shared
+    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
             // Podcast Info Row
             HStack {
-                HStack {
-                    KFImage(URL(string:episode.podcast?.image ?? ""))
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                        .cornerRadius(3)
-                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                    
-                    Text(episode.podcast?.title ?? "Podcast title")
-                        .lineLimit(1)
-                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                        .textDetailEmphasis()
-                }
-                .onTapGesture {
-                    selectedPodcast = episode.podcast
+                NavigationLink {
+                    if episode.podcast?.isSubscribed != false {
+                        PPPopover {
+                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                        }
+                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
+                    } else {
+                        PPPopover {
+                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                        }
+                        .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
+                    }
+                } label: {
+                    HStack {
+                        KFImage(URL(string:episode.podcast?.image ?? ""))
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                        
+                        Text(episode.podcast?.title ?? "Podcast title")
+                            .lineLimit(1)
+                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                            .textDetailEmphasis()
+                    }
                 }
                 
                 Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
@@ -57,6 +69,7 @@ struct EpisodeItem: View {
                             VStack(alignment: .leading, spacing:4) {
                                 Text(episode.title ?? "Episode title")
                                     .foregroundStyle(.white)
+                                    .multilineTextAlignment(.leading)
                                     .titleCondensed()
                                     .lineLimit(4)
                                     .layoutPriority(2)
@@ -75,6 +88,7 @@ struct EpisodeItem: View {
                 VStack(alignment:.leading, spacing:8) {
                     Text(episode.title ?? "Episode title")
                         .foregroundStyle(Color.heading)
+                        .multilineTextAlignment(.leading)
                         .if(displayedFullscreen,
                             transform: { $0.titleSerif() },
                             else: { $0.titleCondensed() }
@@ -82,6 +96,7 @@ struct EpisodeItem: View {
                     
                     Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: displayedFullscreen ? false : true))
                         .foregroundStyle(Color.text)
+                        .multilineTextAlignment(.leading)
                         .textBody()
                 }
                 .frame(maxWidth:.infinity, alignment: .leading)
@@ -94,9 +109,9 @@ struct EpisodeItem: View {
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
-                            if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
+                            if player.isPlayingEpisode(episode) {
                                 if player.isLoadingEpisode(episode) {
-                                    PPSpinner(color: displayedInQueue ? Color.black : Color.background)
+                                    PPSpinner(color: Color.black)
                                 } else {
                                     WaveformView(isPlaying: $isPlaying, color: .black)
                                 }
@@ -197,9 +212,7 @@ struct EpisodeItem: View {
                                 if player.isLoadingEpisode(episode) {
                                     PPSpinner(color: Color.background)
                                 } else {
-                                    Image(systemName: "waveform")
-                                        .symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
-                                        .transition(.opacity.combined(with: .scale))
+                                    WaveformView(isPlaying: $isPlaying, color: Color.background)
                                 }
                             } else {
                                 Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.circle.fill")
@@ -283,15 +296,6 @@ struct EpisodeItem: View {
             }
         }
         .contentShape(Rectangle())
-        .sheet(item: $selectedPodcast) { podcast in
-            if podcast.isSubscribed {
-                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                    .modifier(PPSheet())
-            } else {
-                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
-                    .modifier(PPSheet())
-            }
-        }
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
             Task.detached(priority: .background) {

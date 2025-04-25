@@ -45,9 +45,9 @@ struct PPSheet: ViewModifier {
                     )
                 )
                 .background(Color.background)
-            if showOverlay {
-                NowPlaying()
-            }
+//            if showOverlay {
+//                NowPlaying()
+//            }
         }
     }
 }

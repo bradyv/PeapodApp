@@ -11,6 +11,7 @@ import SwiftUI
 struct Peapod: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var toastManager = ToastManager()
+    @StateObject private var nowPlayingManager = NowPlayingVisibilityManager()
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @AppStorage("didFlushTints") private var didFlushTints: Bool = false
     
@@ -28,6 +29,7 @@ struct Peapod: App {
                         .transition(.opacity)
                 } else {
                     ContentView()
+                        .environmentObject(nowPlayingManager)
                         .environment(\.managedObjectContext, persistenceController.container.viewContext)
                         .environmentObject(toastManager)
                         .preferredColorScheme(preferredColorScheme(for: appTheme))
@@ -49,8 +51,17 @@ struct Peapod: App {
                         .transition(.opacity)
                 }
             }
+            .background(
+                EllipticalGradient(
+                    stops: [
+                        Gradient.Stop(color: Color.surface, location: 0.00),
+                        Gradient.Stop(color: Color.background, location: 1.00),
+                    ],
+                    center: UnitPoint(x: 0, y: 0)
+                )
+            )
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     withAnimation {
                         showSplash = false
                     }

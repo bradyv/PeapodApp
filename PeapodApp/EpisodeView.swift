@@ -12,7 +12,7 @@ struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openURL) private var openURL
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var parsedDescription: NSAttributedString?
@@ -21,6 +21,7 @@ struct EpisodeView: View {
     var selectedDetent: Binding<PresentationDetent>? = nil
     var mediumHeight: CGFloat = 500
     var largeHeight: CGFloat = 600
+    var namespace: Namespace.ID
     
     var body: some View {
         let splashFadeStart: CGFloat = -150
@@ -29,18 +30,17 @@ struct EpisodeView: View {
         let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
         
         ZStack(alignment:.topLeading) {
-            ZStack(alignment:.bottom) {
-                FadeInView(delay: 0.1) {
-                    KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                        .resizable()
-                        .aspectRatio(1, contentMode:.fit)
-                        .mask(
-                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.7))
-                        )
-                        .opacity(opacity)
-                        .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
-                }
+            FadeInView(delay: 0.1) {
+                KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                    .resizable()
+                    .aspectRatio(1, contentMode:.fit)
+                    .mask(
+                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                       startPoint: .top, endPoint: .bottom)
+                    )
+                    .opacity(opacity)
+                    .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
+                    .ignoresSafeArea(.all)
             }
             
             VStack {
@@ -228,55 +228,36 @@ struct EpisodeView: View {
                 let miniClamped = min(max(scrollOffset, miniFadeEnd), miniFadeStart)
                 let miniOpacity = 1 - (miniClamped - miniFadeEnd) / (miniFadeStart - miniFadeEnd)
                 
-                VStack {
-                    HStack {
+                HStack {
+                    Spacer()
+                    NavigationLink {
+                        PPPopover {
+                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                        }
+                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
+                    } label: {
                         KFImage(URL(string:episode.podcast?.image ?? ""))
                             .resizable()
                             .frame(width: 64, height: 64)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
-                            .shadow(color:Color.tint(for:episode),
-                                    radius: 32
-                            )
                             .opacity(miniOpacity)
                             .animation(.easeOut(duration: 0.1), value: miniOpacity)
-                            .onTapGesture {
-                                selectedPodcast = episode.podcast
-                            }
-                        
-                        Spacer()
-                        
-                        if episode.isQueued {
-                            Button(action: {
-                                withAnimation {
-                                    if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
-                                        player.stop()
-                                        player.markAsPlayed(for: episode, manually: true)
-                                        try? episode.managedObjectContext?.save()
-                                    } else {
-                                        toggleQueued(episode)
-                                    }
-                                }
-                                try? episode.managedObjectContext?.save()
-                            }) {
-                                Label(player.isPlayingEpisode(episode) || player.hasStartedPlayback(for:episode) ? "Mark as played" : "Archive", systemImage: player.isPlayingEpisode(episode) || player.hasStartedPlayback(for:episode) ? "checkmark.circle" : "archivebox")
-                            }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, customColors: ButtonCustomColors(foreground: .heading, background: .thinMaterial)))
-                        }
+                            .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
                     }
+                    .shadow(color:Color.tint(for:episode),
+                            radius: 32
+                    )
                 }
-                .padding()
+                .padding(.horizontal)
             }
         }
         .frame(maxWidth:.infinity)
-        .sheet(item: $selectedPodcast) { podcast in
-            if podcast.isSubscribed {
-                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                    .modifier(PPSheet())
-            } else {
-                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
-                    .modifier(PPSheet())
-            }
+        .onAppear {
+            nowPlayingManager.isVisible = false
+        }
+        .onDisappear {
+            nowPlayingManager.isVisible = true
         }
     }
 }

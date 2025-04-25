@@ -37,6 +37,8 @@ struct SettingsView: View {
         AppIcons(name: "Clouds", asset: "AppIcon-Clouds"),
     ]
     
+    var namespace: Namespace.ID
+    
     var body: some View {
         ScrollView {
             Spacer().frame(height:24)
@@ -99,10 +101,16 @@ struct SettingsView: View {
                 .background(Color.surface)
                 .clipShape(RoundedRectangle(cornerRadius:12))
                 
-                RowItem(icon: "trophy", label: "My Activity")
-                    .onTapGesture {
-                        showActivity.toggle()
+                NavigationLink {
+                    PPPopover {
+                        ActivityView(namespace: namespace)
                     }
+                    .navigationTransition(.zoom(sourceID: "Activity", in: namespace))
+                    
+                } label: {
+                    RowItem(icon: "trophy", label: "My Activity")
+                        .matchedTransitionSource(id: "Activity", in: namespace)
+                }
             }
             .padding(.horizontal)
             
@@ -203,10 +211,15 @@ struct SettingsView: View {
                     }
                 }
                 
-                RowItem(icon: "hands.clap", label: "Libraries")
-                    .onTapGesture {
-                        showAcknowledgements.toggle()
+                NavigationLink {
+                    PPPopover {
+                        Acknowledgements()
                     }
+                    .navigationTransition(.zoom(sourceID: "Acks", in: namespace))
+                } label: {
+                    RowItem(icon: "hands.clap", label: "Libraries")
+                        .matchedTransitionSource(id: "Acks", in: namespace)
+                }
             }
             .padding(.horizontal)
             
@@ -227,8 +240,8 @@ struct SettingsView: View {
             .padding(.top,24)
             .padding(.horizontal)
         }
+        .maskEdge(.top)
         .maskEdge(.bottom)
-        .ignoresSafeArea(edges:.bottom)
         .task {
             let context = PersistenceController.shared.container.viewContext
             podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0
@@ -241,14 +254,6 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
             lastSynced = Date()
             UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
-        }
-        .sheet(isPresented: $showActivity) {
-            ActivityView()
-                .modifier(PPSheet(bg:false))
-        }
-        .sheet(isPresented: $showAcknowledgements) {
-            Acknowledgements()
-                .modifier(PPSheet(bg:false))
         }
         .background(
             EllipticalGradient(
@@ -280,8 +285,4 @@ struct AppIcons {
         self.name = name
         self.asset = asset
     }
-}
-
-#Preview {
-    SettingsView()
 }

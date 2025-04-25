@@ -16,10 +16,10 @@ struct SavedEpisodes: View {
     var saved: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedDetent: PresentationDetent = .medium
+    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
-            Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
                 Text("Saved Episodes")
                     .titleSerif()
@@ -51,26 +51,24 @@ struct SavedEpisodes: View {
             } else {
                 ForEach(saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, savedView:true)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .onTapGesture {
-                                selectedEpisode = episode
+                        NavigationLink {
+                            PPPopover {
+                                EpisodeView(episode: episode, namespace: namespace)
                             }
-                    }
-                }
-                .sheet(item: $selectedEpisode) { episode in
-                    EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                        .modifier(PPSheet(shortStack: true, showOverlay: false, detent: $selectedDetent))
-                        .onChange(of: selectedDetent) { newValue in
-                            if newValue == .medium {
-                                selectedEpisode = nil
-                            }
+                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                        } label: {
+                            EpisodeItem(episode: episode, savedView:true, namespace: namespace)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .padding(.horizontal)
+                                .matchedTransitionSource(id: episode.id, in: namespace)
                         }
+                    }
                 }
             }
         }
+        .maskEdge(.top)
+        .maskEdge(.bottom)
         .disabled(saved.isEmpty)
     }
 }

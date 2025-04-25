@@ -18,10 +18,10 @@ struct LatestEpisodes: View {
     var latest: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedDetent: PresentationDetent = .medium
+    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
-            Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
                 Text("Unplayed Episodes")
                     .titleSerif()
@@ -32,33 +32,29 @@ struct LatestEpisodes: View {
             FadeInView(delay: 0.4) {
                 LazyVStack(alignment: .leading) {
                     ForEach(latest, id: \.id) { episode in
-                        EpisodeItem(episode: episode)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .onTapGesture {
-                                selectedEpisode = episode
+                        NavigationLink {
+                            PPPopover {
+                                EpisodeView(episode: episode, namespace: namespace)
                             }
-                    }
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                            .modifier(PPSheet(shortStack: true, showOverlay: false, detent: $selectedDetent))
-                            .onChange(of: selectedDetent) { newValue in
-                                if newValue == .medium {
-                                    selectedEpisode = nil
-                                }
-                            }
+                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                        } label: {
+                            EpisodeItem(episode: episode, namespace: namespace)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .padding(.horizontal)
+                                .matchedTransitionSource(id: episode.id, in: namespace)
+                        }
                     }
                 }
             }
         }
         .toast()
+        .maskEdge(.top)
         .maskEdge(.bottom)
         .onAppear {
             EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
 //                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
             }
         }
-        .ignoresSafeArea(edges: .all)
     }
 }

@@ -12,10 +12,11 @@ struct Acknowledgements: View {
     
     var body: some View {
         ScrollView {
+            Spacer().frame(height:24)
             Text("Libraries")
                 .titleSerif()
                 .frame(maxWidth:.infinity, alignment:.leading)
-                .padding(.top,44).padding(.bottom,24)
+                .padding(.bottom,24)
             
             VStack(alignment:.leading, spacing:16) {
                 Text("Peapod makes use of the following open source libraries.")
@@ -56,6 +57,8 @@ struct Acknowledgements: View {
             }
             .frame(maxWidth:.infinity,alignment:.leading)
         }
+        .maskEdge(.top)
+        .maskEdge(.bottom)
         .contentMargins(.horizontal,16, for: .scrollContent)
     }
 }

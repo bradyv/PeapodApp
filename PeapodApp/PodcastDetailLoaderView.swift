@@ -12,11 +12,12 @@ struct PodcastDetailLoaderView: View {
     let feedUrl: String
     @Environment(\.managedObjectContext) private var context
     @State private var loadedPodcast: Podcast? = nil
+    var namespace: Namespace.ID
 
     var body: some View {
         Group {
             if let podcast = loadedPodcast {
-                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace: namespace)
             } else {
                 VStack {
                     ProgressView("Loading...")

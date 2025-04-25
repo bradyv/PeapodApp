@@ -9,7 +9,7 @@ import SwiftUI
 import DotLottie
 
 struct SplashView: View {
-    private let animationView = DotLottieAnimation(fileName: "Peapod.white", config: AnimationConfig(autoplay: false, loop: false, mode: .reverse, speed: 1.5))
+    private let animationView = DotLottieAnimation(fileName: "Peapod.white", config: AnimationConfig(autoplay: false, loop: false, mode: .reverse, speed: 1))
     
     var body: some View {
         VStack {

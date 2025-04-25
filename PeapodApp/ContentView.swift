@@ -9,9 +9,11 @@ import SwiftUI
 import CoreData
 
 struct ContentView: View {
+    @Namespace var namespace
     @Environment(\.managedObjectContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var toastManager: ToastManager
+    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.title)],
         predicate: NSPredicate(format: "isSubscribed == YES"),
@@ -19,81 +21,98 @@ struct ContentView: View {
     ) var subscriptions: FetchedResults<Podcast>
     @State private var showSettings = false
     @State private var currentEpisodeID: String? = nil
-    
+    @State private var path = NavigationPath()
+    @State private var selectedEpisode: Episode?
+
     var body: some View {
-        NavigationStack {
-            ZStack(alignment:.topTrailing) {
-                NowPlayingSplash(episodeID: currentEpisodeID)
-                
-                ScrollView {
-                    FadeInView(delay: 0.1) {
-                        QueueView(currentEpisodeID: $currentEpisodeID)
-                    }
-                    FadeInView(delay: 0.2) {
-                        LibraryView()
-                    }
-                    FadeInView(delay: 0.3) {
-                        SubscriptionsView()
-                    }
+        ZStack {
+            NavigationStack(path: $path) {
+                ZStack(alignment:.topTrailing) {
+                    NowPlayingSplash(episodeID: currentEpisodeID)
                     
-                    Spacer().frame(height:96)
-                }
-                .maskEdge(.top)
-                .maskEdge(.bottom)
-                .ignoresSafeArea(.all)
-                .onAppear {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                    //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                    //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                    //                }
-                }
-                .onChange(of: scenePhase) { oldPhase, newPhase in
-                    if newPhase == .active {
+                    ScrollView {
+                        FadeInView(delay: 0.1) {
+                            QueueView(currentEpisodeID: $currentEpisodeID, namespace: namespace)
+                        }
+                        FadeInView(delay: 0.2) {
+                            LibraryView(namespace: namespace)
+                        }
+                        FadeInView(delay: 0.3) {
+                            SubscriptionsView(namespace: namespace)
+                        }
+                        
+                        Spacer().frame(height:96)
+                    }
+                    .maskEdge(.top)
+                    .maskEdge(.bottom)
+                    .onAppear {
                         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                        //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                        //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                        //                }
+                    }
+                    .onChange(of: scenePhase) { oldPhase, newPhase in
+                        if newPhase == .active {
+                            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                            //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                            //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                            //                    }
+                        }
+                    }
+                    .scrollDisabled(subscriptions.isEmpty)
+                    .refreshable {
+                        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                        print("refreshed")
+                        //                await withCheckedContinuation { continuation in
                         //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
                         //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                        //                        continuation.resume()
                         //                    }
+                        //                }
                     }
-                }
-                .scrollDisabled(subscriptions.isEmpty)
-                .refreshable {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                    //                await withCheckedContinuation { continuation in
-                    //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                    //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                    //                        continuation.resume()
-                    //                    }
-                    //                }
-                }
-                
-                VStack(alignment:.trailing) {
-                    NavigationLink(destination: SettingsView()) {
-                        Label("Settings", systemImage: "person.crop.circle")
-                    }
-                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                     
-                    Spacer()
+                    VStack(alignment:.trailing) {
+                        NavigationLink {
+                            PPPopover {
+                                SettingsView(namespace: namespace)
+                            }
+                            .navigationTransition(.zoom(sourceID: 44, in: namespace))
+                        } label: {
+                            Label("Settings", systemImage: "person.crop.circle")
+                                .matchedTransitionSource(id: 44, in: namespace)
+                        }
+                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                        Spacer()
+                    }
+                    .frame(maxWidth:.infinity, alignment:.trailing)
+                    .padding(.horizontal)
                 }
-                .frame(maxWidth:.infinity, alignment:.trailing)
-                .padding(.horizontal)
-                .sheet(isPresented: $showSettings) {
-                    SettingsView()
-                        .modifier(PPSheet(bg:false))
-                }
-                
-                NowPlaying()
-            }
-            .background(
-                EllipticalGradient(
-                    stops: [
-                        Gradient.Stop(color: Color.surface, location: 0.00),
-                        Gradient.Stop(color: Color.background, location: 1.00),
-                    ],
-                    center: UnitPoint(x: 0, y: 0)
+                .background(
+                    EllipticalGradient(
+                        stops: [
+                            Gradient.Stop(color: Color.surface, location: 0.00),
+                            Gradient.Stop(color: Color.background, location: 1.00),
+                        ],
+                        center: UnitPoint(x: 0, y: 0)
+                    )
                 )
-            )
+                .navigationDestination(for: Episode.self) { episode in
+                    PPPopover {
+                        EpisodeView(episode: episode, namespace: namespace)
+                    }
+                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                }
+            }
+           
+            ZStack(alignment: .bottom) {
+                if nowPlayingManager.isVisible {
+                    NowPlaying(namespace: namespace) { episode in
+                        path.append(episode)
+                    }
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: nowPlayingManager.isVisible)
         }
-//        .NowPlaying()
 //        .toast()
     }
 }

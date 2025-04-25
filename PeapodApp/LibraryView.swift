@@ -13,8 +13,8 @@ struct LibraryView: View {
         predicate: NSPredicate(format: "isSubscribed == YES"),
         animation: .default
     ) var subscriptions: FetchedResults<Podcast>
-    
     @State private var activeSheet: ActiveSheet?
+    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -27,28 +27,29 @@ struct LibraryView: View {
             
             if !subscriptions.isEmpty {
                 VStack(spacing: 8) {
-                    RowItem(icon: "app.badge", label: "Unplayed Episodes")
-                        .onTapGesture {
-                            activeSheet = .latest
+                    NavigationLink {
+                        PPPopover {
+                            LatestEpisodes(namespace: namespace)
                         }
-                    RowItem(icon: "bookmark", label: "Saved Episodes")
-                        .onTapGesture {
-                            activeSheet = .saved
+                        .navigationTransition(.zoom(sourceID: 22, in: namespace))
+                    } label: {
+                        RowItem(icon: "app.badge", label: "Unplayed Episodes")
+                            .matchedTransitionSource(id: 22, in: namespace)
+                    }
+                    
+                    NavigationLink {
+                        PPPopover {
+                            SavedEpisodes(namespace: namespace)
                         }
+                        .navigationTransition(.zoom(sourceID: 33, in: namespace))
+                    } label: {
+                        RowItem(icon: "bookmark", label: "Saved Episodes")
+                            .matchedTransitionSource(id: 33, in: namespace)
+                    }
                 }
             }
         }
         .padding(.horizontal).padding(.top,24)
         .frame(maxWidth:.infinity)
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .latest:
-                LatestEpisodes().modifier(PPSheet())
-            case .saved:
-                SavedEpisodes().modifier(PPSheet())
-            case .activity:
-                ActivityView().modifier(PPSheet())
-            }
-        }
     }
 }

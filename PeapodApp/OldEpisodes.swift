@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct OldEpisodes: View {
+    @Environment(\.managedObjectContext) private var context
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
         predicate: NSPredicate(format: "(podcast = nil OR podcast.isSubscribed != YES) AND isSaved == NO AND isPlayed == NO"),
@@ -16,7 +17,7 @@ struct OldEpisodes: View {
     var old: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
     @State private var showDeleteConfirmation = false
-    @Environment(\.managedObjectContext) private var context
+    var namespace: Namespace.ID
     
     private func deleteOldEpisodes() {
         for episode in old {
@@ -58,7 +59,7 @@ struct OldEpisodes: View {
                 
                 LazyVStack {
                     ForEach(old, id: \.id) { episode in
-                        EpisodeItem(episode: episode, savedView:true)
+                        EpisodeItem(episode: episode, savedView:true, namespace: namespace)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .onTapGesture {
@@ -66,7 +67,7 @@ struct OldEpisodes: View {
                             }
                     }
                     .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode)
+                        EpisodeView(episode: episode, namespace: namespace)
                             .modifier(PPSheet(showOverlay: false))
                     }
                 }

@@ -10,6 +10,7 @@ import FeedKit
 import Kingfisher
 
 struct PodcastDetailView: View {
+    @Environment(\.colorScheme) var colorScheme
     @Environment(\.managedObjectContext) private var context
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
@@ -19,14 +20,16 @@ struct PodcastDetailView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedDetent: PresentationDetent = .medium
     var podcast: Podcast? { podcastResults.first }
+    var namespace: Namespace.ID
 
-    init(feedUrl: String) {
+    init(feedUrl: String, namespace: Namespace.ID) {
         _podcastResults = FetchRequest<Podcast>(
             entity: Podcast.entity(),
             sortDescriptors: [],
             predicate: NSPredicate(format: "feedUrl == %@", feedUrl),
             animation: .default
         )
+        self.namespace = namespace
     }
 
     var body: some View {
@@ -35,7 +38,7 @@ struct PodcastDetailView: View {
                 if let podcast {
                     if showSearch {
                         VStack(alignment:.leading) {
-                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
+                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode, namespace: namespace)
                         }
                         .transition(
                             .asymmetric(
@@ -47,12 +50,13 @@ struct PodcastDetailView: View {
                     } else {
                         ZStack {
                             ScrollView {
-                                Spacer().frame(height:52)
                                 Color.clear
                                     .frame(height: 1)
                                     .trackScrollOffset("scroll") { value in
                                         scrollOffset = value
                                     }
+                                
+                                Spacer().frame(height:128)
                                 
                                 FadeInView(delay: 0.2) {
                                     VStack(alignment:.leading) {
@@ -87,12 +91,17 @@ struct PodcastDetailView: View {
                                         }
                                         
                                         FadeInView(delay: 0.5) {
-                                            EpisodeItem(episode: latestEpisode)
-                                                .lineLimit(3)
-                                                .padding(.bottom, 24)
-                                                .onTapGesture {
-                                                    selectedEpisode = latestEpisode
+                                            NavigationLink {
+                                                PPPopover {
+                                                    EpisodeView(episode: latestEpisode, namespace: namespace)
                                                 }
+                                                .navigationTransition(.zoom(sourceID: latestEpisode.id, in: namespace))
+                                            } label: {
+                                                EpisodeItem(episode: latestEpisode, namespace: namespace)
+                                                    .lineLimit(3)
+                                                    .padding(.bottom, 24)
+                                                    .matchedTransitionSource(id: latestEpisode.id, in: namespace)
+                                            }
                                         }
                                     }
                                     
@@ -107,32 +116,27 @@ struct PodcastDetailView: View {
                                         FadeInView(delay: 0.7) {
                                             ForEach(remainingEpisodes, id: \.id) { episode in
                                                 FadeInView(delay: 0.3) {
-                                                    EpisodeItem(episode: episode)
-                                                        .lineLimit(3)
-                                                        .padding(.bottom, 24)
-                                                        .onTapGesture {
-                                                            selectedEpisode = episode
+                                                    NavigationLink {
+                                                        PPPopover {
+                                                            EpisodeView(episode: episode, namespace: namespace)
                                                         }
+                                                        .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                                    } label: {
+                                                        EpisodeItem(episode: episode, namespace: namespace)
+                                                            .lineLimit(3)
+                                                            .padding(.bottom, 24)
+                                                            .matchedTransitionSource(id: episode.id, in: namespace)
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
-                                .sheet(item: $selectedEpisode) { episode in
-                                    EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                                        .modifier(PPSheet(shortStack: true, showOverlay: false, detent: $selectedDetent))
-                                        .onChange(of: selectedDetent) { newValue in
-                                            if newValue == .medium {
-                                                selectedEpisode = nil
-                                            }
-                                        }
                                 }
                             }
                             .coordinateSpace(name: "scroll")
                             .contentMargins(16, for: .scrollContent)
                             .maskEdge(.top)
                             .maskEdge(.bottom)
-                            .padding(.top,88)
                             .transition(.opacity)
                             .frame(maxWidth:.infinity)
                             .onAppear {
@@ -151,23 +155,27 @@ struct PodcastDetailView: View {
                                 }
                             }
                             
-                            VStack {
+                            VStack(alignment:.leading) {
                                 let minSize: CGFloat = 64
-                                let maxSize: CGFloat = 128
+                                let maxSize: CGFloat = 172
                                 let threshold: CGFloat = 72
                                 let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
-                                
+                                KFImage(URL(string: podcast.image ?? ""))
+                                    .resizable()
+                                    .frame(width: shrink, height: shrink)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                                    .shadow(color:Color.tint(for:podcast),
+                                            radius: 128
+                                    )
+                                    .animation(.easeOut(duration: 0.1), value: shrink)
+                                Spacer()
+                            }
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                            .padding(.horizontal)
+                            
+                            VStack {
                                 HStack(alignment:.top) {
-                                    KFImage(URL(string: podcast.image ?? ""))
-                                        .resizable()
-                                        .frame(width: shrink, height: shrink)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                        .shadow(color:Color.tint(for:podcast),
-                                                radius: 128
-                                        )
-                                        .animation(.easeOut(duration: 0.1), value: shrink)
-                                    
                                     Spacer()
                                     
                                     HStack {
@@ -196,12 +204,11 @@ struct PodcastDetailView: View {
                                 
                                 Spacer()
                             }
-                            .padding()
+                            .padding(.horizontal)
                         }
                     }
                 }
             }
-            .ignoresSafeArea(.all)
             .animation(.interactiveSpring(duration: 0.25), value: showSearch)
         }
     }

@@ -9,7 +9,6 @@ import SwiftUI
 
 struct QueueView: View {
     @Binding var currentEpisodeID: String?
-    
     @FetchRequest(
         sortDescriptors: [SortDescriptor(\.queuePosition)],
         predicate: NSPredicate(format: "playlist.name == %@", "Queue"),
@@ -28,9 +27,10 @@ struct QueueView: View {
     
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
+    
+    var namespace: Namespace.ID
 
     var body: some View {
-        Spacer().frame(height:64)
         VStack(alignment: .leading, spacing: 12) {
             Text("Up Next")
                 .titleSerif()
@@ -71,25 +71,9 @@ struct QueueView: View {
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
                                 ForEach(queue.indices, id: \.self) { index in
-                                    QueueItem(episode: queue[index])
-                                        .id(queue[index].id)
-                                        .lineLimit(3)
-                                        .background(
-                                            GeometryReader { geo in
-                                                Color.clear
-                                                    .preference(key: ScrollOffsetKey.self,
-                                                                value: [index: geo.frame(in: .global).minX])
-                                            }
-                                        )
-                                        .scrollTransition { content, phase in
-                                            content
-                                                .opacity(phase.isIdentity ? 1 : 0.5) // Apply opacity animation
-                                                .scaleEffect(y: phase.isIdentity ? 1 : 0.85) // Apply scale animation
-                                        }
-                                        .onTapGesture {
-                                            selectedEpisode = queue[index]
-                                        }
-                                    
+                                    QueueItemView(episode: queue[index], index: index, namespace: namespace) {
+                                        selectedEpisode = queue[index]
+                                    }
                                 }
                             }
                         }
@@ -114,10 +98,6 @@ struct QueueView: View {
                     .disabled(queue.isEmpty)
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode)
-                            .modifier(PPSheet(showOverlay: false))
-                    }
                     .onChange(of: queue.first?.id) { oldID, newID in
                         if let id = newID {
                             DispatchQueue.main.async {
@@ -167,5 +147,38 @@ private struct ScrollOffsetKey: PreferenceKey {
     static var defaultValue: [Int: CGFloat] = [:]
     static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
+struct QueueItemView: View {
+    let episode: Episode
+    let index: Int
+    var namespace: Namespace.ID
+    var onSelect: () -> Void
+
+    var body: some View {
+        NavigationLink {
+            PPPopover {
+                EpisodeView(episode: episode, namespace: namespace)
+            }
+            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+        } label: {
+            QueueItem(episode: episode, namespace: namespace)
+                .matchedTransitionSource(id: episode.id, in: namespace)
+                .id(episode.id)
+                .lineLimit(3)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .preference(key: ScrollOffsetKey.self,
+                                        value: [index: geo.frame(in: .global).minX])
+                    }
+                )
+                .scrollTransition { content, phase in
+                    content
+                        .opacity(phase.isIdentity ? 1 : 0.5)
+                        .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
+                }
+        }
     }
 }

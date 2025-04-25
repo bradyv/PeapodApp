@@ -22,14 +22,12 @@ struct PPPopover<Content: View>: View {
         return ZStack(alignment: .topLeading) {
             content
             
-            ZStack {
+            HStack {
                 Capsule()
-                    .fill(Color.background.opacity(0.5))
-                    .frame(width: 40, height: 5)
-                
-                Capsule()
-                    .fill(Color.ppMaterial)
-                    .frame(width: 40, height: 5)
+                    .fill(Color.primary.opacity(0.15)) // Adapts to light/dark
+                    .frame(width: 40, height: 6)
+                    .background(.ultraThinMaterial) // Optional: if you're using a blurred background
+                    .clipShape(Capsule())
             }
             .frame(maxWidth:.infinity)
 

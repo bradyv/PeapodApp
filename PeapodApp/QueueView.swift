@@ -58,6 +58,11 @@ struct QueueView: View {
                                     }
                                     
                                     VStack {
+                                        Image("Peapod.mono")
+                                            .resizable()
+                                            .frame(width:32, height:23)
+                                            .opacity(0.35)
+                                        
                                         Text("Nothing to play")
                                             .titleCondensed()
                                         

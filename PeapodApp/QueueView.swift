@@ -163,7 +163,7 @@ struct QueueItemView: View {
 
     var body: some View {
         NavigationLink {
-            PPPopover {
+            PPPopover(pushView:false) {
                 EpisodeView(episode: episode, namespace: namespace)
             }
             .navigationTransition(.zoom(sourceID: episode.id, in: namespace))

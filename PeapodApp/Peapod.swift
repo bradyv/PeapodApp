@@ -32,6 +32,7 @@ struct Peapod: App {
                         .onAppear {
                             runDeduplicationOnceIfNeeded(context: PersistenceController.shared.container.viewContext)
                             scheduleEpisodeCleanup()
+//                            appDelegate.debugPurgeOldEpisodes() // bv debug
                         }
                 } else {
                     ContentView()
@@ -67,7 +68,7 @@ struct Peapod: App {
                 )
             )
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
                     withAnimation {
                         showSplash = false
                     }

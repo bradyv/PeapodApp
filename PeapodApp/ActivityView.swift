@@ -65,9 +65,6 @@ struct ActivityView: View {
                                     })
                                 
                                 styledImage
-//                                    .onTapGesture {
-//                                        selectedPodcast = podcast
-//                                    }
                                 
                                 Text(podcast.formattedPlayedHours)
                                     .textBody()

@@ -25,6 +25,7 @@ struct ShadowButton: ButtonStyle {
     var iconOnly: Bool = false
     var filled: Bool = false
     var borderless: Bool = false
+    var small: Bool = false
     
     func makeBody(configuration: Configuration) -> some View {
         let isPressed = configuration.isPressed
@@ -33,14 +34,19 @@ struct ShadowButton: ButtonStyle {
             configuration.label
         }
         .if(iconOnly, transform: { $0.labelStyle(.iconOnly) })
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .padding(.horizontal, small ? 8 : 12)
+        .padding(.vertical, small ? 5 : 9)
         .if(!borderless,
             transform: {
                 $0.background(filled ? Color.accentColor : .white)
         })
         .foregroundStyle(filled ? Color.white : Color.black)
-        .textBody()
+        .if(!small, transform: {
+            $0.textBody()
+        })
+        .if(small, transform: {
+            $0.textDetail()
+        })
         .if(iconOnly,
             transform: {
             $0.clipShape(Circle())
@@ -51,7 +57,7 @@ struct ShadowButton: ButtonStyle {
         })
         .if(!borderless,
             transform: {
-            $0.shadow(color: filled ? Color.accentColor.opacity(0.25) : .black.opacity(0.03), radius: 1, x: 0, y: 2)
+            $0.shadow(color: filled ? Color.accentColor.opacity(0.25) : .black.opacity(0.05), radius: 3, x: 0, y: 2)
         })
         .if(!borderless && !iconOnly,
             transform: {

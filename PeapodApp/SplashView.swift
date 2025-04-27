@@ -12,16 +12,19 @@ struct SplashView: View {
     private let animationView = DotLottieAnimation(fileName: "Peapod.white", config: AnimationConfig(autoplay: false, loop: false, mode: .reverse, speed: 1))
     
     var body: some View {
-        VStack {
-            Spacer()
-            animationView.view()
-                .frame(width: 128, height: 111)
-            Spacer()
+        ZStack {
+            Image("launchimage")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+            
+            FadeInView(delay:0.1) {
+                animationView.view()
+                    .frame(width: 128, height: 111)
+            }
         }
-        .background(Image("launchimage"))
-        .ignoresSafeArea(.all)
+        .ignoresSafeArea()
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) {
                 animationView.play()
             }
         }

@@ -28,12 +28,10 @@ struct EpisodeItem: View {
                         PPPopover {
                             PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
                         }
-                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
                     } else {
                         PPPopover {
                             PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
                         }
-                        .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
                     }
                 } label: {
                     HStack {
@@ -264,13 +262,14 @@ struct EpisodeItem: View {
                             try? episode.managedObjectContext?.save()
                         }
                     }) {
-                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "checkmark" : "text.append")
+                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
                     }
                     .buttonStyle(
                         episode.isQueued
                         ? PPButton(
-                            type: .filled,
-                            colorStyle: .tinted
+                            type: .transparent,
+                            colorStyle: .tinted,
+                            iconOnly: true
                         )
                         : PPButton(
                             type: .transparent,

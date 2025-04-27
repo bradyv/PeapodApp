@@ -20,6 +20,7 @@ struct SavedEpisodes: View {
     
     var body: some View {
         ScrollView {
+            Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
                 Text("Saved Episodes")
                     .titleSerif()
@@ -52,7 +53,7 @@ struct SavedEpisodes: View {
                 ForEach(saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
                         NavigationLink {
-                            PPPopover {
+                            PPPopover(pushView:false) {
                                 EpisodeView(episode: episode, namespace: namespace)
                             }
                             .navigationTransition(.zoom(sourceID: episode.id, in: namespace))

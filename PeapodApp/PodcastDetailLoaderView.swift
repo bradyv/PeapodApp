@@ -62,10 +62,14 @@ struct PodcastDetailLoaderView: View {
             podcast.isSubscribed = false
         }
 
+        let existingTitles = Set((podcast.episode as? Set<Episode>)?.compactMap { $0.title } ?? [])
+
         for item in rss.items ?? [] {
+            guard let title = item.title, !existingTitles.contains(title) else { continue }
+
             let e = Episode(context: context)
             e.id = UUID().uuidString
-            e.title = item.title
+            e.title = title
             e.audio = item.enclosure?.attributes?.url
             e.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
             e.airDate = item.pubDate

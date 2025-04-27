@@ -31,20 +31,16 @@ struct LibraryView: View {
                         PPPopover {
                             LatestEpisodes(namespace: namespace)
                         }
-                        .navigationTransition(.zoom(sourceID: 22, in: namespace))
                     } label: {
-                        RowItem(icon: "app.badge", label: "Unplayed Episodes")
-                            .matchedTransitionSource(id: 22, in: namespace)
+                        RowItem(icon: "app.badge", label: "Latest Episodes")
                     }
                     
                     NavigationLink {
                         PPPopover {
                             SavedEpisodes(namespace: namespace)
                         }
-                        .navigationTransition(.zoom(sourceID: 33, in: namespace))
                     } label: {
                         RowItem(icon: "bookmark", label: "Saved Episodes")
-                            .matchedTransitionSource(id: 33, in: namespace)
                     }
                 }
             }

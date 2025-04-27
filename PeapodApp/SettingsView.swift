@@ -105,11 +105,8 @@ struct SettingsView: View {
                     PPPopover {
                         ActivityView(namespace: namespace)
                     }
-                    .navigationTransition(.zoom(sourceID: "Activity", in: namespace))
-                    
                 } label: {
                     RowItem(icon: "trophy", label: "My Activity")
-                        .matchedTransitionSource(id: "Activity", in: namespace)
                 }
             }
             .padding(.horizontal)
@@ -190,7 +187,7 @@ struct SettingsView: View {
             }
             .contentMargins(.horizontal,16, for: .scrollContent)
             
-            VStack {
+            VStack(alignment:.leading) {
                 Text("About")
                     .headerSection()
                     .frame(maxWidth:.infinity, alignment:.leading)
@@ -215,24 +212,24 @@ struct SettingsView: View {
                     PPPopover {
                         Acknowledgements()
                     }
-                    .navigationTransition(.zoom(sourceID: "Acks", in: namespace))
                 } label: {
                     RowItem(icon: "hands.clap", label: "Libraries")
-                        .matchedTransitionSource(id: "Acks", in: namespace)
                 }
                 
                 #if DEBUG
+                Text("Debug")
+                    .headerSection()
+                
                 NavigationLink {
                     PPPopover {
-                        //
+                        OldEpisodes(namespace:namespace)
                     }
-                    .navigationTransition(.zoom(sourceID: "Debug Menu", in: namespace))
                 } label: {
-                    RowItem(icon: "ladybug", label: "Debug")
-                        .matchedTransitionSource(id: "Debug Menu", in: namespace)
+                    RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
                 }
                 #endif
             }
+            .frame(maxWidth:.infinity,alignment:.leading)
             .padding(.horizontal)
             
             VStack {

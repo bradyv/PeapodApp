@@ -35,6 +35,7 @@ struct PodcastEpisodeSearchView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            Spacer().frame(height:24)
             SearchBox(
                 query: $query,
                 label: "Find an episode of \(podcast.title ?? "Podcast title")",
@@ -62,7 +63,7 @@ struct PodcastEpisodeSearchView: View {
                     LazyVStack(alignment: .leading) {
                         ForEach(filteredEpisodes, id: \.id) { episode in
                             NavigationLink {
-                                PPPopover {
+                                PPPopover(pushView:false) {
                                     EpisodeView(episode: episode, namespace: namespace)
                                 }
                                 .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
@@ -78,6 +79,7 @@ struct PodcastEpisodeSearchView: View {
                 }
             }
             .maskEdge(.bottom)
+            .ignoresSafeArea(edges:.bottom)
         }
         .onAppear {
             nowPlayingManager.isVisible = false

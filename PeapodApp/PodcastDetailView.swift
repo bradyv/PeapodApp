@@ -91,7 +91,7 @@ struct PodcastDetailView: View {
                                     
                                     FadeInView(delay: 0.5) {
                                         NavigationLink {
-                                            PPPopover {
+                                            PPPopover(pushView:false) {
                                                 EpisodeView(episode: latestEpisode, namespace: namespace)
                                             }
                                             .navigationTransition(.zoom(sourceID: latestEpisode.id, in: namespace))
@@ -116,7 +116,7 @@ struct PodcastDetailView: View {
                                         ForEach(remainingEpisodes, id: \.id) { episode in
                                             FadeInView(delay: 0.3) {
                                                 NavigationLink {
-                                                    PPPopover {
+                                                    PPPopover(pushView:false) {
                                                         EpisodeView(episode: episode, namespace: namespace)
                                                     }
                                                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))

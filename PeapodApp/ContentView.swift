@@ -76,10 +76,8 @@ struct ContentView: View {
                             PPPopover {
                                 SettingsView(namespace: namespace)
                             }
-                            .navigationTransition(.zoom(sourceID: 44, in: namespace))
                         } label: {
                             Label("Settings", systemImage: "person.crop.circle")
-                                .matchedTransitionSource(id: 44, in: namespace)
                         }
                         .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                         Spacer()
@@ -97,10 +95,10 @@ struct ContentView: View {
                     )
                 )
                 .navigationDestination(for: Episode.self) { episode in
-                    PPPopover {
-                        EpisodeView(episode: episode, namespace: namespace)
+                    PPPopover(pushView:false) {
+                        EpisodeView(episode: episode, namespace: namespace) // Now Playing destination
                     }
-                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                    .navigationTransition(.zoom(sourceID: "np \(episode.id)", in: namespace))
                 }
             }
            

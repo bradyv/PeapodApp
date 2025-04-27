@@ -53,7 +53,6 @@ struct PodcastSearchView: View {
                                 PPPopover {
                                     PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
                                 }
-                                .navigationTransition(.zoom(sourceID: podcast.id, in: namespace))
                             } label: {
                                 VStack {
                                     FadeInView(delay: Double(index) * 0.05) {
@@ -62,14 +61,12 @@ struct PodcastSearchView: View {
                                             .aspectRatio(1, contentMode: .fit)
                                             .clipShape(RoundedRectangle(cornerRadius: 16))
                                             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                            .matchedTransitionSource(id: podcast.id, in: namespace)
                                     }
                                 }
                             }
                         }
                     }
                 }
-                .maskEdge(.bottom)
                 .padding()
             } else {
                 ScrollView {
@@ -132,6 +129,8 @@ struct PodcastSearchView: View {
                 .frame(maxWidth:.infinity)
             }
         }
+        .maskEdge(.bottom)
+        .ignoresSafeArea(edges:.bottom)
         .onAppear {
             nowPlayingManager.isVisible = false
             fetchTopPodcasts()

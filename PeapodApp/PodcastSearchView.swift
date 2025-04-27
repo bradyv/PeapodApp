@@ -15,7 +15,6 @@ struct PodcastSearchView: View {
     @State private var query = ""
     @State private var results: [PodcastResult] = []
     @State private var topPodcasts: [PodcastResult] = []
-    @State private var selectedPodcast: PodcastResult? = nil
     @State private var hasSearched = false
     @State private var debounceWorkItem: DispatchWorkItem?
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)

@@ -11,12 +11,12 @@ import Kingfisher
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
+    @ObservedObject var player = AudioPlayerManager.shared
+    @State private var selectedPodcast: Podcast? = nil
+    @State private var isPlaying = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
     var savedView: Bool = false
-    @State private var selectedPodcast: Podcast? = nil
-    @State private var isPlaying = false
-    @ObservedObject var player = AudioPlayerManager.shared
     var namespace: Namespace.ID
     
     var body: some View {

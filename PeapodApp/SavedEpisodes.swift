@@ -14,7 +14,6 @@ struct SavedEpisodes: View {
         animation: .interactiveSpring()
     )
     var saved: FetchedResults<Episode>
-    @State private var selectedEpisode: Episode? = nil
     var namespace: Namespace.ID
     
     var body: some View {
@@ -61,9 +60,6 @@ struct SavedEpisodes: View {
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
                                 .padding(.horizontal)
-                                .onTapGesture {
-                                    selectedEpisode = episode
-                                }
                         }
                     }
                 }

@@ -15,11 +15,8 @@ struct EpisodeView: View {
     @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
-    @State private var parsedDescription: NSAttributedString?
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedPodcast: Podcast? = nil
-    var mediumHeight: CGFloat = 500
-    var largeHeight: CGFloat = 600
     var namespace: Namespace.ID
     
     var body: some View {
@@ -36,7 +33,7 @@ struct EpisodeView: View {
                     Spacer().frame(height:128)
                     VStack {
                         FadeInView(delay: 0.2) {
-                            VStack(alignment:.leading, spacing:2) {
+                            VStack(alignment:.leading, spacing:8) {
                                 HStack(spacing: 2) {
                                     Text("Released ")
                                         .textDetail()

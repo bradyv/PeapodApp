@@ -15,9 +15,6 @@ struct SubscriptionsView: View {
         predicate: NSPredicate(format: "isSubscribed == YES"),
         animation: .default
     ) var subscriptions: FetchedResults<Podcast>
-    @State private var showPodcast: Bool = false
-    @State private var selectedPodcast: Podcast? = nil
-    @State private var showSearch = false
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     var namespace: Namespace.ID
     

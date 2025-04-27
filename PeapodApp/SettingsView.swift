@@ -17,8 +17,6 @@ struct SettingsView: View {
     @State private var totalPlayedSeconds: Double = 0
     @State private var subscribedCount: Int = 0
     @State private var playCount: Int = 0
-    @State private var showActivity = false
-    @State private var showAcknowledgements = false
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }

@@ -23,12 +23,14 @@ struct PPPopover<Content: View>: View {
     let content: Content
     @State private var internalShowDismiss: Bool
     @State private var pushView: Bool
+    @State private var animateBg: Bool
 
-    init(hex: String = "#FFFFFF", showDismiss: Bool = true, pushView: Bool = true, @ViewBuilder content: () -> Content) {
+    init(hex: String = "#FFFFFF", showDismiss: Bool = true, pushView: Bool = true, animateBg: Bool = false, @ViewBuilder content: () -> Content) {
         self.hex = hex
         self._internalShowDismiss = State(initialValue: showDismiss)
         self.pushView = pushView
         self.content = content()
+        self.animateBg = false
     }
 
     var body: some View {
@@ -44,7 +46,7 @@ struct PPPopover<Content: View>: View {
                     HStack {
                         DismissReader { dismiss in
                             Button {
-                                withAnimation { dismiss() }
+                                withAnimation { animateBg = false; dismiss() }
                             } label: {
                                 Label("Dismiss", systemImage: "chevron.left")
                             }
@@ -68,6 +70,13 @@ struct PPPopover<Content: View>: View {
         .if(pushView, transform: {
             $0.toolbarBackground(.hidden, for: .navigationBar)
         })
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation {
+                    animateBg = true
+                }
+            }
+        }
         .background(
             EllipticalGradient(
                 stops: [
@@ -77,7 +86,7 @@ struct PPPopover<Content: View>: View {
                 center: .topLeading
             )
             .ignoresSafeArea()
-            .opacity(0.15)
+            .opacity(animateBg ? 0.15 : 0)
         )
         .background(Color.background)
     }

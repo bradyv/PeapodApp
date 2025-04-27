@@ -25,11 +25,11 @@ struct EpisodeItem: View {
             HStack {
                 NavigationLink {
                     if episode.podcast?.isSubscribed != false {
-                        PPPopover {
+                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
                             PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
                         }
                     } else {
-                        PPPopover {
+                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
                             PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
                         }
                     }

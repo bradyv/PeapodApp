@@ -51,7 +51,6 @@ struct EpisodeView: View {
                             }
                         
                         VStack {
-                            Spacer().frame(height:200)
                             VStack(spacing:2) {
                                 Spacer().frame(height:32)
                                 HStack(spacing: 2) {
@@ -71,6 +70,7 @@ struct EpisodeView: View {
                                 Spacer().frame(height:44)
                             }
                             .frame(maxWidth:.infinity)
+                            .padding(.top,200)
                             
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
                                 .padding(.horizontal)

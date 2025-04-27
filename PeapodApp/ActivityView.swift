@@ -29,7 +29,7 @@ struct ActivityView: View {
     
     var body: some View {
         ScrollView {
-            Spacer().frame(height:24)
+            Spacer().frame(height:52)
             Text("My Activity")
                 .titleSerif()
                 .frame(maxWidth:.infinity, alignment:.leading)

@@ -264,15 +264,6 @@ struct SettingsView: View {
             lastSynced = Date()
             UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
         }
-        .background(
-            EllipticalGradient(
-                stops: [
-                    Gradient.Stop(color: Color.surface, location: 0.00),
-                    Gradient.Stop(color: Color.background, location: 1.00),
-                ],
-                center: UnitPoint(x: 0, y: 0)
-            )
-        )
     }
 }
 

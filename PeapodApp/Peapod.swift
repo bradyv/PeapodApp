@@ -58,15 +58,6 @@ struct Peapod: App {
                         .transition(.opacity)
                 }
             }
-            .background(
-                EllipticalGradient(
-                    stops: [
-                        Gradient.Stop(color: Color.surface, location: 0.00),
-                        Gradient.Stop(color: Color.background, location: 1.00),
-                    ],
-                    center: UnitPoint(x: 0, y: 0)
-                )
-            )
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
                     withAnimation {

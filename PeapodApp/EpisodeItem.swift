@@ -40,6 +40,7 @@ struct EpisodeItem: View {
                             .frame(width: 24, height: 24)
                             .cornerRadius(3)
                             .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                            .matchedTransitionSource(id: episode.id, in: namespace)
                         
                         Text(episode.podcast?.title ?? "Podcast title")
                             .lineLimit(1)

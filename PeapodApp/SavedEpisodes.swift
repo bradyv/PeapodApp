@@ -62,7 +62,6 @@ struct SavedEpisodes: View {
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
                                 .padding(.horizontal)
-                                .matchedTransitionSource(id: episode.id, in: namespace)
                         }
                     }
                 }

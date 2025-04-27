@@ -113,7 +113,6 @@ struct PodcastDetailView: View {
                                             EpisodeItem(episode: latestEpisode, namespace: namespace)
                                                 .lineLimit(3)
                                                 .padding(.bottom, 24)
-                                                .matchedTransitionSource(id: latestEpisode.id, in: namespace)
                                         }
                                     }
                                 }
@@ -138,7 +137,6 @@ struct PodcastDetailView: View {
                                                     EpisodeItem(episode: episode, namespace: namespace)
                                                         .lineLimit(3)
                                                         .padding(.bottom, 24)
-                                                        .matchedTransitionSource(id: episode.id, in: namespace)
                                                 }
                                             }
                                         }

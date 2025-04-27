@@ -63,7 +63,6 @@ struct LatestEpisodes: View {
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
                                 .padding(.horizontal)
-                                .matchedTransitionSource(id: episode.id, in: namespace)
                         }
                         .animation(.easeOut(duration: 0.2), value: showAll)
                     }

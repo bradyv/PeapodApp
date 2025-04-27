@@ -71,7 +71,6 @@ struct PodcastEpisodeSearchView: View {
                                 EpisodeItem(episode: episode, namespace: namespace)
                                     .lineLimit(3)
                                     .padding(.bottom, 12)
-                                    .matchedTransitionSource(id: episode.id, in: namespace)
                             }
                         }
                     }

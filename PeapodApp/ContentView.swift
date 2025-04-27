@@ -29,6 +29,7 @@ struct ContentView: View {
             NavigationStack(path: $path) {
                 ZStack(alignment:.topTrailing) {
                     NowPlayingSplash(episodeID: currentEpisodeID)
+                        .matchedGeometryEffect(id: "page-bg", in: namespace)
                     
                     ScrollView {
                         FadeInView(delay: 0.1) {
@@ -98,10 +99,10 @@ struct ContentView: View {
                     PPPopover(pushView:false) {
                         EpisodeView(episode: episode, namespace: namespace) // Now Playing destination
                     }
-                    .navigationTransition(.zoom(sourceID: "np \(episode.id)", in: namespace))
+                    .navigationTransition(.zoom(sourceID: "nowplaying", in: namespace))
                 }
             }
-           
+            
             ZStack(alignment: .bottom) {
                 if nowPlayingManager.isVisible {
                     NowPlaying(namespace: namespace) { episode in

@@ -42,8 +42,8 @@ struct Peapod: App {
                         .preferredColorScheme(preferredColorScheme(for: appTheme))
                         .onAppear {
                             let context = PersistenceController.shared.container.viewContext
-                                ensureQueuePlaylistExists(context: context)
-                                migrateOldQueueToPlaylist(context: context)
+                            ensureQueuePlaylistExists(context: context)
+                            migrateOldQueueToPlaylist(context: context)
                             //                    Task {
                             //                        await persistenceController.container.viewContext.perform {
                             //                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)

@@ -37,22 +37,26 @@ struct EpisodeView: View {
                     LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                    startPoint: .top, endPoint: .bottom)
                 )
-                .opacity(opacity)
+                .opacity(0.35)
+                .blur(radius:64)
                 .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
                 .ignoresSafeArea(.all)
             
             VStack {
                 FadeInView(delay: 0.3) {
                     ScrollView {
-                        Color.clear
-                            .frame(maxWidth:.infinity).frame(height:1)
-                            .trackScrollOffset("scroll") { value in
-                                scrollOffset = value
-                            }
+                        Spacer().frame(height:32)
+                        VStack {
+                            KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                                .resizable()
+                                .frame(width: 128, height: 128)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                        }
+                        .frame(maxWidth:.infinity)
                         
                         VStack {
                             VStack(spacing:2) {
-                                Spacer().frame(height:32)
                                 HStack(spacing: 2) {
                                     Text("Released ")
                                         .textDetail()
@@ -67,10 +71,9 @@ struct EpisodeView: View {
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal)
                                 
-                                Spacer().frame(height:44)
+                                Spacer().frame(height:24)
                             }
                             .frame(maxWidth:.infinity)
-                            .padding(.top,200)
                             
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
                                 .padding(.horizontal)
@@ -220,35 +223,35 @@ struct EpisodeView: View {
                 }
             }
             
-            FadeInView(delay: 0.5) {
-                let miniFadeStart: CGFloat = 0
-                let miniFadeEnd: CGFloat = -64
-                let miniClamped = min(max(scrollOffset, miniFadeEnd), miniFadeStart)
-                let miniOpacity = 1 - (miniClamped - miniFadeEnd) / (miniFadeStart - miniFadeEnd)
-                
-                HStack {
-                    Spacer()
-                    NavigationLink {
-                        PPPopover {
-                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                        }
-                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
-                    } label: {
-                        KFImage(URL(string:episode.podcast?.image ?? ""))
-                            .resizable()
-                            .frame(width: 64, height: 64)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
-                            .opacity(miniOpacity)
-                            .animation(.easeOut(duration: 0.1), value: miniOpacity)
-                            .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
-                    }
-                    .shadow(color:Color.tint(for:episode),
-                            radius: 32
-                    )
-                }
-                .padding(.horizontal)
-            }
+//            FadeInView(delay: 0.5) {
+//                let miniFadeStart: CGFloat = 0
+//                let miniFadeEnd: CGFloat = -64
+//                let miniClamped = min(max(scrollOffset, miniFadeEnd), miniFadeStart)
+//                let miniOpacity = 1 - (miniClamped - miniFadeEnd) / (miniFadeStart - miniFadeEnd)
+//                
+//                HStack {
+//                    Spacer()
+//                    NavigationLink {
+//                        PPPopover {
+//                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+//                        }
+//                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
+//                    } label: {
+//                        KFImage(URL(string:episode.podcast?.image ?? ""))
+//                            .resizable()
+//                            .frame(width: 64, height: 64)
+//                            .clipShape(RoundedRectangle(cornerRadius: 16))
+//                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
+//                            .opacity(miniOpacity)
+//                            .animation(.easeOut(duration: 0.1), value: miniOpacity)
+//                            .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
+//                    }
+//                    .shadow(color:Color.tint(for:episode),
+//                            radius: 32
+//                    )
+//                }
+//                .padding(.horizontal)
+//            }
         }
         .frame(maxWidth:.infinity)
         .onAppear {

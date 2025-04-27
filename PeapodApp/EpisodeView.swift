@@ -18,63 +18,44 @@ struct EpisodeView: View {
     @State private var parsedDescription: NSAttributedString?
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedPodcast: Podcast? = nil
-    var selectedDetent: Binding<PresentationDetent>? = nil
     var mediumHeight: CGFloat = 500
     var largeHeight: CGFloat = 600
     var namespace: Namespace.ID
     
     var body: some View {
-        let splashFadeStart: CGFloat = -150
-        let splashFadeEnd: CGFloat = 0
-        let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
-        let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
-        
         ZStack(alignment:.topLeading) {
-            KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                .resizable()
-                .aspectRatio(1, contentMode:.fit)
-                .mask(
-                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                   startPoint: .top, endPoint: .bottom)
-                )
-                .opacity(0.35)
-                .blur(radius:64)
-                .animation(.easeOut(duration: 0.1), value: selectedDetent?.wrappedValue)
-                .ignoresSafeArea(.all)
+            SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
             
             VStack {
-                FadeInView(delay: 0.3) {
-                    ScrollView {
-                        Spacer().frame(height:32)
-                        VStack {
-                            KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-                                .resizable()
-                                .frame(width: 128, height: 128)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                ScrollView {
+                    Color.clear
+                        .frame(height: 1)
+                        .trackScrollOffset("scroll") { value in
+                            scrollOffset = value
                         }
-                        .frame(maxWidth:.infinity)
-                        
-                        VStack {
-                            VStack(spacing:2) {
+                    Spacer().frame(height:128)
+                    VStack {
+                        FadeInView(delay: 0.2) {
+                            VStack(alignment:.leading, spacing:2) {
                                 HStack(spacing: 2) {
                                     Text("Released ")
                                         .textDetail()
                                     Text(getRelativeDateString(from: episode.airDate ?? .distantPast))
                                         .textDetailEmphasis()
                                 }
-                                .padding(.horizontal,6).padding(.vertical,2)
-                                .shadow(color: Color.background, radius: 8)
+                                .frame(maxWidth:.infinity,alignment:.leading)
                                 
                                 Text(episode.title ?? "Episode title")
                                     .titleSerifSm()
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
+                                    .multilineTextAlignment(.leading)
                                 
                                 Spacer().frame(height:24)
                             }
-                            .frame(maxWidth:.infinity)
-                            
+                            .padding(.horizontal)
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                        }
+                        
+                        FadeInView(delay: 0.3) {
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
                                 .padding(.horizontal)
                                 .multilineTextAlignment(.leading)
@@ -91,20 +72,20 @@ struct EpisodeView: View {
                                     return .systemAction
                                 })
                         }
-                        
-                        Spacer().frame(height:32)
                     }
-                    .scrollIndicators(.hidden)
-                    .coordinateSpace(name: "scroll")
-                    .maskEdge(.top)
-                    .maskEdge(.bottom)
+                    
+                    Spacer().frame(height:32)
                 }
+                .scrollIndicators(.hidden)
+                .coordinateSpace(name: "scroll")
+                .maskEdge(.top)
+                .maskEdge(.bottom)
                 
                 FadeInView(delay: 0) {
                     VStack {
                         VStack(spacing:16) {
                             VStack(spacing:16) {
-                                if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) || selectedDetent?.wrappedValue != .medium {
+                                if episode.isQueued {
                                     VStack(spacing:2) {
                                         let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
                                         CustomSlider(
@@ -223,35 +204,25 @@ struct EpisodeView: View {
                 }
             }
             
-//            FadeInView(delay: 0.5) {
-//                let miniFadeStart: CGFloat = 0
-//                let miniFadeEnd: CGFloat = -64
-//                let miniClamped = min(max(scrollOffset, miniFadeEnd), miniFadeStart)
-//                let miniOpacity = 1 - (miniClamped - miniFadeEnd) / (miniFadeStart - miniFadeEnd)
-//                
-//                HStack {
-//                    Spacer()
-//                    NavigationLink {
-//                        PPPopover {
-//                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-//                        }
-//                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
-//                    } label: {
-//                        KFImage(URL(string:episode.podcast?.image ?? ""))
-//                            .resizable()
-//                            .frame(width: 64, height: 64)
-//                            .clipShape(RoundedRectangle(cornerRadius: 16))
-//                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
-//                            .opacity(miniOpacity)
-//                            .animation(.easeOut(duration: 0.1), value: miniOpacity)
-//                            .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
-//                    }
-//                    .shadow(color:Color.tint(for:episode),
-//                            radius: 32
-//                    )
-//                }
-//                .padding(.horizontal)
-//            }
+            FadeInView(delay: 0.1) {
+                VStack(alignment:.leading) {
+                    let minSize: CGFloat = 64
+                    let maxSize: CGFloat = 172
+                    let threshold: CGFloat = 72
+                    let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
+                    
+                    Spacer().frame(height:16)
+                    KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                        .resizable()
+                        .frame(width: shrink, height: shrink)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                        .animation(.easeOut(duration: 0.1), value: shrink)
+                    Spacer()
+                }
+                .frame(maxWidth:.infinity, alignment:.leading)
+                .padding(.horizontal)
+            }
         }
         .frame(maxWidth:.infinity)
         .onAppear {

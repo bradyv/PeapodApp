@@ -18,7 +18,6 @@ struct PodcastDetailView: View {
     @State var showFullDescription: Bool = false
     @State private var showSearch = false
     @State private var scrollOffset: CGFloat = 0
-    @State private var selectedDetent: PresentationDetent = .medium
     var podcast: Podcast? { podcastResults.first }
     var namespace: Namespace.ID
 
@@ -48,28 +47,16 @@ struct PodcastDetailView: View {
                     .padding()
                 } else {
                     ZStack {
+                        SplashImage(image: podcast.image ?? "")
+                        
                         ScrollView {
-//                            Color.clear
-//                                .frame(height: 1)
-//                                .trackScrollOffset("scroll") { value in
-//                                    scrollOffset = value
-//                                }
-                            Spacer().frame(height:32)
-                            FadeInView(delay: 0.1) {
-                                VStack(alignment:.leading) {
-                                    KFImage(URL(string: podcast.image ?? ""))
-                                        .resizable()
-                                        .frame(width: 128, height: 128)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
-                                        .shadow(color:Color.tint(for:podcast),
-                                                radius: 128
-                                        )
+                            Color.clear
+                                .frame(height: 1)
+                                .trackScrollOffset("scroll") { value in
+                                    scrollOffset = value
                                 }
-                                .frame(maxWidth:.infinity, alignment:.leading)
-                            }
                             
-//                            Spacer().frame(height:128)
+                            Spacer().frame(height:156)
                             
                             FadeInView(delay: 0.2) {
                                 VStack(alignment:.leading) {
@@ -127,17 +114,15 @@ struct PodcastDetailView: View {
                                     
                                     FadeInView(delay: 0.7) {
                                         ForEach(remainingEpisodes, id: \.id) { episode in
-                                            FadeInView(delay: 0.3) {
-                                                NavigationLink {
-                                                    PPPopover(pushView:false) {
-                                                        EpisodeView(episode: episode, namespace: namespace)
-                                                    }
-                                                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-                                                } label: {
-                                                    EpisodeItem(episode: episode, namespace: namespace)
-                                                        .lineLimit(3)
-                                                        .padding(.bottom, 24)
+                                            NavigationLink {
+                                                PPPopover(pushView:false) {
+                                                    EpisodeView(episode: episode, namespace: namespace)
                                                 }
+                                                .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                            } label: {
+                                                EpisodeItem(episode: episode, namespace: namespace)
+                                                    .lineLimit(3)
+                                                    .padding(.bottom, 24)
                                             }
                                         }
                                     }
@@ -166,57 +151,60 @@ struct PodcastDetailView: View {
                             }
                         }
                         
-//                        VStack(alignment:.leading) {
-//                            let minSize: CGFloat = 64
-//                            let maxSize: CGFloat = 172
-//                            let threshold: CGFloat = 72
-//                            let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
-//                            Spacer().frame(height:52)
-//                            KFImage(URL(string: podcast.image ?? ""))
-//                                .resizable()
-//                                .frame(width: shrink, height: shrink)
-//                                .clipShape(RoundedRectangle(cornerRadius: 16))
-//                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
-//                                .shadow(color:Color.tint(for:podcast),
-//                                        radius: 128
-//                                )
-//                                .animation(.easeOut(duration: 0.1), value: shrink)
-//                            Spacer()
-//                        }
-//                        .frame(maxWidth:.infinity, alignment:.leading)
-//                        .padding(.horizontal)
-                        
-                        VStack {
-                            HStack(alignment:.top) {
-                                Spacer()
+                        FadeInView(delay: 0.2) {
+                            VStack(alignment:.leading) {
+                                let minSize: CGFloat = 64
+                                let maxSize: CGFloat = 172
+                                let threshold: CGFloat = 72
+                                let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
                                 
-                                HStack {
-                                    Button(action: {
-                                        showSearch.toggle()
-                                    }) {
-                                        Label("Search \(podcast.title ?? "episodes")", systemImage: "text.magnifyingglass")
-                                    }
-                                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                                    
-                                    Button(action: {
-                                        podcast.isSubscribed.toggle()
-                                        if podcast.isSubscribed,
-                                           let latest = (podcast.episode as? Set<Episode>)?
-                                            .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                            .first {
-                                            toggleQueued(latest)
-                                        }
-                                        try? podcast.managedObjectContext?.save()
-                                    }) {
-                                        Text(podcast.isSubscribed ? "Unfollow" : "Follow")
-                                    }
-                                    .buttonStyle(PPButton(type: podcast.isSubscribed ? .transparent : .filled, colorStyle: .monochrome))
-                                }
+                                Spacer().frame(height:44)
+                                KFImage(URL(string: podcast.image ?? ""))
+                                    .resizable()
+                                    .frame(width: shrink, height: shrink)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                                    .shadow(color:Color.tint(for:podcast),
+                                            radius: 128
+                                    )
+                                    .animation(.easeOut(duration: 0.1), value: shrink)
+                                Spacer()
                             }
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                            .padding(.horizontal)
                             
-                            Spacer()
+                            VStack {
+                                HStack(alignment:.top) {
+                                    Spacer()
+                                    
+                                    HStack {
+                                        Button(action: {
+                                            showSearch.toggle()
+                                        }) {
+                                            Label("Search \(podcast.title ?? "episodes")", systemImage: "text.magnifyingglass")
+                                        }
+                                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                                        
+                                        Button(action: {
+                                            podcast.isSubscribed.toggle()
+                                            if podcast.isSubscribed,
+                                               let latest = (podcast.episode as? Set<Episode>)?
+                                                .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                                                .first {
+                                                toggleQueued(latest)
+                                            }
+                                            try? podcast.managedObjectContext?.save()
+                                        }) {
+                                            Text(podcast.isSubscribed ? "Unfollow" : "Follow")
+                                        }
+                                        .buttonStyle(PPButton(type: podcast.isSubscribed ? .transparent : .filled, colorStyle: .monochrome))
+                                    }
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
                     }
                 }
             }

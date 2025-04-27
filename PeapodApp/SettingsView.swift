@@ -102,7 +102,7 @@ struct SettingsView: View {
                 .clipShape(RoundedRectangle(cornerRadius:12))
                 
                 NavigationLink {
-                    PPPopover {
+                    PPPopover(showBg: true) {
                         ActivityView(namespace: namespace)
                     }
                 } label: {
@@ -209,7 +209,7 @@ struct SettingsView: View {
                 }
                 
                 NavigationLink {
-                    PPPopover {
+                    PPPopover(showBg: true) {
                         Acknowledgements()
                     }
                 } label: {
@@ -221,7 +221,7 @@ struct SettingsView: View {
                     .headerSection()
                 
                 NavigationLink {
-                    PPPopover {
+                    PPPopover(showBg: true) {
                         OldEpisodes(namespace:namespace)
                     }
                 } label: {

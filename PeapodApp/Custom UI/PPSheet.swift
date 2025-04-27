@@ -11,30 +11,17 @@ struct PPSheet: ViewModifier {
     let hasBackground: Bool
     let shortStack: Bool
     let showOverlay: Bool
-    @Binding var dismissTrigger: Bool
-    @Binding var detent: PresentationDetent
     
-    init(bg: Bool = false, shortStack: Bool = false,dismissTrigger: Binding<Bool> = .constant(false), showOverlay: Bool = true, detent: Binding<PresentationDetent> = .constant(.large)) {
+    init(bg: Bool = false, shortStack: Bool = false, showOverlay: Bool = true) {
         self.hasBackground = bg
         self.shortStack = shortStack
         self.showOverlay = showOverlay
-        self._dismissTrigger = dismissTrigger
-        self._detent = detent
     }
 
     func body(content: Content) -> some View {
         ZStack {
             content
                 .presentationCornerRadius(32)
-                .presentationDetents(shortStack ? [.medium, .large] : [.large], selection: $detent)
-                .presentationContentInteraction(.resizes)
-                .interactiveDismissDisabled(false)
-                .presentationDragIndicator(.hidden)
-                .onChange(of: detent) { newValue in
-                    if shortStack && newValue == .medium {
-                        dismissTrigger = true
-                    }
-                }
                 .background(
                     hasBackground ? nil : EllipticalGradient(
                         stops: [

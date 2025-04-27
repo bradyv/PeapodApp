@@ -17,7 +17,6 @@ struct PodcastEpisodeSearchView: View {
 
     @FetchRequest private var latest: FetchedResults<Episode>
     @State private var query = ""
-    @State private var selectedDetent: PresentationDetent = .medium
     @FocusState private var isTextFieldFocused: Bool
     var namespace: Namespace.ID
 

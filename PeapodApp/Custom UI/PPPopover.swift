@@ -21,14 +21,16 @@ extension EnvironmentValues {
 struct PPPopover<Content: View>: View {
     let hex: String
     let content: Content
+    let showBg: Bool
     @State private var internalShowDismiss: Bool
     @State private var pushView: Bool
     @State private var animateBg: Bool
 
-    init(hex: String = "#FFFFFF", showDismiss: Bool = true, pushView: Bool = true, animateBg: Bool = false, @ViewBuilder content: () -> Content) {
+    init(hex: String = "#FFFFFF", showDismiss: Bool = true, pushView: Bool = true, showBg: Bool = false, animateBg: Bool = false, @ViewBuilder content: () -> Content) {
         self.hex = hex
         self._internalShowDismiss = State(initialValue: showDismiss)
         self.pushView = pushView
+        self.showBg = showBg
         self.content = content()
         self.animateBg = false
     }
@@ -57,9 +59,8 @@ struct PPPopover<Content: View>: View {
                 } else {
                     HStack {
                         Capsule()
-                            .fill(Color.primary.opacity(0.15)) // Adapts to light/dark
+                            .fill(Color.heading.opacity(0.25))
                             .frame(width: 40, height: 6)
-                            .background(.ultraThinMaterial) // Optional: if you're using a blurred background
                             .clipShape(Capsule())
                     }
                     .frame(maxWidth:.infinity)
@@ -77,17 +78,19 @@ struct PPPopover<Content: View>: View {
                 }
             }
         }
-        .background(
-            EllipticalGradient(
-                stops: [
-                    .init(color: bgColor, location: 0.0),
-                    .init(color: Color.background, location: 1.0)
-                ],
-                center: .topLeading
+        .if(showBg, transform: {
+            $0.background(
+                EllipticalGradient(
+                    stops: [
+                        .init(color: bgColor, location: 0.0),
+                        .init(color: Color.background, location: 1.0)
+                    ],
+                    center: .topLeading
+                )
+                .ignoresSafeArea()
+                .opacity(animateBg ? 0.15 : 0)
             )
-            .ignoresSafeArea()
-            .opacity(animateBg ? 0.15 : 0)
-        )
+        })
         .background(Color.background)
     }
 }

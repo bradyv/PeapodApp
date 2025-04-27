@@ -28,7 +28,7 @@ struct LibraryView: View {
             if !subscriptions.isEmpty {
                 VStack(spacing: 8) {
                     NavigationLink {
-                        PPPopover {
+                        PPPopover(showBg: true) {
                             LatestEpisodes(namespace: namespace)
                         }
                     } label: {
@@ -36,7 +36,7 @@ struct LibraryView: View {
                     }
                     
                     NavigationLink {
-                        PPPopover {
+                        PPPopover(showBg: true) {
                             SavedEpisodes(namespace: namespace)
                         }
                     } label: {

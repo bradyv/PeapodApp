@@ -15,7 +15,6 @@ struct SavedEpisodes: View {
     )
     var saved: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
-    @State private var selectedDetent: PresentationDetent = .medium
     var namespace: Namespace.ID
     
     var body: some View {
@@ -62,6 +61,9 @@ struct SavedEpisodes: View {
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
                                 .padding(.horizontal)
+                                .onTapGesture {
+                                    selectedEpisode = episode
+                                }
                         }
                     }
                 }

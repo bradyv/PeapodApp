@@ -74,7 +74,7 @@ struct ContentView: View {
                     
                     VStack(alignment:.trailing) {
                         NavigationLink {
-                            PPPopover {
+                            PPPopover(showBg: true) {
                                 SettingsView(namespace: namespace)
                             }
                         } label: {

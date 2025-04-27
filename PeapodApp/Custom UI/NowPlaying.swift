@@ -23,16 +23,7 @@ struct NowPlayingSplash: View {
             ZStack {
                 if let id = episodeID,
                    let episode = displayedEpisode {
-                    KFImage(URL(string: episode.episodeImage ?? episode.podcast?.image ?? ""))
-                        .resizable()
-                        .aspectRatio(1, contentMode: .fit)
-                        .blur(radius: 64)
-                        .opacity(0.35)
-                        .mask(
-                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .bottom)
-                        )
-                        .ignoresSafeArea(.all)
+                    SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
                         .transition(.opacity)
                         .id(episode.id) // Forces view identity change to animate transition
                         .animation(.easeInOut(duration: 0.3), value: episode.id)

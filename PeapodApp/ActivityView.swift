@@ -23,7 +23,6 @@ struct ActivityView: View {
     var topPodcasts: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
-    @State private var selectedDetent: PresentationDetent = .medium
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     var namespace: Namespace.ID
     

@@ -277,7 +277,8 @@ struct EpisodeItem: View {
                             colorStyle: .monochrome
                         )
                     )
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .id(episode.isQueued ? "queued" : "unqueued")
+                    .transition(.opacity)
                     .animation(.easeOut(duration: 0.3), value: episode.isQueued)
                     
                     if savedView {

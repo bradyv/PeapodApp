@@ -132,8 +132,10 @@ struct PodcastSearchView: View {
         .ignoresSafeArea(edges:.bottom)
         .onAppear {
             nowPlayingManager.isVisible = false
-            fetchTopPodcasts()
-            
+            PodcastAPI.fetchTopPodcasts { podcasts in
+                self.topPodcasts = podcasts
+            }
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 isTextFieldFocused = true
             }
@@ -172,68 +174,4 @@ struct PodcastSearchView: View {
             }
         }.resume()
     }
-    
-    func fetchTopPodcasts() {
-        guard let url = URL(string: "https://itunes.apple.com/us/rss/toppodcasts/limit=21/json") else { return }
-
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data else { return }
-
-            struct FeedResponse: Codable {
-                struct Feed: Codable {
-                    struct Entry: Codable {
-                        struct ID: Codable {
-                            let attributes: Attributes
-                            struct Attributes: Codable {
-                                let imID: String
-                                enum CodingKeys: String, CodingKey { case imID = "im:id" }
-                            }
-                        }
-                        let id: ID
-                    }
-                    let entry: [Entry]
-                }
-                let feed: Feed
-            }
-
-            do {
-                let decoded = try JSONDecoder().decode(FeedResponse.self, from: data)
-                let ids = decoded.feed.entry.map { $0.id.attributes.imID }
-                fetchPodcastResults(for: ids)
-            } catch {
-                print("❌ Failed to decode top podcasts: \(error)")
-            }
-        }.resume()
-    }
-    
-    func fetchPodcastResults(for ids: [String]) {
-        let idString = ids.prefix(25).joined(separator: ",") // iTunes lookup limit is 200, but 25-50 is plenty
-        guard let url = URL(string: "https://itunes.apple.com/lookup?id=\(idString)") else { return }
-
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data else { return }
-
-            if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
-                DispatchQueue.main.async {
-                    topPodcasts = decoded.results
-                }
-            }
-        }.resume()
-    }
-}
-
-struct SearchResponse: Codable {
-    let results: [PodcastResult]
-}
-
-struct PodcastResult: Codable, Identifiable {
-    let feedUrl: String
-    let trackName: String
-    let artistName: String
-    let artworkUrl600: String
-    let trackId: Int
-
-    var id: String { "\(trackId)" }
-    var title: String { trackName }
-    var author: String { artistName }
 }

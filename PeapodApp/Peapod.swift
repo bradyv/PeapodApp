@@ -15,6 +15,7 @@ struct Peapod: App {
     @StateObject private var nowPlayingManager = NowPlayingVisibilityManager()
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @AppStorage("didFlushTints") private var didFlushTints: Bool = false
+    @AppStorage("hasRunOneTimeSplashMark") private var hasRunOneTimeSplashMark = false
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var appTheme: AppTheme {
@@ -32,6 +33,10 @@ struct Peapod: App {
                         .onAppear {
                             runDeduplicationOnceIfNeeded(context: PersistenceController.shared.container.viewContext)
                             scheduleEpisodeCleanup()
+                            if !hasRunOneTimeSplashMark {
+                                oneTimeSplashMark(context: PersistenceController.shared.container.viewContext)
+                                hasRunOneTimeSplashMark = true
+                            }
 //                            appDelegate.debugPurgeOldEpisodes() // bv debug
                         }
                 } else {

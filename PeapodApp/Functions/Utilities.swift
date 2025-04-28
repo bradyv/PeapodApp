@@ -41,6 +41,15 @@ func removeDuplicateEpisodes(context: NSManagedObjectContext) {
     }
 }
 
+func oneTimeSplashMark(context: NSManagedObjectContext) {
+    let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+    request.predicate = NSPredicate(format: "isSubscribed == YES")
+    
+    let hasSubscriptions = (try? context.fetch(request))?.isEmpty == false
+    
+    UserDefaults.standard.set(!hasSubscriptions, forKey: "showOnboarding")
+}
+
 func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
     let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
     request.predicate = NSPredicate(format: "name == %@", "Queue")

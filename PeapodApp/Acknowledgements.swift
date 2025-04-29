@@ -29,12 +29,6 @@ struct Acknowledgements: View {
                                 openURL(url)
                             }
                         }
-                    RowItem(icon: "link", label:"DotLottie-iOS")
-                        .onTapGesture {
-                            if let url = URL(string: "https://github.com/LottieFiles/dotlottie-ios") {
-                                openURL(url)
-                            }
-                        }
                     RowItem(icon: "link", label:"FeedKit")
                         .onTapGesture {
                             if let url = URL(string: "https://github.com/nmdias/FeedKit") {
@@ -44,6 +38,12 @@ struct Acknowledgements: View {
                     RowItem(icon: "link", label:"Kingfisher")
                         .onTapGesture {
                             if let url = URL(string: "https://github.com/onevcat/Kingfisher") {
+                                openURL(url)
+                            }
+                        }
+                    RowItem(icon: "link", label:"Rive")
+                        .onTapGesture {
+                            if let url = URL(string: "https://github.com/rive-app/rive-ios") {
                                 openURL(url)
                             }
                         }

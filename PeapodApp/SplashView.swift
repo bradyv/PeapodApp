@@ -6,10 +6,10 @@
 //
 
 import SwiftUI
-import DotLottie
+import RiveRuntime
 
 struct SplashView: View {
-    private let animationView = DotLottieAnimation(fileName: "Peapod.white", config: AnimationConfig(autoplay: false, loop: false, mode: .reverse, speed: 1))
+    @StateObject private var riveModel = RiveViewModel(fileName: "peapod")
     
     var body: some View {
         ZStack {
@@ -17,17 +17,10 @@ struct SplashView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
             
-            FadeInView(delay:0.1) {
-                animationView.view()
-                    .frame(width: 128, height: 111)
-            }
+            RiveViewModel(fileName: "peapod").view()
+                .frame(width:128,height:111)
         }
         .ignoresSafeArea()
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) {
-                animationView.play()
-            }
-        }
     }
 }
 

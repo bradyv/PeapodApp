@@ -6,63 +6,63 @@
 	<dict>
 		<key>CFBundleAlternateIcons</key>
 		<dict>
-			<key>Blueprint</key>
+			<key>AppIcon-Blueprint</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Blueprint</string>
 				</array>
 			</dict>
-			<key>Clouds</key>
+			<key>AppIcon-Clouds</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Clouds</string>
 				</array>
 			</dict>
-			<key>Coachella</key>
+			<key>AppIcon-Coachella</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Coachella</string>
 				</array>
 			</dict>
-			<key>Cupertino</key>
+			<key>AppIcon-Cupertino</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Cupertino</string>
 				</array>
 			</dict>
-			<key>Dev</key>
+			<key>AppIcon-Dev</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Dev</string>
 				</array>
 			</dict>
-			<key>Green</key>
+			<key>AppIcon-Green</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Green</string>
 				</array>
 			</dict>
-			<key>Pastel</key>
+			<key>AppIcon-Pastel</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Pastel</string>
 				</array>
 			</dict>
-			<key>Pride</key>
+			<key>AppIcon-Pride</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
 					<string>AppIcon-Pride</string>
 				</array>
 			</dict>
-			<key>Rinzler</key>
+			<key>AppIcon-Rinzler</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>

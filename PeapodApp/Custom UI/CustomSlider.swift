@@ -36,7 +36,7 @@ struct CustomSlider: View {
                     // Progress Track
                     Capsule()
                         .fill(isQQ ? Color.black : (isDraggable ? Color.heading : Color.background))
-                        .frame(width: isQQ || !isDraggable ? max(3, progressWidth) : progressWidth,
+                        .frame(width: max(isQQ || !isDraggable ? 4 : 6, progressWidth),
                                height: isDragging ? 12 : (isQQ || !isDraggable ? 4 : 6))
                         .animation(.easeInOut(duration: 0.2), value: isDragging)
 
@@ -67,13 +67,7 @@ struct CustomSlider: View {
                                             range.lowerBound + (gesture.location.x / sliderWidth) * (range.upperBound - range.lowerBound)),
                                         range.upperBound
                                     )
-                                    let roundedNew = round(newValue)
-                                    let roundedCurrent = round(value)
-
-                                    if roundedNew != roundedCurrent {
-                                        impactFeedback.impactOccurred()
-                                    }
-
+                                    
                                     value = newValue
                                     isDragging = true
                                     onEditingChanged(true)
@@ -81,6 +75,7 @@ struct CustomSlider: View {
                                 .onEnded { _ in
                                     isDragging = false
                                     onEditingChanged(false)
+                                    impactFeedback.impactOccurred()
                                 }
                             : nil
                         )

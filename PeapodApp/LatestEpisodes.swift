@@ -8,54 +8,63 @@
 import SwiftUI
 
 struct LatestEpisodes: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var toastManager: ToastManager
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
-        predicate: NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES"),
-        animation: .interactiveSpring()
-    )
-    var latest: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
-    @State private var selectedDetent: PresentationDetent = .medium
+    @State private var showAll = true
+    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
             Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
-                Text("Latest Episodes")
-                    .titleSerif()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading).padding(.top,24)
+                HStack {
+                    Text("Latest Episodes")
+                        .titleSerif()
+                    
+                    Spacer()
+                    
+                    Button {
+                        withAnimation {
+                            showAll.toggle()
+                        }
+                    } label: {
+                        Label(showAll ? "All" : "Unplayed", systemImage: "chevron.compact.down")
+                    }
+                    .labelStyle(.titleOnly)
+                    .foregroundStyle(Color.accentColor)
+                    .textBody()
+                }
+                .padding(.horizontal).padding(.top,24)
             }
             
             FadeInView(delay: 0.4) {
                 LazyVStack(alignment: .leading) {
-                    ForEach(latest, id: \.id) { episode in
-                        EpisodeItem(episode: episode)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .onTapGesture {
-                                selectedEpisode = episode
+                    ForEach(showAll ? episodesViewModel.latest : episodesViewModel.unplayed, id: \.id) { episode in
+                        NavigationLink {
+                            PPPopover(pushView:false) {
+                                EpisodeView(episode: episode, namespace: namespace)
                             }
-                    }
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                            .modifier(PPSheet())
-                            .presentationDetents([.medium, .large], selection: $selectedDetent)
-                            .presentationContentInteraction(.resizes)
+                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                        } label: {
+                            EpisodeItem(episode: episode, namespace: namespace)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .padding(.horizontal)
+                        }
+                        .animation(.easeOut(duration: 0.2), value: showAll)
                     }
                 }
             }
         }
         .toast()
+        .maskEdge(.top)
         .maskEdge(.bottom)
-        .onAppear {
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-//                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-            }
-        }
-        .ignoresSafeArea(edges: .all)
+//        .refreshable {
+//            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+////                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+//            }
+//        }
     }
 }

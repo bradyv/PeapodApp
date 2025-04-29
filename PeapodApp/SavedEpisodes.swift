@@ -8,14 +8,8 @@
 import SwiftUI
 
 struct SavedEpisodes: View {
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.id)],
-        predicate: NSPredicate(format: "isSaved == YES"),
-        animation: .interactiveSpring()
-    )
-    var saved: FetchedResults<Episode>
-    @State private var selectedEpisode: Episode? = nil
-    @State private var selectedDetent: PresentationDetent = .medium
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
@@ -27,7 +21,7 @@ struct SavedEpisodes: View {
                     .padding(.leading).padding(.top,24)
             }
             
-            if saved.isEmpty {
+            if episodesViewModel.saved.isEmpty {
                 ZStack {
                     VStack {
                         ForEach(0..<2, id: \.self) { _ in
@@ -49,25 +43,25 @@ struct SavedEpisodes: View {
                     }
                 }
             } else {
-                ForEach(saved, id: \.id) { episode in
+                ForEach(episodesViewModel.saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, savedView:true)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .onTapGesture {
-                                selectedEpisode = episode
+                        NavigationLink {
+                            PPPopover(pushView:false) {
+                                EpisodeView(episode: episode, namespace: namespace)
                             }
+                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                        } label: {
+                            EpisodeItem(episode: episode, savedView:true, namespace: namespace)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .padding(.horizontal)
+                        }
                     }
-                }
-                .sheet(item: $selectedEpisode) { episode in
-                    EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                        .modifier(PPSheet())
-                        .presentationDetents([.medium, .large], selection: $selectedDetent)
-                        .presentationContentInteraction(.resizes)
                 }
             }
         }
-        .disabled(saved.isEmpty)
+        .maskEdge(.top)
+        .maskEdge(.bottom)
+        .disabled(episodesViewModel.saved.isEmpty)
     }
 }

@@ -8,13 +8,10 @@
 import SwiftUI
 
 struct LibraryView: View {
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
-    
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
+    var subscriptions: FetchedResults<Podcast>
     @State private var activeSheet: ActiveSheet?
+    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -27,28 +24,25 @@ struct LibraryView: View {
             
             if !subscriptions.isEmpty {
                 VStack(spacing: 8) {
-                    RowItem(icon: "app.badge", label: "Latest Episodes")
-                        .onTapGesture {
-                            activeSheet = .latest
+                    NavigationLink {
+                        PPPopover(showBg: true) {
+                            LatestEpisodes(namespace: namespace)
                         }
-                    RowItem(icon: "bookmark", label: "Saved Episodes")
-                        .onTapGesture {
-                            activeSheet = .saved
+                    } label: {
+                        RowItem(icon: "app.badge", label: "Latest Episodes")
+                    }
+                    
+                    NavigationLink {
+                        PPPopover(showBg: true) {
+                            SavedEpisodes(namespace: namespace)
                         }
+                    } label: {
+                        RowItem(icon: "bookmark", label: "Saved Episodes")
+                    }
                 }
             }
         }
         .padding(.horizontal).padding(.top,24)
         .frame(maxWidth:.infinity)
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .latest:
-                LatestEpisodes().modifier(PPSheet())
-            case .saved:
-                SavedEpisodes().modifier(PPSheet())
-            case .activity:
-                ActivityView().modifier(PPSheet())
-            }
-        }
     }
 }

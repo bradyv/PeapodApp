@@ -11,12 +11,13 @@ import Kingfisher
 struct QueueItem: View {
     @Environment(\.colorScheme) var colorScheme
     @ObservedObject var episode: Episode
+    var namespace: Namespace.ID
     
     var body: some View {
         let frame = UIScreen.main.bounds.width - 32
 
         ZStack(alignment:.bottomLeading) {
-            EpisodeItem(episode:episode, displayedInQueue: true)
+            EpisodeItem(episode:episode, displayedInQueue: true, namespace: namespace)
                 .lineLimit(3)
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -33,10 +34,10 @@ struct QueueItem: View {
                 Spacer()
             }
         }
-        .frame(width: frame, height: 400)
+        .frame(width: frame, height: 450)
         .background(Color.tint(for:episode, darkened: true))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.15), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
     }
 }
 
@@ -85,5 +86,6 @@ struct EmptyQueueItem: View {
         .frame(width: frame, height: 250, alignment:.bottomLeading)
         .background(Color.heading.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.heading.opacity(0.5), lineWidth: 1))
     }
 }

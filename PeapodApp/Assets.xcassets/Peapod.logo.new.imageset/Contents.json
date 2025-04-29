@@ -1,15 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "Peapod.logo.new.png",
+      "filename" : "Peapod.logo.new.dark.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
+      "filename" : "Peapod.logo.new.dark@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
+      "filename" : "Peapod.logo.new.dark@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

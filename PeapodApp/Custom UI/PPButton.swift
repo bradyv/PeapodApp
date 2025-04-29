@@ -25,6 +25,7 @@ struct ShadowButton: ButtonStyle {
     var iconOnly: Bool = false
     var filled: Bool = false
     var borderless: Bool = false
+    var small: Bool = false
     
     func makeBody(configuration: Configuration) -> some View {
         let isPressed = configuration.isPressed
@@ -33,23 +34,42 @@ struct ShadowButton: ButtonStyle {
             configuration.label
         }
         .if(iconOnly, transform: { $0.labelStyle(.iconOnly) })
-        .padding(.horizontal,iconOnly ? 9 : 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, small ? 8 : 12)
+        .padding(.vertical, small ? 5 : 9)
         .if(!borderless,
             transform: {
                 $0.background(filled ? Color.accentColor : .white)
         })
-        .foregroundStyle(Color.heading)
-        .textBody()
-        .clipShape(Capsule())
-        .if(!borderless,
+        .foregroundStyle(filled ? Color.white : Color.black)
+        .if(!small, transform: {
+            $0.textBody()
+        })
+        .if(small, transform: {
+            $0.textDetail()
+        })
+        .if(iconOnly,
             transform: {
-            $0.shadow(color: filled ? Color.accentColor.opacity(0.25) : .black.opacity(0.03), radius: 1, x: 0, y: 2)
+            $0.clipShape(Circle())
+        })
+        .if(!iconOnly,
+            transform: {
+            $0.clipShape(Capsule())
         })
         .if(!borderless,
             transform: {
+            $0.shadow(color: filled ? Color.accentColor.opacity(0.25) : .black.opacity(0.05), radius: 3, x: 0, y: 2)
+        })
+        .if(!borderless && !iconOnly,
+            transform: {
             $0.overlay(
                 Capsule()
+                .stroke(.black.opacity(0.1), lineWidth: 1)
+            )
+        })
+        .if(!borderless && iconOnly,
+            transform: {
+            $0.overlay(
+                Circle()
                 .stroke(.black.opacity(0.1), lineWidth: 1)
             )
         })
@@ -140,10 +160,38 @@ struct PPButton: ButtonStyle {
     }
 }
 
+struct NoHighlight: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+      let isPressed = configuration.isPressed
+      configuration.label
+          .scaleEffect(isPressed ? 0.95 : 1)
+          .animation(.easeOut(duration: 0.2), value: isPressed)
+  }
+}
+ 
+extension ButtonStyle where Self == NoHighlight {
+  static var noHighlight: NoHighlight {
+    get { NoHighlight() }
+  }
+}
+
 struct PPButtonTest: View {
     
     var body: some View {
         VStack {
+            Button("Dismiss", systemImage: "chevron.down") {
+            }
+            .buttonStyle(ShadowButton(iconOnly: true, filled: false))
+            
+            Button("Dismiss", systemImage: "chevron.down") {
+            }
+            .buttonStyle(ShadowButton(iconOnly: true, filled: true))
+            
+            Button("Close", systemImage: "xmark") {
+            }
+            .buttonStyle(ShadowButton(filled: true))
+            
+            
             Button("Dismiss", systemImage: "chevron.down") {
             }
             .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))

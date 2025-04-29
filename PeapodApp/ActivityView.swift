@@ -23,15 +23,16 @@ struct ActivityView: View {
     var topPodcasts: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
-    @State private var selectedDetent: PresentationDetent = .medium
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
+            Spacer().frame(height:52)
             Text("My Activity")
                 .titleSerif()
                 .frame(maxWidth:.infinity, alignment:.leading)
-                .padding(.top,44).padding(.horizontal)
+                .padding(.horizontal)
             
             if !played.isEmpty {
                 FadeInView(delay: 0.2) {
@@ -63,9 +64,6 @@ struct ActivityView: View {
                                     })
                                 
                                 styledImage
-                                    .onTapGesture {
-                                        selectedPodcast = podcast
-                                    }
                                 
                                 Text(podcast.formattedPlayedHours)
                                     .textBody()
@@ -76,15 +74,6 @@ struct ActivityView: View {
                         }
                     }
                     .padding(.horizontal)
-                    .sheet(item: $selectedPodcast) { podcast in
-                        if podcast.isSubscribed {
-                            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                                .modifier(PPSheet())
-                        } else {
-                            PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
-                                .modifier(PPSheet())
-                        }
-                    }
                 }
             }
             
@@ -122,27 +111,25 @@ struct ActivityView: View {
                 VStack {
                     ForEach(played, id: \.id) { episode in
                         FadeInView(delay: 0.5) {
-                            EpisodeItem(episode: episode)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .padding(.horizontal)
-                                .onTapGesture {
-                                    selectedEpisode = episode
+                            NavigationLink {
+                                PPPopover {
+                                    EpisodeView(episode: episode, namespace: namespace)
                                 }
+                                .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                            } label: {
+                                EpisodeItem(episode: episode, namespace: namespace)
+                                    .lineLimit(3)
+                                    .padding(.bottom, 24)
+                                    .padding(.horizontal)
+                                    .matchedTransitionSource(id: episode.id, in: namespace)
+                            }
                         }
                     }
                 }
-                .sheet(item: $selectedEpisode) { episode in
-                    EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                        .modifier(PPSheet())
-                        .presentationDetents([.medium, .large], selection: $selectedDetent)
-                        .presentationContentInteraction(.resizes)
-                }
             }
         }
-        .background(Color.background)
-        .navigationTitle("My Activity")
-        .navigationBarTitleDisplayMode(.inline)
+        .maskEdge(.top)
+        .maskEdge(.bottom)
     }
 }
 

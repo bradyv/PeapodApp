@@ -24,7 +24,7 @@ struct AirPlayButton: View {
 
             // Keep AVRoutePickerView in the view hierarchy, hidden but functional
             UIViewRepresentableWrapper(view: routePickerView)
-                .frame(width: 1, height: 1) // Invisible but present
+                .frame(width: 1, height: 1)
                 .opacity(0.01)
         }
         .onAppear {
@@ -47,7 +47,7 @@ struct AirPlayButton: View {
         }
     }
 
-    /// Updates the button icon based on the current audio output
+    // Updates the button icon based on the current audio output
     private func updateAudioRouteIcon() {
         let currentRoute = AVAudioSession.sharedInstance().currentRoute
 
@@ -58,7 +58,7 @@ struct AirPlayButton: View {
             } else if portName.contains("airpods max") {
                 currentRouteIcon = "airpods.max"
             } else if portName.contains("airpods") {
-                // Gen 1, 2, or 3 — hard to distinguish, so you can optionally handle Gen 3 by default here
+                // Gen 1, 2, or 3 — hard to distinguish, so handle Gen 3 by default here
                 currentRouteIcon = "airpods.gen3"
             } else {
                 currentRouteIcon = "airplay.audio"
@@ -71,7 +71,7 @@ struct AirPlayButton: View {
     }
 }
 
-/// Helper to embed a UIKit view in SwiftUI
+// Helper to embed a UIKit view in SwiftUI
 struct UIViewRepresentableWrapper<T: UIView>: UIViewRepresentable {
     let view: T
     func makeUIView(context: Context) -> T { view }

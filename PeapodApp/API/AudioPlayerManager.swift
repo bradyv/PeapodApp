@@ -16,16 +16,16 @@ private var viewContext: NSManagedObjectContext {
 }
 
 func fetchQueuedEpisodes() -> [Episode] {
-    let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-    request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.id, ascending: true)]
-    request.predicate = NSPredicate(format: "isQueued == YES")
+    let context = viewContext
+    let playlistRequest: NSFetchRequest<Playlist> = Playlist.fetchRequest()
+    playlistRequest.predicate = NSPredicate(format: "name == %@", "Queue")
 
-    do {
-        return try viewContext.fetch(request)
-    } catch {
-        print("⚠️ Failed to fetch queued episodes: \(error)")
-        return []
+    if let queuePlaylist = try? context.fetch(playlistRequest).first,
+       let items = queuePlaylist.items as? Set<Episode> {
+        return items.sorted { $0.queuePosition < $1.queuePosition }
     }
+
+    return []
 }
 
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
@@ -335,8 +335,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
-        episode.playbackPosition = 0
-        
         if episode.isPlayed {
             episode.isPlayed = false
             episode.playedDate = nil
@@ -345,17 +343,30 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             episode.isQueued = false
             episode.nowPlaying = false
             episode.playedDate = Date.now
+            episode.playlist = nil
             episode.podcast?.playCount += 1
 
-            let actualProgress = manually && currentEpisode?.id == episode.id
-                ? min(player?.currentTime().seconds ?? 0, episode.duration)
-                : min(episode.playbackPosition, episode.duration)
+            let liveProgress = player?.currentTime().seconds ?? 0
+            let savedProgress = episode.playbackPosition
+
+            let actualProgress: Double
+
+            if manually {
+                if currentEpisode?.id == episode.id && liveProgress > 0 {
+                    actualProgress = min(liveProgress, episode.duration)
+                } else {
+                    actualProgress = min(savedProgress, episode.duration)
+                }
+            } else {
+                actualProgress = min(savedProgress, episode.duration)
+            }
 
             let playedSecondsToAdd = manually ? actualProgress : episode.duration
             episode.podcast?.playedSeconds += playedSecondsToAdd
             print("Recorded \(playedSecondsToAdd) for \(episode.title ?? "episode")")
         }
 
+        episode.playbackPosition = 0
         try? episode.managedObjectContext?.save()
     }
 

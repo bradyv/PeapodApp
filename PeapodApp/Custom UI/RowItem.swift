@@ -10,22 +10,28 @@ import SwiftUI
 struct RowItem<Accessory: View>: View {
     let icon: String
     let label: String
+    let tint: Color?
     @ViewBuilder var accessory: () -> Accessory
 
-    init(icon: String, label: String, @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
+    init(icon: String, label: String, tint: Color = Color.text, @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
         self.icon = icon
         self.label = label
+        self.tint = tint
         self.accessory = accessory
     }
 
     var body: some View {
+        let tint = tint ?? .text
+        
         VStack {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .frame(width: 24)
+                    .foregroundStyle(tint)
                     .textBody()
                 Text(label)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(tint)
                     .textBody()
                 if Accessory.self == EmptyView.self {
                     Image(systemName: "chevron.right")
@@ -38,9 +44,9 @@ struct RowItem<Accessory: View>: View {
                 }
             }
             .padding(.vertical, 2)
-            .contentShape(Rectangle())
             Divider()
         }
+        .contentShape(Rectangle())
     }
 
     private var accessoryIsEmpty: Bool {

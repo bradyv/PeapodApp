@@ -10,29 +10,30 @@ import SwiftUI
 struct PPSheet: ViewModifier {
     let hasBackground: Bool
     let shortStack: Bool
+    let showOverlay: Bool
     
-    init(bg: Bool = false, shortStack: Bool = false) {
+    init(bg: Bool = false, shortStack: Bool = false, showOverlay: Bool = true) {
         self.hasBackground = bg
         self.shortStack = shortStack
+        self.showOverlay = showOverlay
     }
 
     func body(content: Content) -> some View {
-        content
-            .presentationCornerRadius(32)
-            .if(shortStack, transform: {
-                $0.presentationDetents([.medium, .large])
-            })
-            .presentationDragIndicator(.hidden)
-            .background(
-                hasBackground ? nil : EllipticalGradient(
-                    stops: [
-                        Gradient.Stop(color: Color.surface, location: 0.00),
-                        Gradient.Stop(color: Color.background, location: 1.00)
-                    ],
-                    center: UnitPoint(x: 0, y: 0)
+        ZStack {
+            content
+                .presentationCornerRadius(32)
+                .background(
+                    hasBackground ? nil : EllipticalGradient(
+                        stops: [
+                            Gradient.Stop(color: Color.surface, location: 0.00),
+                            Gradient.Stop(color: Color.background, location: 1.00)
+                        ],
+                        center: UnitPoint(x: 0, y: 0)
+                    )
+                    .ignoresSafeArea(edges:.top)
                 )
-            )
-            .background(Color.background)
+                .background(Color.background)
+        }
     }
 }
 

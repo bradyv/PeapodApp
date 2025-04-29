@@ -1,5 +1,5 @@
 {
-  "originHash" : "e7c044ee4c1f10b1509967d44cabf5e3bb758bebed6818e2471c62d4ea8a2c05",
+  "originHash" : "93d2ba2ffb8972af9a7f26e9930bf45395e782707a49ce25df72be101a8841fc",
   "pins" : [
     {
       "identity" : "colorthiefswift",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "ac04a95acca965f8030a01293c31621b2a812c39",
         "version" : "0.5.0"
+      }
+    },
+    {
+      "identity" : "dotlottie-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/LottieFiles/dotlottie-ios",
+      "state" : {
+        "branch" : "main",
+        "revision" : "5882d81ccb677e2da0175fc9c97980bb61af3eb9"
       }
     },
     {

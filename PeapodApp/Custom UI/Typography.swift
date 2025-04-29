@@ -25,6 +25,7 @@ struct TextStyle: ViewModifier {
 
 extension View {
     func titleSerif() -> some View { self.typography(size: 34, weight: .regular).fontDesign(.serif) }
+    func titleSerifSm() -> some View { self.typography(size: 28, weight: .regular).fontDesign(.serif) }
     func titleCondensed() -> some View { self.typography(size: 20, weight: .regular).fontWidth(.condensed) }
     func headerSection() -> some View { self.typography(size: 17, weight: .medium).fontWidth(.condensed) }
     func textBody() -> some View { self.typography(size: 17, color: .text).fontWidth(.condensed) }

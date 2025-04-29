@@ -11,63 +11,47 @@ import Kingfisher
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
+    @ObservedObject var player = AudioPlayerManager.shared
+    @State private var selectedPodcast: Podcast? = nil
+    @State private var isPlaying = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
     var savedView: Bool = false
-    @State private var selectedPodcast: Podcast? = nil
-    @ObservedObject var player = AudioPlayerManager.shared
+    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
             // Podcast Info Row
             HStack {
-                HStack {
-                    KFImage(URL(string:episode.podcast?.image ?? ""))
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                        .cornerRadius(3)
-                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                    
-                    Text(episode.podcast?.title ?? "Podcast title")
-                        .lineLimit(1)
-                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                        .textDetailEmphasis()
-                }
-                .onTapGesture {
-                    selectedPodcast = episode.podcast
+                NavigationLink {
+                    if episode.podcast?.isSubscribed != false {
+                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
+                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                        }
+                    } else {
+                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
+                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        KFImage(URL(string:episode.podcast?.image ?? ""))
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                            .matchedTransitionSource(id: episode.id, in: namespace)
+                        
+                        Text(episode.podcast?.title ?? "Podcast title")
+                            .lineLimit(1)
+                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                            .textDetailEmphasis()
+                    }
                 }
                 
                 Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textDetail()
-                
-                if !displayedInQueue {
-                    Spacer()
-                    Menu {
-                        Button(action: {
-                            withAnimation {
-                                toggleQueued(episode)
-                            }
-                            try? episode.managedObjectContext?.save()
-                        }) {
-                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage:episode.isQueued ? "circle.slash" : "text.append")
-                        }
-                        
-                        Button(action: {
-                            withAnimation {
-                                episode.isSaved.toggle()
-                            }
-                            try? episode.managedObjectContext?.save()
-                        }) {
-                            Label(episode.isSaved ? "Remove from Saved Episodes" : "Add to Saved Episodes", systemImage:episode.isSaved ? "bookmark.slash" : "bookmark")
-                        }
-                    } label: {
-                        Label("Add to", systemImage:"ellipsis")
-                    }
-                    .labelStyle(.iconOnly)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-                }
             }
             .frame(maxWidth:.infinity, alignment:.leading)
             
@@ -84,6 +68,7 @@ struct EpisodeItem: View {
                             VStack(alignment: .leading, spacing:4) {
                                 Text(episode.title ?? "Episode title")
                                     .foregroundStyle(.white)
+                                    .multilineTextAlignment(.leading)
                                     .titleCondensed()
                                     .lineLimit(4)
                                     .layoutPriority(2)
@@ -98,40 +83,11 @@ struct EpisodeItem: View {
                         }
                 }
             } else {
-                // Tags
-//                HStack {
-//                    if !episode.isPlayed && !episode.isQueued {
-//                        Text("Unplayed")
-//                            .textDetail()
-//                            .padding(.horizontal,3)
-//                            .padding(.vertical,1)
-//                            .background(.surface)
-//                            .clipShape(RoundedRectangle(cornerRadius:3))
-//                    }
-//                    if episode.isQueued {
-//                        Text("Queued")
-//                            .foregroundStyle(.black.opacity(0.75))
-//                            .textDetail()
-//                            .padding(.horizontal,3)
-//                            .padding(.vertical,1)
-//                            .background(Color.accentColor)
-//                            .clipShape(RoundedRectangle(cornerRadius:3))
-//                    }
-//                    if episode.isSaved {
-//                        Text("Saved")
-//                            .foregroundStyle(.black.opacity(0.75))
-//                            .textDetail()
-//                            .padding(.horizontal,3)
-//                            .padding(.vertical,1)
-//                            .background(.yellow)
-//                            .clipShape(RoundedRectangle(cornerRadius:3))
-//                    }
-//                }
-                
                 // Body
                 VStack(alignment:.leading, spacing:8) {
                     Text(episode.title ?? "Episode title")
                         .foregroundStyle(Color.heading)
+                        .multilineTextAlignment(.leading)
                         .if(displayedFullscreen,
                             transform: { $0.titleSerif() },
                             else: { $0.titleCondensed() }
@@ -139,6 +95,7 @@ struct EpisodeItem: View {
                     
                     Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: displayedFullscreen ? false : true))
                         .foregroundStyle(Color.text)
+                        .multilineTextAlignment(.leading)
                         .textBody()
                 }
                 .frame(maxWidth:.infinity, alignment: .leading)
@@ -153,11 +110,9 @@ struct EpisodeItem: View {
                         HStack {
                             if player.isPlayingEpisode(episode) {
                                 if player.isLoadingEpisode(episode) {
-                                    PPSpinner(color: displayedInQueue ? Color.black : Color.background)
+                                    PPSpinner(color: Color.black)
                                 } else {
-                                    Image(systemName: "waveform")
-                                        .symbolEffect(.variableColor.cumulative.dimInactiveLayers.nonReversing)
-                                        .transition(.opacity.combined(with: .scale))
+                                    WaveformView(isPlaying: $isPlaying, color: .black)
                                 }
                             } else {
                                 if episode.isPlayed {
@@ -199,18 +154,14 @@ struct EpisodeItem: View {
                         }
                     }
                     .buttonStyle(
-                        displayedInQueue
-                        ? PPButton(
+//                        ShadowButton()
+                        PPButton(
                             type: .filled,
                             colorStyle: .monochrome,
                             customColors: ButtonCustomColors(
                                 foreground: .black,
                                 background: .white
                             )
-                        )
-                        : PPButton(
-                            type: .filled,
-                            colorStyle: .monochrome
                         )
                     )
                     
@@ -245,52 +196,86 @@ struct EpisodeItem: View {
                             )
                         )
                     }
+                }
+            } else {
+                HStack {
+                    Button(action: {
+                        player.togglePlayback(for: episode)
+                    }) {
+                        HStack {
+                            if player.isPlayingEpisode(episode) {
+                                if player.isLoadingEpisode(episode) {
+                                    PPSpinner(color: Color.background)
+                                } else {
+                                    WaveformView(isPlaying: $isPlaying, color: Color.background)
+                                }
+                            } else {
+                                Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.circle.fill")
+                            }
+                            
+                            if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {
+                                let isQQ = displayedInQueue
+                                let safeDuration: Double = {
+                                    let actual = episode.actualDuration
+                                    return actual > 1 ? actual : episode.duration
+                                }()
+                                
+                                CustomSlider(
+                                    value: Binding(
+                                        get: { player.getProgress(for: episode) },
+                                        set: { player.seek(to: $0) }
+                                    ),
+                                    range: 0...safeDuration,
+                                    onEditingChanged: { isEditing in
+                                        if !isEditing {
+                                            player.seek(to: player.progress)
+                                        }
+                                    },
+                                    isDraggable: false,
+                                    isQQ: isQQ
+                                )
+                                .frame(width: 32)
+                            }
+                            
+                            Text(player.getStableRemainingTime(for: episode))
+                        }
+                    }
+                    .buttonStyle(
+                        PPButton(
+                            type: .filled,
+                            colorStyle: .monochrome
+                        )
+                    )
                     
-//                    Button(action: {
-//                        if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
-//                            player.stop()
-//                            player.markAsPlayed(for: episode, manually: true)
-//                            try? episode.managedObjectContext?.save()
-//                        } else {
-//                            withAnimation {
-//                                toggleQueued(episode)
-//                            }
-//                            try? episode.managedObjectContext?.save()
-//                        }
-//                    }) {
-//                        if displayedInQueue {
-//                            if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
-//                                Label("Mark as played", systemImage: "checkmark.circle")
-//                            } else {
-//                                Label("Archive", systemImage: "archivebox")
-//                            }
-//                        } else {
-//                            Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "checkmark" : "plus.circle")
-//                        }
-//                    }
-//                    .buttonStyle(
-//                        displayedInQueue
-//                        ? PPButton(
-//                            type: .transparent,
-//                            colorStyle: .monochrome,
-//                            iconOnly: true,
-//                            customColors: ButtonCustomColors(
-//                                foreground: .white,
-//                                background: .white.opacity(0.15)
-//                            )
-//                        )
-//                        : episode.isQueued
-//                        ? PPButton(
-//                            type: .filled,
-//                            colorStyle: .tinted
-//                        )
-//                        : PPButton(
-//                            type: .transparent,
-//                            colorStyle: .monochrome
-//                        )
-//                    )
-//                    .transition(.move(edge: .trailing).combined(with: .opacity))
-//                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
+                    Button(action: {
+                        if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
+                            player.stop()
+                            player.markAsPlayed(for: episode, manually: true)
+                            try? episode.managedObjectContext?.save()
+                        } else {
+                            withAnimation {
+                                toggleQueued(episode)
+                            }
+                            try? episode.managedObjectContext?.save()
+                        }
+                    }) {
+                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
+                    }
+                    .buttonStyle(
+                        episode.isQueued
+                        ? PPButton(
+                            type: .transparent,
+                            colorStyle: .tinted,
+                            iconOnly: true
+                        )
+                        : PPButton(
+                            type: .transparent,
+                            colorStyle: .monochrome
+                        )
+                    )
+                    .id(episode.isQueued ? "queued" : "unqueued")
+                    .transition(.opacity)
+                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
                     
                     if savedView {
                         Spacer()
@@ -299,27 +284,27 @@ struct EpisodeItem: View {
                             episode.isSaved.toggle()
                             try? episode.managedObjectContext?.save()
                         }) {
-                            Label("Remove from starred", systemImage: "bookmark.slash")
+                            Label(episode.isSaved ? "Remove from starred" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
                         }
                         .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                        .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                     }
                 }
             }
         }
-        .sheet(item: $selectedPodcast) { podcast in
-            if podcast.isSubscribed {
-                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                    .modifier(PPSheet())
-            } else {
-                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "")
-                    .modifier(PPSheet())
-            }
-        }
+        .contentShape(Rectangle())
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
             Task.detached(priority: .background) {
                 await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+            }
+        }
+        .onReceive(player.$isPlaying) { newValue in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isPlaying = newValue && player.currentEpisode?.id == episode.id
+                }
             }
         }
     }

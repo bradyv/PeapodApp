@@ -7,18 +7,17 @@
 
 import SwiftUI
 import CoreData
+import FeedKit
 
 struct SettingsView: View {
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @State private var podcastCount = 0
     @State private var episodeCount = 0
     @State private var lastSynced: Date? = UserDefaults.standard.object(forKey: "lastCloudSyncDate") as? Date
-    @State private var selectedIconName: String = UIApplication.shared.alternateIconName ?? "AppIcon"
+    @State private var selectedIconName: String = UIApplication.shared.alternateIconName ?? "AppIcon-Green"
     @State private var totalPlayedSeconds: Double = 0
     @State private var subscribedCount: Int = 0
     @State private var playCount: Int = 0
-    @State private var showActivity = false
-    @State private var showAcknowledgements = false
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -37,13 +36,18 @@ struct SettingsView: View {
         AppIcons(name: "Clouds", asset: "AppIcon-Clouds"),
     ]
     
+    var namespace: Namespace.ID
+    
     var body: some View {
         ScrollView {
             Spacer().frame(height:24)
             
             VStack(spacing:24) {
                 VStack(spacing:4) {
-                    Image("Peapod.logo")
+                    Image("Peapod.logo.new")
+                        .resizable()
+                        .frame(width:64,height:46)
+                    
                     Text("Peapod")
                         .titleSerif()
                 }
@@ -96,10 +100,13 @@ struct SettingsView: View {
                 .background(Color.surface)
                 .clipShape(RoundedRectangle(cornerRadius:12))
                 
-                RowItem(icon: "trophy", label: "My Activity")
-                    .onTapGesture {
-                        showActivity.toggle()
+                NavigationLink {
+                    PPPopover(showBg: true) {
+                        ActivityView(namespace: namespace)
                     }
+                } label: {
+                    RowItem(icon: "trophy", label: "My Activity")
+                }
             }
             .padding(.horizontal)
             
@@ -179,7 +186,7 @@ struct SettingsView: View {
             }
             .contentMargins(.horizontal,16, for: .scrollContent)
             
-            VStack {
+            VStack(alignment:.leading) {
                 Text("About")
                     .headerSection()
                     .frame(maxWidth:.infinity, alignment:.leading)
@@ -200,11 +207,44 @@ struct SettingsView: View {
                     }
                 }
                 
-                RowItem(icon: "hands.clap", label: "Libraries")
-                    .onTapGesture {
-                        showAcknowledgements.toggle()
+                NavigationLink {
+                    PPPopover(showBg: true) {
+                        Acknowledgements()
                     }
+                } label: {
+                    RowItem(icon: "hands.clap", label: "Libraries")
+                }
+                
+                #if DEBUG
+                Text("Debug")
+                    .headerSection()
+                
+                Button {
+                    injectTestPodcast()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.diamond")
+                        
+                        Text("Show test feed")
+                            .foregroundStyle(Color.red)
+                            .textBody()
+                    }
+                    .foregroundStyle(Color.red)
+                    .padding(.vertical, 2)
+                }
+                
+                Divider()
+                
+                NavigationLink {
+                    PPPopover(showBg: true) {
+                        OldEpisodes(namespace:namespace)
+                    }
+                } label: {
+                    RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
+                }
+                #endif
             }
+            .frame(maxWidth:.infinity,alignment:.leading)
             .padding(.horizontal)
             
             VStack {
@@ -224,7 +264,8 @@ struct SettingsView: View {
             .padding(.top,24)
             .padding(.horizontal)
         }
-        .background(Color.background)
+        .maskEdge(.top)
+        .maskEdge(.bottom)
         .task {
             let context = PersistenceController.shared.container.viewContext
             podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0
@@ -238,13 +279,65 @@ struct SettingsView: View {
             lastSynced = Date()
             UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
         }
-        .sheet(isPresented: $showActivity) {
-            ActivityView()
-                .modifier(PPSheet())
-        }
-        .sheet(isPresented: $showAcknowledgements) {
-            Acknowledgements()
-                .modifier(PPSheet())
+    }
+    
+    private func injectTestPodcast() {
+        let context = PersistenceController.shared.container.viewContext
+
+        context.perform {
+            let testFeedURL = "https://bradyv.github.io/bvfeed.github.io/feed.xml"
+
+            // Delete old if exists
+            let fetchRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "feedUrl == %@", testFeedURL)
+            if let existing = (try? context.fetch(fetchRequest))?.first {
+                context.delete(existing)
+                print("🗑️ Deleted existing test podcast")
+            }
+
+            // Parse feed
+            FeedParser(URL: URL(string: testFeedURL)!).parseAsync { result in
+                switch result {
+                case .success(let feed):
+                    if let rss = feed.rssFeed {
+                        DispatchQueue.main.async {
+                            let podcast = PodcastLoader.createOrUpdatePodcast(from: rss, feedUrl: testFeedURL, context: context)
+                            podcast.isSubscribed = true
+
+                            // 📢 DIAGNOSTIC PRINTS
+                            print("FeedKit RSS Title:", rss.title ?? "nil")
+                            print("FeedKit RSS iTunes Image:", rss.iTunes?.iTunesImage?.attributes?.href ?? "nil")
+                            print("FeedKit RSS Channel Image:", rss.image?.url ?? "nil")
+                            print("FeedKit RSS First Item Image:", rss.items?.first?.iTunes?.iTunesImage?.attributes?.href ?? "nil")
+
+                            // 📢 MANUAL ASSIGN
+                            let artworkUrl = rss.iTunes?.iTunesImage?.attributes?.href
+                                          ?? rss.image?.url
+                                          ?? rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
+
+                            podcast.image = artworkUrl
+
+                            print("Assigned podcast.image:", podcast.image ?? "nil")
+
+                            // Save and refresh episodes
+                            EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
+                                if let latest = (podcast.episode as? Set<Episode>)?
+                                    .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                                    .first {
+                                    toggleQueued(latest)
+                                }
+                                print("✅ Loaded test feed episodes")
+                            }
+
+                            try? context.save()
+                        }
+                    } else {
+                        print("❌ Failed to parse feed")
+                    }
+                case .failure(let error):
+                    print("❌ Feed parsing failed:", error)
+                }
+            }
         }
     }
 }
@@ -267,8 +360,4 @@ struct AppIcons {
         self.name = name
         self.asset = asset
     }
-}
-
-#Preview {
-    SettingsView()
 }

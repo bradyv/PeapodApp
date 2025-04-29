@@ -9,15 +9,11 @@ import SwiftUI
 import Kingfisher
 
 struct SubscriptionsView: View {
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
-    @State private var showPodcast: Bool = false
-    @State private var selectedPodcast: Podcast? = nil
-    @State private var showSearch = false
+    @Environment(\.colorScheme) var colorScheme
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
+    var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -30,32 +26,40 @@ struct SubscriptionsView: View {
                 // Actual grid with Add button + (possibly empty) real subscriptions
                 LazyVGrid(columns: columns, spacing: 16) {
                     // Always-visible Add button
-                    VStack {
-                        Image(systemName: "plus.magnifyingglass")
-                        Text("Add a podcast")
-                            .textDetailEmphasis()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .aspectRatio(1, contentMode: .fit)
-                    .background(Color.surface)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.surface, lineWidth: 1))
-                    .onTapGesture {
-                        showSearch.toggle()
+                    NavigationLink {
+                        PPPopover(showDismiss: false, pushView: false) {
+                            PodcastSearchView(namespace:namespace)
+                        }
+                        .navigationTransition(.zoom(sourceID: "ppsearch", in: namespace))
+                    } label: {
+                        VStack {
+                            Image(systemName: "plus.magnifyingglass")
+                            Text("Add a podcast")
+                                .textDetailEmphasis()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .aspectRatio(1, contentMode: .fit)
+                        .background(Color.surface)
+                        .foregroundStyle(Color.heading)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.surface, lineWidth: 1))
+                        .matchedTransitionSource(id: "ppsearch", in: namespace)
                     }
 
                     // Real podcasts
                     if !subscriptions.isEmpty {
                         ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" })) { podcast in
-                            KFImage(URL(string: podcast.image ?? ""))
-                                .resizable()
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .aspectRatio(1, contentMode: .fit)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                .onTapGesture {
-                                    selectedPodcast = podcast
+                            NavigationLink {
+                                PPPopover(hex: podcast.podcastTint ?? "#FFFFFF") {
+                                    PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace: namespace)
                                 }
+                            } label: {
+                                KFImage(URL(string: podcast.image ?? ""))
+                                    .resizable()
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                            }
                         }
                     }
                 }
@@ -83,14 +87,6 @@ struct SubscriptionsView: View {
                     )
                     .allowsHitTesting(false) // So the overlay doesn't block taps on the real button
                 }
-            }
-            .sheet(item: $selectedPodcast) { podcast in
-                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                    .modifier(PPSheet())
-            }
-            .sheet(isPresented: $showSearch) {
-                PodcastSearchView()
-                    .modifier(PPSheet())
             }
         }
         .frame(maxWidth:.infinity)

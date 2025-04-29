@@ -10,19 +10,21 @@ import SwiftUI
 struct PodcastEpisodeSearchView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     var podcast: Podcast
     @Binding var showSearch: Bool
     @Binding var selectedEpisode: Episode?
 
     @FetchRequest private var latest: FetchedResults<Episode>
     @State private var query = ""
-    @State private var selectedDetent: PresentationDetent = .medium
     @FocusState private var isTextFieldFocused: Bool
+    var namespace: Namespace.ID
 
-    init(podcast: Podcast, showSearch: Binding<Bool>, selectedEpisode: Binding<Episode?>) {
+    init(podcast: Podcast, showSearch: Binding<Bool>, selectedEpisode: Binding<Episode?>, namespace: Namespace.ID) {
         self.podcast = podcast
         self._showSearch = showSearch
         self._selectedEpisode = selectedEpisode
+        self.namespace = namespace
         _latest = FetchRequest<Episode>(
             sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
             predicate: NSPredicate(format: "podcast == %@", podcast),
@@ -32,6 +34,7 @@ struct PodcastEpisodeSearchView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            Spacer().frame(height:24)
             SearchBox(
                 query: $query,
                 label: "Find an episode of \(podcast.title ?? "Podcast title")",
@@ -58,28 +61,32 @@ struct PodcastEpisodeSearchView: View {
                     
                     LazyVStack(alignment: .leading) {
                         ForEach(filteredEpisodes, id: \.id) { episode in
-                            EpisodeItem(episode: episode)
-                                .lineLimit(3)
-                                .padding(.bottom, 12)
-                                .onTapGesture {
-                                    selectedEpisode = episode
+                            NavigationLink {
+                                PPPopover(pushView:false) {
+                                    EpisodeView(episode: episode, namespace: namespace)
                                 }
+                                .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                            } label: {
+                                EpisodeItem(episode: episode, namespace: namespace)
+                                    .lineLimit(3)
+                                    .padding(.bottom, 12)
+                            }
                         }
                     }
                     .padding(.top, 8)
                 }
             }
-            .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode, selectedDetent: $selectedDetent)
-                    .modifier(PPSheet())
-                    .presentationDetents([.medium, .large], selection: $selectedDetent)
-                    .presentationContentInteraction(.resizes)
-            }
+            .maskEdge(.bottom)
+            .ignoresSafeArea(edges:.bottom)
         }
         .onAppear {
+            nowPlayingManager.isVisible = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 isTextFieldFocused = true
             }
+        }
+        .onDisappear {
+            nowPlayingManager.isVisible = true
         }
     }
 

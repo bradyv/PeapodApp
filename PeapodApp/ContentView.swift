@@ -9,90 +9,149 @@ import SwiftUI
 import CoreData
 
 struct ContentView: View {
+    @Namespace var namespace
     @Environment(\.managedObjectContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var toastManager: ToastManager
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
+    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
+    var subscriptions: FetchedResults<Podcast>
+    @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
     @State private var showSettings = false
-    
-    var body: some View {
-        ZStack(alignment:.topTrailing) {
-            NowPlayingSplash()
-            ScrollView {
-                FadeInView(delay: 0.1) {
-                    QueueView()
-                }
-                FadeInView(delay: 0.2) {
-                    LibraryView()
-                }
-                FadeInView(delay: 0.3) {
-                    SubscriptionsView()
-                }
-                
-                Spacer().frame(height:96)
-            }
-            .maskEdge(.top)
-            .maskEdge(.bottom)
-            .ignoresSafeArea(.all)
-            .onAppear {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                //                }
-            }
-            
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                if newPhase == .active {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                    //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                    //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                    //                    }
-                }
-            }
-            .scrollDisabled(subscriptions.isEmpty)
-            .refreshable {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                //                await withCheckedContinuation { continuation in
-                //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                //                        continuation.resume()
-                //                    }
-                //                }
-            }
-            
-            VStack(alignment:.trailing) {
-                Button(action: {
-                    showSettings.toggle()
-                }) {
-                    Label("Settings", systemImage: "person.crop.circle")
-                }
-                .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+    @State private var currentEpisodeID: String? = nil
+    @State private var path = NavigationPath()
+    @State private var selectedEpisode: Episode?
+    @State private var lastRefreshDate = Date.distantPast
+    @State private var tappedEpisodeID: String?
+    @State private var tappedEpisode: Episode?
 
-                Spacer()
+//    @State private var showOnboarding = true // bv debug
+    @AppStorage("showOnboarding") private var showOnboarding: Bool = true
+
+    var body: some View {
+        ZStack {
+            if showOnboarding {
+                WelcomeView(showOnboarding: $showOnboarding, namespace:namespace)
+            } else {
+                ZStack {
+                    NavigationStack(path: $path) {
+                        ZStack(alignment:.topTrailing) {
+                            NowPlayingSplash(episodeID: currentEpisodeID)
+                                .matchedGeometryEffect(id: "page-bg", in: namespace)
+                            
+                            ScrollView {
+                                FadeInView(delay: 0.1) {
+                                    QueueView(currentEpisodeID: $currentEpisodeID, namespace: namespace)
+                                }
+                                FadeInView(delay: 0.2) {
+                                    LibraryView(namespace: namespace)
+                                }
+                                FadeInView(delay: 0.3) {
+                                    SubscriptionsView(namespace: namespace)
+                                }
+                                
+                                Spacer().frame(height:96)
+                            }
+                            .maskEdge(.top)
+                            .maskEdge(.bottom)
+                            .onAppear {
+                                let now = Date()
+                                if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
+                                    lastRefreshDate = now
+                                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                                }
+                            }
+                            .onChange(of: scenePhase) { oldPhase, newPhase in
+                                if newPhase == .active {
+                                    let now = Date()
+                                    if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
+                                        lastRefreshDate = now
+                                        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                                    }
+                                }
+                            }
+                            .scrollDisabled(subscriptions.isEmpty)
+                            .refreshable {
+                                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                            }
+                            
+                            VStack(alignment:.trailing) {
+                                NavigationLink {
+                                    PPPopover(showBg: true) {
+                                        SettingsView(namespace: namespace)
+                                    }
+                                } label: {
+                                    Label("Settings", systemImage: "person.crop.circle")
+                                }
+                                .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                                Spacer()
+                            }
+                            .frame(maxWidth:.infinity, alignment:.trailing)
+                            .padding(.horizontal)
+                        }
+                        .background(
+                            EllipticalGradient(
+                                stops: [
+                                    Gradient.Stop(color: Color.surface, location: 0.00),
+                                    Gradient.Stop(color: Color.background, location: 1.00),
+                                ],
+                                center: UnitPoint(x: 0, y: 0)
+                            )
+                        )
+                        .navigationDestination(for: Episode.self) { episode in
+                            PPPopover(pushView:false) {
+                                EpisodeView(episode: episode, namespace: namespace) // Now Playing destination
+                            }
+                            .navigationTransition(.zoom(sourceID: "nowplaying", in: namespace))
+                        }
+                        
+                        NavigationLink(isActive: Binding(
+                            get: { tappedEpisode != nil },
+                            set: { newValue in if !newValue { tappedEpisode = nil } }
+                        )) {
+                            if let episode = tappedEpisode {
+                                PPPopover(pushView: false) {
+                                    EpisodeView(episode: episode, namespace: namespace)
+                                }
+                                .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                            }
+                        } label: {
+                            EmptyView()
+                        }
+                        .hidden()
+                    }
+                    .environmentObject(episodesViewModel)
+                    
+                    ZStack(alignment: .bottom) {
+                        if nowPlayingManager.isVisible {
+                            NowPlaying(namespace: namespace) { episode in
+                                path.append(episode)
+                            }
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.3), value: nowPlayingManager.isVisible)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
+                    if let id = notification.object as? String {
+                        let context = PersistenceController.shared.container.viewContext
+                        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                        fetchRequest.predicate = NSPredicate(format: "id == %@", id)
+                        fetchRequest.fetchLimit = 1
+
+                        if let foundEpisode = try? context.fetch(fetchRequest).first {
+                            tappedEpisode = foundEpisode
+                        } else {
+                            print("❌ Could not find episode for id \(id)")
+                        }
+                    }
+                }
             }
-            .frame(maxWidth:.infinity, alignment:.trailing)
-            .padding(.horizontal)
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .modifier(PPSheet())
-            }
-            
-            NowPlaying()
         }
-        .background(
-            EllipticalGradient(
-                stops: [
-                    Gradient.Stop(color: Color.surface, location: 0.00),
-                    Gradient.Stop(color: Color.background, location: 1.00),
-                ],
-                center: UnitPoint(x: 0, y: 0)
-            )
-        )
-//        .NowPlaying()
+        .onAppear {
+            if episodesViewModel.context == nil { // not yet initialized properly
+                episodesViewModel.setup(context: context)
+            }
+        }
 //        .toast()
     }
 }

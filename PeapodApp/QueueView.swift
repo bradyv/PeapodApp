@@ -8,17 +8,10 @@
 import SwiftUI
 
 struct QueueView: View {
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.queuePosition)],
-        predicate: NSPredicate(format: "isQueued == YES"),
-        animation: .interactiveSpring()
-    )
-    var queue: FetchedResults<Episode>
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
+    @Binding var currentEpisodeID: String?
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
+    var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
 
     // Add scroll proxy trigger
@@ -26,9 +19,10 @@ struct QueueView: View {
     
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
+    
+    var namespace: Namespace.ID
 
     var body: some View {
-        Spacer().frame(height:64)
         VStack(alignment: .leading, spacing: 12) {
             Text("Up Next")
                 .titleSerif()
@@ -39,7 +33,7 @@ struct QueueView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         LazyHStack(spacing:8) {
-                            if queue.isEmpty {
+                            if episodesViewModel.queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
                                         HStack(spacing:16) {
@@ -56,6 +50,11 @@ struct QueueView: View {
                                     }
                                     
                                     VStack {
+                                        Image("Peapod.mono")
+                                            .resizable()
+                                            .frame(width:32, height:23)
+                                            .opacity(0.35)
+                                        
                                         Text("Nothing to play")
                                             .titleCondensed()
                                         
@@ -68,25 +67,10 @@ struct QueueView: View {
                                 }
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
-                                ForEach(queue.indices, id: \.self) { index in
-                                    QueueItem(episode: queue[index])
-                                        .id(queue[index].id)
-                                        .lineLimit(3)
-                                        .background(
-                                            GeometryReader { geo in
-                                                Color.clear
-                                                    .preference(key: ScrollOffsetKey.self,
-                                                                value: [index: geo.frame(in: .global).minX])
-                                            }
-                                        )
-                                        .scrollTransition { content, phase in
-                                            content
-                                                .opacity(phase.isIdentity ? 1 : 0.5) // Apply opacity animation
-                                                .scaleEffect(y: phase.isIdentity ? 1 : 0.85) // Apply scale animation
-                                        }
-                                        .onTapGesture {
-                                            selectedEpisode = queue[index]
-                                        }
+                                ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
+                                    QueueItemView(episode: episode, index: index, namespace: namespace) {
+                                        selectedEpisode = episode
+                                    }
                                 }
                             }
                         }
@@ -96,6 +80,9 @@ struct QueueView: View {
                     .onPreferenceChange(ScrollOffsetKey.self) { values in
                         if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
                             scrollOffset = CGFloat(nearest.key)
+                            if episodesViewModel.queue.indices.contains(Int(scrollOffset)) {
+                                currentEpisodeID = episodesViewModel.queue[Int(scrollOffset)].id
+                            }
                         }
                     }
                     .onChange(of: scrollTarget) { id in
@@ -105,14 +92,10 @@ struct QueueView: View {
                             }
                         }
                     }
-                    .disabled(queue.isEmpty)
+                    .disabled(episodesViewModel.queue.isEmpty)
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode)
-                            .modifier(PPSheet())
-                    }
-                    .onChange(of: queue.first?.id) { oldID, newID in
+                    .onChange(of: episodesViewModel.queue.first?.id) { oldID, newID in
                         if let id = newID {
                             DispatchQueue.main.async {
                                 withAnimation {
@@ -123,9 +106,9 @@ struct QueueView: View {
                     }
                 }
                 
-                if queue.count > 1 {
+                if episodesViewModel.queue.count > 1 {
                     HStack(spacing: 8) {
-                        ForEach(queue.indices, id: \.self) { index in
+                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
                             let isCurrent = index == Int(scrollOffset)
 
                             VStack {
@@ -138,7 +121,7 @@ struct QueueView: View {
                             }
                             .frame(height:44)
                             .onTapGesture {
-                                if let id = queue[index].id {
+                                if let id = episodesViewModel.queue[index].id {
                                     withAnimation {
                                         scrollTarget = id
                                     }
@@ -161,5 +144,39 @@ private struct ScrollOffsetKey: PreferenceKey {
     static var defaultValue: [Int: CGFloat] = [:]
     static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+
+struct QueueItemView: View {
+    let episode: Episode
+    let index: Int
+    var namespace: Namespace.ID
+    var onSelect: () -> Void
+
+    var body: some View {
+        NavigationLink {
+            PPPopover(pushView:false) {
+                EpisodeView(episode: episode, namespace: namespace)
+            }
+            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+        } label: {
+            QueueItem(episode: episode, namespace: namespace)
+                .matchedTransitionSource(id: episode.id, in: namespace)
+                .id(episode.id)
+                .lineLimit(3)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .preference(key: ScrollOffsetKey.self,
+                                        value: [index: geo.frame(in: .global).minX])
+                    }
+                )
+                .scrollTransition { content, phase in
+                    content
+                        .opacity(phase.isIdentity ? 1 : 0.5)
+                        .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
+                }
+        }
+        .buttonStyle(NoHighlight())
     }
 }

@@ -9,6 +9,7 @@
         <attribute name="episodeImage" optional="YES" attributeType="String"/>
         <attribute name="episodeTint" optional="YES" attributeType="String"/>
         <attribute name="episodeTintDarkened" optional="YES" attributeType="String"/>
+        <attribute name="guid" optional="YES" attributeType="String"/>
         <attribute name="hasBeenSeen" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="String"/>
         <attribute name="isPlayed" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
@@ -21,6 +22,9 @@
         <attribute name="title" optional="YES" attributeType="String"/>
         <relationship name="playlist" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Playlist" inverseName="items" inverseEntity="Playlist"/>
         <relationship name="podcast" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Podcast" inverseName="episode" inverseEntity="Podcast"/>
+        <fetchIndex name="guid_index">
+            <fetchIndexElement property="guid" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <entity name="Playlist" representedClassName="Playlist" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
@@ -40,5 +44,11 @@
         <attribute name="podcastTintDarkened" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String" defaultValueString="Podcast Title"/>
         <relationship name="episode" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Episode" inverseName="podcast" inverseEntity="Episode"/>
+        <fetchIndex name="feedUrl_index">
+            <fetchIndexElement property="feedUrl" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="isSubscribed_index">
+            <fetchIndexElement property="isSubscribed" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
 </model>

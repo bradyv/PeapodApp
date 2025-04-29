@@ -9,18 +9,13 @@ import SwiftUI
 
 struct OldEpisodes: View {
     @Environment(\.managedObjectContext) private var context
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
-        predicate: NSPredicate(format: "(podcast = nil OR podcast.isSubscribed != YES) AND isSaved == NO AND isPlayed == NO"),
-        animation: .interactiveSpring()
-    )
-    var old: FetchedResults<Episode>
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedEpisode: Episode? = nil
     @State private var showDeleteConfirmation = false
     var namespace: Namespace.ID
     
     private func deleteOldEpisodes() {
-        for episode in old {
+        for episode in episodesViewModel.old {
             context.delete(episode)
         }
         do {
@@ -31,7 +26,7 @@ struct OldEpisodes: View {
     }
     
     var body: some View {
-        if old.isEmpty {
+        if episodesViewModel.old.isEmpty {
             VStack {
                 Text("No old episodes to purge")
                     .titleCondensed()
@@ -58,7 +53,7 @@ struct OldEpisodes: View {
                 }
                 
                 LazyVStack {
-                    ForEach(old, id: \.id) { episode in
+                    ForEach(episodesViewModel.old, id: \.id) { episode in
                         EpisodeItem(episode: episode, savedView:true, namespace: namespace)
                             .lineLimit(3)
                             .padding(.bottom, 24)
@@ -76,7 +71,7 @@ struct OldEpisodes: View {
             .onAppear {
                 context.refreshAllObjects()
 
-                for episode in old {
+                for episode in episodesViewModel.old {
                     if let podcast = episode.podcast {
                         context.refresh(podcast, mergeChanges: true)
                     }

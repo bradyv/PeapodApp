@@ -32,11 +32,13 @@ struct Peapod: App {
                         .transition(.opacity)
                         .onAppear {
                             runDeduplicationOnceIfNeeded(context: PersistenceController.shared.container.viewContext)
-                            scheduleEpisodeCleanup()
+                            appDelegate.scheduleEpisodeCleanup()
                             if !hasRunOneTimeSplashMark {
                                 oneTimeSplashMark(context: PersistenceController.shared.container.viewContext)
                                 hasRunOneTimeSplashMark = true
                             }
+                            migrateMissingEpisodeGUIDs(context: PersistenceController.shared.container.viewContext)
+                            mergeDuplicateEpisodes(context: PersistenceController.shared.container.viewContext)
 //                            appDelegate.debugPurgeOldEpisodes() // bv debug
                         }
                 } else {
@@ -47,14 +49,22 @@ struct Peapod: App {
                         .preferredColorScheme(preferredColorScheme(for: appTheme))
                         .onAppear {
                             let context = PersistenceController.shared.container.viewContext
+                            let center = UNUserNotificationCenter.current()
+                                center.getNotificationSettings { settings in
+                                    if settings.authorizationStatus == .notDetermined {
+                                        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                                            if granted {
+                                                print("✅ Local notifications authorized")
+                                            } else if let error = error {
+                                                print("❌ Notification permission error: \(error.localizedDescription)")
+                                            } else {
+                                                print("❌ Notification permission denied")
+                                            }
+                                        }
+                                    }
+                                }
                             ensureQueuePlaylistExists(context: context)
                             migrateOldQueueToPlaylist(context: context)
-                            //                    Task {
-                            //                        await persistenceController.container.viewContext.perform {
-                            //                            removeDuplicateEpisodes(context: persistenceController.container.viewContext)
-                            //                            print("Episodes flushed")
-                            //                        }
-                            //                    }
                             if !didFlushTints {
                                 resetAllTints(in: persistenceController.container.viewContext)
                                 didFlushTints = true
@@ -79,21 +89,6 @@ struct Peapod: App {
         case .system: return nil
         case .dark: return .dark
         case .light: return .light
-        }
-    }
-    
-    func scheduleEpisodeCleanup() {
-        let identifier = "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1"
-        print("📆 Scheduling background task: \(identifier)")
-
-        let request = BGAppRefreshTaskRequest(identifier: identifier)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60 * 24 * 7)
-
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            print("✅ Scheduled background task")
-        } catch {
-            print("❌ Failed to schedule background task: \(error)")
         }
     }
 }

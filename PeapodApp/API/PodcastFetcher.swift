@@ -134,22 +134,47 @@ enum PodcastLoader {
             podcast.isSubscribed = false
         }
 
-        let existingTitles = Set((podcast.episode as? Set<Episode>)?.compactMap { $0.title } ?? [])
+        let existingEpisodes = (podcast.episode as? Set<Episode>) ?? []
+        var existingEpisodesByGuid: [String: Episode] = [:]
+        var existingEpisodesByTitleAndDate: [String: Episode] = [:]
+
+        for episode in existingEpisodes {
+            if let guid = episode.guid {
+                existingEpisodesByGuid[guid] = episode
+            } else if let title = episode.title, let airDate = episode.airDate {
+                let key = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
+                existingEpisodesByTitleAndDate[key] = episode
+            }
+        }
 
         for item in rss.items ?? [] {
-            guard let title = item.title, !existingTitles.contains(title) else { continue }
+            guard let title = item.title else { continue }
 
-            let e = Episode(context: context)
-            e.id = UUID().uuidString
-            e.title = title
-            e.audio = item.enclosure?.attributes?.url
-            e.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
-            e.airDate = item.pubDate
-            if let durationString = item.iTunes?.iTunesDuration {
-                e.duration = Double(durationString)
+            var existingEpisode: Episode?
+
+            if let guid = item.guid?.value {
+                existingEpisode = existingEpisodesByGuid[guid]
+            } else if let pubDate = item.pubDate {
+                let key = "\(title.lowercased())_\(pubDate.timeIntervalSince1970)"
+                existingEpisode = existingEpisodesByTitleAndDate[key]
             }
-            e.episodeImage = item.iTunes?.iTunesImage?.attributes?.href
-            e.podcast = podcast
+
+            let episode = existingEpisode ?? Episode(context: context)
+
+            if existingEpisode == nil {
+                episode.id = UUID().uuidString
+                episode.podcast = podcast
+            }
+
+            episode.guid = item.guid?.value
+            episode.title = title
+            episode.audio = item.enclosure?.attributes?.url
+            episode.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
+            episode.airDate = item.pubDate
+            if let durationString = item.iTunes?.iTunesDuration {
+                episode.duration = Double(durationString)
+            }
+            episode.episodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
         }
 
         try? context.save()

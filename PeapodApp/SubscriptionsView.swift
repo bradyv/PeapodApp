@@ -10,11 +10,8 @@ import Kingfisher
 
 struct SubscriptionsView: View {
     @Environment(\.colorScheme) var colorScheme
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
+    var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     var namespace: Namespace.ID
     

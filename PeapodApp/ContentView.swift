@@ -14,15 +14,17 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var toastManager: ToastManager
     @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
+    var subscriptions: FetchedResults<Podcast>
+    @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
     @State private var showSettings = false
     @State private var currentEpisodeID: String? = nil
     @State private var path = NavigationPath()
     @State private var selectedEpisode: Episode?
+    @State private var lastRefreshDate = Date.distantPast
+    @State private var tappedEpisodeID: String?
+    @State private var tappedEpisode: Episode?
+
 //    @State private var showOnboarding = true // bv debug
     @AppStorage("showOnboarding") private var showOnboarding: Bool = true
 
@@ -53,29 +55,24 @@ struct ContentView: View {
                             .maskEdge(.top)
                             .maskEdge(.bottom)
                             .onAppear {
-                                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                                //                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                                //                    toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                                //                }
+                                let now = Date()
+                                if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
+                                    lastRefreshDate = now
+                                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                                }
                             }
                             .onChange(of: scenePhase) { oldPhase, newPhase in
                                 if newPhase == .active {
-                                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                                    //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                                    //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                                    //                    }
+                                    let now = Date()
+                                    if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
+                                        lastRefreshDate = now
+                                        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                                    }
                                 }
                             }
                             .scrollDisabled(subscriptions.isEmpty)
                             .refreshable {
                                 EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                                print("refreshed")
-                                //                await withCheckedContinuation { continuation in
-                                //                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                                //                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-                                //                        continuation.resume()
-                                //                    }
-                                //                }
                             }
                             
                             VStack(alignment:.trailing) {
@@ -107,7 +104,23 @@ struct ContentView: View {
                             }
                             .navigationTransition(.zoom(sourceID: "nowplaying", in: namespace))
                         }
+                        
+                        NavigationLink(isActive: Binding(
+                            get: { tappedEpisode != nil },
+                            set: { newValue in if !newValue { tappedEpisode = nil } }
+                        )) {
+                            if let episode = tappedEpisode {
+                                PPPopover(pushView: false) {
+                                    EpisodeView(episode: episode, namespace: namespace)
+                                }
+                                .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                            }
+                        } label: {
+                            EmptyView()
+                        }
+                        .hidden()
                     }
+                    .environmentObject(episodesViewModel)
                     
                     ZStack(alignment: .bottom) {
                         if nowPlayingManager.isVisible {
@@ -118,6 +131,25 @@ struct ContentView: View {
                     }
                     .animation(.easeInOut(duration: 0.3), value: nowPlayingManager.isVisible)
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
+                    if let id = notification.object as? String {
+                        let context = PersistenceController.shared.container.viewContext
+                        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                        fetchRequest.predicate = NSPredicate(format: "id == %@", id)
+                        fetchRequest.fetchLimit = 1
+
+                        if let foundEpisode = try? context.fetch(fetchRequest).first {
+                            tappedEpisode = foundEpisode
+                        } else {
+                            print("❌ Could not find episode for id \(id)")
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if episodesViewModel.context == nil { // not yet initialized properly
+                episodesViewModel.setup(context: context)
             }
         }
 //        .toast()

@@ -77,10 +77,13 @@
 	<array>
 		<string>audio</string>
 		<string>remote-notification</string>
+        <string>fetch</string>
+        <string>processing</string>
 	</array>
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
         <string>com.bradyv.Peapod.Dev.deleteOldEpisodes.v1</string>
+        <string>com.bradyv.Peapod.Dev.refreshEpisodes.v1</string>
     </array>
 </dict>
 </plist>

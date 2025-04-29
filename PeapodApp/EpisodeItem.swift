@@ -154,18 +154,14 @@ struct EpisodeItem: View {
                         }
                     }
                     .buttonStyle(
-                        displayedInQueue
-                        ? PPButton(
+//                        ShadowButton()
+                        PPButton(
                             type: .filled,
                             colorStyle: .monochrome,
                             customColors: ButtonCustomColors(
                                 foreground: .black,
                                 background: .white
                             )
-                        )
-                        : PPButton(
-                            type: .filled,
-                            colorStyle: .monochrome
                         )
                     )
                     

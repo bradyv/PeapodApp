@@ -34,7 +34,7 @@ struct QueueItem: View {
                 Spacer()
             }
         }
-        .frame(width: frame, height: 400)
+        .frame(width: frame, height: 450)
         .background(Color.tint(for:episode, darkened: true))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))

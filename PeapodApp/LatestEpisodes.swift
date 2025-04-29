@@ -8,23 +8,12 @@
 import SwiftUI
 
 struct LatestEpisodes: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var toastManager: ToastManager
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
-        predicate: NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES"),
-        animation: .interactiveSpring()
-    )
-    var latest: FetchedResults<Episode>
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
-        predicate: NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES AND isPlayed == NO AND playbackPosition == 0 AND nowPlaying = NO"),
-        animation: .interactiveSpring()
-    )
-    var unplayed: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
-    var namespace: Namespace.ID
     @State private var showAll = true
+    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
@@ -52,7 +41,7 @@ struct LatestEpisodes: View {
             
             FadeInView(delay: 0.4) {
                 LazyVStack(alignment: .leading) {
-                    ForEach(showAll ? latest : unplayed, id: \.id) { episode in
+                    ForEach(showAll ? episodesViewModel.latest : episodesViewModel.unplayed, id: \.id) { episode in
                         NavigationLink {
                             PPPopover(pushView:false) {
                                 EpisodeView(episode: episode, namespace: namespace)
@@ -72,10 +61,10 @@ struct LatestEpisodes: View {
         .toast()
         .maskEdge(.top)
         .maskEdge(.bottom)
-        .onAppear {
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-//                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-            }
-        }
+//        .refreshable {
+//            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+////                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+//            }
+//        }
     }
 }

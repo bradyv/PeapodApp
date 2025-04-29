@@ -8,11 +8,8 @@
 import SwiftUI
 
 struct LibraryView: View {
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
+    var subscriptions: FetchedResults<Podcast>
     @State private var activeSheet: ActiveSheet?
     var namespace: Namespace.ID
     

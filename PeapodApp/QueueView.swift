@@ -9,17 +9,9 @@ import SwiftUI
 
 struct QueueView: View {
     @Binding var currentEpisodeID: String?
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.queuePosition)],
-        predicate: NSPredicate(format: "playlist.name == %@", "Queue"),
-        animation: .interactiveSpring()
-    )
-    var queue: FetchedResults<Episode>
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.title)],
-        predicate: NSPredicate(format: "isSubscribed == YES"),
-        animation: .default
-    ) var subscriptions: FetchedResults<Podcast>
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
+    var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
 
     // Add scroll proxy trigger
@@ -41,7 +33,7 @@ struct QueueView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         LazyHStack(spacing:8) {
-                            if queue.isEmpty {
+                            if episodesViewModel.queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
                                         HStack(spacing:16) {
@@ -75,9 +67,9 @@ struct QueueView: View {
                                 }
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
-                                ForEach(queue.indices, id: \.self) { index in
-                                    QueueItemView(episode: queue[index], index: index, namespace: namespace) {
-                                        selectedEpisode = queue[index]
+                                ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
+                                    QueueItemView(episode: episode, index: index, namespace: namespace) {
+                                        selectedEpisode = episode
                                     }
                                 }
                             }
@@ -88,8 +80,8 @@ struct QueueView: View {
                     .onPreferenceChange(ScrollOffsetKey.self) { values in
                         if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
                             scrollOffset = CGFloat(nearest.key)
-                            if queue.indices.contains(Int(scrollOffset)) {
-                                currentEpisodeID = queue[Int(scrollOffset)].id
+                            if episodesViewModel.queue.indices.contains(Int(scrollOffset)) {
+                                currentEpisodeID = episodesViewModel.queue[Int(scrollOffset)].id
                             }
                         }
                     }
@@ -100,10 +92,10 @@ struct QueueView: View {
                             }
                         }
                     }
-                    .disabled(queue.isEmpty)
+                    .disabled(episodesViewModel.queue.isEmpty)
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
-                    .onChange(of: queue.first?.id) { oldID, newID in
+                    .onChange(of: episodesViewModel.queue.first?.id) { oldID, newID in
                         if let id = newID {
                             DispatchQueue.main.async {
                                 withAnimation {
@@ -114,9 +106,9 @@ struct QueueView: View {
                     }
                 }
                 
-                if queue.count > 1 {
+                if episodesViewModel.queue.count > 1 {
                     HStack(spacing: 8) {
-                        ForEach(queue.indices, id: \.self) { index in
+                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
                             let isCurrent = index == Int(scrollOffset)
 
                             VStack {
@@ -129,7 +121,7 @@ struct QueueView: View {
                             }
                             .frame(height:44)
                             .onTapGesture {
-                                if let id = queue[index].id {
+                                if let id = episodesViewModel.queue[index].id {
                                     withAnimation {
                                         scrollTarget = id
                                     }

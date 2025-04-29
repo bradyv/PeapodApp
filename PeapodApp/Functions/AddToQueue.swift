@@ -8,7 +8,7 @@
 import SwiftUI
 import CoreData
 
-func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil) {
+func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
     let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
 
     // Fetch or create the Queue playlist
@@ -56,4 +56,7 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
     }
 
     try? context.save()
+    Task { @MainActor in
+        episodesViewModel?.updateQueue()
+    }
 }

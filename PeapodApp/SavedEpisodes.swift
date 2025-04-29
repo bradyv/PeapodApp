@@ -8,12 +8,7 @@
 import SwiftUI
 
 struct SavedEpisodes: View {
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.id)],
-        predicate: NSPredicate(format: "isSaved == YES"),
-        animation: .interactiveSpring()
-    )
-    var saved: FetchedResults<Episode>
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     var namespace: Namespace.ID
     
     var body: some View {
@@ -26,7 +21,7 @@ struct SavedEpisodes: View {
                     .padding(.leading).padding(.top,24)
             }
             
-            if saved.isEmpty {
+            if episodesViewModel.saved.isEmpty {
                 ZStack {
                     VStack {
                         ForEach(0..<2, id: \.self) { _ in
@@ -48,7 +43,7 @@ struct SavedEpisodes: View {
                     }
                 }
             } else {
-                ForEach(saved, id: \.id) { episode in
+                ForEach(episodesViewModel.saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
                         NavigationLink {
                             PPPopover(pushView:false) {
@@ -67,6 +62,6 @@ struct SavedEpisodes: View {
         }
         .maskEdge(.top)
         .maskEdge(.bottom)
-        .disabled(saved.isEmpty)
+        .disabled(episodesViewModel.saved.isEmpty)
     }
 }

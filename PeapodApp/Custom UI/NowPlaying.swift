@@ -9,11 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct NowPlayingSplash: View {
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.queuePosition)],
-        predicate: NSPredicate(format: "isQueued == YES"),
-        animation: .interactiveSpring()
-    )
+    @FetchRequest(fetchRequest: Episode.queueFetchRequest(), animation: .interactiveSpring())
     var nowPlaying: FetchedResults<Episode>
     var episodeID: String?
     @State private var displayedEpisode: Episode?
@@ -56,11 +52,7 @@ struct NowPlaying: View {
     @State private var spacing: CGFloat = -38
     @State private var infoMaxWidth: CGFloat = 100
     @State private var isNowPlaying = false
-    @FetchRequest(
-        sortDescriptors: [SortDescriptor(\.queuePosition)],
-        predicate: NSPredicate(format: "nowPlaying == YES"),
-        animation: .interactiveSpring()
-    )
+    @FetchRequest(fetchRequest: Episode.queueFetchRequest(), animation: .interactiveSpring())
     var nowPlaying: FetchedResults<Episode>
     var displayedInQueue: Bool = false
     var namespace: Namespace.ID

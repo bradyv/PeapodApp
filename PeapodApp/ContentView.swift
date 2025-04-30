@@ -131,6 +131,23 @@ struct ContentView: View {
                     }
                     .animation(.easeInOut(duration: 0.3), value: nowPlayingManager.isVisible)
                 }
+                .onAppear {
+                    let context = PersistenceController.shared.container.viewContext
+                    let center = UNUserNotificationCenter.current()
+                        center.getNotificationSettings { settings in
+                            if settings.authorizationStatus == .notDetermined {
+                                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                                    if granted {
+                                        print("✅ Local notifications authorized")
+                                    } else if let error = error {
+                                        print("❌ Notification permission error: \(error.localizedDescription)")
+                                    } else {
+                                        print("❌ Notification permission denied")
+                                    }
+                                }
+                            }
+                        }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
                     if let id = notification.object as? String {
                         let context = PersistenceController.shared.container.viewContext

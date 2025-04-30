@@ -49,24 +49,10 @@ struct Peapod: App {
                         .preferredColorScheme(preferredColorScheme(for: appTheme))
                         .onAppear {
                             let context = PersistenceController.shared.container.viewContext
-                            let center = UNUserNotificationCenter.current()
-                                center.getNotificationSettings { settings in
-                                    if settings.authorizationStatus == .notDetermined {
-                                        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                                            if granted {
-                                                print("✅ Local notifications authorized")
-                                            } else if let error = error {
-                                                print("❌ Notification permission error: \(error.localizedDescription)")
-                                            } else {
-                                                print("❌ Notification permission denied")
-                                            }
-                                        }
-                                    }
-                                }
                             ensureQueuePlaylistExists(context: context)
                             migrateOldQueueToPlaylist(context: context)
                             if !didFlushTints {
-                                resetAllTints(in: persistenceController.container.viewContext)
+                                resetAllTints(in: context)
                                 didFlushTints = true
                             }
                         }

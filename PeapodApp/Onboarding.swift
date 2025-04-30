@@ -86,10 +86,10 @@ struct WelcomeView: View {
                                         Circle()
                                             .stroke(Color.background, lineWidth: 2)
                                     )
-                                    .scaleEffect(poppedPodcastID == podcast.id ? 1.15 : 1.0)
-                                    .animation(.spring(response: 0.35, dampingFraction: 0.6), value: poppedPodcastID)
                                 }
                             }
+                            .scaleEffect(poppedPodcastID == podcast.id ? 1.15 : 1.0)
+                            .animation(.spring(response: 0.35, dampingFraction: 0.6), value: poppedPodcastID)
                             .onTapGesture {
                                 let url = podcast.feedUrl
                                 PodcastLoader.loadFeed(from: url, context: context) { loadedPodcast in

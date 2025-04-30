@@ -103,6 +103,7 @@ struct ContentView: View {
                                 EpisodeView(episode: episode, namespace: namespace) // Now Playing destination
                             }
                             .navigationTransition(.zoom(sourceID: "nowplaying", in: namespace))
+                            .interactiveDismissDisabled(false)
                         }
                         
                         NavigationLink(isActive: Binding(
@@ -114,6 +115,7 @@ struct ContentView: View {
                                     EpisodeView(episode: episode, namespace: namespace)
                                 }
                                 .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                .interactiveDismissDisabled(false)
                             }
                         } label: {
                             EmptyView()

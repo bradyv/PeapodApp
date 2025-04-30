@@ -116,6 +116,7 @@ struct ActivityView: View {
                                     EpisodeView(episode: episode, namespace: namespace)
                                 }
                                 .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                .interactiveDismissDisabled(false)
                             } label: {
                                 EpisodeItem(episode: episode, namespace: namespace)
                                     .lineLimit(3)

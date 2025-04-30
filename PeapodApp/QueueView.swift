@@ -166,6 +166,7 @@ struct QueueItemView: View {
                 EpisodeView(episode: episode, namespace: namespace)
             }
             .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+            .interactiveDismissDisabled(false)
         } label: {
             QueueItem(episode: episode, namespace: namespace)
                 .matchedTransitionSource(id: episode.id, in: namespace)

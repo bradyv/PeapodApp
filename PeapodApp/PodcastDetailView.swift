@@ -8,6 +8,7 @@
 import SwiftUI
 import FeedKit
 import Kingfisher
+import CoreData
 
 struct PodcastDetailView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -187,12 +188,28 @@ struct PodcastDetailView: View {
                                         
                                         Button(action: {
                                             podcast.isSubscribed.toggle()
-                                            if podcast.isSubscribed,
-                                               let latest = (podcast.episode as? Set<Episode>)?
-                                                .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                                .first {
-                                                toggleQueued(latest)
+
+                                            if podcast.isSubscribed {
+                                                if let latest = (podcast.episode as? Set<Episode>)?
+                                                    .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                                                    .first {
+                                                    toggleQueued(latest)
+                                                }
+                                            } else {
+                                                // Remove all of this podcast's episodes from the Queue playlist
+                                                let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
+                                                request.predicate = NSPredicate(format: "name == %@", "Queue")
+
+                                                if let queuePlaylist = try? context.fetch(request).first,
+                                                   let allEpisodes = podcast.episode as? Set<Episode> {
+                                                    for episode in allEpisodes where (queuePlaylist.items as? Set<Episode>)?.contains(episode) == true {
+                                                        queuePlaylist.removeFromItems(episode)
+                                                        episode.isQueued = false
+                                                        episode.queuePosition = -1
+                                                    }
+                                                }
                                             }
+
                                             try? podcast.managedObjectContext?.save()
                                         }) {
                                             Text(podcast.isSubscribed ? "Unfollow" : "Follow")

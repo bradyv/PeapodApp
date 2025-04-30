@@ -107,31 +107,38 @@ struct QueueView: View {
                 }
                 
                 if episodesViewModel.queue.count > 1 {
-                    HStack(spacing: 8) {
-                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
-                            let isCurrent = index == Int(scrollOffset)
-
-                            VStack {
-                                Capsule()
-                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
-                                    .frame(width: isCurrent ? 18 : 6, height: 6)
-                                    .contentShape(Circle())
-                                    .transition(.opacity)
-                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
-                            }
-                            .frame(height:44)
-                            .onTapGesture {
-                                if let id = episodesViewModel.queue[index].id {
-                                    withAnimation {
-                                        scrollTarget = id
+                    GeometryReader { geo in
+                        HStack(spacing: 8) {
+                            Spacer()
+//                            ForEach((0...100), id: \.self) { index in
+                            ForEach(episodesViewModel.queue.indices, id: \.self) { index in
+                                let isCurrent = index == Int(scrollOffset)
+                                
+                                VStack {
+                                    Capsule()
+                                        .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
+                                        .frame(width: isCurrent ? 18 : 6, height: 6)
+                                        .contentShape(Circle())
+                                        .transition(.opacity)
+                                        .animation(.easeOut(duration: 0.3), value: isCurrent)
+                                }
+                                .frame(height:44)
+                                .fixedSize()
+                                .onTapGesture {
+                                    if let id = episodesViewModel.queue[index].id {
+                                        withAnimation {
+                                            scrollTarget = id
+                                        }
                                     }
                                 }
                             }
+                            Spacer()
                         }
+                        .frame(maxWidth: geo.size.width, alignment:.leading)
+                        .clipped()
+                        .padding(.horizontal)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal)
-                    .frame(maxWidth:.infinity)
-                    .contentShape(Rectangle())
                 }
             }
         }

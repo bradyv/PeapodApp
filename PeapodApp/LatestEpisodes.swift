@@ -58,6 +58,9 @@ struct LatestEpisodes: View {
                 }
             }
         }
+        .onAppear {
+            episodesViewModel.fetchLatest()
+        }
         .toast()
         .maskEdge(.top)
         .maskEdge(.bottom)

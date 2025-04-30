@@ -60,6 +60,9 @@ struct SavedEpisodes: View {
                 }
             }
         }
+        .onAppear {
+            episodesViewModel.fetchSaved()
+        }
         .maskEdge(.top)
         .maskEdge(.bottom)
         .disabled(episodesViewModel.saved.isEmpty)

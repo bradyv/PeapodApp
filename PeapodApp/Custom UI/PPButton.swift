@@ -93,6 +93,7 @@ struct PPButton: ButtonStyle {
     var medium: Bool = false
     var large: Bool = false
     var borderless: Bool = false
+    var hierarchical: Bool = true
     var customColors: ButtonCustomColors? = nil
 
     func makeBody(configuration: Configuration) -> some View {
@@ -102,6 +103,7 @@ struct PPButton: ButtonStyle {
             configuration.label
                 .opacity(iconOnly ? 1 : 1)
         }
+        .symbolRenderingMode(hierarchical ? .hierarchical : .monochrome)
         .if(iconOnly, transform: { $0.labelStyle(.iconOnly) })
         .padding(.vertical, iconOnly ? 12 : 10)
         .padding(.horizontal, iconOnly ? 12 : 16)

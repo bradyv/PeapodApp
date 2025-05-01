@@ -42,19 +42,11 @@ struct LatestEpisodes: View {
             FadeInView(delay: 0.4) {
                 LazyVStack(alignment: .leading) {
                     ForEach(showAll ? episodesViewModel.latest : episodesViewModel.unplayed, id: \.id) { episode in
-                        NavigationLink {
-                            PPPopover(pushView:false) {
-                                EpisodeView(episode: episode, namespace: namespace)
-                            }
-                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-                            .interactiveDismissDisabled(false)
-                        } label: {
-                            EpisodeItem(episode: episode, namespace: namespace)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .padding(.horizontal)
-                        }
-                        .animation(.easeOut(duration: 0.2), value: showAll)
+                        EpisodeItem(episode: episode, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
+                            .animation(.easeOut(duration: 0.2), value: showAll)
                     }
                 }
             }

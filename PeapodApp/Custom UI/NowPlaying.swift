@@ -47,6 +47,7 @@ struct NowPlayingSplash: View {
 
 struct NowPlaying: View {
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var selectedEpisode: Episode? = nil
     @State private var spacing: CGFloat = -38
@@ -66,17 +67,16 @@ struct NowPlaying: View {
                 
                 HStack {
                     Button {
-                        onTap?(episode)
+                        episodeSelectionManager.selectEpisode(episode)
                     } label: {
                         HStack {
                             KFImage(URL(string: episode.episodeImage ?? episode.podcast?.image ?? ""))
                                 .resizable()
                                 .frame(width:36, height:36)
                                 .clipShape(Circle())
-                                .matchedTransitionSource(id: episode.id, in: namespace)
                             
                             VStack(alignment:.leading, spacing:0) {
-                                Text(episode.podcast?.title ?? "Podacst title")
+                                Text(episode.podcast?.title ?? "Podcast title")
                                     .textDetail()
                                     .lineLimit(1)
                                 

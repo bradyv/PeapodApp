@@ -10,7 +10,6 @@ import SwiftUI
 struct LibraryView: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
     var subscriptions: FetchedResults<Podcast>
-    @State private var activeSheet: ActiveSheet?
     var namespace: Namespace.ID
     
     var body: some View {

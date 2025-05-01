@@ -25,7 +25,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .system: return "circle.righthalf.filled.inverse"
-        case .dark: return "moon.stars"
+        case .dark: return "moon.stars.fill"
         case .light: return "sun.max"
         }
     }

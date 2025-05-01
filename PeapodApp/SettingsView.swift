@@ -120,6 +120,7 @@ struct SettingsView: View {
                     let isSelected = appTheme == theme
                     VStack(alignment:.leading, spacing: 8) {
                         Image(systemName: theme.icon)
+                            .symbolRenderingMode(.hierarchical)
                         Text(theme.label)
                             .textBody()
                     }

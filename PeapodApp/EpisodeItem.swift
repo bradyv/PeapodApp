@@ -10,6 +10,7 @@ import Kingfisher
 
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var selectedPodcast: Podcast? = nil
@@ -168,8 +169,10 @@ struct EpisodeItem: View {
                     if displayedInQueue {
                         Button(action: {
                             if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) {
-                                player.stop()
-                                player.markAsPlayed(for: episode, manually: true)
+                                withAnimation {
+                                    player.stop()
+                                    player.markAsPlayed(for: episode, manually: true)
+                                }
                                 try? episode.managedObjectContext?.save()
                             } else {
                                 withAnimation {
@@ -308,6 +311,9 @@ struct EpisodeItem: View {
                     isPlaying = newValue && player.currentEpisode?.id == episode.id
                 }
             }
+        }
+        .onTapGesture {
+            episodeSelectionManager.selectEpisode(episode)
         }
     }
 }

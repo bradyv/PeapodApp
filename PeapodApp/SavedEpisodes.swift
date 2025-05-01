@@ -45,18 +45,10 @@ struct SavedEpisodes: View {
             } else {
                 ForEach(episodesViewModel.saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        NavigationLink {
-                            PPPopover(pushView:false) {
-                                EpisodeView(episode: episode, namespace: namespace)
-                            }
-                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-                            .interactiveDismissDisabled(false)
-                        } label: {
-                            EpisodeItem(episode: episode, savedView:true, namespace: namespace)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .padding(.horizontal)
-                        }
+                        EpisodeItem(episode: episode, savedView:true, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
                     }
                 }
             }

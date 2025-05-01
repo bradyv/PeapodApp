@@ -111,19 +111,11 @@ struct ActivityView: View {
                 VStack {
                     ForEach(played, id: \.id) { episode in
                         FadeInView(delay: 0.5) {
-                            NavigationLink {
-                                PPPopover {
-                                    EpisodeView(episode: episode, namespace: namespace)
-                                }
-                                .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-                                .interactiveDismissDisabled(false)
-                            } label: {
-                                EpisodeItem(episode: episode, namespace: namespace)
-                                    .lineLimit(3)
-                                    .padding(.bottom, 24)
-                                    .padding(.horizontal)
-                                    .matchedTransitionSource(id: episode.id, in: namespace)
-                            }
+                            EpisodeItem(episode: episode, namespace: namespace)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .padding(.horizontal)
+                                .matchedTransitionSource(id: episode.id, in: namespace)
                         }
                     }
                 }

@@ -155,36 +155,31 @@ private struct ScrollOffsetKey: PreferenceKey {
 }
 
 struct QueueItemView: View {
+    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     let episode: Episode
     let index: Int
     var namespace: Namespace.ID
     var onSelect: () -> Void
 
     var body: some View {
-        NavigationLink {
-            PPPopover(pushView:false) {
-                EpisodeView(episode: episode, namespace: namespace)
-            }
-            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-            .interactiveDismissDisabled(false)
-        } label: {
-            QueueItem(episode: episode, namespace: namespace)
-                .matchedTransitionSource(id: episode.id, in: namespace)
-                .id(episode.id)
-                .lineLimit(3)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .preference(key: ScrollOffsetKey.self,
-                                        value: [index: geo.frame(in: .global).minX])
-                    }
-                )
-                .scrollTransition { content, phase in
-                    content
-                        .opacity(phase.isIdentity ? 1 : 0.5)
-                        .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
+        QueueItem(episode: episode, namespace: namespace)
+            .matchedTransitionSource(id: episode.id, in: namespace)
+            .id(episode.id)
+            .lineLimit(3)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .preference(key: ScrollOffsetKey.self,
+                                    value: [index: geo.frame(in: .global).minX])
                 }
-        }
-        .buttonStyle(NoHighlight())
+            )
+            .scrollTransition { content, phase in
+                content
+                    .opacity(phase.isIdentity ? 1 : 0.5)
+                    .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
+            }
+            .onTapGesture {
+                episodeSelectionManager.selectEpisode(episode)
+            }
     }
 }

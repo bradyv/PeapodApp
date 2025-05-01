@@ -57,9 +57,6 @@ struct OldEpisodes: View {
                         EpisodeItem(episode: episode, savedView:true, namespace: namespace)
                             .lineLimit(3)
                             .padding(.bottom, 24)
-                            .onTapGesture {
-                                selectedEpisode = episode
-                            }
                     }
                 }
             }

@@ -134,7 +134,7 @@ struct EpisodeView: View {
                                 if episode.isQueued {
                                     
                                     Group {
-                                        HStack(spacing:12) {
+                                        HStack(spacing:16) {
                                             AirPlayButton()
                                             
                                             Menu {
@@ -234,7 +234,7 @@ struct EpisodeView: View {
                                                     player.togglePlayback(for: episode)
                                                 }
                                             }) {
-                                                Label("Listen Now", systemImage: "play.fill")
+                                                Label(episode.isPlayed ? "Play Again" : "Listen Now", systemImage:episode.isPlayed ? "arrow.clockwise" : "play.fill")
                                                     .frame(maxWidth:.infinity)
                                             }
                                             .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))

@@ -115,7 +115,6 @@ struct ContentView: View {
                                     EpisodeView(episode: episode, namespace: namespace)
                                 }
                                 .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-                                .interactiveDismissDisabled(false)
                             }
                         } label: {
                             EmptyView()
@@ -123,15 +122,22 @@ struct ContentView: View {
                         .hidden()
                     }
                     .environmentObject(episodesViewModel)
-                    
-                    ZStack(alignment: .bottom) {
+                    .overlay {
                         if nowPlayingManager.isVisible {
-                            NowPlaying(namespace: namespace) { episode in
+                            NowPlaying(namespace:namespace) { episode in
                                 path.append(episode)
                             }
                         }
                     }
-                    .animation(.easeInOut(duration: 0.3), value: nowPlayingManager.isVisible)
+                    
+//                    ZStack(alignment: .bottom) {
+//                        if nowPlayingManager.isVisible {
+//                            NowPlaying(namespace: namespace) { episode in
+//                                path.append(episode)
+//                            }
+//                        }
+//                    }
+//                    .animation(.easeInOut(duration: 0.3), value: nowPlayingManager.isVisible)
                 }
                 .onAppear {
                     let context = PersistenceController.shared.container.viewContext

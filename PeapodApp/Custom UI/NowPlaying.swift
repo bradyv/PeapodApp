@@ -73,10 +73,9 @@ struct NowPlaying: View {
                                 .resizable()
                                 .frame(width:36, height:36)
                                 .clipShape(Circle())
-                                .matchedTransitionSource(id: episode.id, in: namespace)
                             
                             VStack(alignment:.leading, spacing:0) {
-                                Text(episode.podcast?.title ?? "Podacst title")
+                                Text(episode.podcast?.title ?? "Podcast title")
                                     .textDetail()
                                     .lineLimit(1)
                                 

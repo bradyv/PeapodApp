@@ -13,7 +13,7 @@ struct CustomSlider: View {
     let onEditingChanged: (Bool) -> Void
     let isDraggable: Bool
     var isQQ: Bool
-
+    
     @State private var layoutReady = false
     @State private var isDragging = false
 

@@ -154,10 +154,10 @@ struct EpisodeItem: View {
                         }
                     }
                     .buttonStyle(
-//                        ShadowButton()
                         PPButton(
                             type: .filled,
                             colorStyle: .monochrome,
+                            hierarchical: false,
                             customColors: ButtonCustomColors(
                                 foreground: .black,
                                 background: .white
@@ -211,6 +211,7 @@ struct EpisodeItem: View {
                                 }
                             } else {
                                 Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.circle.fill")
+                                
                             }
                             
                             if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {
@@ -243,7 +244,8 @@ struct EpisodeItem: View {
                     .buttonStyle(
                         PPButton(
                             type: .filled,
-                            colorStyle: .monochrome
+                            colorStyle: .monochrome,
+                            hierarchical: false
                         )
                     )
                     
@@ -284,7 +286,7 @@ struct EpisodeItem: View {
                             episode.isSaved.toggle()
                             try? episode.managedObjectContext?.save()
                         }) {
-                            Label(episode.isSaved ? "Remove from starred" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
+                            Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
                         }
                         .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
                         .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)

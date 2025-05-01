@@ -61,10 +61,6 @@ struct OldEpisodes: View {
                                 selectedEpisode = episode
                             }
                     }
-                    .sheet(item: $selectedEpisode) { episode in
-                        EpisodeView(episode: episode, namespace: namespace)
-                            .modifier(PPSheet(showOverlay: false))
-                    }
                 }
             }
             .padding()

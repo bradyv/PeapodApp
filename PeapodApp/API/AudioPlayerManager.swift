@@ -38,6 +38,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var progress: Double = 0
     @Published var currentEpisode: Episode?
     @Published var isLoading: Bool = false
+    @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0)
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player else { return }
@@ -184,17 +185,26 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         let lastPosition = getSavedPlaybackPosition(for: episode)
         if lastPosition > 0 {
             player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
-                self?.player?.play()
+//                self?.player?.play()
+                self?.player?.playImmediately(atRate: self?.playbackSpeed ?? 1.0)
                 self?.isPlaying = true
                 self?.updateNowPlayingInfo()
             }
         } else {
-            player?.play()
+//            player?.play()
+            player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
             updateNowPlayingInfo()
         }
 
         print("🎧 Playback started for \(episode.title ?? "Episode")")
+    }
+    
+    func setPlaybackSpeed(_ speed: Float) {
+        playbackSpeed = speed
+        UserDefaults.standard.set(speed, forKey: "playbackSpeed")
+        player?.rate = isPlaying ? speed : 0.0
+        updateNowPlayingInfo()
     }
 
     func pause() {
@@ -513,5 +523,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 }
             }
         }
+    }
+}
+
+extension Float {
+    func nonZeroOrDefault(_ defaultValue: Float) -> Float {
+        return self == 0 ? defaultValue : self
     }
 }

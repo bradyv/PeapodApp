@@ -90,7 +90,6 @@ struct ContentView: View {
                     center: UnitPoint(x: 0, y: 0)
                 )
             )
-            .navigationDestination(for: Episode.self) { episode in
         }
         .environmentObject(episodesViewModel)
         .environmentObject(episodeSelectionManager)

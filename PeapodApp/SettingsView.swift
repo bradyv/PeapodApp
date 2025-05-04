@@ -10,6 +10,46 @@ import CoreData
 import FeedKit
 
 struct SettingsView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \User.userSince, ascending: true)],
+        animation: .default)
+    private var users: FetchedResults<User>
+    
+    // Convenience computed property to get the user (first and likely only one)
+    private var user: User? {
+        return users.first
+    }
+    
+    // Format date nicely
+    private var formattedUserSince: String {
+        guard let date = user?.userSince else { return "Unknown" }
+        
+        let formatter = DateFormatter()
+//        formatter.dateFormat = "yyyy"
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
+    }
+    
+    // Get a display name for member type
+    private var memberTypeDisplay: String {
+        guard let typeRaw = user?.userType else { return "None" }
+        
+        // Assuming you're using the enum approach we discussed
+        if let type = MemberType(rawValue: typeRaw) {
+            switch type {
+            case .listener:
+                return "Listener"
+            case .betaTester:
+                return "Beta Tester"
+            case .subscriber:
+                return "Subscriber"
+            }
+        }
+        
+        return typeRaw // Fallback to raw value if not in enum
+    }
+
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @State private var podcastCount = 0
     @State private var episodeCount = 0
@@ -23,7 +63,7 @@ struct SettingsView: View {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
         set { appThemeRawValue = newValue.rawValue }
     }
-    private let columns = Array(repeating: GridItem(.flexible(), spacing:8), count: 4)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
     
     @State var appIcons = [
         AppIcons(name: "Peapod", asset: "AppIcon-Green"),
@@ -50,6 +90,9 @@ struct SettingsView: View {
                     
                     Text("Peapod")
                         .titleSerif()
+                    
+                    Text("Listening since \(formattedUserSince)")
+                        .textDetail()
                 }
                 
                 HStack {

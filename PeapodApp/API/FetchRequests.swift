@@ -60,6 +60,22 @@ extension Podcast {
     }
 }
 
+extension User {
+    static func userSinceRequest(date: Date) -> NSFetchRequest<User> {
+        let request = User.fetchRequest()
+        request.predicate = NSPredicate(format: "userSince == %@", date as NSDate)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \User.userSince, ascending: true)]
+        return request
+    }
+    
+    static func userTypeRequest(type: String) -> NSFetchRequest<User> {
+        let request = User.fetchRequest()
+        request.predicate = NSPredicate(format: "userType == %@", type)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \User.userType, ascending: true)]
+        return request
+    }
+}
+
 // Episode example
 // @FetchRequest(fetchRequest: Episode.queueFetchRequest(), animation: .interactiveSpring())
 // var queue: FetchedResults<Episode>

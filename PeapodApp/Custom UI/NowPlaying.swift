@@ -53,6 +53,8 @@ struct NowPlaying: View {
     @State private var spacing: CGFloat = -38
     @State private var infoMaxWidth: CGFloat = 100
     @State private var isNowPlaying = false
+    @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
+    @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @FetchRequest(fetchRequest: Episode.queueFetchRequest(), animation: .interactiveSpring())
     var nowPlaying: FetchedResults<Episode>
     var displayedInQueue: Bool = false
@@ -91,10 +93,10 @@ struct NowPlaying: View {
                     
                     HStack(spacing: spacing) {
                         Button(action: {
-                            player.skipBackward(seconds:15)
+                            player.skipBackward(seconds:currentBackwardInterval)
                             print("Seeking back")
                         }) {
-                            Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                            Label("Go back", systemImage: "\(String(format: "%.0f", currentBackwardInterval)).arrow.trianglehead.counterclockwise")
                         }
                         .disabled(!player.isPlayingEpisode(episode))
                         .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0), background: .surface)))
@@ -126,10 +128,10 @@ struct NowPlaying: View {
                             )))
                         
                         Button(action: {
-                            player.skipForward(seconds:30)
+                            player.skipForward(seconds:currentForwardInterval)
                             print("Seeking back")
                         }) {
-                            Label("Go back", systemImage: "30.arrow.trianglehead.clockwise")
+                            Label("Go back", systemImage: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise")
                         }
                         .disabled(!player.isPlayingEpisode(episode))
                         .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0), background: .surface)))
@@ -143,6 +145,12 @@ struct NowPlaying: View {
                     }
                     .onChange(of: player.isPlayingEpisode(episode)) { isPlaying in
                         updateNowPlayingState()
+                    }
+                    .onReceive(player.$backwardInterval) { newBackwardInterval in
+                        currentBackwardInterval = newBackwardInterval
+                    }
+                    .onReceive(player.$forwardInterval) { newForwardInterval in
+                        currentForwardInterval = newForwardInterval
                     }
                     
                 }

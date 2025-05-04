@@ -59,6 +59,11 @@ struct SettingsView: View {
     @State private var subscribedCount: Int = 0
     @State private var playCount: Int = 0
     @State private var scrollOffset: CGFloat = 0
+    @ObservedObject var player = AudioPlayerManager.shared
+    @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
+    @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
+    @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
+    @State private var allowNotifications = true
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -209,6 +214,123 @@ struct SettingsView: View {
 //                .opacity(opacity)
                 
                 FadeInView(delay:0.7) {
+                    VStack {
+                        Text("Settings")
+                            .headerSection()
+                            .frame(maxWidth:.infinity, alignment: .leading)
+                            .padding(.top,24)
+                        
+                        RowItem(icon: "gauge.with.dots.needle.50percent", label: "Playback Speed") {
+                            Menu {
+                                let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
+
+                                Section(header: Text("Playback Speed")) {
+                                    ForEach(speeds, id: \.self) { speed in
+                                        Button(action: {
+                                            player.setPlaybackSpeed(speed)
+                                        }) {
+                                            HStack {
+                                                if speed == currentSpeed {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundStyle(Color.heading)
+                                                }
+                                                
+                                                Text("\(speed, specifier: "%.1fx")")
+                                                    .foregroundStyle(Color.heading)
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Text("\(currentSpeed, specifier: "%.1fx")")
+                                        .textBody()
+                                    
+                                    Image(systemName: "chevron.up.chevron.down")
+                                }
+                            }
+                            .onReceive(player.$playbackSpeed) { newSpeed in
+                                currentSpeed = newSpeed
+                            }
+                        }
+                        
+                        RowItem(icon: "arrow.trianglehead.counterclockwise", label: "Skip Backwards") {
+                            Menu {
+                                let intervals: [Double] = [45,30,15,10,5]
+
+                                Section(header: Text("Skip Backwards Interval")) {
+                                    ForEach(intervals, id: \.self) { interval in
+                                        Button(action: {
+                                            player.setBackwardInterval(interval)
+                                        }) {
+                                            HStack {
+                                                if interval == currentBackwardInterval {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundStyle(Color.heading)
+                                                }
+                                                
+                                                Text("\(interval, specifier: "%.0fs")")
+                                                    .foregroundStyle(Color.heading)
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Text("\(currentBackwardInterval, specifier: "%.0fs")")
+                                        .textBody()
+                                    
+                                    Image(systemName: "chevron.up.chevron.down")
+                                }
+                            }
+                            .onReceive(player.$backwardInterval) { newBackwardInterval in
+                                currentBackwardInterval = newBackwardInterval
+                            }
+                        }
+                        
+                        RowItem(icon: "arrow.trianglehead.clockwise", label: "Skip Forwards") {
+                            Menu {
+                                let intervals: [Double] = [45,30,15,10,5]
+
+                                Section(header: Text("Skip Forwards Interval")) {
+                                    ForEach(intervals, id: \.self) { interval in
+                                        Button(action: {
+                                            player.setForwardInterval(interval)
+                                        }) {
+                                            HStack {
+                                                if interval == currentForwardInterval {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundStyle(Color.heading)
+                                                }
+                                                
+                                                Text("\(interval, specifier: "%.0fs")")
+                                                    .foregroundStyle(Color.heading)
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Text("\(currentForwardInterval, specifier: "%.0fs")")
+                                        .textBody()
+                                    
+                                    Image(systemName: "chevron.up.chevron.down")
+                                }
+                            }
+                            .onReceive(player.$forwardInterval) { newForwardInterval in
+                                currentForwardInterval = newForwardInterval
+                            }
+                        }
+                        
+                        RowItem(icon: "app.badge", label: "Notifications") {
+                            Toggle(isOn: $allowNotifications) {
+                                Text("Push Notifications")
+                            }
+                            .labelsHidden()
+                        }
+                    }
+                    .padding(.horizontal)
+
                     VStack {
                         Text("Appearance")
                             .headerSection()

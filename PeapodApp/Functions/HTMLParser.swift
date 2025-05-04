@@ -115,18 +115,23 @@ func sanitizeHtml(_ html: String) -> String {
 
 func linkifyPlainUrls(in input: AttributedString, linkColor: Color = .accentColor) -> AttributedString {
     var result = input
-    let nsString = NSString(string: String(input.characters))
+    let text = String(input.characters)
+    let nsString = text as NSString
     let fullRange = NSRange(location: 0, length: nsString.length)
 
-    guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+    // Improved URL regex pattern
+    let urlPattern = #"https?://[^\s]+"#
+    guard let regex = try? NSRegularExpression(pattern: urlPattern, options: []) else {
         return result
     }
 
-    let matches = detector.matches(in: String(input.characters), options: [], range: fullRange)
+    let matches = regex.matches(in: text, options: [], range: fullRange)
 
-    for match in matches {
+    for match in matches.reversed() {
         guard let range = Range(match.range, in: result) else { continue }
-        if let url = match.url {
+        let urlString = nsString.substring(with: match.range)
+
+        if let url = URL(string: urlString) {
             result[range].link = url
             result[range].foregroundColor = linkColor
         }

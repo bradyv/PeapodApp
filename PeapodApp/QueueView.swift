@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct QueueView: View {
     @Binding var currentEpisodeID: String?
@@ -113,8 +114,17 @@ struct QueueView: View {
 //                            ForEach((0...100), id: \.self) { index in
                             ForEach(episodesViewModel.queue.indices, id: \.self) { index in
                                 let isCurrent = index == Int(scrollOffset)
+                                let episode = episodesViewModel.queue[index]
                                 
                                 VStack {
+//                                    KFImage(URL(string:episode.podcast?.image ?? ""))
+//                                        .resizable()
+//                                        .frame(width:isCurrent ? 16 : 12,height:isCurrent ? 16 : 12)
+//                                        .clipShape(RoundedRectangle(cornerRadius:3))
+//                                        .opacity(isCurrent ? 1 : 0.5)
+//                                        .transition(.opacity)
+//                                        .animation(.easeOut(duration: 0.3), value: isCurrent)
+                                    
                                     Capsule()
                                         .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
                                         .frame(width: isCurrent ? 18 : 6, height: 6)

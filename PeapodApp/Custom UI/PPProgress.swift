@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct CustomSlider: View {
+struct PPProgress: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
     let onEditingChanged: (Bool) -> Void

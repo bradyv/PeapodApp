@@ -284,7 +284,6 @@ struct EpisodeView: View {
                     let threshold: CGFloat = 72
                     let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
                     
-                    Spacer().frame(height:16)
                     KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
                         .resizable()
                         .frame(width: shrink, height: shrink)
@@ -295,7 +294,7 @@ struct EpisodeView: View {
                     Spacer()
                 }
                 .frame(maxWidth:.infinity, alignment:.leading)
-                .padding(.horizontal)
+                .padding()
             }
         }
         .frame(maxWidth:.infinity)

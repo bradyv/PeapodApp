@@ -14,8 +14,8 @@ struct WelcomeView: View {
     @State private var subscribedPodcasts: Set<String> = []
     @State private var poppedPodcastID: String? = nil
     @State private var showSubscriptions = false
-    @Binding var showOnboarding: Bool
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    var completeOnboarding: () -> Void
     var namespace: Namespace.ID
     
     var body: some View {
@@ -171,7 +171,7 @@ struct WelcomeView: View {
                         Button {
                             withAnimation {
                                 if showSubscriptions {
-                                    showOnboarding = false
+                                    completeOnboarding()
                                 } else {
                                     showSubscriptions = true
                                 }

@@ -11,6 +11,8 @@ import CoreData
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    static var pendingNotificationEpisodeID: String?
+    
     override init() {
         super.init()
         print("🧬 AppDelegate initialized")
@@ -46,10 +48,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     // 🧩 When user taps a notification
     func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                 didReceive response: UNNotificationResponse,
-                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+                               didReceive response: UNNotificationResponse,
+                               withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         if let episodeID = userInfo["episodeID"] as? String {
+            // Store the episode ID for cold start scenarios
+            AppDelegate.pendingNotificationEpisodeID = episodeID
+            // Also post notification for immediate handling if app is already running
             NotificationCenter.default.post(name: .didTapEpisodeNotification, object: episodeID)
         }
         completionHandler()

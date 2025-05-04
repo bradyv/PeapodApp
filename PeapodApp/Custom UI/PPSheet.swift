@@ -14,6 +14,7 @@ struct PPSheet: ViewModifier {
             content
                 .presentationCornerRadius(32)
                 .presentationDragIndicator(.visible)
+//                .presentationDetents([.height(500),.large])
                 .background(Color.background)
         }
     }

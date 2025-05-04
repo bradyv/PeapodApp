@@ -21,8 +21,6 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var currentEpisodeID: String? = nil
     @State private var lastRefreshDate = Date.distantPast
-    @State private var tappedEpisodeID: String?
-    @State private var tappedEpisode: Episode?
 
 //    @State private var showOnboarding = true // bv debug
     @AppStorage("showOnboarding") private var showOnboarding: Bool = true
@@ -103,21 +101,6 @@ struct ContentView: View {
                         .navigationTransition(.zoom(sourceID: "nowplaying", in: namespace))
                         .interactiveDismissDisabled(false)
                     }
-                    
-                    NavigationLink(isActive: Binding(
-                        get: { tappedEpisode != nil },
-                        set: { newValue in if !newValue { tappedEpisode = nil } }
-                    )) {
-                        if let episode = tappedEpisode {
-                            PPPopover(pushView: false) {
-                                EpisodeView(episode: episode, namespace: namespace)
-                            }
-                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-                        }
-                    } label: {
-                        EmptyView()
-                    }
-                    .hidden()
                 }
                 .environmentObject(episodesViewModel)
                 .environmentObject(episodeSelectionManager)
@@ -158,7 +141,8 @@ struct ContentView: View {
                         fetchRequest.fetchLimit = 1
                         
                         if let foundEpisode = try? context.fetch(fetchRequest).first {
-                            tappedEpisode = foundEpisode
+                            // Instead of setting tappedEpisode, use the episodeSelectionManager
+                            episodeSelectionManager.selectEpisode(foundEpisode)
                         } else {
                             print("❌ Could not find episode for id \(id)")
                         }

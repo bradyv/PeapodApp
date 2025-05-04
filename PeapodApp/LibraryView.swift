@@ -36,7 +36,7 @@ struct LibraryView: View {
                             SavedEpisodes(namespace: namespace)
                         }
                     } label: {
-                        RowItem(icon: "bookmark", label: "Saved Episodes")
+                        RowItem(icon: "bookmark", label: "Saved for Later")
                     }
                 }
             }

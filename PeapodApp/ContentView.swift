@@ -91,12 +91,6 @@ struct ContentView: View {
                 )
             )
             .navigationDestination(for: Episode.self) { episode in
-                PPPopover(pushView:false) {
-                    EpisodeView(episode: episode, namespace: namespace) // Now Playing destination
-                }
-                .navigationTransition(.zoom(sourceID: "nowplaying", in: namespace))
-                .interactiveDismissDisabled(false)
-            }
         }
         .environmentObject(episodesViewModel)
         .environmentObject(episodeSelectionManager)

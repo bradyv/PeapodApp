@@ -41,7 +41,7 @@ struct EpisodeView: View {
     
     var body: some View {
         ZStack(alignment:.topLeading) {
-//            SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
+            SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
             
             let splashFadeStart: CGFloat = -150
             let splashFadeEnd: CGFloat = 0
@@ -67,6 +67,17 @@ struct EpisodeView: View {
                             scrollOffset = value
                         }
                     Spacer().frame(height:256)
+                    
+//                    FadeInView(delay: 0.1) {
+//                        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+//                            .resizable()
+//                            .frame(width:128,height:128)
+//                            .clipShape(RoundedRectangle(cornerRadius:16))
+//                            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+//                        
+//                        Spacer().frame(
+//                    }
+                    
                     VStack {
                         FadeInView(delay: 0.2) {
                             VStack(spacing:8) {

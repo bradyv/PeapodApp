@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
@@ -36,12 +35,13 @@ struct EpisodeItem: View {
                     }
                 } label: {
                     HStack {
-                        KFImage(URL(string:episode.podcast?.image ?? ""))
-                            .resizable()
-                            .frame(width: 24, height: 24)
-                            .cornerRadius(3)
-                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                            .matchedTransitionSource(id: episode.id, in: namespace)
+                        ArtworkView(url:episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+//                        KFImage(URL(string:episode.podcast?.image ?? ""))
+//                            .resizable()
+//                            .frame(width: 24, height: 24)
+//                            .cornerRadius(4)
+//                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.black.opacity(0.15), lineWidth: 1))
+//                            .matchedTransitionSource(id: episode.id, in: namespace)
                         
                         Text(episode.podcast?.title ?? "Podcast title")
                             .lineLimit(1)
@@ -165,6 +165,31 @@ struct EpisodeItem: View {
                             )
                         )
                     )
+                    
+                    if player.isPlayingEpisode(episode) || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0 {
+                        
+                        // nothing
+                    } else {
+                        Button(action: {
+                            withAnimation {
+                                toggleQueued(episode)
+                                episode.isSaved = true
+                            }
+                            try? episode.managedObjectContext?.save()
+                        }) {
+                            Label("Later", systemImage: "bookmark")
+                        }
+                        .buttonStyle(
+                            PPButton(
+                                type:.transparent,
+                                colorStyle:.monochrome,
+                                customColors: ButtonCustomColors(
+                                    foreground: .white,
+                                    background: .white.opacity(0.15)
+                                )
+                            )
+                        )
+                    }
                     
                     if displayedInQueue {
                         Button(action: {

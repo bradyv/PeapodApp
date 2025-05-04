@@ -15,7 +15,7 @@ struct SavedEpisodes: View {
         ScrollView {
             Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
-                Text("Saved Episodes")
+                Text("Saved for Later")
                     .titleSerif()
                     .frame(maxWidth:.infinity, alignment: .leading)
                     .padding(.leading).padding(.top,24)

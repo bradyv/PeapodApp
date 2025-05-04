@@ -134,7 +134,7 @@ struct EpisodeItem: View {
                                     return actual > 1 ? actual : episode.duration
                                 }()
                                 
-                                CustomSlider(
+                                PPProgress(
                                     value: Binding(
                                         get: { player.getProgress(for: episode) },
                                         set: { player.seek(to: $0) }
@@ -224,7 +224,7 @@ struct EpisodeItem: View {
                                     return actual > 1 ? actual : episode.duration
                                 }()
                                 
-                                CustomSlider(
+                                PPProgress(
                                     value: Binding(
                                         get: { player.getProgress(for: episode) },
                                         set: { player.seek(to: $0) }

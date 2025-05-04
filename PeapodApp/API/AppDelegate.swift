@@ -11,6 +11,8 @@ import CoreData
 import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    static var pendingNotificationEpisodeID: String?
+    
     override init() {
         super.init()
         print("🧬 AppDelegate initialized")
@@ -19,6 +21,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        
+        setupCurrentUser(context: PersistenceController.shared.container.viewContext)
+
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1", using: nil) { task in
             print("🚀 BGTask fired: com.bradyv.Peapod.Dev.deleteOldEpisodes.v1")
             self.handleOldEpisodeCleanup(task: task as! BGAppRefreshTask)
@@ -43,10 +48,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     // 🧩 When user taps a notification
     func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                 didReceive response: UNNotificationResponse,
-                                 withCompletionHandler completionHandler: @escaping () -> Void) {
+                               didReceive response: UNNotificationResponse,
+                               withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         if let episodeID = userInfo["episodeID"] as? String {
+            // Store the episode ID for cold start scenarios
+            AppDelegate.pendingNotificationEpisodeID = episodeID
+            // Also post notification for immediate handling if app is already running
             NotificationCenter.default.post(name: .didTapEpisodeNotification, object: episodeID)
         }
         completionHandler()
@@ -133,6 +141,45 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             print("✅ Scheduled background episode refresh")
         } catch {
             print("❌ Could not schedule background episode refresh: \(error)")
+        }
+    }
+    
+    func checkAndSetUserSince(for user: User, context: NSManagedObjectContext) {
+        // Check if userSince is nil
+        if user.userSince == nil {
+            // Set to current date
+            user.userSince = Date()
+            
+            // Save the context
+            do {
+                try context.save()
+                print("User since date set to: \(user.userSince!)")
+            } catch {
+                print("Failed to save user since date: \(error)")
+            }
+        }
+    }
+    
+    func setupCurrentUser(context: NSManagedObjectContext) {
+        let request: NSFetchRequest<User> = User.fetchRequest()
+        
+        do {
+            let users = try context.fetch(request)
+            
+            if let existingUser = users.first {
+                checkAndSetUserSince(for: existingUser, context: context)
+            } else {
+                let newUser = User(context: context)
+                newUser.userSince = Date()
+                
+                // Use the computed property from the extension
+                newUser.memberType = .betaTester
+                
+                try context.save()
+                print("New user created with userSince: \(newUser.userSince!)")
+            }
+        } catch {
+            print("Failed to fetch or create user: \(error)")
         }
     }
 }

@@ -7,11 +7,10 @@
 
 import SwiftUI
 import FeedKit
-import Kingfisher
 import CoreData
 
 struct PodcastDetailView: View {
-    @Environment(\.colorScheme) var colorScheme
+//    @Environment(\.colorScheme) var colorScheme
     @Environment(\.managedObjectContext) private var context
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
@@ -146,15 +145,22 @@ struct PodcastDetailView: View {
                                 let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
                                 
                                 Spacer().frame(height:44)
-                                KFImage(URL(string: podcast.image ?? ""))
-                                    .resizable()
-                                    .frame(width: shrink, height: shrink)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                                
+                                ArtworkView(url:podcast.image ?? "", size: shrink, cornerRadius:16)
                                     .shadow(color:Color.tint(for:podcast),
                                             radius: 128
                                     )
                                     .animation(.easeOut(duration: 0.1), value: shrink)
+                                
+//                                KFImage(URL(string: podcast.image ?? ""))
+//                                    .resizable()
+//                                    .frame(width: shrink, height: shrink)
+//                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+//                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+//                                    .shadow(color:Color.tint(for:podcast),
+//                                            radius: 128
+//                                    )
+//                                    .animation(.easeOut(duration: 0.1), value: shrink)
                                 Spacer()
                             }
                             .frame(maxWidth:.infinity, alignment:.leading)

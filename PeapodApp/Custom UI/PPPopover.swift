@@ -55,7 +55,7 @@ struct PPPopover<Content: View>: View {
                             .buttonStyle(ShadowButton(iconOnly: true))
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 8)
                 } else {
                     HStack {
                         Capsule()

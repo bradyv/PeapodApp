@@ -51,4 +51,9 @@
             <fetchIndexElement property="isSubscribed" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
+    <entity name="User" representedClassName="User" syncable="YES" codeGenerationType="class">
+        <attribute name="purchaseDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="userSince" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="userType" optional="YES" attributeType="String" defaultValueString="listener"/>
+    </entity>
 </model>

@@ -92,7 +92,6 @@ struct PodcastSearchView: View {
                                         PPPopover {
                                             PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
                                         }
-                                        .navigationTransition(.zoom(sourceID: podcast.id, in: namespace))
                                     } label: {
                                         HStack {
                                             KFImage(URL(string:podcast.artworkUrl600))
@@ -115,7 +114,6 @@ struct PodcastSearchView: View {
                                                 .textDetail()
                                         }
                                         .contentShape(Rectangle())
-                                        .matchedTransitionSource(id: podcast.id, in: namespace)
                                     }
                                     
                                     Divider()

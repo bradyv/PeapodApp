@@ -81,10 +81,11 @@ struct SettingsView: View {
     
     var body: some View {
         ZStack(alignment:.topLeading) {
-            let minSize: CGFloat = 64
-            let maxSize: CGFloat = 172
-            let threshold: CGFloat = 72
-            let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
+            let splashFadeStart: CGFloat = -150
+            let splashFadeEnd: CGFloat = 0
+            let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
+            let shrink = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
+            let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) + 0.15
             
             Image("launchimage")
                 .resizable()
@@ -96,9 +97,14 @@ struct SettingsView: View {
                 .ignoresSafeArea(.all)
             
             ScrollView {
-                Spacer().frame(height:24)
+                Color.clear
+                    .frame(height: 1)
+                    .trackScrollOffset("scroll") { value in
+                        scrollOffset = value
+                    }
                 
                 VStack(spacing:24) {
+                    Spacer().frame(height:16)
                     VStack(spacing:4) {
                         FadeInView(delay:0.2) {
                             Image("Peapod.white")
@@ -198,7 +204,9 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth:.infinity, alignment:.leading)
                 }
+//                .scaleEffect(shrink)
                 .padding(.horizontal)
+//                .opacity(opacity)
                 
                 FadeInView(delay:0.7) {
                     VStack {
@@ -367,6 +375,7 @@ struct SettingsView: View {
                     .padding()
                 }
             }
+            .coordinateSpace(name: "scroll")
             .maskEdge(.top)
             .maskEdge(.bottom)
             .task {

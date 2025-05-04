@@ -18,6 +18,8 @@ struct EpisodeView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedPodcast: Podcast? = nil
     @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
+    @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
+    @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var showSpeeds = false
     @State private var speedPopover: Bool = false
     var namespace: Namespace.ID
@@ -162,9 +164,9 @@ struct EpisodeView: View {
                                             
                                             HStack(spacing: player.isPlayingEpisode(episode) ? -4 : -22) {
                                                 Button(action: {
-                                                    player.skipBackward(seconds:15)
+                                                    player.skipBackward(seconds:currentBackwardInterval)
                                                 }) {
-                                                    Label("Go back", systemImage: "15.arrow.trianglehead.counterclockwise")
+                                                    Label("Go back", systemImage: "\(String(format: "%.0f", currentBackwardInterval)).arrow.trianglehead.counterclockwise")
                                                 }
                                                 .disabled(!player.isPlayingEpisode(episode))
                                                 .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true))
@@ -184,9 +186,9 @@ struct EpisodeView: View {
                                                 .zIndex(1)
                                                 
                                                 Button(action: {
-                                                    player.skipForward(seconds: 30)
+                                                    player.skipForward(seconds: currentForwardInterval)
                                                 }) {
-                                                    Label("Go forward", systemImage: "30.arrow.trianglehead.clockwise")
+                                                    Label("Go forward", systemImage: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise")
                                                 }
                                                 .disabled(!player.isPlayingEpisode(episode))
                                                 .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true))

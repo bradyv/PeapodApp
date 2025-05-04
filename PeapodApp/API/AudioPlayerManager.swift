@@ -39,6 +39,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var currentEpisode: Episode?
     @Published var isLoading: Bool = false
     @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0)
+    @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30
+    @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player else { return }
@@ -205,6 +207,16 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         UserDefaults.standard.set(speed, forKey: "playbackSpeed")
         player?.rate = isPlaying ? speed : 0.0
         updateNowPlayingInfo()
+    }
+    
+    func setForwardInterval(_ interval: Double) {
+        forwardInterval = interval
+        UserDefaults.standard.set(interval, forKey: "forwardInterval")
+    }
+    
+    func setBackwardInterval(_ interval: Double) {
+        backwardInterval = interval
+        UserDefaults.standard.set(interval, forKey: "backwardInterval")
     }
 
     func pause() {

@@ -133,13 +133,13 @@ struct EpisodeView: View {
                             VStack(spacing:0) {
                                 if episode.isQueued {
                                     VStack(spacing:2) {
-                                        let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+                                        let safeDuration = player.getActualDuration(for: episode)
                                         PPProgress(
                                             value: Binding(
                                                 get: { player.getProgress(for: episode) },
                                                 set: { player.seek(to: $0) }
                                             ),
-                                            range: 0...safeDuration,
+                                            range: 0...player.getActualDuration(for: episode),
                                             onEditingChanged: { isEditing in
                                                 if !isEditing {
                                                     player.seek(to: player.progress)

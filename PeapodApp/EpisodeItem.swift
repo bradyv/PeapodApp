@@ -238,17 +238,14 @@ struct EpisodeItem: View {
                             
                             if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {
                                 let isQQ = displayedInQueue
-                                let safeDuration: Double = {
-                                    let actual = episode.actualDuration
-                                    return actual > 1 ? actual : episode.duration
-                                }()
+                                let safeDuration = player.getActualDuration(for: episode)
                                 
                                 PPProgress(
                                     value: Binding(
                                         get: { player.getProgress(for: episode) },
                                         set: { player.seek(to: $0) }
                                     ),
-                                    range: 0...safeDuration,
+                                    range: 0...player.getActualDuration(for: episode),
                                     onEditingChanged: { isEditing in
                                         if !isEditing {
                                             player.seek(to: player.progress)

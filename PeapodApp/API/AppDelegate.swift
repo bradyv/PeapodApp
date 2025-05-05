@@ -173,7 +173,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 newUser.userSince = Date()
                 
                 // Use the computed property from the extension
-                newUser.memberType = .betaTester
+                if let receiptURL = Bundle.main.appStoreReceiptURL {
+                    let isDownloadedFromTestFlight = receiptURL.lastPathComponent == "sandboxReceipt"
+                    // Use the value of isDownloadedFromTestFlight to determine if the app is running through TestFlight Beta
+                    
+                    if isDownloadedFromTestFlight {
+                        newUser.memberType = .betaTester
+                    } else {
+                        newUser.memberType = .listener
+                    }
+                }
                 
                 try context.save()
                 print("New user created with userSince: \(newUser.userSince!)")

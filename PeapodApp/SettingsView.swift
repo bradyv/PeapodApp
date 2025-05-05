@@ -133,9 +133,15 @@ struct SettingsView: View {
                         }
                         
                         FadeInView(delay:0.4) {
-                            Text("Listening since \(formattedUserSince)")
-                                .foregroundStyle(Color.white)
-                                .textBody()
+                            if memberTypeDisplay == "Listener" {
+                                Text("Listening since \(formattedUserSince)")
+                                    .foregroundStyle(Color.white)
+                                    .textBody()
+                            } else {
+                                Text("\(memberTypeDisplay) • Listening since \(formattedUserSince)")
+                                    .foregroundStyle(Color.white)
+                                    .textBody()
+                            }
                         }
                     }
                     

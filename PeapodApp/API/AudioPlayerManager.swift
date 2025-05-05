@@ -41,6 +41,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0)
     @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30
     @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15
+    @Published var autoplayNext: Bool = UserDefaults.standard.bool(forKey: "autoplayNext")
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player else { return }
@@ -97,10 +98,56 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func playerDidFinishPlaying(notification: Notification) {
         guard let finishedEpisode = currentEpisode else { return }
         print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
+        
+        // We need to ensure the episode is definitely marked as played
+        // and removed from the queue properly
+        finishedEpisode.isPlayed = true
+        finishedEpisode.isQueued = false
+        finishedEpisode.nowPlaying = false
+        finishedEpisode.playedDate = Date.now
+        
+        // Remove from queue
+        let context = finishedEpisode.managedObjectContext ?? PersistenceController.shared.container.viewContext
+        let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
+        request.predicate = NSPredicate(format: "name == %@", "Queue")
+        
+        if let queuePlaylist = try? context.fetch(request).first {
+            queuePlaylist.removeFromItems(finishedEpisode)
+        }
+        
+        finishedEpisode.queuePosition = -1
+        finishedEpisode.playbackPosition = 0
+        
+        // Update podcast stats
+        if let podcast = finishedEpisode.podcast {
+            podcast.playCount += 1
+            podcast.playedSeconds += getActualDuration(for: finishedEpisode)
+        }
+        
+        // Reset player state
         progress = 0
-        markAsPlayed(for: finishedEpisode)
+        isPlaying = false
+        
+        // Save changes
         try? finishedEpisode.managedObjectContext?.save()
-        stop()
+        
+        // Stop playback
+        cleanupPlayer()
+        
+        // Clear now playing info
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        
+        if autoplayNext {
+            // Check if there are more episodes in the queue to play next
+            playNextInQueue()
+        }
+    }
+    
+    private func playNextInQueue() {
+        let queuedEpisodes = fetchQueuedEpisodes()
+        if let nextEpisode = queuedEpisodes.first {
+            self.play(episode: nextEpisode)
+        }
     }
     
     private init() {
@@ -137,8 +184,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             player?.removeTimeObserver(observer)
             timeObserver = nil
         }
+        
         player?.pause()
+        player?.replaceCurrentItem(with: nil)
         player = nil
+        
         playerItemObservation?.invalidate()
         playerItemObservation = nil
     }
@@ -231,13 +281,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 
     func stop() {
-        if let player = player {
-            savePlaybackPosition(for: currentEpisode, position: player.currentTime().seconds)
+        if let player = player, let episode = currentEpisode {
+            let currentPosition = player.currentTime().seconds
+            savePlaybackPosition(for: episode, position: currentPosition)
         }
-        player?.pause()
-        player?.seek(to: .zero)
-        isPlaying = false
+        
+        // Clean up player completely
+        cleanupPlayer()
+        
+        // Reset state variables
         progress = 0
+        isPlaying = false
+        
+        // Clear now playing info
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
@@ -376,38 +432,63 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
         if episode.isPlayed {
+            // Toggle off played state
             episode.isPlayed = false
             episode.playedDate = nil
         } else {
+            // Set played state and update related properties
             episode.isPlayed = true
-            episode.isQueued = false
-            episode.nowPlaying = false
             episode.playedDate = Date.now
-            episode.playlist = nil
-            episode.podcast?.playCount += 1
-
-            let liveProgress = player?.currentTime().seconds ?? 0
-            let savedProgress = episode.playbackPosition
-
-            let actualProgress: Double
-
+            
+            // Get the actual duration we should record
+            let actualDuration = getActualDuration(for: episode)
+            let currentProgress: Double
+            
             if manually {
-                if currentEpisode?.id == episode.id && liveProgress > 0 {
-                    actualProgress = min(liveProgress, episode.duration)
+                // If manually marking as played, use the current position if this is the active episode
+                if currentEpisode?.id == episode.id {
+                    currentProgress = player?.currentTime().seconds ?? episode.playbackPosition
                 } else {
-                    actualProgress = min(savedProgress, episode.duration)
+                    currentProgress = episode.playbackPosition
                 }
             } else {
-                actualProgress = min(savedProgress, episode.duration)
+                // When automatically marking as played (natural end), use the full duration
+                currentProgress = actualDuration
             }
-
-            let playedSecondsToAdd = manually ? actualProgress : episode.duration
-            episode.podcast?.playedSeconds += playedSecondsToAdd
-            print("Recorded \(playedSecondsToAdd) for \(episode.title ?? "episode")")
+            
+            // Record play statistics
+            if let podcast = episode.podcast {
+                podcast.playCount += 1
+                podcast.playedSeconds += manually ? currentProgress : actualDuration
+                print("Recorded \(manually ? currentProgress : actualDuration) seconds for \(episode.title ?? "episode")")
+            }
+            
+            // Remove from queue and reset playback position
+            episode.isQueued = false
+            episode.nowPlaying = false
+            episode.playlist = nil
+            episode.queuePosition = -1
+            
+            // Remove from queue playlist
+            let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
+            let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
+            request.predicate = NSPredicate(format: "name == %@", "Queue")
+            
+            if let queuePlaylist = try? context.fetch(request).first {
+                queuePlaylist.removeFromItems(episode)
+            }
         }
-
+        
+        // Always reset playback position to 0 when marking played/unplayed
         episode.playbackPosition = 0
+        
+        // Save changes to persistence
         try? episode.managedObjectContext?.save()
+        
+        // If this was the currently playing episode, stop playback
+        if currentEpisode?.id == episode.id {
+            stop()
+        }
     }
 
     private func configureAudioSession(activePlayback: Bool = false) {
@@ -549,18 +630,22 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
 
         timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
+            forInterval: CMTime(seconds: 0.5, preferredTimescale: 10),
             queue: .main
         ) { [weak self] time in
             guard let self = self,
                   let current = self.player?.currentItem,
-                  let currentDuration = self.currentEpisode.flatMap({ self.getActualDuration(for: $0) }),
+                  let episode = self.currentEpisode,
                   current == player.currentItem else { return }
 
-            let roundedTime = floor(time.seconds)
+            let currentTime = time.seconds
+            let roundedTime = floor(currentTime)
+            let currentDuration = self.getActualDuration(for: episode)
             
-            // Only mark as finished if we're very close to the actual end
-            if roundedTime >= currentDuration - 1.0 && time.seconds >= currentDuration - 0.2 {
+            // Check if we're at the end of the episode
+            // More precise end detection - within 0.2 seconds of the end
+            if currentTime >= currentDuration - 0.2 {
+                print("🎯 End of episode detected at \(currentTime) of \(currentDuration)")
                 self.playerDidFinishPlaying(notification: Notification(name: .AVPlayerItemDidPlayToEndTime))
                 return
             }
@@ -569,9 +654,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 self.progress = roundedTime
                 self.updateNowPlayingInfo()
                 
-                if let episode = self.currentEpisode {
-                    self.savePlaybackPosition(for: episode, position: roundedTime)
-                }
+                // Save position every second
+                self.savePlaybackPosition(for: episode, position: roundedTime)
             }
         }
     }

@@ -64,6 +64,7 @@ struct SettingsView: View {
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
+    @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -338,12 +339,23 @@ struct SettingsView: View {
                             }
                         }
                         
-                        RowItem(icon: "app.badge", label: "Notifications") {
-                            Toggle(isOn: $allowNotifications) {
-                                Text("Push Notifications")
-                            }
-                            .labelsHidden()
-                        }
+//                        RowItem(icon: "app.badge", label: "Notifications") {
+//                            Toggle(isOn: $allowNotifications) {
+//                                Text("Push Notifications")
+//                            }
+//                            .labelsHidden()
+//                        }
+                        
+                        RowItem(icon: "sparkles.rectangle.stack", label: "Autoplay Next Episode") {
+                             Toggle(isOn: $autoPlayNext) {
+                                 Text("Autoplay Next Episode")
+                             }
+                             .labelsHidden()
+                             .symbolRenderingMode(.hierarchical)
+                             .onChange(of: autoPlayNext) { newValue in
+                                     setAutoplayNext(newValue)
+                                 }
+                         }
                     }
 
                     VStack {
@@ -537,6 +549,11 @@ struct SettingsView: View {
             }
         }
     }
+    
+    func setAutoplayNext(_ enabled: Bool) {
+         player.autoplayNext = enabled
+         UserDefaults.standard.set(enabled, forKey: "autoplayNext")
+     }
     
     private func injectTestPodcast() {
         let context = PersistenceController.shared.container.viewContext

@@ -141,6 +141,7 @@ struct SettingsView: View {
                                         .foregroundStyle(Color.white)
                                         .titleSerif()
                                         .monospaced()
+                                        .contentTransition(.numericText())
                                     
                                     Text("Hours listened")
                                         .foregroundStyle(Color.white)
@@ -179,6 +180,8 @@ struct SettingsView: View {
                                     Text("\(playCount)")
                                         .foregroundStyle(Color.white)
                                         .titleSerif()
+                                        .monospaced()
+                                        .contentTransition(.numericText())
                                     
                                     Text("Episodes played")
                                         .foregroundStyle(Color.white)
@@ -496,9 +499,22 @@ struct SettingsView: View {
                 podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0
                 episodeCount = (try? context.count(for: Episode.fetchRequest())) ?? 0
                 
-                totalPlayedSeconds = (try? await Podcast.totalPlayedDuration(in: context)) ?? 0
-                subscribedCount = (try? Podcast.totalSubscribedCount(in: context)) ?? 0
-                playCount = (try? Podcast.totalPlayCount(in: context)) ?? 0
+                // Calculate the values but don't assign them yet
+                let playedSeconds = (try? await Podcast.totalPlayedDuration(in: context)) ?? 0
+                let subscribed = (try? Podcast.totalSubscribedCount(in: context)) ?? 0
+                let plays = (try? Podcast.totalPlayCount(in: context)) ?? 0
+                
+                // Wait to allow the UI to render with zeros
+                try? await Task.sleep(for: .nanoseconds(1))
+                
+                // Use DispatchQueue to delay the update and apply animation
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    withAnimation(.easeInOut) {
+                        totalPlayedSeconds = playedSeconds
+                        subscribedCount = subscribed
+                        playCount = plays
+                    }
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
                 lastSynced = Date()

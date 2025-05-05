@@ -240,7 +240,9 @@ struct EpisodeView: View {
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, borderless: true))
                                             
                                             Button(action: {
-                                                episode.isSaved.toggle()
+                                                withAnimation {
+                                                    toggleSaved(episode)
+                                                }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label(episode.isSaved ? "Remove from saved episodes" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
@@ -279,7 +281,9 @@ struct EpisodeView: View {
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                                             
                                             Button(action: {
-                                                episode.isSaved.toggle()
+                                                withAnimation {
+                                                    toggleSaved(episode)
+                                                }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label(episode.isSaved ? "Remove from saved episodes" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")

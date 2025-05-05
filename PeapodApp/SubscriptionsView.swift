@@ -53,12 +53,14 @@ struct SubscriptionsView: View {
                                 PPPopover(hex: podcast.podcastTint ?? "#FFFFFF") {
                                     PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace: namespace)
                                 }
+                                .navigationTransition(.zoom(sourceID: podcast.id, in: namespace))
                             } label: {
                                 KFImage(URL(string: podcast.image ?? ""))
                                     .resizable()
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
                                     .aspectRatio(1, contentMode: .fit)
                                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                                    .matchedTransitionSource(id: podcast.id, in: namespace)
                             }
                         }
                     }

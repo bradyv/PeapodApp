@@ -17,6 +17,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     @Published var old: [Episode] = []
 
     private var queueController: NSFetchedResultsController<Episode>?
+    private var savedController: NSFetchedResultsController<Episode>?
     var context: NSManagedObjectContext?
 
     override init() {
@@ -30,6 +31,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     func setup(context: NSManagedObjectContext) {
         self.context = context
         setupQueueController()
+        setupSavedController()
         fetchAll()
     }
 
@@ -56,6 +58,30 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         }
 
         self.queueController = controller
+    }
+    
+    private func setupSavedController() {
+        guard let context else { return }
+
+        let request = Episode.savedEpisodesRequest()
+        
+        let controller = NSFetchedResultsController(
+            fetchRequest: request,
+            managedObjectContext: context,
+            sectionNameKeyPath: nil,
+            cacheName: nil
+        )
+
+        controller.delegate = self
+
+        do {
+            try controller.performFetch()
+            self.saved = controller.fetchedObjects ?? []
+        } catch {
+            print("Failed to fetch saved episodes: \(error)")
+        }
+
+        self.savedController = controller
     }
 
     func fetchLatest() {
@@ -108,7 +134,12 @@ final class EpisodesViewModel: NSObject, ObservableObject {
 
 extension EpisodesViewModel: NSFetchedResultsControllerDelegate {
     func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
-        guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
-        self.queue = updatedEpisodes
+        if controller == queueController {
+            guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
+            self.queue = updatedEpisodes
+        } else if controller == savedController {
+            guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
+            self.saved = updatedEpisodes
+        }
     }
 }

@@ -36,12 +36,6 @@ struct EpisodeItem: View {
                 } label: {
                     HStack {
                         ArtworkView(url:episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
-//                        KFImage(URL(string:episode.podcast?.image ?? ""))
-//                            .resizable()
-//                            .frame(width: 24, height: 24)
-//                            .cornerRadius(4)
-//                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.black.opacity(0.15), lineWidth: 1))
-//                            .matchedTransitionSource(id: episode.id, in: namespace)
                         
                         Text(episode.podcast?.title ?? "Podcast title")
                             .lineLimit(1)
@@ -173,7 +167,7 @@ struct EpisodeItem: View {
                         Button(action: {
                             withAnimation {
                                 toggleQueued(episode)
-                                episode.isSaved = true
+                                toggleSaved(episode)
                             }
                             try? episode.managedObjectContext?.save()
                         }) {
@@ -311,7 +305,9 @@ struct EpisodeItem: View {
                         Spacer()
                         
                         Button(action: {
-                            episode.isSaved.toggle()
+                            withAnimation {
+                                toggleSaved(episode)
+                            }
                             try? episode.managedObjectContext?.save()
                         }) {
                             Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")

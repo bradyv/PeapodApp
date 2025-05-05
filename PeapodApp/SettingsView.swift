@@ -89,7 +89,6 @@ struct SettingsView: View {
             let splashFadeStart: CGFloat = -150
             let splashFadeEnd: CGFloat = 0
             let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
-            let shrink = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart)
             let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) + 0.15
             
             Image("launchimage")
@@ -100,6 +99,7 @@ struct SettingsView: View {
                                    startPoint: .init(x:0.5, y:0.65), endPoint: .bottom)
                 )
                 .ignoresSafeArea(.all)
+                .opacity(opacity)
             
             ScrollView {
                 Color.clear
@@ -209,9 +209,7 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth:.infinity, alignment:.leading)
                 }
-//                .scaleEffect(shrink)
-                .padding(.horizontal)
-//                .opacity(opacity)
+                .opacity(opacity)
                 
                 FadeInView(delay:0.7) {
                     VStack {
@@ -254,7 +252,7 @@ struct SettingsView: View {
                             }
                         }
                         
-                        RowItem(icon: "arrow.trianglehead.counterclockwise", label: "Skip Backwards") {
+                        RowItem(icon: "\(String(format: "%.0f", currentBackwardInterval)).arrow.trianglehead.counterclockwise", label: "Skip Backwards") {
                             Menu {
                                 let intervals: [Double] = [45,30,15,10,5]
 
@@ -288,7 +286,7 @@ struct SettingsView: View {
                             }
                         }
                         
-                        RowItem(icon: "arrow.trianglehead.clockwise", label: "Skip Forwards") {
+                        RowItem(icon: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise", label: "Skip Forwards") {
                             Menu {
                                 let intervals: [Double] = [45,30,15,10,5]
 
@@ -329,13 +327,12 @@ struct SettingsView: View {
                             .labelsHidden()
                         }
                     }
-                    .padding(.horizontal)
 
                     VStack {
                         Text("Appearance")
                             .headerSection()
                             .frame(maxWidth:.infinity, alignment: .leading)
-                            .padding(.leading).padding(.top,24)
+                            .padding(.top,24)
                         
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing:8), count: 3)) {
                             ForEach(AppTheme.allCases) { theme in
@@ -359,7 +356,6 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
                         
                         VStack {
                             Text("App Icon")
@@ -406,7 +402,6 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal)
                         
                         VStack(alignment:.leading) {
                             Text("About")
@@ -473,7 +468,6 @@ struct SettingsView: View {
                         #endif
                         }
                         .frame(maxWidth:.infinity,alignment:.leading)
-                        .padding(.horizontal)
                         
                         VStack {
                             Text("Made in Canada")
@@ -490,13 +484,10 @@ struct SettingsView: View {
                                 .foregroundStyle(Color.surface)
                         }
                         .padding(.top,24)
-                        .padding(.horizontal)
                     }
-                    .background(Color.background)
-                    .clipShape(RoundedRectangle(cornerRadius:16))
-                    .padding()
                 }
             }
+            .contentMargins(16,for:.scrollContent)
             .coordinateSpace(name: "scroll")
             .maskEdge(.top)
             .maskEdge(.bottom)

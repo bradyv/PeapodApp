@@ -43,7 +43,7 @@ struct SavedEpisodes: View {
                     }
                 }
             } else {
-                ForEach(episodesViewModel.saved.reversed(), id: \.id) { episode in
+                ForEach(episodesViewModel.saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
                         EpisodeItem(episode: episode, savedView:true, namespace: namespace)
                             .lineLimit(3)

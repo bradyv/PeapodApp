@@ -19,6 +19,7 @@
         <attribute name="playbackPosition" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="playedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="queuePosition" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="savedDate" optional="YES" attributeType="Date" defaultDateTimeInterval="763509900" usesScalarValueType="NO"/>
         <attribute name="title" optional="YES" attributeType="String"/>
         <relationship name="playlist" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Playlist" inverseName="items" inverseEntity="Playlist"/>
         <relationship name="podcast" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Podcast" inverseName="episode" inverseEntity="Podcast"/>

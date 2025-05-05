@@ -36,7 +36,7 @@ extension Episode {
     static func savedEpisodesRequest() -> NSFetchRequest<Episode> {
         let request = Episode.fetchRequest()
         request.predicate = NSPredicate(format: "isSaved == YES")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.id, ascending: true)]
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.savedDate, ascending: false)]
         request.fetchBatchSize = 20
         return request
     }

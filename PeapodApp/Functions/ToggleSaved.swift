@@ -12,9 +12,16 @@ import SwiftUI
     
     episode.isSaved.toggle()
     
+    if episode.isSaved {
+        episode.savedDate = Date()
+    } else {
+        episode.savedDate = nil
+    }
+    
     do {
         try context.save()
         episodesViewModel?.fetchSaved()
+        print(episode.savedDate)
     } catch {
         print("Failed to remove episode from saved: \(error)")
     }

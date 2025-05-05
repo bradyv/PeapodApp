@@ -41,6 +41,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0)
     @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30
     @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15
+    @Published var autoplayNext: Bool = UserDefaults.standard.bool(forKey: "autoplayNext")
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player else { return }
@@ -98,9 +99,28 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         guard let finishedEpisode = currentEpisode else { return }
         print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
         progress = 0
+        
+        // Always mark the current episode as played first (as in your original version)
         markAsPlayed(for: finishedEpisode)
         try? finishedEpisode.managedObjectContext?.save()
+        
+        // Temporarily stop the current player to ensure clean state
         stop()
+        
+        if autoplayNext {
+            // Try to play the next episode in queue
+            let queuedEpisodes = fetchQueuedEpisodes()
+            
+            if !queuedEpisodes.isEmpty {
+                let nextEpisode = queuedEpisodes.first!
+                print("⏭️ Autoplaying next episode: \(nextEpisode.title ?? "Episode")")
+                play(episode: nextEpisode)
+            } else {
+                print("🛑 Reached end of queue")
+            }
+        } else {
+            print("⏯️ Autoplay disabled - playback stopped")
+        }
     }
     
     private init() {

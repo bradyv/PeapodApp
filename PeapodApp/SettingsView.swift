@@ -64,6 +64,7 @@ struct SettingsView: View {
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
+    @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -343,6 +344,18 @@ struct SettingsView: View {
                                 Text("Push Notifications")
                             }
                             .labelsHidden()
+                            .symbolRenderingMode(.hierarchical)
+                        }
+                        
+                        RowItem(icon: "sparkles.rectangle.stack", label: "Autoplay Next Episode") {
+                            Toggle(isOn: $autoPlayNext) {
+                                Text("Autoplay Next Episode")
+                            }
+                            .labelsHidden()
+                            .symbolRenderingMode(.hierarchical)
+                            .onChange(of: autoPlayNext) { newValue in
+                                    setAutoplayNext(newValue)
+                                }
                         }
                     }
 
@@ -536,6 +549,11 @@ struct SettingsView: View {
                 UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
             }
         }
+    }
+    
+    func setAutoplayNext(_ enabled: Bool) {
+        player.autoplayNext = enabled
+        UserDefaults.standard.set(enabled, forKey: "autoplayNext")
     }
     
     private func injectTestPodcast() {

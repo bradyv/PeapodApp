@@ -115,6 +115,15 @@ struct SettingsView: View {
                             Image("Peapod.white")
                                 .resizable()
                                 .frame(width:64,height:55.5)
+//                            ZStack {
+//                                Image("ppface")
+//                                    .resizable()
+//                                    .frame(width:64,height:64)
+//                                
+//                                PPArc(text: "Beta Tester • Beta Tester • ".uppercased(), radius: 37, size:.init(width: 100, height: 100))
+//                                    .font(.system(size: 13, design: .monospaced)).bold()
+//                                    .foregroundStyle(.white)
+//                            }
                         }
                         
                         FadeInView(delay:0.3) {

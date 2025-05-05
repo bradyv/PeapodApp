@@ -124,7 +124,7 @@ struct EpisodeItem: View {
                                     WaveformView(isPlaying: $isPlaying, color: Color.background)
                                 }
                             } else {
-                                Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.circle.fill")
+                                Image(systemName:"play.circle.fill")
                             }
                             
                             if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {

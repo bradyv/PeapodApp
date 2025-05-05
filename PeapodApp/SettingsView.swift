@@ -237,14 +237,22 @@ struct SettingsView: View {
                             .frame(maxWidth:.infinity, alignment: .leading)
                             .padding(.top,24)
                         
-                        RowItem(icon: "gauge.with.dots.needle.50percent", label: "Playback Speed") {
+                        RowItem(
+                            icon: currentSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
+                                  currentSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
+                                  currentSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
+                                  currentSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
+                                  "gauge.with.dots.needle.50percent",
+                            label: "Playback Speed") {
                             Menu {
                                 let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
 
                                 Section(header: Text("Playback Speed")) {
                                     ForEach(speeds, id: \.self) { speed in
                                         Button(action: {
-                                            player.setPlaybackSpeed(speed)
+                                            withAnimation {
+                                                player.setPlaybackSpeed(speed)
+                                            }
                                         }) {
                                             HStack {
                                                 if speed == currentSpeed {
@@ -350,6 +358,7 @@ struct SettingsView: View {
                              Toggle(isOn: $autoPlayNext) {
                                  Text("Autoplay Next Episode")
                              }
+                             .tint(.accentColor)
                              .labelsHidden()
                              .symbolRenderingMode(.hierarchical)
                              .onChange(of: autoPlayNext) { newValue in

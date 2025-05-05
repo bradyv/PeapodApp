@@ -178,8 +178,8 @@ struct EpisodeView: View {
                                                 Label("Playback Speed", systemImage:
                                                     currentSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
                                                     currentSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
-                                                    currentSpeed > 1.5 ? "gauge.with.dots.needle.100percent" :
-                                                    currentSpeed > 1.1 ? "gauge.with.dots.needle.67percent" :
+                                                    currentSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
+                                                    currentSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
                                                     "gauge.with.dots.needle.50percent"
                                                 )
                                                 .shadow(color: currentSpeed != 1.0 ? Color.accentColor.opacity(0.5) : Color.clear, radius: 8)

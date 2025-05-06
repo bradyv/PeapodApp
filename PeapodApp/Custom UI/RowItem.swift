@@ -29,6 +29,7 @@ struct RowItem<Accessory: View>: View {
                     .frame(width: 24)
                     .foregroundStyle(tint)
                     .textBody()
+                    .symbolRenderingMode(.hierarchical)
                 Text(label)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(tint)

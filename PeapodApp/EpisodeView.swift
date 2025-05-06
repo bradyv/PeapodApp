@@ -133,13 +133,13 @@ struct EpisodeView: View {
                             VStack(spacing:0) {
                                 if episode.isQueued {
                                     VStack(spacing:2) {
-                                        let safeDuration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+                                        let safeDuration = player.getActualDuration(for: episode)
                                         PPProgress(
                                             value: Binding(
                                                 get: { player.getProgress(for: episode) },
                                                 set: { player.seek(to: $0) }
                                             ),
-                                            range: 0...safeDuration,
+                                            range: 0...player.getActualDuration(for: episode),
                                             onEditingChanged: { isEditing in
                                                 if !isEditing {
                                                     player.seek(to: player.progress)
@@ -178,8 +178,8 @@ struct EpisodeView: View {
                                                 Label("Playback Speed", systemImage:
                                                     currentSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
                                                     currentSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
-                                                    currentSpeed > 1.5 ? "gauge.with.dots.needle.100percent" :
-                                                    currentSpeed > 1.1 ? "gauge.with.dots.needle.67percent" :
+                                                    currentSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
+                                                    currentSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
                                                     "gauge.with.dots.needle.50percent"
                                                 )
                                                 .shadow(color: currentSpeed != 1.0 ? Color.accentColor.opacity(0.5) : Color.clear, radius: 8)

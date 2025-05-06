@@ -64,6 +64,7 @@ struct SettingsView: View {
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
+    @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -109,16 +110,17 @@ struct SettingsView: View {
                     }
                 
                 VStack(spacing:24) {
-                    Spacer().frame(height:16)
-                    VStack(spacing:4) {
+                    Spacer().frame(height:8)
+                    VStack(spacing:0) {
                         FadeInView(delay:0.2) {
                             Image("Peapod.white")
                                 .resizable()
                                 .frame(width:64,height:55.5)
+                            
 //                            ZStack {
-//                                Image("ppface")
+//                                Image("Peapod.white")
 //                                    .resizable()
-//                                    .frame(width:64,height:64)
+//                                    .frame(width:64,height:55.5)
 //                                
 //                                PPArc(text: "Beta Tester • Beta Tester • ".uppercased(), radius: 37, size:.init(width: 100, height: 100))
 //                                    .font(.system(size: 13, design: .monospaced)).bold()
@@ -236,14 +238,22 @@ struct SettingsView: View {
                             .frame(maxWidth:.infinity, alignment: .leading)
                             .padding(.top,24)
                         
-                        RowItem(icon: "gauge.with.dots.needle.50percent", label: "Playback Speed") {
+                        RowItem(
+                            icon: currentSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
+                                  currentSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
+                                  currentSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
+                                  currentSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
+                                  "gauge.with.dots.needle.50percent",
+                            label: "Playback Speed") {
                             Menu {
                                 let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
 
                                 Section(header: Text("Playback Speed")) {
                                     ForEach(speeds, id: \.self) { speed in
                                         Button(action: {
-                                            player.setPlaybackSpeed(speed)
+                                            withAnimation {
+                                                player.setPlaybackSpeed(speed)
+                                            }
                                         }) {
                                             HStack {
                                                 if speed == currentSpeed {
@@ -338,12 +348,24 @@ struct SettingsView: View {
                             }
                         }
                         
-                        RowItem(icon: "app.badge", label: "Notifications") {
-                            Toggle(isOn: $allowNotifications) {
-                                Text("Push Notifications")
-                            }
-                            .labelsHidden()
-                        }
+//                        RowItem(icon: "app.badge", label: "Notifications") {
+//                            Toggle(isOn: $allowNotifications) {
+//                                Text("Push Notifications")
+//                            }
+//                            .labelsHidden()
+//                        }
+                        
+                        RowItem(icon: "sparkles.rectangle.stack", label: "Autoplay Next Episode") {
+                             Toggle(isOn: $autoPlayNext) {
+                                 Text("Autoplay Next Episode")
+                             }
+                             .tint(.accentColor)
+                             .labelsHidden()
+                             .symbolRenderingMode(.hierarchical)
+                             .onChange(of: autoPlayNext) { newValue in
+                                     setAutoplayNext(newValue)
+                                 }
+                         }
                     }
 
                     VStack {
@@ -537,6 +559,11 @@ struct SettingsView: View {
             }
         }
     }
+    
+    func setAutoplayNext(_ enabled: Bool) {
+         player.autoplayNext = enabled
+         UserDefaults.standard.set(enabled, forKey: "autoplayNext")
+     }
     
     private func injectTestPodcast() {
         let context = PersistenceController.shared.container.viewContext

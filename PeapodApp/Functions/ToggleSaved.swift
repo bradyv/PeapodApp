@@ -12,6 +12,12 @@ import SwiftUI
     
     episode.isSaved.toggle()
     
+    if episode.isSaved {
+        episode.savedDate = Date()
+    } else {
+        episode.savedDate = nil
+    }
+    
     do {
         try context.save()
         episodesViewModel?.fetchSaved()

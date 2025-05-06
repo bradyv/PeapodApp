@@ -10,60 +10,114 @@ import CoreData
 import FeedKit
 
 class EpisodeRefresher {
+    private static let podcastRefreshLocks = NSMapTable<NSString, NSLock>.strongToStrongObjects()
+
     static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
         guard let feedUrl = podcast.feedUrl, let url = URL(string: feedUrl) else {
             completion?()
             return
         }
-
+        
+        // Get or create a lock for this specific podcast
+        let podcastId = podcast.id as NSString? ?? "unknown" as NSString
+        var lock: NSLock
+        
+        // Thread-safe access to the locks map
+        objc_sync_enter(podcastRefreshLocks)
+        if let existingLock = podcastRefreshLocks.object(forKey: podcastId) {
+            lock = existingLock
+        } else {
+            lock = NSLock()
+            podcastRefreshLocks.setObject(lock, forKey: podcastId)
+        }
+        objc_sync_exit(podcastRefreshLocks)
+        
+        // Try to acquire the lock, otherwise skip this refresh
+        guard lock.try() else {
+            print("⏩ Skipping refresh for \(podcast.title ?? "podcast"), already in progress")
+            completion?()
+            return
+        }
+        
+        // Make sure to release the lock when done
+        defer { lock.unlock() }
+        
         FeedParser(URL: url).parseAsync { result in
             switch result {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     context.perform {
+                        // No transaction methods in NSManagedObjectContext, using normal operations
+                        
+                        // Update podcast metadata
                         if podcast.image == nil {
                             podcast.image = rss.image?.url ??
-                                            rss.iTunes?.iTunesImage?.attributes?.href ??
-                                            rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
+                            rss.iTunes?.iTunesImage?.attributes?.href ??
+                            rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
                         }
-
+                        
                         if podcast.podcastDescription == nil {
                             podcast.podcastDescription = rss.description ??
-                                                          rss.iTunes?.iTunesSummary ??
-                                                          rss.items?.first?.iTunes?.iTunesSummary ??
-                                                          rss.items?.first?.description
+                            rss.iTunes?.iTunesSummary ??
+                            rss.items?.first?.iTunes?.iTunesSummary ??
+                            rss.items?.first?.description
                         }
-
-                        // 🚀 Instead of fetching ALL episodes, let's build GUID list first
+                        
+                        // Build GUID and audio URL lists for better matching
                         var guids: [String] = []
+                        var audioUrls: [String] = []
                         var titleDateKeys: [String] = []
-
+                        
+                        // First pass: collect all identifiers
                         for item in rss.items ?? [] {
                             if let guid = item.guid?.value {
-                                guids.append(guid)
-                            } else if let title = item.title, let airDate = item.pubDate {
+                                // Normalize GUID to prevent case/whitespace issues
+                                let normalizedGuid = guid.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guids.append(normalizedGuid)
+                            }
+                            
+                            if let audioUrl = item.enclosure?.attributes?.url {
+                                audioUrls.append(audioUrl)
+                            }
+                            
+                            if let title = item.title, let airDate = item.pubDate {
                                 let key = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
                                 titleDateKeys.append(key)
                             }
                         }
-
+                        
+                        // Maps for quick lookups
                         var existingEpisodesByGUID: [String: Episode] = [:]
-                        var existingEpisodesByTitleAndDate: [String: Episode] = [:]
-
-                        // 🚀 Fetch existing episodes by GUID only
+                        var existingEpisodesByAudioUrl: [String: Episode] = [:]
+                        var existingEpisodesByTitleDate: [String: Episode] = [:]
+                        
+                        // Fetch episodes by GUID
                         if !guids.isEmpty {
                             let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
                             fetchRequest.predicate = NSPredicate(format: "podcast == %@ AND guid IN %@", podcast, guids)
                             if let results = try? context.fetch(fetchRequest) {
                                 for episode in results {
-                                    if let guid = episode.guid {
+                                    if let guid = episode.guid?.trimmingCharacters(in: .whitespacesAndNewlines) {
                                         existingEpisodesByGUID[guid] = episode
                                     }
                                 }
                             }
                         }
-
-                        // 🚀 Fetch existing episodes by Title+AirDate if no GUID
+                        
+                        // Fetch episodes by audio URL
+                        if !audioUrls.isEmpty {
+                            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                            fetchRequest.predicate = NSPredicate(format: "podcast == %@ AND audio IN %@", podcast, audioUrls)
+                            if let results = try? context.fetch(fetchRequest) {
+                                for episode in results {
+                                    if let audio = episode.audio {
+                                        existingEpisodesByAudioUrl[audio] = episode
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Fetch episodes by title+date
                         if !titleDateKeys.isEmpty {
                             let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
                             fetchRequest.predicate = NSPredicate(format: "podcast == %@ AND title != nil AND airDate != nil", podcast)
@@ -71,45 +125,76 @@ class EpisodeRefresher {
                                 for episode in results {
                                     if let title = episode.title, let airDate = episode.airDate {
                                         let key = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
-                                        existingEpisodesByTitleAndDate[key] = episode
+                                        existingEpisodesByTitleDate[key] = episode
                                     }
                                 }
                             }
                         }
-
+                        
+                        // Debug logging for the first few episodes
+                        let debugCount = min(3, rss.items?.count ?? 0)
+                        for (index, item) in (rss.items?.prefix(debugCount) ?? []).enumerated() {
+                            print("DEBUG [\(podcast.title ?? "Unknown")]: Episode \(index+1)")
+                            print("  - Title: \(item.title ?? "Unknown")")
+                            print("  - GUID: \(item.guid?.value ?? "Missing")")
+                            if let guid = item.guid?.value {
+                                let normalizedGuid = guid.trimmingCharacters(in: .whitespacesAndNewlines)
+                                print("  - Normalized GUID: \(normalizedGuid)")
+                                print("  - Existing with this GUID: \(existingEpisodesByGUID[normalizedGuid] != nil)")
+                            }
+                            if let audioUrl = item.enclosure?.attributes?.url {
+                                print("  - Audio URL: \(audioUrl)")
+                                print("  - Existing with this Audio URL: \(existingEpisodesByAudioUrl[audioUrl] != nil)")
+                            }
+                        }
+                        
+                        // Process episodes
                         for item in rss.items ?? [] {
                             guard let title = item.title else { continue }
-
-                            let guid = item.guid?.value
+                            
+                            let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let audioUrl = item.enclosure?.attributes?.url
                             let airDate = item.pubDate
-
+                            
+                            // Try to find existing episode using all available identifiers
                             var existingEpisode: Episode?
-
-                            if let guid = guid {
+                            
+                            // First try by audio URL (most reliable)
+                            if let audioUrl = audioUrl {
+                                existingEpisode = existingEpisodesByAudioUrl[audioUrl]
+                            }
+                            
+                            // Then try by GUID if audio URL didn't match
+                            if existingEpisode == nil, let guid = guid {
                                 existingEpisode = existingEpisodesByGUID[guid]
                             }
+                            
+                            // Finally try by title+date as last resort
                             if existingEpisode == nil, let airDate = airDate {
                                 let key = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
-                                existingEpisode = existingEpisodesByTitleAndDate[key]
+                                existingEpisode = existingEpisodesByTitleDate[key]
                             }
-
+                            
+                            // Create or update episode
                             let episode = existingEpisode ?? Episode(context: context)
-
+                            
                             if existingEpisode == nil {
                                 episode.id = UUID().uuidString
                                 episode.podcast = podcast
                             }
-
+                            
+                            // Update episode attributes
                             episode.guid = guid
                             episode.title = title
-                            episode.audio = item.enclosure?.attributes?.url
+                            episode.audio = audioUrl
                             episode.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
                             episode.airDate = airDate
                             if let durationString = item.iTunes?.iTunesDuration {
                                 episode.duration = Double(durationString)
                             }
                             episode.episodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
-
+                            
+                            // Handle new episodes: notify and queue
                             if existingEpisode == nil, podcast.isSubscribed {
                                 print("📣 New episode detected: \(episode.title ?? "Unknown") — sending notification")
                                 sendNewEpisodeNotification(for: episode)
@@ -119,9 +204,16 @@ class EpisodeRefresher {
                                 print("🧹 Existing episode updated: \(episode.title ?? "Unknown") — no notification")
                             }
                         }
-
-                        try? context.save()
-                        completion?()
+                        
+                        // Save changes
+                        do {
+                            try context.save()
+                            print("✅ Saved episodes for \(podcast.title ?? "Unknown")")
+                            completion?()
+                        } catch {
+                            print("❌ Error saving podcast refresh: \(error)")
+                            completion?()
+                        }
                     }
                 } else {
                     completion?()

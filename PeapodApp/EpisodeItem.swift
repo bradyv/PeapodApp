@@ -19,6 +19,15 @@ struct EpisodeItem: View {
     var savedView: Bool = false
     var namespace: Namespace.ID
     
+    func updateView() {
+        // Force UI update when episode state changes
+        if player.isPlayingEpisode(episode) {
+            isPlaying = true
+        } else {
+            isPlaying = false
+        }
+    }
+    
     var body: some View {
         VStack(alignment:.leading) {
             // Podcast Info Row
@@ -100,33 +109,27 @@ struct EpisodeItem: View {
             if displayedInQueue {
                 HStack {
                     Button(action: {
+                        if episode.isPlayed && !player.isPlayingEpisode(episode) {
+                            // Need to reset the played state first to ensure proper queueing
+                            episode.isPlayed = false
+                            try? episode.managedObjectContext?.save()
+                        }
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
                             if player.isPlayingEpisode(episode) {
                                 if player.isLoadingEpisode(episode) {
-                                    PPSpinner(color: Color.black)
+                                    PPSpinner(color: Color.background)
                                 } else {
-                                    WaveformView(isPlaying: $isPlaying, color: .black)
+                                    WaveformView(isPlaying: $isPlaying, color: Color.background)
                                 }
                             } else {
-                                if episode.isPlayed {
-                                    if displayedInQueue {
-                                        Image(systemName: "play.circle.fill")
-                                    } else {
-                                        Image(systemName: "arrow.clockwise")
-                                    }
-                                } else {
-                                    Image(systemName: "play.circle.fill")
-                                }
+                                Image(systemName:"play.circle.fill")
                             }
                             
                             if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {
                                 let isQQ = displayedInQueue
-                                let safeDuration: Double = {
-                                    let actual = episode.actualDuration
-                                    return actual > 1 ? actual : episode.duration
-                                }()
+                                let safeDuration = player.getActualDuration(for: episode)
                                 
                                 PPProgress(
                                     value: Binding(
@@ -167,7 +170,7 @@ struct EpisodeItem: View {
                         Button(action: {
                             withAnimation {
                                 toggleQueued(episode)
-                                toggleSaved(episode)
+                                episode.isSaved = true
                             }
                             try? episode.managedObjectContext?.save()
                         }) {
@@ -222,6 +225,11 @@ struct EpisodeItem: View {
             } else {
                 HStack {
                     Button(action: {
+                        if episode.isPlayed && !player.isPlayingEpisode(episode) {
+                            // Need to reset the played state first to ensure proper queueing
+                            episode.isPlayed = false
+                            try? episode.managedObjectContext?.save()
+                        }
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
@@ -233,15 +241,11 @@ struct EpisodeItem: View {
                                 }
                             } else {
                                 Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.circle.fill")
-                                
                             }
                             
                             if player.isPlayingEpisode(episode) || player.getProgress(for: episode) > 0 {
                                 let isQQ = displayedInQueue
-                                let safeDuration: Double = {
-                                    let actual = episode.actualDuration
-                                    return actual > 1 ? actual : episode.duration
-                                }()
+                                let safeDuration = player.getActualDuration(for: episode)
                                 
                                 PPProgress(
                                     value: Binding(
@@ -325,6 +329,13 @@ struct EpisodeItem: View {
                 await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
+            
+            // Ensure UI state is correct when view appears
+            isPlaying = player.isPlayingEpisode(episode)
+        }
+        .onChange(of: episode.isPlayed) { oldValue, newValue in
+            // Force UI update when episode played state changes
+            updateView()
         }
         .onReceive(player.$isPlaying) { newValue in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

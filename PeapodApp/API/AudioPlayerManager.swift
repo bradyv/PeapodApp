@@ -16,16 +16,14 @@ private var viewContext: NSManagedObjectContext {
 }
 
 func fetchQueuedEpisodes() -> [Episode] {
-    let context = viewContext
-    let playlistRequest: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-    playlistRequest.predicate = NSPredicate(format: "name == %@", "Queue")
-
-    if let queuePlaylist = try? context.fetch(playlistRequest).first,
-       let items = queuePlaylist.items as? Set<Episode> {
-        return items.sorted { $0.queuePosition < $1.queuePosition }
+    let context = PersistenceController.shared.container.viewContext
+    let queuePlaylist = getQueuePlaylist(context: context)
+    
+    guard let items = queuePlaylist.items as? Set<Episode> else {
+        return []
     }
-
-    return []
+    
+    return items.sorted { $0.queuePosition < $1.queuePosition }
 }
 
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
@@ -41,6 +39,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0)
     @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30
     @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15
+    @Published var autoplayNext: Bool = UserDefaults.standard.bool(forKey: "autoplayNext")
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player else { return }
@@ -97,10 +96,55 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func playerDidFinishPlaying(notification: Notification) {
         guard let finishedEpisode = currentEpisode else { return }
         print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
+        
+        // Store the finished episode info before clearing it
+        let wasFinishedEpisode = finishedEpisode
+        
+        // Reset player state first
         progress = 0
-        markAsPlayed(for: finishedEpisode)
-        try? finishedEpisode.managedObjectContext?.save()
-        stop()
+        isPlaying = false
+        
+        // Clean up player before doing queue operations
+        cleanupPlayer()
+        
+        // Clear now playing info
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        
+        // Mark episode as played after cleanup
+        wasFinishedEpisode.isPlayed = true
+        wasFinishedEpisode.nowPlaying = false
+        wasFinishedEpisode.playedDate = Date.now
+        
+        // Update podcast stats
+        if let podcast = wasFinishedEpisode.podcast {
+            podcast.playCount += 1
+            podcast.playedSeconds += getActualDuration(for: wasFinishedEpisode)
+        }
+        
+        // Reset playback position
+        wasFinishedEpisode.playbackPosition = 0
+        
+        // Use our dedicated function to remove from queue and save changes
+        removeFromQueue(wasFinishedEpisode)
+        
+        // Save changes explicitly
+        try? wasFinishedEpisode.managedObjectContext?.save()
+        
+        // Fetch the next episode AFTER removing the current one
+        if autoplayNext {
+            // Wait briefly to ensure queue updates are processed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // Check if there are more episodes in the queue to play next
+                self.playNextInQueue()
+            }
+        }
+    }
+    
+    private func playNextInQueue() {
+        let queuedEpisodes = fetchQueuedEpisodes()
+        if let nextEpisode = queuedEpisodes.first {
+            self.play(episode: nextEpisode)
+        }
     }
     
     private init() {
@@ -137,8 +181,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             player?.removeTimeObserver(observer)
             timeObserver = nil
         }
+        
         player?.pause()
+        player?.replaceCurrentItem(with: nil)
         player = nil
+        
         playerItemObservation?.invalidate()
         playerItemObservation = nil
     }
@@ -153,8 +200,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             try? previousEpisode.managedObjectContext?.save()
         }
 
-        // Move to front of queue and push previous episode to position 1
-        toggleQueued(episode, toFront: true, pushingPrevious: currentEpisode?.id != episode.id ? currentEpisode : nil)
+        // Instead of using toggleQueued directly, we'll use the more specific queue management functions
+        // Move this episode to front, which will also manage any previous current episode
+        moveEpisodeToFrontOfQueue(episode)
 
         // Replace current player only if switching episodes
         if currentEpisode?.id != episode.id {
@@ -166,6 +214,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             addTimeObserver()
 
             isLoading = true
+            
+            // Get actual duration from asset right away
+            Task {
+                writeActualDuration(for: episode)
+            }
 
             // Observe playback readiness
             playerItemObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
@@ -187,19 +240,27 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         let lastPosition = getSavedPlaybackPosition(for: episode)
         if lastPosition > 0 {
             player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
-//                self?.player?.play()
                 self?.player?.playImmediately(atRate: self?.playbackSpeed ?? 1.0)
                 self?.isPlaying = true
                 self?.updateNowPlayingInfo()
             }
         } else {
-//            player?.play()
             player?.playImmediately(atRate: playbackSpeed)
             isPlaying = true
             updateNowPlayingInfo()
         }
 
         print("🎧 Playback started for \(episode.title ?? "Episode")")
+    }
+    
+    private func moveEpisodeToFrontOfQueue(_ episode: Episode) {
+        // Ensure episode is in the queue by moving it to position 0
+        moveEpisodeInQueue(episode, to: 0)
+        
+        // If there's a current episode that's different, ensure it's in position 1
+        if let currentEp = currentEpisode, currentEp.id != episode.id, currentEp.isQueued {
+            moveEpisodeInQueue(currentEp, to: 1)
+        }
     }
     
     func setPlaybackSpeed(_ speed: Float) {
@@ -228,13 +289,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 
     func stop() {
-        if let player = player {
-            savePlaybackPosition(for: currentEpisode, position: player.currentTime().seconds)
+        if let player = player, let episode = currentEpisode {
+            let currentPosition = player.currentTime().seconds
+            savePlaybackPosition(for: episode, position: currentPosition)
         }
-        player?.pause()
-        player?.seek(to: .zero)
-        isPlaying = false
+        
+        // Clean up player completely
+        cleanupPlayer()
+        
+        // Reset state variables
         progress = 0
+        isPlaying = false
+        
+        // Clear now playing info
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
@@ -289,6 +356,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    func getActualDuration(for episode: Episode) -> Double {
+        // If the episode is currently playing, use the player item's actual duration
+        if currentEpisode?.id == episode.id, let player = player, let currentItem = player.currentItem {
+            let duration = currentItem.asset.duration
+            let durationSeconds = CMTimeGetSeconds(duration)
+            return durationSeconds.isNaN || durationSeconds <= 0 ? episode.duration : durationSeconds
+        }
+        
+        // Otherwise use the saved actual duration, falling back to the feed duration
+        return episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+    }
+    
     func writeActualDuration(for episode: Episode) {
         // Skip if actualDuration appears to already be set
         if episode.actualDuration > 0 {
@@ -307,12 +386,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         Task {
             do {
                 let duration = try await asset.load(.duration)
+                let durationSeconds = duration.seconds
 
                 await MainActor.run {
                     if let updatedEpisode = try? viewContext.existingObject(with: objectID) as? Episode {
-                        updatedEpisode.actualDuration = duration.seconds
+                        updatedEpisode.actualDuration = durationSeconds
                         try? updatedEpisode.managedObjectContext?.save()
-                        print("✅ Actual duration saved: \(duration.seconds) for \(updatedEpisode.title ?? "Episode")")
+                        print("✅ Actual duration saved: \(durationSeconds) for \(updatedEpisode.title ?? "Episode")")
+                        
+                        // If this is the current episode, update the player
+                        if self.currentEpisode?.id == episode.id, let item = self.player?.currentItem {
+                            self.updateNowPlayingInfo()
+                        }
                     }
                 }
             } catch {
@@ -322,21 +407,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 
     func getStableRemainingTime(for episode: Episode, pretty: Bool = true) -> String {
-        let actual = episode.actualDuration
-        let feed = episode.duration
+        let duration = getActualDuration(for: episode)
         let progress = getProgress(for: episode)
-
-        let usingActual = actual > 0
+        
         let playingOrResumed = isPlayingEpisode(episode) || hasStartedPlayback(for: episode)
-        let duration = usingActual ? actual : feed
-
+        
         let valueToShow: Double
-        if usingActual && playingOrResumed && progress > 0 {
-            valueToShow = max(0, actual - progress)
+        if playingOrResumed && progress > 0 {
+            valueToShow = max(0, duration - progress)
         } else {
             valueToShow = duration
         }
-
+        
         let seconds = Int(valueToShow)
         return pretty ? formatDuration(seconds: seconds) : formatView(seconds: seconds)
     }
@@ -358,38 +440,56 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
         if episode.isPlayed {
+            // Toggle off played state
             episode.isPlayed = false
             episode.playedDate = nil
         } else {
+            // Set played state and update related properties
             episode.isPlayed = true
-            episode.isQueued = false
-            episode.nowPlaying = false
             episode.playedDate = Date.now
-            episode.playlist = nil
-            episode.podcast?.playCount += 1
-
-            let liveProgress = player?.currentTime().seconds ?? 0
-            let savedProgress = episode.playbackPosition
-
-            let actualProgress: Double
-
+            
+            // Get the actual duration we should record
+            let actualDuration = getActualDuration(for: episode)
+            let currentProgress: Double
+            
             if manually {
-                if currentEpisode?.id == episode.id && liveProgress > 0 {
-                    actualProgress = min(liveProgress, episode.duration)
+                // If manually marking as played, use the current position if this is the active episode
+                if currentEpisode?.id == episode.id {
+                    currentProgress = player?.currentTime().seconds ?? episode.playbackPosition
                 } else {
-                    actualProgress = min(savedProgress, episode.duration)
+                    currentProgress = episode.playbackPosition
                 }
             } else {
-                actualProgress = min(savedProgress, episode.duration)
+                // When automatically marking as played (natural end), use the full duration
+                currentProgress = actualDuration
             }
-
-            let playedSecondsToAdd = manually ? actualProgress : episode.duration
-            episode.podcast?.playedSeconds += playedSecondsToAdd
-            print("Recorded \(playedSecondsToAdd) for \(episode.title ?? "episode")")
+            
+            // Record play statistics
+            if let podcast = episode.podcast {
+                podcast.playCount += 1
+                podcast.playedSeconds += manually ? currentProgress : actualDuration
+                print("Recorded \(manually ? currentProgress : actualDuration) seconds for \(episode.title ?? "episode")")
+            }
+            
+            // Use our dedicated function to remove from queue instead of doing it manually
+            if episode.isQueued {
+                removeFromQueue(episode)
+            }
+            
+            // Reset playback state
+            episode.nowPlaying = false
         }
-
+        
+        // Always reset playback position to 0 when marking played/unplayed
         episode.playbackPosition = 0
+        
+        // Save changes to persistence
         try? episode.managedObjectContext?.save()
+        
+        // If this was the currently playing episode, stop playback
+        if currentEpisode?.id == episode.id {
+            stop()
+        }
     }
 
     private func configureAudioSession(activePlayback: Bool = false) {
@@ -442,12 +542,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
     private func updateNowPlayingInfo() {
         guard let episode = currentEpisode else { return }
-        let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+        let duration = getActualDuration(for: episode)
 
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: episode.title ?? "Episode",
             MPMediaItemPropertyArtist: episode.podcast?.title ?? "Podcast",
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? playbackSpeed : 0.0,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: progress,
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyMediaType: 1
@@ -512,27 +612,51 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         Task {
             do {
                 let duration = try await currentItem.asset.load(.duration)
+                let durationSeconds = duration.seconds
+                
+                if let episode = currentEpisode, durationSeconds.isFinite && durationSeconds > 0 {
+                    // Update episode's actual duration if needed
+                    await MainActor.run {
+                        if episode.actualDuration <= 0 || abs(episode.actualDuration - durationSeconds) > 1.0 {
+                            episode.actualDuration = durationSeconds
+                            try? episode.managedObjectContext?.save()
+                            print("✅ Updated actual duration from player: \(durationSeconds) for \(episode.title ?? "Episode")")
+                            updateNowPlayingInfo()
+                        }
+                    }
+                }
             } catch {
                 print("⚠️ Failed to load duration: \(error.localizedDescription)")
             }
         }
 
         timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
+            forInterval: CMTime(seconds: 0.5, preferredTimescale: 10),
             queue: .main
         ) { [weak self] time in
             guard let self = self,
                   let current = self.player?.currentItem,
+                  let episode = self.currentEpisode,
                   current == player.currentItem else { return }
 
-            let roundedTime = floor(time.seconds)
+            let currentTime = time.seconds
+            let roundedTime = floor(currentTime)
+            let currentDuration = self.getActualDuration(for: episode)
+            
+            // Check if we're at the end of the episode
+            // More precise end detection - within 0.2 seconds of the end
+            if currentTime >= currentDuration - 0.2 {
+                print("🎯 End of episode detected at \(currentTime) of \(currentDuration)")
+                self.playerDidFinishPlaying(notification: Notification(name: .AVPlayerItemDidPlayToEndTime))
+                return
+            }
+            
             if self.isPlaying && self.progress != roundedTime {
                 self.progress = roundedTime
                 self.updateNowPlayingInfo()
                 
-                if let episode = self.currentEpisode {
-                    self.savePlaybackPosition(for: episode, position: roundedTime)
-                }
+                // Save position every second
+                self.savePlaybackPosition(for: episode, position: roundedTime)
             }
         }
     }

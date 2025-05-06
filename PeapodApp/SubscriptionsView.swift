@@ -34,6 +34,7 @@ struct SubscriptionsView: View {
                     } label: {
                         VStack {
                             Image(systemName: "plus.magnifyingglass")
+                                .symbolRenderingMode(.hierarchical)
                             Text("Add a podcast")
                                 .textDetailEmphasis()
                         }

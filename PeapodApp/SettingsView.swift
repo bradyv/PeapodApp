@@ -110,16 +110,17 @@ struct SettingsView: View {
                     }
                 
                 VStack(spacing:24) {
-                    Spacer().frame(height:16)
-                    VStack(spacing:4) {
+                    Spacer().frame(height:8)
+                    VStack(spacing:0) {
                         FadeInView(delay:0.2) {
                             Image("Peapod.white")
                                 .resizable()
                                 .frame(width:64,height:55.5)
+                            
 //                            ZStack {
-//                                Image("ppface")
+//                                Image("Peapod.white")
 //                                    .resizable()
-//                                    .frame(width:64,height:64)
+//                                    .frame(width:64,height:55.5)
 //                                
 //                                PPArc(text: "Beta Tester • Beta Tester • ".uppercased(), radius: 37, size:.init(width: 100, height: 100))
 //                                    .font(.system(size: 13, design: .monospaced)).bold()

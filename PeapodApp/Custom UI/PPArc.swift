@@ -77,12 +77,22 @@ struct Sizeable: View {
 #Preview {
     VStack {
         ZStack {
-            Image("ppface")
+            Image("Peapod.white")
                 .resizable()
-                .frame(width:64,height:64)
+                .frame(width:64,height:55.5)
             
-            PPArc(text: "Est 2025 • Est 2025 • Est 2025 • ".uppercased(), radius: 44, size:.init(width: 100, height: 100))
-                .font(.system(size: 13, design: .monospaced)).bold()
+            PPArc(text: "Listener Since Mar 12 • Listener Since Mar 12 •  ".uppercased(), radius: 33, size:.init(width: 100, height: 100))
+                .font(.system(size: 7, design: .monospaced)).bold()
+                .foregroundStyle(.white)
+        }
+        
+        ZStack {
+            Image("Peapod.white")
+                .resizable()
+                .frame(width:64,height:55.5)
+            
+            PPArc(text: "Beta Tester Since Mar 12 • Beta Tester Since Mar 12 •  ".uppercased(), radius: 37, size:.init(width: 100, height: 100))
+                .font(.system(size: 7, design: .monospaced)).bold()
                 .foregroundStyle(.white)
         }
     }

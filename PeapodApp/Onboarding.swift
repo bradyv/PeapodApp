@@ -141,7 +141,9 @@ struct WelcomeView: View {
                     FadeInView(delay: 0.8) {
                         Image("Peapod.logo.new")
                             .onTapGesture {
+                                #if DEBUG
                                 showSubscriptions = false
+                                #endif
                             }
                     }
                     

@@ -170,7 +170,7 @@ struct EpisodeItem: View {
                         Button(action: {
                             withAnimation {
                                 toggleQueued(episode)
-                                toggleSaved(episode)
+                                episode.isSaved = true
                             }
                             try? episode.managedObjectContext?.save()
                         }) {

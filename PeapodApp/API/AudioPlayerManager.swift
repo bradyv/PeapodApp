@@ -16,16 +16,14 @@ private var viewContext: NSManagedObjectContext {
 }
 
 func fetchQueuedEpisodes() -> [Episode] {
-    let context = viewContext
-    let playlistRequest: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-    playlistRequest.predicate = NSPredicate(format: "name == %@", "Queue")
-
-    if let queuePlaylist = try? context.fetch(playlistRequest).first,
-       let items = queuePlaylist.items as? Set<Episode> {
-        return items.sorted { $0.queuePosition < $1.queuePosition }
+    let context = PersistenceController.shared.container.viewContext
+    let queuePlaylist = getQueuePlaylist(context: context)
+    
+    guard let items = queuePlaylist.items as? Set<Episode> else {
+        return []
     }
-
-    return []
+    
+    return items.sorted { $0.queuePosition < $1.queuePosition }
 }
 
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
@@ -99,47 +97,46 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         guard let finishedEpisode = currentEpisode else { return }
         print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
         
-        // We need to ensure the episode is definitely marked as played
-        // and removed from the queue properly
-        finishedEpisode.isPlayed = true
-        finishedEpisode.isQueued = false
-        finishedEpisode.nowPlaying = false
-        finishedEpisode.playedDate = Date.now
+        // Store the finished episode info before clearing it
+        let wasFinishedEpisode = finishedEpisode
         
-        // Remove from queue
-        let context = finishedEpisode.managedObjectContext ?? PersistenceController.shared.container.viewContext
-        let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-        request.predicate = NSPredicate(format: "name == %@", "Queue")
-        
-        if let queuePlaylist = try? context.fetch(request).first {
-            queuePlaylist.removeFromItems(finishedEpisode)
-        }
-        
-        finishedEpisode.queuePosition = -1
-        finishedEpisode.playbackPosition = 0
-        
-        // Update podcast stats
-        if let podcast = finishedEpisode.podcast {
-            podcast.playCount += 1
-            podcast.playedSeconds += getActualDuration(for: finishedEpisode)
-        }
-        
-        // Reset player state
+        // Reset player state first
         progress = 0
         isPlaying = false
         
-        // Save changes
-        try? finishedEpisode.managedObjectContext?.save()
-        
-        // Stop playback
+        // Clean up player before doing queue operations
         cleanupPlayer()
         
         // Clear now playing info
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         
+        // Mark episode as played after cleanup
+        wasFinishedEpisode.isPlayed = true
+        wasFinishedEpisode.nowPlaying = false
+        wasFinishedEpisode.playedDate = Date.now
+        
+        // Update podcast stats
+        if let podcast = wasFinishedEpisode.podcast {
+            podcast.playCount += 1
+            podcast.playedSeconds += getActualDuration(for: wasFinishedEpisode)
+        }
+        
+        // Reset playback position
+        wasFinishedEpisode.playbackPosition = 0
+        
+        // Use our dedicated function to remove from queue and save changes
+        removeFromQueue(wasFinishedEpisode)
+        
+        // Save changes explicitly
+        try? wasFinishedEpisode.managedObjectContext?.save()
+        
+        // Fetch the next episode AFTER removing the current one
         if autoplayNext {
-            // Check if there are more episodes in the queue to play next
-            playNextInQueue()
+            // Wait briefly to ensure queue updates are processed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // Check if there are more episodes in the queue to play next
+                self.playNextInQueue()
+            }
         }
     }
     
@@ -203,8 +200,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             try? previousEpisode.managedObjectContext?.save()
         }
 
-        // Move to front of queue and push previous episode to position 1
-        toggleQueued(episode, toFront: true, pushingPrevious: currentEpisode?.id != episode.id ? currentEpisode : nil)
+        // Instead of using toggleQueued directly, we'll use the more specific queue management functions
+        // Move this episode to front, which will also manage any previous current episode
+        moveEpisodeToFrontOfQueue(episode)
 
         // Replace current player only if switching episodes
         if currentEpisode?.id != episode.id {
@@ -253,6 +251,16 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
 
         print("🎧 Playback started for \(episode.title ?? "Episode")")
+    }
+    
+    private func moveEpisodeToFrontOfQueue(_ episode: Episode) {
+        // Ensure episode is in the queue by moving it to position 0
+        moveEpisodeInQueue(episode, to: 0)
+        
+        // If there's a current episode that's different, ensure it's in position 1
+        if let currentEp = currentEpisode, currentEp.id != episode.id, currentEp.isQueued {
+            moveEpisodeInQueue(currentEp, to: 1)
+        }
     }
     
     func setPlaybackSpeed(_ speed: Float) {
@@ -463,20 +471,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 print("Recorded \(manually ? currentProgress : actualDuration) seconds for \(episode.title ?? "episode")")
             }
             
-            // Remove from queue and reset playback position
-            episode.isQueued = false
-            episode.nowPlaying = false
-            episode.playlist = nil
-            episode.queuePosition = -1
-            
-            // Remove from queue playlist
-            let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
-            let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-            request.predicate = NSPredicate(format: "name == %@", "Queue")
-            
-            if let queuePlaylist = try? context.fetch(request).first {
-                queuePlaylist.removeFromItems(episode)
+            // Use our dedicated function to remove from queue instead of doing it manually
+            if episode.isQueued {
+                removeFromQueue(episode)
             }
+            
+            // Reset playback state
+            episode.nowPlaying = false
         }
         
         // Always reset playback position to 0 when marking played/unplayed

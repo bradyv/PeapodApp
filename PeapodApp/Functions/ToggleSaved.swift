@@ -21,7 +21,6 @@ import SwiftUI
     do {
         try context.save()
         episodesViewModel?.fetchSaved()
-        print(episode.savedDate)
     } catch {
         print("Failed to remove episode from saved: \(error)")
     }

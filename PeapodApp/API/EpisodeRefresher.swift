@@ -214,6 +214,8 @@ class EpisodeRefresher {
                             print("❌ Error saving podcast refresh: \(error)")
                             completion?()
                         }
+
+                        mergeDuplicateEpisodes(context: context)
                     }
                 } else {
                     completion?()

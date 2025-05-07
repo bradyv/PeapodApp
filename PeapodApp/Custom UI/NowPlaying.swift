@@ -108,12 +108,8 @@ struct NowPlaying: View {
                             }
                             print("Playing episode")
                         }) {
-                            if player.isPlayingEpisode(episode) {
-                                if player.isLoadingEpisode(episode) {
-                                    PPSpinner(color: Color.background)
-                                } else {
-                                    Image(systemName: "pause")
-                                }
+                            if player.isPlayingEpisode(episode) || player.isLoadingEpisode(episode) {
+                                Image(systemName: "pause")
                             } else {
                                 Image(systemName: "play.fill")
                             }

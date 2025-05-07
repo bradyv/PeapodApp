@@ -117,12 +117,8 @@ struct EpisodeItem: View {
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
-                            if player.isPlayingEpisode(episode) {
-                                if player.isLoadingEpisode(episode) {
-                                    PPSpinner(color: Color.background)
-                                } else {
-                                    WaveformView(isPlaying: $isPlaying, color: Color.background)
-                                }
+                            if player.isPlayingEpisode(episode) || player.isLoadingEpisode(episode) {
+                                WaveformView(isPlaying: $isPlaying, color: Color.black)
                             } else {
                                 Image(systemName:"play.circle.fill")
                             }
@@ -233,12 +229,8 @@ struct EpisodeItem: View {
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
-                            if player.isPlayingEpisode(episode) {
-                                if player.isLoadingEpisode(episode) {
-                                    PPSpinner(color: Color.background)
-                                } else {
-                                    WaveformView(isPlaying: $isPlaying, color: Color.background)
-                                }
+                            if player.isPlayingEpisode(episode) || player.isLoadingEpisode(episode) {
+                                WaveformView(isPlaying: $isPlaying, color: Color.background)
                             } else {
                                 Image(systemName: episode.isPlayed ? "arrow.clockwise" : "play.circle.fill")
                             }

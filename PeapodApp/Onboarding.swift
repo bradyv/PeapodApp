@@ -92,6 +92,11 @@ struct WelcomeView: View {
                             .animation(.spring(response: 0.35, dampingFraction: 0.6), value: poppedPodcastID)
                             .onTapGesture {
                                 let url = podcast.feedUrl
+                                poppedPodcastID = podcast.id
+                                
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    poppedPodcastID = nil
+                                }
                                 PodcastLoader.loadFeed(from: url, context: context) { loadedPodcast in
                                     if let podcastEntity = loadedPodcast {
                                         podcastEntity.isSubscribed = true
@@ -110,11 +115,6 @@ struct WelcomeView: View {
                                         }
                                         DispatchQueue.main.async {
                                             subscribedPodcasts.insert(podcast.id)
-                                            poppedPodcastID = podcast.id
-                                            
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                                poppedPodcastID = nil
-                                            }
                                         }
                                     }
                                 }

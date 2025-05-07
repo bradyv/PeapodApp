@@ -39,7 +39,7 @@ struct LatestEpisodes: View {
             Spacer().frame(height:24)
             FadeInView(delay: 0.1) {
                 HStack {
-                    Text("Latest Episodes")
+                    Text("Most Recent")
                         .titleSerif()
                     
                     Spacer()

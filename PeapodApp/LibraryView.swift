@@ -28,7 +28,7 @@ struct LibraryView: View {
                             LatestEpisodes(namespace: namespace)
                         }
                     } label: {
-                        RowItem(icon: "app.badge", label: "Latest Episodes")
+                        RowItem(icon: "calendar", label: "Most Recent")
                     }
                     
                     NavigationLink {

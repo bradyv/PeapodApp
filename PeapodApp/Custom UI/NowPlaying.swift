@@ -169,7 +169,6 @@ struct NowPlaying: View {
                 )
                 .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 3)
             }
-            .padding(8)
             .frame(maxWidth:.infinity)
         }
     }

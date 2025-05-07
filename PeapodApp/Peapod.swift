@@ -52,7 +52,6 @@ struct Peapod: App {
             hasRunOneTimeSplashMark = true
         }
         migrateMissingEpisodeGUIDs(context: context)
-        mergeDuplicateEpisodes(context: context)
         
         // Setup queues and other required data
         ensureQueuePlaylistExists(context: context)

@@ -214,8 +214,6 @@ class EpisodeRefresher {
                             print("❌ Error saving podcast refresh: \(error)")
                             completion?()
                         }
-
-                        mergeDuplicateEpisodes(context: context)
                     }
                 } else {
                     completion?()
@@ -249,6 +247,8 @@ class EpisodeRefresher {
                     do {
                         try backgroundContext.save()
                         print("✅ Background context saved after refreshing subscribed podcasts")
+                        
+                        mergeDuplicateEpisodes(context: backgroundContext)
                     } catch {
                         print("❌ Failed to save background context: \(error)")
                     }

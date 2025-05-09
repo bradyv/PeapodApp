@@ -14,10 +14,6 @@ struct QueueView: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
-
-    // Add scroll proxy trigger
-    @State private var frontEpisodeID: UUID? = nil
-    
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
     
@@ -111,20 +107,11 @@ struct QueueView: View {
                     GeometryReader { geo in
                         HStack(spacing: 8) {
                             Spacer()
-//                            ForEach((0...100), id: \.self) { index in
                             ForEach(episodesViewModel.queue.indices, id: \.self) { index in
                                 let isCurrent = index == Int(scrollOffset)
                                 let episode = episodesViewModel.queue[index]
                                 
                                 VStack {
-//                                    KFImage(URL(string:episode.podcast?.image ?? ""))
-//                                        .resizable()
-//                                        .frame(width:isCurrent ? 16 : 12,height:isCurrent ? 16 : 12)
-//                                        .clipShape(RoundedRectangle(cornerRadius:3))
-//                                        .opacity(isCurrent ? 1 : 0.5)
-//                                        .transition(.opacity)
-//                                        .animation(.easeOut(duration: 0.3), value: isCurrent)
-                                    
                                     Capsule()
                                         .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
                                         .frame(width: isCurrent ? 18 : 6, height: 6)

@@ -133,7 +133,6 @@ struct EpisodeView: View {
                             VStack(spacing:0) {
                                 if episode.isQueued {
                                     VStack(spacing:2) {
-                                        let safeDuration = player.getActualDuration(for: episode)
                                         PPProgress(
                                             value: Binding(
                                                 get: { player.getProgress(for: episode) },

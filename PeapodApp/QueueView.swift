@@ -20,24 +20,27 @@ struct QueueView: View {
     var body: some View {
         Text("Up Next")
             .titleSerif()
-            .frame(maxWidth:.infinity,alignment:.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading)
             .padding(.bottom, 4)
-            .padding(.top,24)
-        
+            .padding(.top, 24)
+
         if episodesViewModel.queue.isEmpty {
-            ZStack {
+            ZStack(alignment:.top) {
                 EmptyQueueItem()
                     .opacity(0.15)
                     .mask(
-                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                            startPoint: .top,
+                            endPoint: .init(x: 0.5, y: 0.8)
+                        )
                     )
 
                 VStack {
                     Image("Peapod.mono")
                         .resizable()
-                        .frame(width:32, height:23)
+                        .frame(width: 32, height: 23)
                         .opacity(0.35)
 
                     Text("Nothing to play")
@@ -46,7 +49,7 @@ struct QueueView: View {
                     Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes are automatically added.")
                         .textBody()
                 }
-                .offset(x:-16)
+                .offset(x: -16)
                 .frame(maxWidth: .infinity)
                 .zIndex(1)
             }
@@ -54,15 +57,13 @@ struct QueueView: View {
         } else {
             TabView {
                 ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
-                    Tab(episode.title ?? "", systemImage: player.hasStartedPlayback(for: episode) ? "play" : "circle.fill") {
-                        QueueItemView(episode: episode, index: index, namespace: namespace) {
-                            selectedEpisode = episode
-                        }
+                    QueueItemView(episode: episode, index: index, namespace: namespace) {
+                        selectedEpisode = episode
                     }
                 }
             }
-            .frame(maxWidth:.infinity).frame(height:550)
-            .tabViewStyle(.page(indexDisplayMode: .always))
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
+            .frame(height: 500)
         }
     }
 }
@@ -75,12 +76,15 @@ struct QueueItemView: View {
     var onSelect: () -> Void
 
     var body: some View {
-        QueueItem(episode: episode, namespace: namespace)
-            .matchedTransitionSource(id: episode.id, in: namespace)
-            .id(episode.id)
-            .lineLimit(3)
-            .onTapGesture {
-                episodeSelectionManager.selectEpisode(episode)
-            }
+        VStack {
+            QueueItem(episode: episode, namespace: namespace)
+                .matchedTransitionSource(id: episode.id, in: namespace)
+                .id(episode.id)
+                .lineLimit(3)
+                .onTapGesture {
+                    episodeSelectionManager.selectEpisode(episode)
+                }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }

@@ -114,7 +114,9 @@ struct EpisodeItem: View {
                             episode.isPlayed = false
                             try? episode.managedObjectContext?.save()
                         }
-                        player.togglePlayback(for: episode)
+                        withAnimation {
+                            player.togglePlayback(for: episode)
+                        }
                     }) {
                         HStack {
                             if player.isPlayingEpisode(episode) || player.isLoadingEpisode(episode) {
@@ -226,7 +228,9 @@ struct EpisodeItem: View {
                             episode.isPlayed = false
                             try? episode.managedObjectContext?.save()
                         }
-                        player.togglePlayback(for: episode)
+                        withAnimation {
+                            player.togglePlayback(for: episode)
+                        }
                     }) {
                         HStack {
                             if player.isPlayingEpisode(episode) || player.isLoadingEpisode(episode) {

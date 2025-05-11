@@ -76,7 +76,6 @@ func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
     }
 }
 
-
 func migrateMissingEpisodeGUIDs(context: NSManagedObjectContext) {
     context.perform {
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()

@@ -139,6 +139,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         do {
             try BGTaskScheduler.shared.submit(request)
             print("✅ Scheduled background episode refresh")
+            print("⏲️ Next episode refresh: \(request.earliestBeginDate!)")
         } catch {
             print("❌ Could not schedule background episode refresh: \(error)")
         }

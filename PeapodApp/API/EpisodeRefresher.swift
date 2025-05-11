@@ -131,23 +131,6 @@ class EpisodeRefresher {
                             }
                         }
                         
-                        // Debug logging for the first few episodes
-                        let debugCount = min(3, rss.items?.count ?? 0)
-                        for (index, item) in (rss.items?.prefix(debugCount) ?? []).enumerated() {
-                            print("DEBUG [\(podcast.title ?? "Unknown")]: Episode \(index+1)")
-                            print("  - Title: \(item.title ?? "Unknown")")
-                            print("  - GUID: \(item.guid?.value ?? "Missing")")
-                            if let guid = item.guid?.value {
-                                let normalizedGuid = guid.trimmingCharacters(in: .whitespacesAndNewlines)
-                                print("  - Normalized GUID: \(normalizedGuid)")
-                                print("  - Existing with this GUID: \(existingEpisodesByGUID[normalizedGuid] != nil)")
-                            }
-                            if let audioUrl = item.enclosure?.attributes?.url {
-                                print("  - Audio URL: \(audioUrl)")
-                                print("  - Existing with this Audio URL: \(existingEpisodesByAudioUrl[audioUrl] != nil)")
-                            }
-                        }
-                        
                         // Process episodes
                         for item in rss.items ?? [] {
                             guard let title = item.title else { continue }

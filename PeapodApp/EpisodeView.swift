@@ -43,8 +43,6 @@ struct EpisodeView: View {
     
     var body: some View {
         ZStack(alignment:.topLeading) {
-            SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
-            
             let splashFadeStart: CGFloat = -150
             let splashFadeEnd: CGFloat = 0
             let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)

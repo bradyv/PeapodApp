@@ -238,6 +238,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         configureAudioSession(activePlayback: true)
 
         let lastPosition = getSavedPlaybackPosition(for: episode)
+        self.progress = lastPosition
+        
         if lastPosition > 0 {
             player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
                 self?.player?.playImmediately(atRate: self?.playbackSpeed ?? 1.0)

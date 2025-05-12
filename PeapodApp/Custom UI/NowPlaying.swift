@@ -53,6 +53,7 @@ struct NowPlaying: View {
     @State private var spacing: CGFloat = -38
     @State private var infoMaxWidth: CGFloat = 100
     @State private var isNowPlaying = false
+    @State private var isLoading = false
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @FetchRequest(fetchRequest: Episode.queueFetchRequest(), animation: .interactiveSpring())
@@ -92,6 +93,7 @@ struct NowPlaying: View {
                     }
                     
                     HStack(spacing: spacing) {
+                        let isLoading = player.isLoading
                         Button(action: {
                             player.skipBackward(seconds:currentBackwardInterval)
                             print("Seeking back")
@@ -103,12 +105,12 @@ struct NowPlaying: View {
                         .zIndex(-1)
                         
                         Button(action: {
-                            withAnimation {
-                                player.togglePlayback(for: episode)
-                            }
+                            player.togglePlayback(for: episode)
                             print("Playing episode")
                         }) {
-                            if player.isPlayingEpisode(episode) || player.isLoadingEpisode(episode) {
+                            if player.isLoading {
+                                PPSpinner(color: Color.background)
+                            } else if player.isPlayingEpisode(episode) {
                                 Image(systemName: "pause")
                             } else {
                                 Image(systemName: "play.fill")

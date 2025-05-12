@@ -26,6 +26,9 @@
         <fetchIndex name="guid_index">
             <fetchIndexElement property="guid" type="Binary" order="ascending"/>
         </fetchIndex>
+        <fetchIndex name="queuePosition_index">
+            <fetchIndexElement property="queuePosition" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     <entity name="Playlist" representedClassName="Playlist" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>

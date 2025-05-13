@@ -221,7 +221,6 @@ struct EpisodeItem: View {
                     Button(action: {
                         if isPlaying || player.hasStartedPlayback(for: episode) {
                             withAnimation {
-                                player.stop()
                                 player.markAsPlayed(for: episode, manually: true)
                             }
                         } else {

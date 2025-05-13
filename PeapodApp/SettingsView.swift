@@ -561,7 +561,7 @@ struct SettingsView: View {
     }
     
     func setAutoplayNext(_ enabled: Bool) {
-         player.autoplayNext = enabled
+         player.autoplayNext = false
          UserDefaults.standard.set(enabled, forKey: "autoplayNext")
      }
     

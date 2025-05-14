@@ -22,6 +22,8 @@ struct EpisodeView: View {
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var showSpeeds = false
     @State private var speedPopover: Bool = false
+    @State private var isPlaying = false
+    @State private var isLoading = false
     var namespace: Namespace.ID
     
     @ViewBuilder
@@ -188,7 +190,7 @@ struct EpisodeView: View {
                                                 }) {
                                                     Label("Go back", systemImage: "\(String(format: "%.0f", currentBackwardInterval)).arrow.trianglehead.counterclockwise")
                                                 }
-                                                .disabled(!player.isPlayingEpisode(episode))
+                                                .disabled(!isPlaying)
                                                 .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true))
                                                 
                                                 VStack {
@@ -197,10 +199,15 @@ struct EpisodeView: View {
                                                             player.togglePlayback(for: episode)
                                                         }
                                                     }) {
-                                                        Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
-                                                            .font(.title)
+                                                        if isLoading {
+                                                            PPSpinner(color: Color.background)
+                                                        } else {
+                                                            Label(isPlaying ? "Pause" : "Play",
+                                                                  systemImage: isPlaying ? "pause.fill" : "play.fill")
+                                                                .font(.title)
+                                                        }
                                                     }
-                                                    .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
+                                                    .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, iconOnly: true, large: true))
                                                 }
                                                 .overlay(Circle().stroke(Color.background, lineWidth:5))
                                                 .zIndex(1)
@@ -210,10 +217,10 @@ struct EpisodeView: View {
                                                 }) {
                                                     Label("Go forward", systemImage: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise")
                                                 }
-                                                .disabled(!player.isPlayingEpisode(episode))
+                                                .disabled(!isPlaying)
                                                 .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true))
                                             }
-                                            .animation(.easeInOut(duration: 0.25), value: player.isPlayingEpisode(episode))
+                                            .animation(.easeInOut(duration: 0.25), value: isPlaying)
                                             
                                             Button(action: {
                                                 withAnimation {
@@ -324,5 +331,15 @@ struct EpisodeView: View {
 //            }
         }
         .frame(maxWidth:.infinity)
+        .onAppear {
+            isPlaying = player.isPlayingEpisode(episode)
+            isLoading = player.isLoadingEpisode(episode)
+        }
+        .onChange(of: player.state) { newState in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isPlaying = player.isPlayingEpisode(episode)
+                isLoading = player.isLoadingEpisode(episode)
+            }
+        }
     }
 }

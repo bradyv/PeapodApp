@@ -93,7 +93,7 @@ struct NowPlaying: View {
                     }
                     
                     HStack(spacing: spacing) {
-                        let isLoading = player.isLoading
+                        let isLoading = player.isLoadingEpisode(episode)
                         Button(action: {
                             player.skipBackward(seconds:currentBackwardInterval)
                             print("Seeking back")
@@ -108,7 +108,7 @@ struct NowPlaying: View {
                             player.togglePlayback(for: episode)
                             print("Playing episode")
                         }) {
-                            if player.isLoading {
+                            if player.isLoadingEpisode(episode) {
                                 PPSpinner(color: Color.background)
                             } else if player.isPlayingEpisode(episode) {
                                 Image(systemName: "pause")
@@ -127,9 +127,9 @@ struct NowPlaying: View {
                         
                         Button(action: {
                             player.skipForward(seconds:currentForwardInterval)
-                            print("Seeking back")
+                            print("Seeking forward")
                         }) {
-                            Label("Go back", systemImage: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise")
+                            Label("Go forward", systemImage: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise")
                         }
                         .disabled(!player.isPlayingEpisode(episode))
                         .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true, customColors:ButtonCustomColors(foreground: player.isPlayingEpisode(episode) ? .heading : .heading.opacity(0), background: .surface)))
@@ -138,10 +138,7 @@ struct NowPlaying: View {
                     .onAppear {
                         updateNowPlayingState()
                     }
-                    .onReceive(player.$isPlaying.combineLatest(player.$currentEpisode)) { _, _ in
-                        updateNowPlayingState()
-                    }
-                    .onChange(of: player.isPlayingEpisode(episode)) { isPlaying in
+                    .onChange(of: player.state) { _ in
                         updateNowPlayingState()
                     }
                     .onReceive(player.$backwardInterval) { newBackwardInterval in

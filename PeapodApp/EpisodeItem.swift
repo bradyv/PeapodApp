@@ -99,7 +99,7 @@ struct EpisodeItem: View {
             
             // Episode Actions
             let isPlaying = player.isPlayingEpisode(episode)
-            let isLoading = player.isLoading
+            let isLoading = player.isLoadingEpisode(episode)
             let hasProgress = isPlaying || player.getProgress(for: episode) > 0
             let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
             let safeDuration = player.getActualDuration(for: episode)
@@ -256,12 +256,12 @@ struct EpisodeItem: View {
             }
             
             isPlaying = player.isPlayingEpisode(episode)
+            isLoading = player.isLoadingEpisode(episode)
         }
-        .onReceive(player.$isPlaying) { newValue in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isPlaying = newValue && player.currentEpisode?.id == episode.id
-                }
+        .onChange(of: player.state) { newState in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isPlaying = player.isPlayingEpisode(episode)
+                isLoading = player.isLoadingEpisode(episode)
             }
         }
         .onTapGesture {

@@ -15,6 +15,8 @@ struct EpisodeItem: View {
     @State private var selectedPodcast: Podcast? = nil
     @State private var isPlaying = false
     @State private var isLoading = false
+    @State private var playbackPosition: Double = 0
+    @State private var episodePlayed: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
     var savedView: Bool = false
@@ -98,61 +100,76 @@ struct EpisodeItem: View {
             }
             
             // Episode Actions
-            let isPlaying = player.isPlayingEpisode(episode)
-            let isLoading = player.isLoadingEpisode(episode)
-            let hasProgress = isPlaying || player.getProgress(for: episode) > 0
-            let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
             let safeDuration = player.getActualDuration(for: episode)
+            let hasProgress = (isPlaying || playbackPosition > 0) && !episodePlayed
+            let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
 
             HStack {
                 // ▶️ Playback Button
                 Button(action: {
-                    if episode.isPlayed && !isPlaying {
-                        episode.isPlayed = false
-                        try? episode.managedObjectContext?.save()
-                    }
-                    player.togglePlayback(for: episode)
-                }) {
-                    HStack {
-                        if isLoading {
-                            PPSpinner(color: displayedInQueue ? Color.black : Color.background)
-                        } else if isPlaying {
-                            WaveformView(isPlaying: $isPlaying, color: displayedInQueue ? .black : .background)
-                        } else {
-                            Image(systemName: displayedInQueue ? "play.circle.fill" : (episode.isPlayed ? "arrow.clockwise" : "play.circle.fill"))
-                        }
+                   // Set local state immediately for responsive UI
+                   withAnimation(.easeInOut(duration: 0.2)) {
+                       if !isLoading {
+                           isLoading = true
+                           
+                           // Use Task to handle the playback after showing loading state
+                           Task {
+                               // Reset played state locally if needed
+                               if episode.isPlayed && !isPlaying {
+                                   episodePlayed = false
+                               }
+                               
+                               // This is asynchronous but we've already updated the UI
+                               player.togglePlayback(for: episode)
+                           }
+                       }
+                   }
+               }) {
+                   HStack {
+                       if isLoading {
+                           PPSpinner(color: displayedInQueue ? Color.black : Color.background)
+                       } else if isPlaying {
+                           WaveformView(isPlaying: $isPlaying, color: displayedInQueue ? .black : .background)
+                       } else {
+                           Image(systemName: displayedInQueue ? "play.circle.fill" : (episodePlayed ? "arrow.clockwise" : "play.circle.fill"))
+                       }
 
-                        if hasProgress {
-                            PPProgress(
-                                value: Binding(
-                                    get: { player.getProgress(for: episode) },
-                                    set: { player.seek(to: $0) }
-                                ),
-                                range: 0...safeDuration,
-                                onEditingChanged: { isEditing in
-                                    if !isEditing {
-                                        player.seek(to: player.progress)
-                                    }
-                                },
-                                isDraggable: false,
-                                isQQ: displayedInQueue
-                            )
-                            .frame(width: 32)
-                        }
+                       if hasProgress {
+                           PPProgress(
+                               value: Binding(
+                                   get: { playbackPosition },
+                                   set: { newValue in
+                                       // Update local state first for responsive UI
+                                       playbackPosition = newValue
+                                       // Then update the player (this is async)
+                                       player.seek(to: newValue)
+                                   }
+                               ),
+                               range: 0...safeDuration,
+                               onEditingChanged: { isEditing in
+                                   if !isEditing {
+                                       player.seek(to: playbackPosition)
+                                   }
+                               },
+                               isDraggable: false,
+                               isQQ: displayedInQueue
+                           )
+                           .frame(width: 32)
+                       }
 
-                        Text(player.getStableRemainingTime(for: episode))
-                    }
-                }
-                .buttonStyle(
-                    PPButton(
-                        type: .filled,
-                        colorStyle: .monochrome,
-                        hierarchical: false,
-                        customColors: displayedInQueue ?
-                            ButtonCustomColors(foreground: .black, background: .white) :
-                            nil
-                    )
-                )
+                       Text(player.getStableRemainingTime(for: episode))
+                   }
+               }
+               .buttonStyle(
+                   PPButton(
+                       type: .filled,
+                       colorStyle: .monochrome,
+                       hierarchical: false,
+                       customColors: displayedInQueue ?
+                           ButtonCustomColors(foreground: .black, background: .white) :
+                           nil
+                   )
+               )
 
                 // 📌 "Later" or Queue Toggle
                 if displayedInQueue {
@@ -250,19 +267,44 @@ struct EpisodeItem: View {
         .contentShape(Rectangle())
         .frame(maxWidth:.infinity, alignment: .leading)
         .onAppear {
+            // Initialize state from player/episode on appear
+            isPlaying = player.isPlayingEpisode(episode)
+            isLoading = player.isLoadingEpisode(episode)
+            playbackPosition = player.getProgress(for: episode)
+            episodePlayed = episode.isPlayed
+            
+            // Do background tasks
             Task.detached(priority: .background) {
                 await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
-            
-            isPlaying = player.isPlayingEpisode(episode)
-            isLoading = player.isLoadingEpisode(episode)
         }
         .onChange(of: player.state) { newState in
             withAnimation(.easeInOut(duration: 0.3)) {
+                // Update local state based on player state
                 isPlaying = player.isPlayingEpisode(episode)
                 isLoading = player.isLoadingEpisode(episode)
+                
+                // Only if this is the current episode
+                if let id = episode.id,
+                   let currentId = newState.currentEpisodeID,
+                   id == currentId {
+                    // Update progress if playing this episode
+                    playbackPosition = player.getProgress(for: episode)
+                }
             }
+        }
+        // Track changes to episode.isPlayed
+        .onChange(of: episode.isPlayed) { newValue in
+            episodePlayed = newValue
+            
+            // If marked as played, reset progress display
+            if newValue {
+                playbackPosition = 0
+            }
+        }
+        .onTapGesture {
+            episodeSelectionManager.selectEpisode(episode)
         }
         .onTapGesture {
             episodeSelectionManager.selectEpisode(episode)

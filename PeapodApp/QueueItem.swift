@@ -11,6 +11,9 @@ import Kingfisher
 struct QueueItem: View {
     @Environment(\.colorScheme) var colorScheme
     @ObservedObject var episode: Episode
+    @ObservedObject private var player = AudioPlayerManager.shared
+    @State private var isPlaying = false
+    @State private var isLoading = false
     var namespace: Namespace.ID
     
     var body: some View {
@@ -38,9 +41,18 @@ struct QueueItem: View {
         .background(Color.tint(for:episode, darkened: true))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+        .onAppear {
+            isPlaying = player.isPlayingEpisode(episode)
+            isLoading = player.isLoadingEpisode(episode)
+        }
+        .onChange(of: player.state) { newState in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isPlaying = player.isPlayingEpisode(episode)
+                isLoading = player.isLoadingEpisode(episode)
+            }
+        }
     }
 }
-
 struct EmptyQueueItem: View {
     var body: some View {
         let frame = UIScreen.main.bounds.width - 32

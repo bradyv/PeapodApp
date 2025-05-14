@@ -158,6 +158,10 @@ struct QueueItemView: View {
     var namespace: Namespace.ID
     var onSelect: () -> Void
 
+    // Add local state tracking to reduce redraw frequency
+    @State private var playbackPosition: Double = 0
+    @ObservedObject private var player = AudioPlayerManager.shared
+    
     var body: some View {
         QueueItem(episode: episode, namespace: namespace)
             .matchedTransitionSource(id: episode.id, in: namespace)
@@ -175,8 +179,21 @@ struct QueueItemView: View {
                     .opacity(phase.isIdentity ? 1 : 0.5)
                     .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
             }
+            .onAppear {
+                // Cache the playback position to avoid frequent reads
+                playbackPosition = player.getProgress(for: episode)
+            }
             .onTapGesture {
-                episodeSelectionManager.selectEpisode(episode)
+                // Ensure we don't animate during tap
+                withAnimation(.none) {
+                    episodeSelectionManager.selectEpisode(episode)
+                }
+            }
+            // Only update when progress actually changes significantly
+            .onChange(of: player.progress) { newProgress in
+                if abs(playbackPosition - player.getProgress(for: episode)) > 1.0 {
+                    playbackPosition = player.getProgress(for: episode)
+                }
             }
     }
 }

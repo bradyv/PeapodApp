@@ -137,11 +137,7 @@ struct EpisodeView: View {
                                                 set: { player.seek(to: $0) }
                                             ),
                                             range: 0...player.getActualDuration(for: episode),
-                                            onEditingChanged: { isEditing in
-                                                if !isEditing {
-                                                    player.seek(to: player.progress)
-                                                }
-                                            },
+                                            onEditingChanged: { _ in },
                                             isDraggable: true,
                                             isQQ: false
                                         )

@@ -8,23 +8,36 @@
 import SwiftUI
 
 struct PPProgress: View {
+    @ObservedObject var player = AudioPlayerManager.shared
     @Binding var value: Double
     let range: ClosedRange<Double>
     let onEditingChanged: (Bool) -> Void
     let isDraggable: Bool
     var isQQ: Bool
-    
-    @State private var layoutReady = false
     @State private var isDragging = false
+    @State private var dragValue: Double? = nil
+    @State private var isAwaitingSeekCompletion = false
+    @State private var layoutReady = false
+    @State private var lastSeekTarget: Double = 0
 
     private let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+    
+    private var displayValue: Double {
+        if let drag = dragValue {
+            return drag
+        } else if isAwaitingSeekCompletion || player.isSeekingManually {
+            return lastSeekTarget
+        } else {
+            return value
+        }
+    }
 
     var body: some View {
         ZStack {
             GeometryReader { geometry in
                 let sliderWidth = geometry.size.width
                 let thumbSize: CGFloat = 30
-                let progressWidth = cappedProgressWidth(value: value, range: range, totalWidth: sliderWidth)
+                let progressWidth = cappedProgressWidth(value: displayValue, range: range, totalWidth: sliderWidth)
 
                 ZStack(alignment: .leading) {
                     // Background Track
@@ -42,14 +55,14 @@ struct PPProgress: View {
 
                     // Timestamp Display
                     if isDragging && isDraggable {
-                        Text(formatTime(Int(value)))
+                        Text(formatTime(Int(displayValue)))
                             .font(.caption)
                             .fontDesign(.monospaced)
                             .foregroundColor(.heading)
                             .padding(6)
                             .background(.thinMaterial)
                             .cornerRadius(5)
-                            .offset(x: progressWidth - 30, y: -30)
+                            .offset(x: max(-30, min(progressWidth - 30, geometry.size.width - 60)), y: -30)
                     }
 
                     // Invisible Thumb
@@ -67,14 +80,35 @@ struct PPProgress: View {
                                             range.lowerBound + (gesture.location.x / sliderWidth) * (range.upperBound - range.lowerBound)),
                                         range.upperBound
                                     )
-                                    
-                                    value = newValue
-                                    isDragging = true
-                                    onEditingChanged(true)
+
+                                    dragValue = newValue
+                                    lastSeekTarget = newValue
+
+                                    if !isDragging {
+                                        isDragging = true
+                                        onEditingChanged(true)
+                                    }
                                 }
                                 .onEnded { _ in
+                                    guard let drag = dragValue else { return }
+
+                                    // Lock value shown to UI immediately
+                                    lastSeekTarget = drag
+                                    isAwaitingSeekCompletion = true
+                                    dragValue = nil
                                     isDragging = false
                                     onEditingChanged(false)
+
+                                    // Force value update in next frame
+                                    DispatchQueue.main.async {
+                                        value = drag
+                                    }
+
+                                    // Force UI to hold onto that value for one more frame
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { // ~1 frame at 60fps
+                                        isAwaitingSeekCompletion = false
+                                    }
+
                                     impactFeedback.impactOccurred()
                                 }
                             : nil

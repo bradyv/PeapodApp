@@ -40,6 +40,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30
     @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15
     @Published var autoplayNext: Bool = UserDefaults.standard.bool(forKey: "autoplayNext")
+    @Published var isSeekingManually: Bool = false
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player else { return }
@@ -328,8 +329,20 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func seek(to time: Double) {
+        guard let player = player else { return }
+
         let targetTime = CMTime(seconds: time, preferredTimescale: 1)
-        player?.seek(to: targetTime)
+        isSeekingManually = true
+
+        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            guard let self = self else { return }
+
+            DispatchQueue.main.async {
+                self.progress = time
+                self.isSeekingManually = false // ✅ unlock UI
+                self.updateNowPlayingInfo()
+            }
+        }
     }
     
     func skipForward(seconds: Double) {

@@ -142,7 +142,7 @@ struct PPButton: ButtonStyle {
         case (.filled, .tinted):
             return isPressed ? .accentColor.opacity(0.7) : .accentColor
         case (.filled, .monochrome):
-            return isPressed ? .heading.opacity(0.7) : .heading
+            return .heading
         case (.transparent, .tinted):
             return isPressed ? .accentColor.opacity(0.05) : .accentColor.opacity(0.15)
         case (.transparent, .monochrome):

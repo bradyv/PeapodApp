@@ -220,7 +220,7 @@ struct EpisodeView: View {
                                                 .disabled(!isPlaying)
                                                 .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true))
                                             }
-                                            .animation(.easeInOut(duration: 0.25), value: isPlaying)
+                                            .animation(.easeInOut(duration: 0.25), value: player.isPlayingEpisode(episode))
                                             
                                             Button(action: {
                                                 withAnimation {

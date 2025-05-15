@@ -486,6 +486,8 @@ struct SettingsView: View {
                             
                             Text("Debug")
                                 .headerSection()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .padding(.top,24)
                             
                             ShareLink(item: LogManager.shared.getLogFileURL()) {
                                 RowItem(icon: "paperplane", label: "Send Logs")

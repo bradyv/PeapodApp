@@ -510,6 +510,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         return formatView(seconds: elapsedTime)
     }
     
+    func getRemainingTime(for episode: Episode, pretty: Bool = true) -> String {
+        // Get actual duration (already has fallbacks if not available)
+        let duration = getActualDuration(for: episode)
+        
+        // Get current progress (already returns playbackPosition for non-playing episodes)
+        let position = getProgress(for: episode)
+        
+        // Calculate remaining (always duration - position)
+        let remaining = max(0, duration - position)
+        let seconds = Int(remaining)
+        
+        // Format according to preference
+        return pretty ? formatDuration(seconds: seconds) : formatView(seconds: seconds)
+    }
+    
     // MARK: - Playback Position
     
     private func savePlaybackPosition(for episode: Episode?, position: Double) {
@@ -525,7 +540,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
         let context = episode.managedObjectContext ?? viewContext
         let coordinator = context.persistentStoreCoordinator
-
+        
+        if episode.isQueued {
+            removeFromQueue(episode)
+        }
+        
         let isCurrentlyPlaying = (currentEpisode?.id == episode.id) && isPlaying
 
         // ✅ Capture position before stopping the player
@@ -559,10 +578,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 podcast.playCount += 1
                 podcast.playedSeconds += currentProgress
                 print("Recorded \(currentProgress) seconds for \(episode.title ?? "episode")")
-            }
-
-            if episode.isQueued {
-                removeFromQueue(episode)
             }
         }
 

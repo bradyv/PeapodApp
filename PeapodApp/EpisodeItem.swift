@@ -100,8 +100,6 @@ struct EpisodeItem: View {
             }
             
             // Episode Actions
-            let safeDuration = player.getActualDuration(for: episode)
-            let hasProgress = (isPlaying || playbackPosition > 0) && !episodePlayed
             let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
 
             HStack {
@@ -119,38 +117,23 @@ struct EpisodeItem: View {
                     }
                 }) {
                    HStack {
-                       if isLoading {
-                           PPSpinner(color: displayedInQueue ? Color.black : Color.background)
-                       } else if isPlaying {
-                           WaveformView(isPlaying: $isPlaying, color: displayedInQueue ? .black : .background)
+                       PPCircularPlayButton(
+                          episode: episode,
+                          displayedInQueue: displayedInQueue,
+                          buttonSize: 20
+                      )
+                       
+                       if hasStarted || displayedInQueue {
+                           let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+                           let position = episode.playbackPosition
+                           let remaining = max(0, duration - position)
+                           let seconds = Int(remaining)
+                           Text(formatDuration(seconds: seconds))
+                       } else if episode.isPlayed {
+                           Text("Play again")
                        } else {
-                           Image(systemName: displayedInQueue ? "play.circle.fill" : (episodePlayed ? "arrow.clockwise" : "play.circle.fill"))
+                           Text("Listen now")
                        }
-
-                       if hasProgress {
-                           PPProgress(
-                               value: Binding(
-                                   get: { playbackPosition },
-                                   set: { newValue in
-                                       // Update local state first for responsive UI
-                                       playbackPosition = newValue
-                                       // Then update the player (this is async)
-                                       player.seek(to: newValue)
-                                   }
-                               ),
-                               range: 0...safeDuration,
-                               onEditingChanged: { isEditing in
-                                   if !isEditing {
-                                       player.seek(to: playbackPosition)
-                                   }
-                               },
-                               isDraggable: false,
-                               isQQ: displayedInQueue
-                           )
-                           .frame(width: 32)
-                       }
-
-                       Text(player.getStableRemainingTime(for: episode))
                    }
                }
                .buttonStyle(

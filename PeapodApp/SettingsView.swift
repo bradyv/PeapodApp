@@ -484,10 +484,14 @@ struct SettingsView: View {
                                 RowItem(icon: "hands.clap", label: "Libraries")
                             }
                             
+                            Text("Debug")
+                                .headerSection()
+                            
+                            ShareLink(item: LogManager.shared.getLogFileURL()) {
+                                RowItem(icon: "paperplane", label: "Send Logs")
+                            }
+                            
                             if _isDebugAssertConfiguration() || showDebugTools {
-                                Text("Debug")
-                                    .headerSection()
-                                
                                 Button {
                                     injectTestPodcast()
                                 } label: {

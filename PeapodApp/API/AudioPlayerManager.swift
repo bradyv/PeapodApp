@@ -140,114 +140,127 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func togglePlayback(for episode: Episode) {
         print("▶️ togglePlayback called for episode: \(episode.title ?? "Episode")")
-        
-        // Reset played state if needed
-        if episode.isPlayed {
-            episode.isPlayed = false
-            try? episode.managedObjectContext?.save()
-            print("🗑️ Removed \(episode.title ?? "Episode") from played list")
-        }
-        
-        // Check if this episode is already playing
+
         guard let episodeID = episode.id else { return }
-        
-        // If it's already playing, pause it
+
+        // Prevent duplicate toggles
         if case .playing(let id) = state, id == episodeID {
             print("⏸ Already playing — pausing.")
             pause()
             return
         }
-        
-        // If it's already loading, do nothing
+
         if case .loading(let id) = state, id == episodeID {
             print("⏳ Already loading — ignoring.")
             return
         }
-        
-        // Set episode as now playing for UI feedback
-        episode.nowPlaying = true
-        try? episode.managedObjectContext?.save()
-        
-        // Update currentEpisode reference
-        currentEpisode = episode
-        
-        // Set state to loading for this episode
-        state = .loading(episodeID: episodeID)
-        
-        // Start the play process asynchronously
-        Task {
-            await play(episode: episode)
+
+        // Set minimal UI state immediately
+        DispatchQueue.main.async {
+            self.state = .loading(episodeID: episodeID)
+            self.currentEpisode = episode
+        }
+
+        // Defer everything else
+        Task.detached(priority: .userInitiated) {
+            // Save nowPlaying in background
+            let context = PersistenceController.shared.container.newBackgroundContext()
+            context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+
+            let objectID = episode.objectID
+            do {
+                let bgEpisode = try context.existingObject(with: objectID) as! Episode
+                bgEpisode.nowPlaying = true
+
+                if bgEpisode.isPlayed {
+                    bgEpisode.isPlayed = false
+                    bgEpisode.playedDate = nil
+                }
+
+                try context.save()
+            } catch {
+                print("❌ Failed to update nowPlaying in background: \(error)")
+            }
+
+            // Resume play on main thread
+            await MainActor.run {
+                Task {
+                    await self.play(episode: episode)
+                }
+            }
         }
     }
     
     private func play(episode: Episode) async {
         guard let audio = episode.audio, let url = URL(string: audio),
               let episodeID = episode.id else {
-            // Reset to idle state if we can't play
             await MainActor.run {
-                state = .idle
-                currentEpisode = nil
+                self.state = .idle
+                self.currentEpisode = nil
             }
             return
         }
-        
-        // Set a safety timeout for loading state
-        setupLoadingTimeout(for: episodeID)
-        
-        // Save previous episode position if needed
+
+        // Run background work first
+        let playerItem = await withCheckedContinuation { continuation in
+            Task.detached(priority: .utility) {
+                let item = AVPlayerItem(url: url)
+                continuation.resume(returning: item)
+            }
+        }
+
+        // Move episode to front of queue in background
+        Task.detached(priority: .background) {
+            self.moveEpisodeToFrontOfQueue(episode)
+        }
+
+        // Save playback position of previous episode if needed
         if let previousEpisode = currentEpisode, previousEpisode.id != episode.id {
-            savePlaybackPosition(for: previousEpisode, position: player?.currentTime().seconds ?? 0)
-            previousEpisode.nowPlaying = false
-            try? previousEpisode.managedObjectContext?.save()
+            let previousPosition = player?.currentTime().seconds ?? 0
+            savePlaybackPosition(for: previousEpisode, position: previousPosition)
+
+            if previousEpisode.nowPlaying {
+                previousEpisode.nowPlaying = false
+                try? previousEpisode.managedObjectContext?.save()
+            }
         }
-        
-        // Move this episode to front of queue
-        moveEpisodeToFrontOfQueue(episode)
-        
-        // Prepare player on background thread
-        let playerItem = AVPlayerItem(url: url)
-        
-        // Setup player on main thread
+
+        // Get saved position early
+        let lastPosition = getSavedPlaybackPosition(for: episode)
+
+        // Minimal main thread setup
         await MainActor.run {
-            // Always clean up the player when starting a new episode
-            cleanupPlayer()
-            
-            // Create new player
-            player = AVPlayer(playerItem: playerItem)
-            addTimeObserver()
-            
-            // Set up observations for player item status
-            setupPlayerItemObservations(playerItem, for: episodeID)
-        }
-        
-        // Get actual duration in background
-        writeActualDuration(for: episode)
-        
-        // Start playback on main thread
-        await MainActor.run {
-            configureAudioSession(activePlayback: true)
-            
-            let lastPosition = getSavedPlaybackPosition(for: episode)
+            self.cleanupPlayer()
+
+            let player = AVPlayer(playerItem: playerItem)
+            self.player = player
+            self.addTimeObserver()
+            self.setupPlayerItemObservations(playerItem, for: episodeID)
+            self.configureAudioSession(activePlayback: true)
             self.progress = lastPosition
-            
+
+            // Begin playback from saved position
             if lastPosition > 0 {
-                player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
+                player.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
                     guard let self = self else { return }
-                    
-                    DispatchQueue.main.async {
-                        self.player?.playImmediately(atRate: self.playbackSpeed)
-                        self.updateState(to: .playing(episodeID: episodeID))
-                        self.updateNowPlayingInfo()
-                    }
+                    self.player?.playImmediately(atRate: self.playbackSpeed)
+                    self.updateState(to: .playing(episodeID: episodeID))
+                    self.updateNowPlayingInfo()
                 }
             } else {
-                player?.playImmediately(atRate: playbackSpeed)
-                updateState(to: .playing(episodeID: episodeID))
-                updateNowPlayingInfo()
+                player.playImmediately(atRate: self.playbackSpeed)
+                self.updateState(to: .playing(episodeID: episodeID))
+                self.updateNowPlayingInfo()
             }
-            
+
             print("🎧 Playback started for \(episode.title ?? "Episode")")
         }
+
+        // Extract duration in background (won’t block UI)
+        writeActualDuration(for: episode)
+
+        // Schedule loading timeout
+        setupLoadingTimeout(for: episodeID)
     }
     
     private func setupPlayerItemObservations(_ playerItem: AVPlayerItem, for episodeID: String) {
@@ -510,95 +523,68 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
-        // Is this the currently playing episode?
-        let isCurrentlyPlaying = (currentEpisode?.id == episode.id) && isPlaying
-        
-        // Stop playback first if it's the current episode
-        if isCurrentlyPlaying {
-            stop() // This already saves any current position
-        }
-        
-        // Use a persistent store coordinator transaction for maximum durability
         let context = episode.managedObjectContext ?? viewContext
         let coordinator = context.persistentStoreCoordinator
-        
-        // Force playback position reset
+
+        let isCurrentlyPlaying = (currentEpisode?.id == episode.id) && isPlaying
+
+        // ✅ Capture position before stopping the player
+        let progressBeforeStop: Double = {
+            if isCurrentlyPlaying {
+                return player?.currentTime().seconds ?? 0
+            } else {
+                return episode.playbackPosition
+            }
+        }()
+
+        // Stop first (cleans up player and saves position)
+        if isCurrentlyPlaying {
+            stop()
+        }
+
         episode.playbackPosition = 0
         episode.nowPlaying = false
-        
+
         if episode.isPlayed {
-            // Toggle off played state
             episode.isPlayed = false
             episode.playedDate = nil
         } else {
-            // Set played state and update related properties
             episode.isPlayed = true
             episode.playedDate = Date.now
-            
-            // Get the actual duration we should record
+
             let actualDuration = getActualDuration(for: episode)
-            let currentProgress: Double
-            
-            if manually {
-                // When manually marking as played, we've already reset the position above
-                currentProgress = manually ? (isCurrentlyPlaying ? player?.currentTime().seconds ?? 0 : episode.playbackPosition) : 0
-            } else {
-                // When automatically marking as played (natural end), use the full duration
-                currentProgress = actualDuration
-            }
-            
-            // Record play statistics
+            let currentProgress = manually ? progressBeforeStop : actualDuration
+
             if let podcast = episode.podcast {
                 podcast.playCount += 1
-                podcast.playedSeconds += manually ? currentProgress : actualDuration
-                print("Recorded \(manually ? currentProgress : actualDuration) seconds for \(episode.title ?? "episode")")
+                podcast.playedSeconds += currentProgress
+                print("Recorded \(currentProgress) seconds for \(episode.title ?? "episode")")
             }
-            
-            // Use dedicated function to remove from queue if needed
+
             if episode.isQueued {
                 removeFromQueue(episode)
             }
         }
-        
-        // Direct playback position reset - redundant but ensures it happens
+
         episode.setValue(0, forKey: "playbackPosition")
-        
-        // Force-save with a barrier and wait
+
         context.perform {
-            // Extra safety: set position to 0 again
             episode.playbackPosition = 0
-            
             do {
                 try context.save()
                 print("✅ Saved episode played state with position reset")
-                
-                // Verify the save was successful
-                context.refresh(episode, mergeChanges: true)
-                if episode.playbackPosition > 0 {
-                    print("⚠️ Warning: Position still not 0 after save, forcing direct update")
-                    // Force direct update if somehow it's still not 0
-                    let directUpdate = NSBatchUpdateRequest(entityName: "Episode")
-                    directUpdate.predicate = NSPredicate(format: "id == %@", episode.id ?? "")
-                    directUpdate.propertiesToUpdate = ["playbackPosition": 0]
-                    try coordinator?.execute(directUpdate, with: context)
-                }
             } catch {
                 print("❌ Error saving played state: \(error)")
                 context.rollback()
             }
         }
-        
-        // Force Core Data to refresh the entity
+
         context.refresh(episode, mergeChanges: true)
-        
-        // Force UI update
+
         DispatchQueue.main.async {
-            // Force player progress reset for this episode
             if self.currentEpisode?.id == episode.id {
                 self.progress = 0
             }
-            
-            // Notify observers
             self.objectWillChange.send()
         }
     }

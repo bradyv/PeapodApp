@@ -107,24 +107,17 @@ struct EpisodeItem: View {
             HStack {
                 // ▶️ Playback Button
                 Button(action: {
-                   // Set local state immediately for responsive UI
-                   withAnimation(.easeInOut(duration: 0.2)) {
-                       if !isLoading {
-                           isLoading = true
-                           
-                           // Use Task to handle the playback after showing loading state
-                           Task {
-                               // Reset played state locally if needed
-                               if episode.isPlayed && !isPlaying {
-                                   episodePlayed = false
-                               }
-                               
-                               // This is asynchronous but we've already updated the UI
-                               player.togglePlayback(for: episode)
-                           }
-                       }
-                   }
-               }) {
+                    guard !isLoading else { return }
+
+                    isLoading = true  // Let UI reflect this ASAP
+
+                    DispatchQueue.main.async {
+                        if episode.isPlayed && !isPlaying {
+                            episodePlayed = false
+                        }
+                        player.togglePlayback(for: episode)
+                    }
+                }) {
                    HStack {
                        if isLoading {
                            PPSpinner(color: displayedInQueue ? Color.black : Color.background)

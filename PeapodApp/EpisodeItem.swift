@@ -123,7 +123,7 @@ struct EpisodeItem: View {
                           buttonSize: 20
                       )
                        
-                       if hasStarted || displayedInQueue {
+                       if isLoading || hasStarted || displayedInQueue {
                            let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
                            let position = episode.playbackPosition
                            let remaining = max(0, duration - position)

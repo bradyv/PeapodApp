@@ -65,6 +65,7 @@ struct SettingsView: View {
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
     @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
+    @State private var showDebugTools = false
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -116,6 +117,11 @@ struct SettingsView: View {
                             Image("Peapod.white")
                                 .resizable()
                                 .frame(width:64,height:55.5)
+                                .onTapGesture(count: 5) {
+                                    withAnimation {
+                                        showDebugTools.toggle()
+                                    }
+                                }
                             
 //                            ZStack {
 //                                Image("Peapod.white")
@@ -478,34 +484,34 @@ struct SettingsView: View {
                                 RowItem(icon: "hands.clap", label: "Libraries")
                             }
                             
-                            #if DEBUG
-                            Text("Debug")
-                                .headerSection()
-                            
-                            Button {
-                                injectTestPodcast()
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "plus.diamond")
-                                    
-                                    Text("Show test feed")
-                                        .foregroundStyle(Color.red)
-                                        .textBody()
+                            if _isDebugAssertConfiguration() || showDebugTools {
+                                Text("Debug")
+                                    .headerSection()
+                                
+                                Button {
+                                    injectTestPodcast()
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "plus.diamond")
+                                        
+                                        Text("Show test feed")
+                                            .foregroundStyle(Color.red)
+                                            .textBody()
+                                    }
+                                    .foregroundStyle(Color.red)
+                                    .padding(.vertical, 2)
                                 }
-                                .foregroundStyle(Color.red)
-                                .padding(.vertical, 2)
-                            }
-                            
-                            Divider()
-                            
-                            NavigationLink {
-                                PPPopover(showBg: true) {
-                                    OldEpisodes(namespace:namespace)
+                                
+                                Divider()
+                                
+                                NavigationLink {
+                                    PPPopover(showBg: true) {
+                                        OldEpisodes(namespace:namespace)
+                                    }
+                                } label: {
+                                    RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
                                 }
-                            } label: {
-                                RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
                             }
-                        #endif
                         }
                         .frame(maxWidth:.infinity,alignment:.leading)
                         

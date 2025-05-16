@@ -137,13 +137,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     // MARK: - Core Playback Control
-    
     func togglePlayback(for episode: Episode) {
         print("▶️ togglePlayback called for episode: \(episode.title ?? "Episode")")
-
+        
         guard let episodeID = episode.id else { return }
 
-        // Prevent duplicate toggles
         if case .playing(let id) = state, id == episodeID {
             print("⏸ Already playing — pausing.")
             pause()
@@ -155,37 +153,31 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
 
-        // Set minimal UI state immediately
         DispatchQueue.main.async {
             self.state = .loading(episodeID: episodeID)
             self.currentEpisode = episode
         }
 
-        // Defer everything else
-        Task.detached(priority: .userInitiated) {
-            // Save nowPlaying in background
-            let context = PersistenceController.shared.container.newBackgroundContext()
-            context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        Task {
+            await self.play(episode: episode)
 
-            let objectID = episode.objectID
-            do {
-                let bgEpisode = try context.existingObject(with: objectID) as! Episode
-                bgEpisode.nowPlaying = true
+            // Background Core Data update
+            Task.detached(priority: .background) {
+                let context = PersistenceController.shared.container.newBackgroundContext()
+                context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
 
-                if bgEpisode.isPlayed {
-                    bgEpisode.isPlayed = false
-                    bgEpisode.playedDate = nil
-                }
+                do {
+                    let bgEpisode = try context.existingObject(with: episode.objectID) as! Episode
+                    bgEpisode.nowPlaying = true
 
-                try context.save()
-            } catch {
-                print("❌ Failed to update nowPlaying in background: \(error)")
-            }
+                    if bgEpisode.isPlayed {
+                        bgEpisode.isPlayed = false
+                        bgEpisode.playedDate = nil
+                    }
 
-            // Resume play on main thread
-            await MainActor.run {
-                Task {
-                    await self.play(episode: episode)
+                    try context.save()
+                } catch {
+                    print("❌ Failed to update nowPlaying in background: \(error)")
                 }
             }
         }
@@ -245,22 +237,22 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     guard let self = self else { return }
                     self.player?.playImmediately(atRate: self.playbackSpeed)
                     self.updateState(to: .playing(episodeID: episodeID))
-                    self.updateNowPlayingInfo()
                 }
             } else {
                 player.playImmediately(atRate: self.playbackSpeed)
                 self.updateState(to: .playing(episodeID: episodeID))
-                self.updateNowPlayingInfo()
             }
 
             print("🎧 Playback started for \(episode.title ?? "Episode")")
         }
 
-        // Extract duration in background (won’t block UI)
-        writeActualDuration(for: episode)
-
         // Schedule loading timeout
         setupLoadingTimeout(for: episodeID)
+        
+        await MainActor.run {
+            self.updateNowPlayingInfo()
+        }
+        writeActualDuration(for: episode)
     }
     
     private func setupPlayerItemObservations(_ playerItem: AVPlayerItem, for episodeID: String) {

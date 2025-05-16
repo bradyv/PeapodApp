@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import FeedKit
+import MessageUI
 
 struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -66,6 +67,8 @@ struct SettingsView: View {
     @State private var allowNotifications = true
     @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
     @State private var showDebugTools = false
+    @State private var showingMailView = false
+    @State private var showMailErrorAlert = false
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -484,16 +487,38 @@ struct SettingsView: View {
                                 RowItem(icon: "hands.clap", label: "Libraries")
                             }
                             
-                            Text("Debug")
+                            Text("Help")
                                 .headerSection()
                                 .frame(maxWidth:.infinity, alignment:.leading)
                                 .padding(.top,24)
                             
-                            ShareLink(item: LogManager.shared.getLogFileURL()) {
-                                RowItem(icon: "paperplane", label: "Send Logs")
+                            Button {
+                                if MFMailComposeViewController.canSendMail() {
+                                    showingMailView = true
+                                } else {
+                                    showMailErrorAlert = true
+                                }
+                            } label: {
+                                RowItem(icon: "paperplane", label: "Send Feedback")
+                            }
+                            .sheet(isPresented: $showingMailView) {
+                                MailView(
+                                    logFileURL: LogManager.shared.getLogFileURL(),
+                                    messageBody: generateSupportMessageBody()
+                                )
+                            }
+                            .alert("Mail not configured", isPresented: $showMailErrorAlert) {
+                                Button("OK", role: .cancel) { }
+                            } message: {
+                                Text("Please set up a Mail account in order to send logs.")
                             }
                             
                             if _isDebugAssertConfiguration() || showDebugTools {
+                                Text("Debug")
+                                    .headerSection()
+                                    .frame(maxWidth:.infinity, alignment:.leading)
+                                    .padding(.top,24)
+                                
                                 Button {
                                     injectTestPodcast()
                                 } label: {

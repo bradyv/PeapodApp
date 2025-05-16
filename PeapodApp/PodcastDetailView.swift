@@ -46,7 +46,6 @@ struct PodcastDetailView: View {
                             removal: .move(edge: .bottom).combined(with: .opacity)
                         )
                     )
-                    .padding()
                 } else {
                     ZStack {
                         SplashImage(image: podcast.image ?? "")

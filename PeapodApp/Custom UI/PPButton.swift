@@ -106,7 +106,7 @@ struct PPButton: ButtonStyle {
         .symbolRenderingMode(hierarchical ? .hierarchical : .monochrome)
         .if(iconOnly, transform: { $0.labelStyle(.iconOnly) })
         .padding(.vertical, iconOnly ? 12 : 10)
-        .padding(.horizontal, iconOnly ? 12 : 16)
+        .padding(.horizontal, 12)
         .if(medium, transform: {
             $0.padding(.vertical, 3).padding(.horizontal, 12)
         })

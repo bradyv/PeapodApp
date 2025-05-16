@@ -106,15 +106,11 @@ struct EpisodeItem: View {
                 // ▶️ Playback Button
                 Button(action: {
                     guard !isLoading else { return }
-
                     isLoading = true  // Let UI reflect this ASAP
-
-                    DispatchQueue.main.async {
-                        if episode.isPlayed && !isPlaying {
-                            episodePlayed = false
-                        }
-                        player.togglePlayback(for: episode)
+                    if episode.isPlayed && !isPlaying {
+                        episodePlayed = false
                     }
+                    player.togglePlayback(for: episode)
                 }) {
                    HStack {
                        PPCircularPlayButton(
@@ -123,17 +119,12 @@ struct EpisodeItem: View {
                           buttonSize: 20
                       )
                        
-                       if isLoading || hasStarted || displayedInQueue {
-                           let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
-                           let position = episode.playbackPosition
-                           let remaining = max(0, duration - position)
-                           let seconds = Int(remaining)
-                           Text(formatDuration(seconds: seconds))
-                       } else if episode.isPlayed {
-                           Text("Play again")
-                       } else {
-                           Text("Listen now")
-                       }
+                       let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+                       let position = episode.playbackPosition
+                       let remaining = max(0, duration - position)
+                       let seconds = Int(remaining)
+                       Text(formatDuration(seconds: seconds))
+                           .contentTransition(.numericText())
                    }
                }
                .buttonStyle(
@@ -171,42 +162,73 @@ struct EpisodeItem: View {
                         )
                     }
                 } else {
-                    Button(action: {
-                        if isPlaying || player.hasStartedPlayback(for: episode) {
-                            player.stop()
-                            player.markAsPlayed(for: episode, manually: true)
+                    Spacer()
+                    
+                    Menu {
+                        if episode.playbackPosition > 0 {
+                            Button(action: {
+                                player.markAsPlayed(for: episode, manually: true)
+                                player.stop()
+                                try? episode.managedObjectContext?.save()
+                            }) {
+                                Label("Mark as played", systemImage: "checkmark.circle")
+                            }
                         } else {
-                            withAnimation {
+                            Button(action: {
                                 toggleQueued(episode)
+                                try? episode.managedObjectContext?.save()
+                            }) {
+                                Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                             }
                         }
-                        try? episode.managedObjectContext?.save()
-                    }) {
-                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
-                    }
-                    .buttonStyle(
-                        episode.isQueued
-                        ? PPButton(type: .transparent, colorStyle: .tinted, iconOnly: true)
-                        : PPButton(type: .transparent, colorStyle: .monochrome)
-                    )
-                    .id(episode.isQueued ? "queued" : "unqueued")
-                    .transition(.opacity)
-                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-
-                    if savedView {
-                        Spacer()
-
+                        
                         Button(action: {
-                            withAnimation {
-                                toggleSaved(episode)
-                            }
+                            toggleSaved(episode)
                             try? episode.managedObjectContext?.save()
                         }) {
-                            Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
+                            Label(episode.isSaved ? "Remove from Saved" : "Save for Later", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
                         }
-                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                        .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+                    } label: {
+                        Label("More", systemImage: "ellipsis")
                     }
+                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                    
+//                    Button(action: {
+//                        if isPlaying || player.hasStartedPlayback(for: episode) {
+//                            player.stop()
+//                            player.markAsPlayed(for: episode, manually: true)
+//                        } else {
+//                            withAnimation {
+//                                toggleQueued(episode)
+//                            }
+//                        }
+//                        try? episode.managedObjectContext?.save()
+//                    }) {
+//                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
+//                    }
+//                    .buttonStyle(
+//                        episode.isQueued
+//                        ? PPButton(type: .transparent, colorStyle: .tinted, iconOnly: true)
+//                        : PPButton(type: .transparent, colorStyle: .monochrome)
+//                    )
+//                    .id(episode.isQueued ? "queued" : "unqueued")
+//                    .transition(.opacity)
+//                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
+//
+//                    if savedView {
+//                        Spacer()
+//
+//                        Button(action: {
+//                            withAnimation {
+//                                toggleSaved(episode)
+//                            }
+//                            try? episode.managedObjectContext?.save()
+//                        }) {
+//                            Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
+//                        }
+//                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+//                        .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+//                    }
                 }
 
                 // 🗑️ Remove / Archive / Mark as Played
@@ -256,16 +278,11 @@ struct EpisodeItem: View {
             }
         }
         .onChange(of: player.state) { newState in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                // Update local state based on player state
+            withTransaction(Transaction(animation: .easeInOut(duration: 0.3))) {
                 isPlaying = player.isPlayingEpisode(episode)
                 isLoading = player.isLoadingEpisode(episode)
-                
-                // Only if this is the current episode
-                if let id = episode.id,
-                   let currentId = newState.currentEpisodeID,
-                   id == currentId {
-                    // Update progress if playing this episode
+
+                if let id = episode.id, let currentId = newState.currentEpisodeID, id == currentId {
                     playbackPosition = player.getProgress(for: episode)
                 }
             }

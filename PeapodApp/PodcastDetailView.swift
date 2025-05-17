@@ -13,7 +13,7 @@ struct PodcastDetailView: View {
 //    @Environment(\.colorScheme) var colorScheme
     @Environment(\.managedObjectContext) private var context
     @FetchRequest var podcastResults: FetchedResults<Podcast>
-    @State private var episodes: [Episode] = []
+//    @State private var episodes: [Episode] = []
     @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
     @State private var showSearch = false
@@ -22,6 +22,10 @@ struct PodcastDetailView: View {
     @State private var showConfirm = false
     var podcast: Podcast? { podcastResults.first }
     var namespace: Namespace.ID
+    var episodes: [Episode] {
+        (podcast?.episode as? Set<Episode>)?
+            .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
+    }
 
     init(feedUrl: String, namespace: Namespace.ID) {
         _podcastResults = FetchRequest<Podcast>(
@@ -145,18 +149,9 @@ struct PodcastDetailView: View {
                         .transition(.opacity)
                         .frame(maxWidth:.infinity)
                         .onAppear {
-                            let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
-                            episodes = episodesArray
-                            
                             Task.detached(priority: .background) {
                                 await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
-                                
-                                await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
-                                    DispatchQueue.main.async {
-                                        let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
-                                        episodes = episodesArray
-                                    }
-                                }
+                                await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context)
                             }
                         }
                         

@@ -231,7 +231,6 @@ struct EpisodeView: View {
                                                         toggleQueued(episode)
                                                     }
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label(episode.playbackPosition > 0 ? "Mark as played" : "Archive", systemImage: episode.playbackPosition > 0 ? "checkmark.circle" : "archivebox")
                                             }
@@ -241,7 +240,6 @@ struct EpisodeView: View {
                                                 withAnimation {
                                                     toggleFav(episode)
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label(episode.isFav ? "Remove from Favorites" : "Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                                                     .if(episode.isFav, transform: {
@@ -272,7 +270,6 @@ struct EpisodeView: View {
                                                 withAnimation {
                                                     toggleQueued(episode)
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label("Up Next", systemImage: "text.append")
                                             }
@@ -282,7 +279,6 @@ struct EpisodeView: View {
                                                 withAnimation {
                                                     toggleSaved(episode)
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
                                                     .if(episode.isSaved, transform: {
@@ -313,7 +309,6 @@ struct EpisodeView: View {
                         withAnimation {
                             player.markAsPlayed(for: episode, manually: true)
                         }
-                        try? episode.managedObjectContext?.save()
                     }) {
                         Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
                     }
@@ -323,7 +318,6 @@ struct EpisodeView: View {
                             withAnimation {
                                 toggleQueued(episode)
                             }
-                            try? episode.managedObjectContext?.save()
                         }) {
                             Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
@@ -333,7 +327,6 @@ struct EpisodeView: View {
                         withAnimation {
                             toggleSaved(episode)
                         }
-                        try? episode.managedObjectContext?.save()
                     }) {
                         Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
                     }
@@ -342,7 +335,6 @@ struct EpisodeView: View {
                         withAnimation {
                             toggleFav(episode)
                         }
-                        try? episode.managedObjectContext?.save()
                     }) {
                         Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
                     }

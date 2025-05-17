@@ -77,7 +77,6 @@ struct EpisodeItem: View {
                         withAnimation {
                             player.markAsPlayed(for: episode, manually: true)
                         }
-                        try? episode.managedObjectContext?.save()
                     }) {
                         Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
                     }
@@ -87,7 +86,6 @@ struct EpisodeItem: View {
                             withAnimation {
                                 toggleQueued(episode)
                             }
-                            try? episode.managedObjectContext?.save()
                         }) {
                             Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
@@ -96,7 +94,6 @@ struct EpisodeItem: View {
                             withAnimation {
                                 toggleSaved(episode)
                             }
-                            try? episode.managedObjectContext?.save()
                         }) {
                             Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
                         }
@@ -106,7 +103,6 @@ struct EpisodeItem: View {
                         withAnimation {
                             toggleFav(episode)
                         }
-                        try? episode.managedObjectContext?.save()
                     }) {
                         Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
                     }
@@ -234,7 +230,6 @@ struct EpisodeItem: View {
                                 withAnimation {
                                     toggleSaved(episode)
                                 }
-                                try? episode.managedObjectContext?.save()
                             }) {
                                 Label("Play Later", systemImage: "arrowshape.bounce.right")
                             }
@@ -253,7 +248,6 @@ struct EpisodeItem: View {
                                 withAnimation {
                                     toggleQueued(episode)
                                 }
-                                try? episode.managedObjectContext?.save()
                             }) {
                                 Label(episode.isQueued ? "Queued" : "Up Next", systemImage:episode.isQueued ? "text.badge.checkmark" : "text.append")
                             }
@@ -265,7 +259,6 @@ struct EpisodeItem: View {
                             withAnimation {
                                 player.markAsPlayed(for: episode, manually: true)
                             }
-                            try? episode.managedObjectContext?.save()
                         }) {
                             Label("Mark as Played", systemImage: "checkmark.circle")
                         }
@@ -280,44 +273,6 @@ struct EpisodeItem: View {
                             )
                         )
                     }
-                    
-                    //                    Button(action: {
-                    //                        if isPlaying || player.hasStartedPlayback(for: episode) {
-                    //                            player.stop()
-                    //                            player.markAsPlayed(for: episode, manually: true)
-                    //                        } else {
-                    //                            withAnimation {
-                    //                                toggleQueued(episode)
-                    //                            }
-                    //                        }
-                    //                        try? episode.managedObjectContext?.save()
-                    //                    }) {
-                    //                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
-                    //                    }
-                    //                    .buttonStyle(
-                    //                        episode.isQueued
-                    //                        ? PPButton(type: .transparent, colorStyle: .tinted, iconOnly: true)
-                    //                        : PPButton(type: .transparent, colorStyle: .monochrome)
-                    //                    )
-                    //                    .id(episode.isQueued ? "queued" : "unqueued")
-                    //                    .transition(.opacity)
-                    //                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-                    //
-                    //                    if savedView {
-                    //                        Spacer()
-                    //
-                    //                        Button(action: {
-                    //                            withAnimation {
-                    //                                toggleSaved(episode)
-                    //                            }
-                    //                            try? episode.managedObjectContext?.save()
-                    //                        }) {
-                    //                            Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
-                    //                        }
-                    //                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                    //                        .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
-                    //                    }
-                    //                }
                 }
             }
         }

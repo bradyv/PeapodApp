@@ -219,6 +219,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         await MainActor.run {
             self.cleanupPlayer()
             let player = AVPlayer(playerItem: playerItem)
+            self.cachedArtwork = nil
             self.player = player
             self.addTimeObserver()
             self.setupPlayerItemObservations(playerItem, for: episodeID)
@@ -715,20 +716,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
         if let cachedArtwork = cachedArtwork {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = cachedArtwork
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
         } else {
             fetchArtwork(for: episode) { artwork in
                 DispatchQueue.main.async {
                     if let artwork = artwork {
                         nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-                        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
                     }
+                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo // ✅ ensure it's always set here
                 }
             }
         }
-
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
-    
     private var cachedArtwork: MPMediaItemArtwork?
 
     private func fetchArtwork(for episode: Episode, completion: @escaping (MPMediaItemArtwork?) -> Void) {

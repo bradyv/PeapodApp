@@ -210,14 +210,12 @@ struct EpisodeItem: View {
                             let remaining = max(0, duration - position)
                             let seconds = Int(remaining)
                             
-                            if hasStarted {
-                                Text("\(formatDuration(seconds: seconds)) remaining")
-                                    .contentTransition(.numericText())
-                            } else {
-                                Text(episode.isPlayed ? "Listen Again" : "Listen Now")
-                            }
+                            Text("\(formatDuration(seconds: seconds))")
+                                .contentTransition(.numericText())
+//                            } else {
+//                                Text(episode.isPlayed ? "Listen Again" : "Listen Now")
+//                            }
                         }
-                        .frame(maxWidth:.infinity)
                     }
                     .buttonStyle(
                         PPButton(
@@ -239,6 +237,24 @@ struct EpisodeItem: View {
                                 }
                             }) {
                                 Label("Play Later", systemImage: "arrowshape.bounce.right")
+                            }
+                            .buttonStyle(
+                                PPButton(
+                                    type: .transparent,
+                                    colorStyle: .monochrome,
+                                    customColors: ButtonCustomColors(
+                                        foreground: .white,
+                                        background: .white.opacity(0.15)
+                                    )
+                                )
+                            )
+                            
+                            Button(action: {
+                                withAnimation {
+                                    toggleQueued(episode)
+                                }
+                            }) {
+                                Label("Archive", systemImage: "archivebox")
                             }
                             .buttonStyle(
                                 PPButton(

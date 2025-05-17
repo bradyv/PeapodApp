@@ -559,10 +559,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 podcast.playedSeconds += playedTime
                 print("Recorded \(playedTime) seconds for \(episode.title ?? "episode")")
             }
-        }
-
-        // Only remove from queue if not already handled
-        if episode.isQueued {
             removeFromQueue(episode)
             cleanupPlayer()
         }

@@ -96,7 +96,12 @@ struct EpisodeItem: View {
                                 toggleSaved(episode)
                             }
                         }) {
-                            Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
+                            Label(
+                                episode.isSaved
+                                    ? "Remove from Play Later"
+                                    : (episode.playbackPosition > 0.1 ? "Finish Later" : "Play Later"),
+                                systemImage: episode.isSaved ? "minus.circle" : "arrowshape.bounce.right"
+                            )
                         }
                     }
                     

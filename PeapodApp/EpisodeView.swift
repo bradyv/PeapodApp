@@ -280,12 +280,9 @@ struct EpisodeView: View {
                                                     toggleSaved(episode)
                                                 }
                                             }) {
-                                                Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
-                                                    .if(episode.isSaved, transform: {
-                                                        $0.foregroundStyle(Color.accentColor)
-                                                    })
+                                                Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: "arrowshape.bounce.right")
                                             }
-                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                                            .buttonStyle(PPButton(type:episode.isSaved ? .filled : .transparent, colorStyle:episode.isSaved ? .tinted : .monochrome, iconOnly: true))
                                             .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
                                         }
                                     }
@@ -328,7 +325,7 @@ struct EpisodeView: View {
                             toggleSaved(episode)
                         }
                     }) {
-                        Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
+                        Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "minus.circle" : "arrowshape.bounce.right")
                     }
                     
                     Button(action: {

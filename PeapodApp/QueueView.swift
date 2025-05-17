@@ -57,7 +57,9 @@ struct QueueView: View {
                                             let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
                                             Button(action: {
                                                 for (_, episode) in items {
-                                                    toggleQueued(episode)
+                                                    withAnimation {
+                                                        toggleQueued(episode)
+                                                    }
                                                 }
                                             }) {
                                                 HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {

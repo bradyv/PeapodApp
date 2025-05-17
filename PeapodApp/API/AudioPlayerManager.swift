@@ -554,6 +554,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Only remove from queue if not already handled
         if episode.isQueued {
             removeFromQueue(episode)
+            cleanupPlayer()
         }
 
         context.perform {

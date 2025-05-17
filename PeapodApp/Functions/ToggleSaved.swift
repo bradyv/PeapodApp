@@ -12,6 +12,10 @@ import SwiftUI
     
     episode.isSaved.toggle()
     
+    if episode.isQueued && !episode.isSaved {
+        removeFromQueue(episode)
+    }
+    
     if episode.isSaved {
         episode.savedDate = Date()
     } else {

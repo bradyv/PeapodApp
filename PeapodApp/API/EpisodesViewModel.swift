@@ -14,6 +14,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     @Published var latest: [Episode] = []
     @Published var unplayed: [Episode] = []
     @Published var saved: [Episode] = []
+    @Published var favs: [Episode] = []
     @Published var old: [Episode] = []
 
     private var queueController: NSFetchedResultsController<Episode>?
@@ -100,6 +101,12 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         guard let context else { return }
         let request = Episode.savedEpisodesRequest()
         saved = (try? context.fetch(request)) ?? []
+    }
+    
+    func fetchFavs() {
+        guard let context else { return }
+        let request = Episode.favEpisodesRequest()
+        favs = (try? context.fetch(request)) ?? []
     }
 
     func fetchOld() {

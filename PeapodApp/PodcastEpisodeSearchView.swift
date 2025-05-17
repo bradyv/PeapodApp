@@ -44,6 +44,7 @@ struct PodcastEpisodeSearchView: View {
                     showSearch.toggle()
                 }
             )
+            .padding(.horizontal)
 
             ScrollView {
                 if filteredEpisodes.isEmpty && !query.isEmpty {
@@ -63,12 +64,13 @@ struct PodcastEpisodeSearchView: View {
                         ForEach(filteredEpisodes, id: \.id) { episode in
                             EpisodeItem(episode: episode, namespace: namespace)
                                 .lineLimit(3)
-                                .padding(.bottom, 12)
+                                .padding(.bottom, 24)
                         }
                     }
                     .padding(.top, 8)
                 }
             }
+            .contentMargins(16, for: .scrollContent)
             .maskEdge(.bottom)
             .ignoresSafeArea(edges:.bottom)
         }

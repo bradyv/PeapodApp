@@ -41,6 +41,14 @@ extension Episode {
         return request
     }
     
+    static func favEpisodesRequest() -> NSFetchRequest<Episode> {
+        let request = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "isFav == YES")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.favDate, ascending: false)]
+        request.fetchBatchSize = 20
+        return request
+    }
+    
     static func oldEpisodesRequest() -> NSFetchRequest<Episode> {
         let request = Episode.fetchRequest()
         request.predicate = NSPredicate(format: "(podcast = nil OR podcast.isSubscribed != YES) AND isSaved == NO AND isPlayed == NO")

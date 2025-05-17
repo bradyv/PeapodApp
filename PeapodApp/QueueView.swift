@@ -47,16 +47,45 @@ struct QueueView: View {
                                     }
                                     
                                     VStack {
-                                        Image("Peapod.mono")
-                                            .resizable()
-                                            .frame(width:32, height:23)
-                                            .opacity(0.35)
-                                        
                                         Text("Nothing to play")
                                             .titleCondensed()
                                         
                                         Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes are automatically added.")
                                             .textBody()
+                                        
+                                        if !episodesViewModel.saved.isEmpty {
+                                            NavigationLink {
+                                                PPPopover(showBg: true) {
+                                                    SavedEpisodes(namespace: namespace)
+                                                }
+                                            } label: {
+                                                HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {
+                                                    if episodesViewModel.saved.count > 2 {
+                                                        let customOffsets: [(x: CGFloat, y: CGFloat)] = [
+                                                            (x: 2, y: -5),   // back
+                                                            (x: 8, y: 0),  // middle
+                                                            (x: 0, y: 4)     // front
+                                                        ]
+                                                        
+                                                        ZStack {
+                                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
+                                                            
+                                                            ForEach(items, id: \.element.id) { index, episode in
+                                                                let offset = customOffsets[index]
+                                                                ArtworkView(url: episode.podcast?.image ?? "", size: 14, cornerRadius: 3)
+                                                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
+                                                                    .offset(x: offset.x, y: offset.y)
+                                                            }
+                                                        }
+                                                    } else {
+                                                        Image(systemName: "plus.circle")
+                                                    }
+                                                    
+                                                    Text("Add from Play Later")
+                                                }
+                                            }
+                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+                                        }
                                     }
                                     .offset(x:-16)
                                     .frame(maxWidth: .infinity)
@@ -89,7 +118,7 @@ struct QueueView: View {
                             }
                         }
                     }
-                    .disabled(episodesViewModel.queue.isEmpty)
+                    .scrollDisabled(episodesViewModel.queue.isEmpty)
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
                     .onChange(of: episodesViewModel.queue.first?.id) { oldID, newID in
@@ -158,6 +187,10 @@ struct QueueItemView: View {
     var namespace: Namespace.ID
     var onSelect: () -> Void
 
+    // Add local state tracking to reduce redraw frequency
+    @State private var playbackPosition: Double = 0
+    @ObservedObject private var player = AudioPlayerManager.shared
+    
     var body: some View {
         QueueItem(episode: episode, namespace: namespace)
             .matchedTransitionSource(id: episode.id, in: namespace)
@@ -175,8 +208,21 @@ struct QueueItemView: View {
                     .opacity(phase.isIdentity ? 1 : 0.5)
                     .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
             }
+            .onAppear {
+                // Cache the playback position to avoid frequent reads
+                playbackPosition = player.getProgress(for: episode)
+            }
             .onTapGesture {
-                episodeSelectionManager.selectEpisode(episode)
+                // Ensure we don't animate during tap
+                withAnimation(.none) {
+                    episodeSelectionManager.selectEpisode(episode)
+                }
+            }
+            // Only update when progress actually changes significantly
+            .onChange(of: player.progress) { newProgress in
+                if abs(playbackPosition - player.getProgress(for: episode)) > 1.0 {
+                    playbackPosition = player.getProgress(for: episode)
+                }
             }
     }
 }

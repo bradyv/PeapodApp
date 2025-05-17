@@ -22,6 +22,13 @@ struct Peapod: App {
     var appTheme: AppTheme {
        AppTheme(rawValue: appThemeRawValue) ?? .system
     }
+    
+    init() {
+        #if !DEBUG
+        LogManager.shared.startLogging()
+        LogManager.shared.cleanOldLogs()
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {

@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import FeedKit
+import MessageUI
 
 struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -65,6 +66,9 @@ struct SettingsView: View {
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
     @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
+    @State private var showDebugTools = false
+    @State private var showingMailView = false
+    @State private var showMailErrorAlert = false
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -116,6 +120,11 @@ struct SettingsView: View {
                             Image("Peapod.white")
                                 .resizable()
                                 .frame(width:64,height:55.5)
+                                .onTapGesture(count: 5) {
+                                    withAnimation {
+                                        showDebugTools.toggle()
+                                    }
+                                }
                             
 //                            ZStack {
 //                                Image("Peapod.white")
@@ -478,34 +487,62 @@ struct SettingsView: View {
                                 RowItem(icon: "hands.clap", label: "Libraries")
                             }
                             
-                            #if DEBUG
-                            Text("Debug")
+                            Text("Help")
                                 .headerSection()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .padding(.top,24)
                             
                             Button {
-                                injectTestPodcast()
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "plus.diamond")
-                                    
-                                    Text("Show test feed")
-                                        .foregroundStyle(Color.red)
-                                        .textBody()
-                                }
-                                .foregroundStyle(Color.red)
-                                .padding(.vertical, 2)
-                            }
-                            
-                            Divider()
-                            
-                            NavigationLink {
-                                PPPopover(showBg: true) {
-                                    OldEpisodes(namespace:namespace)
+                                if MFMailComposeViewController.canSendMail() {
+                                    showingMailView = true
+                                } else {
+                                    showMailErrorAlert = true
                                 }
                             } label: {
-                                RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
+                                RowItem(icon: "paperplane", label: "Send Feedback")
                             }
-                        #endif
+                            .sheet(isPresented: $showingMailView) {
+                                MailView(
+                                    logFileURL: LogManager.shared.getLogFileURL(),
+                                    messageBody: generateSupportMessageBody()
+                                )
+                            }
+                            .alert("Mail not configured", isPresented: $showMailErrorAlert) {
+                                Button("OK", role: .cancel) { }
+                            } message: {
+                                Text("Please set up a Mail account in order to send logs.")
+                            }
+                            
+                            if _isDebugAssertConfiguration() || showDebugTools {
+                                Text("Debug")
+                                    .headerSection()
+                                    .frame(maxWidth:.infinity, alignment:.leading)
+                                    .padding(.top,24)
+                                
+                                Button {
+                                    injectTestPodcast()
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "plus.diamond")
+                                        
+                                        Text("Show test feed")
+                                            .foregroundStyle(Color.red)
+                                            .textBody()
+                                    }
+                                    .foregroundStyle(Color.red)
+                                    .padding(.vertical, 2)
+                                }
+                                
+                                Divider()
+                                
+                                NavigationLink {
+                                    PPPopover(showBg: true) {
+                                        OldEpisodes(namespace:namespace)
+                                    }
+                                } label: {
+                                    RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
+                                }
+                            }
                         }
                         .frame(maxWidth:.infinity,alignment:.leading)
                         

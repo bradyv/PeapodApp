@@ -18,6 +18,8 @@ struct PodcastDetailView: View {
     @State var showFullDescription: Bool = false
     @State private var showSearch = false
     @State private var scrollOffset: CGFloat = 0
+    @State private var showDebugTools = false
+    @State private var showConfirm = false
     var podcast: Podcast? { podcastResults.first }
     var namespace: Namespace.ID
 
@@ -44,7 +46,6 @@ struct PodcastDetailView: View {
                             removal: .move(edge: .bottom).combined(with: .opacity)
                         )
                     )
-                    .padding()
                 } else {
                     ZStack {
                         SplashImage(image: podcast.image ?? "")
@@ -83,6 +84,28 @@ struct PodcastDetailView: View {
                                 Spacer().frame(height:24)
                             }
                             
+                            if showDebugTools {
+                                Button(action: {
+                                    showConfirm = true
+                                }) {
+                                    Label("Delete Podcast", systemImage: "trash")
+                                }
+                                .buttonStyle(ShadowButton())
+                                .alert(
+                                    "Delete Podcast",
+                                    isPresented: $showConfirm,
+                                    presenting: podcast // Optional if you want access to the object inside the alert
+                                ) { podcast in
+                                    Button("Delete", role: .destructive) {
+                                        context.delete(podcast)
+                                        try? context.save()
+                                    }
+                                    Button("Cancel", role: .cancel) { }
+                                } message: { podcast in
+                                    Text("Are you sure you want to delete this podcast from Core Data? This action cannot be undone.")
+                                }
+                            }
+                            
                             LazyVStack(alignment: .leading) {
                                 if let latestEpisode = episodes.first {
                                     FadeInView(delay: 0.4) {
@@ -91,7 +114,7 @@ struct PodcastDetailView: View {
                                     }
                                     
                                     FadeInView(delay: 0.5) {
-                                        EpisodeItem(episode: latestEpisode, namespace: namespace)
+                                        EpisodeItem(episode: latestEpisode, showActions: true, namespace: namespace)
                                             .lineLimit(3)
                                             .padding(.bottom, 24)
                                     }
@@ -107,7 +130,7 @@ struct PodcastDetailView: View {
                                     
                                     FadeInView(delay: 0.7) {
                                         ForEach(remainingEpisodes, id: \.id) { episode in
-                                            EpisodeItem(episode: episode, namespace: namespace)
+                                            EpisodeItem(episode: episode, showActions: episode.isQueued ? true : false, namespace: namespace)
                                                 .lineLimit(3)
                                                 .padding(.bottom, 24)
                                         }
@@ -151,6 +174,11 @@ struct PodcastDetailView: View {
                                             radius: 128
                                     )
                                     .animation(.easeOut(duration: 0.1), value: shrink)
+                                    .onTapGesture(count: 5) {
+                                        withAnimation {
+                                            showDebugTools.toggle()
+                                        }
+                                    }
                                 
 //                                KFImage(URL(string: podcast.image ?? ""))
 //                                    .resizable()

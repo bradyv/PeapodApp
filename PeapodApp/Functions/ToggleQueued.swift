@@ -95,6 +95,10 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
             // Add to playlist
             queuePlaylist.addToItems(episode)
             
+            if episode.isSaved {
+                episode.isSaved.toggle()
+            }
+            
             do {
                 try context.save()
                 print("Added episode to queue: \(episode.title ?? "Episode")")

@@ -22,6 +22,8 @@ struct EpisodeView: View {
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var showSpeeds = false
     @State private var speedPopover: Bool = false
+    @State private var isPlaying = false
+    @State private var isLoading = false
     var namespace: Namespace.ID
     
     @ViewBuilder
@@ -42,7 +44,7 @@ struct EpisodeView: View {
     }
     
     var body: some View {
-        ZStack(alignment:.topLeading) {
+        ZStack(alignment:.topTrailing) {
             let splashFadeStart: CGFloat = -150
             let splashFadeEnd: CGFloat = 0
             let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
@@ -188,7 +190,7 @@ struct EpisodeView: View {
                                                 }) {
                                                     Label("Go back", systemImage: "\(String(format: "%.0f", currentBackwardInterval)).arrow.trianglehead.counterclockwise")
                                                 }
-                                                .disabled(!player.isPlayingEpisode(episode))
+                                                .disabled(!isPlaying)
                                                 .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true))
                                                 
                                                 VStack {
@@ -197,10 +199,15 @@ struct EpisodeView: View {
                                                             player.togglePlayback(for: episode)
                                                         }
                                                     }) {
-                                                        Label(player.isPlayingEpisode(episode) ? "Pause" : "Play", systemImage:player.isPlayingEpisode(episode) ? "pause.fill" :  "play.fill")
-                                                            .font(.title)
+                                                        if isLoading {
+                                                            PPSpinner(color: Color.background)
+                                                        } else {
+                                                            Label(isPlaying ? "Pause" : "Play",
+                                                                  systemImage: isPlaying ? "pause.fill" : "play.fill")
+                                                                .font(.title)
+                                                        }
                                                     }
-                                                    .buttonStyle(PPButton(type:.filled,colorStyle:.monochrome,iconOnly: true,large: true))
+                                                    .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, iconOnly: true, large: true))
                                                 }
                                                 .overlay(Circle().stroke(Color.background, lineWidth:5))
                                                 .zIndex(1)
@@ -210,7 +217,7 @@ struct EpisodeView: View {
                                                 }) {
                                                     Label("Go forward", systemImage: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise")
                                                 }
-                                                .disabled(!player.isPlayingEpisode(episode))
+                                                .disabled(!isPlaying)
                                                 .buttonStyle(PPButton(type:.transparent,colorStyle:.monochrome,iconOnly: true))
                                             }
                                             .animation(.easeInOut(duration: 0.25), value: player.isPlayingEpisode(episode))
@@ -218,15 +225,12 @@ struct EpisodeView: View {
                                             Button(action: {
                                                 withAnimation {
                                                     if episode.playbackPosition > 0 {
-                                                        player.stop()
                                                         player.markAsPlayed(for: episode, manually: true)
                                                     } else {
-                                                        player.stop()
                                                         episode.playbackPosition = 0
                                                         toggleQueued(episode)
                                                     }
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label(episode.playbackPosition > 0 ? "Mark as played" : "Archive", systemImage: episode.playbackPosition > 0 ? "checkmark.circle" : "archivebox")
                                             }
@@ -234,17 +238,16 @@ struct EpisodeView: View {
                                             
                                             Button(action: {
                                                 withAnimation {
-                                                    toggleSaved(episode)
+                                                    toggleFav(episode)
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label(episode.isSaved ? "Remove from saved episodes" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
-                                                    .if(episode.isSaved, transform: {
+                                                Label(episode.isFav ? "Remove from Favorites" : "Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                                                    .if(episode.isFav, transform: {
                                                         $0.foregroundStyle(Color.accentColor)
                                                     })
                                             }
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, borderless: true))
-                                            .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+                                            .sensoryFeedback(episode.isFav ? .success : .warning, trigger: episode.isFav)
                                             .contentTransition(.symbolEffect(.replace))
                                             
                                         }
@@ -267,7 +270,6 @@ struct EpisodeView: View {
                                                 withAnimation {
                                                     toggleQueued(episode)
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
                                                 Label("Up Next", systemImage: "text.append")
                                             }
@@ -277,9 +279,8 @@ struct EpisodeView: View {
                                                 withAnimation {
                                                     toggleSaved(episode)
                                                 }
-                                                try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label(episode.isSaved ? "Remove from saved episodes" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+                                                Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
                                                     .if(episode.isSaved, transform: {
                                                         $0.foregroundStyle(Color.accentColor)
                                                     })
@@ -302,6 +303,47 @@ struct EpisodeView: View {
                     }
                 }
             }
+            VStack {
+                Menu {
+                    Button(action: {
+                        withAnimation {
+                            player.markAsPlayed(for: episode, manually: true)
+                        }
+                    }) {
+                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
+                    }
+                    
+                    if episode.playbackPosition < 0.1 {
+                        Button(action: {
+                            withAnimation {
+                                toggleQueued(episode)
+                            }
+                        }) {
+                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                        }
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            toggleSaved(episode)
+                        }
+                    }) {
+                        Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            toggleFav(episode)
+                        }
+                    }) {
+                        Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis")
+                }
+                .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+            }
+            .padding(.top).padding(.trailing)
             
 //            FadeInView(delay: 0.1) {
 //                VStack(alignment:.leading) {
@@ -324,5 +366,15 @@ struct EpisodeView: View {
 //            }
         }
         .frame(maxWidth:.infinity)
+        .onAppear {
+            isPlaying = player.isPlayingEpisode(episode)
+            isLoading = player.isLoadingEpisode(episode)
+        }
+        .onChange(of: player.state) { newState in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isPlaying = player.isPlayingEpisode(episode)
+                isLoading = player.isLoadingEpisode(episode)
+            }
+        }
     }
 }

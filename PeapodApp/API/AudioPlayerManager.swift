@@ -142,7 +142,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
         guard let episodeID = episode.id else { return }
 
-        // Early exits for same episode
         switch state {
         case .playing(let id) where id == episodeID:
             print("⏸ Already playing — pausing.")
@@ -155,26 +154,27 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             break
         }
 
-        // Set state/loading immediately to update UI
+        // Set loading state immediately
         DispatchQueue.main.async {
             self.state = .loading(episodeID: episodeID)
             self.currentEpisode = episode
         }
 
-        Task {
-            await self.play(episode: episode)
+        // Slight delay to allow UI to respond before heavy playback begins
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+            Task {
+                await self.play(episode: episode)
 
-            // Defer state updates to after playback starts
-            await MainActor.run {
-                episode.nowPlaying = true
-                if episode.isPlayed {
-                    episode.isPlayed = false
-                    episode.playedDate = nil
+                await MainActor.run {
+                    episode.nowPlaying = true
+                    if episode.isPlayed {
+                        episode.isPlayed = false
+                        episode.playedDate = nil
+                    }
                 }
-            }
 
-            // Save only once
-            await saveEpisodeOnMainThread(episode)
+                self.saveEpisodeOnMainThread(episode)
+            }
         }
     }
     
@@ -189,7 +189,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
 
-        // Prepare player item off-main-thread
+        // Load player item in background
         let playerItem = await withCheckedContinuation { continuation in
             Task.detached(priority: .utility) {
                 let item = AVPlayerItem(url: url)
@@ -197,52 +197,66 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
 
-        // Move episode to front of queue (background safe, no save)
+        // Move to front of queue in background
         Task.detached(priority: .background) {
             self.moveEpisodeToFrontOfQueue(episode)
         }
 
-        // Save previous episode state
-        if let previous = currentEpisode, previous.id != episode.id {
-            let previousPosition = player?.currentTime().seconds ?? 0
-            savePlaybackPosition(for: previous, position: previousPosition)
+        // Handle previous episode state (playback position, flags)
+        let previousEpisode = await MainActor.run { self.currentEpisode }
+        if let previous = previousEpisode, previous.id != episode.id {
+            let previousPosition = await MainActor.run { self.player?.currentTime().seconds ?? 0 }
 
             await MainActor.run {
                 previous.nowPlaying = false
             }
+
+            savePlaybackPosition(for: previous, position: previousPosition)
             await saveEpisodeOnMainThread(previous)
         }
 
         let lastPosition = getSavedPlaybackPosition(for: episode)
 
-        // Finalize player setup on main thread
-        await MainActor.run {
-            self.cleanupPlayer()
-            let player = AVPlayer(playerItem: playerItem)
-            self.cachedArtwork = nil
-            self.player = player
-            self.addTimeObserver()
-            self.setupPlayerItemObservations(playerItem, for: episodeID)
-            self.configureAudioSession(activePlayback: true)
-            self.progress = lastPosition
+        // Prep player off-main before assigning
+        cleanupPlayer()
 
-            if lastPosition > 0 {
-                player.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
+        // Configure player and start playback
+        await MainActor.run {
+            let newPlayer = AVPlayer(playerItem: playerItem)
+            self.cachedArtwork = nil
+            self.player = newPlayer
+            self.progress = lastPosition
+            self.configureAudioSession(activePlayback: true)
+            self.setupPlayerItemObservations(playerItem, for: episodeID)
+            self.addTimeObserver()
+        }
+
+        if lastPosition > 0 {
+            await MainActor.run {
+                self.player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
                     guard let self = self else { return }
                     self.player?.playImmediately(atRate: self.playbackSpeed)
                     self.updateState(to: .playing(episodeID: episodeID))
                 }
-            } else {
-                player.playImmediately(atRate: self.playbackSpeed)
+            }
+        } else {
+            await MainActor.run {
+                self.player?.playImmediately(atRate: self.playbackSpeed)
                 self.updateState(to: .playing(episodeID: episodeID))
             }
+        }
 
-            print("🎧 Playback started for \(episode.title ?? "Episode")")
+        // Defer metadata updates
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             self.updateNowPlayingInfo()
         }
 
         setupLoadingTimeout(for: episodeID)
-        writeActualDuration(for: episode)
+
+        // Load duration async if needed
+        Task.detached(priority: .background) {
+            self.writeActualDuration(for: episode)
+        }
     }
     
     private func setupPlayerItemObservations(_ playerItem: AVPlayerItem, for episodeID: String) {

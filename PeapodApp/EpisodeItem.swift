@@ -66,6 +66,7 @@ struct EpisodeItem: View {
                     if !episode.nowPlaying {
                         Button(action: {
                             withAnimation {
+                                episodeSelectionManager.selectEpisode(episode)
                                 player.togglePlayback(for: episode)
                             }
                         }) {
@@ -189,6 +190,7 @@ struct EpisodeItem: View {
                         if episode.isPlayed && !isPlaying {
                             episodePlayed = false
                         }
+                        episodeSelectionManager.selectEpisode(episode)
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
@@ -309,9 +311,6 @@ struct EpisodeItem: View {
             if newValue {
                 playbackPosition = 0
             }
-        }
-        .onTapGesture {
-            episodeSelectionManager.selectEpisode(episode)
         }
         .onTapGesture {
             episodeSelectionManager.selectEpisode(episode)

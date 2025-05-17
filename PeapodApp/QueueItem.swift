@@ -20,7 +20,7 @@ struct QueueItem: View {
         let frame = UIScreen.main.bounds.width - 32
 
         ZStack(alignment:.bottomLeading) {
-            EpisodeItem(episode:episode, displayedInQueue: true, namespace: namespace)
+            EpisodeItem(episode:episode, showActions: true, displayedInQueue: true, namespace: namespace)
                 .lineLimit(3)
                 .padding()
                 .frame(maxWidth: .infinity)

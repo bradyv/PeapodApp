@@ -44,7 +44,7 @@ struct EpisodeView: View {
     }
     
     var body: some View {
-        ZStack(alignment:.topLeading) {
+        ZStack(alignment:.topTrailing) {
             let splashFadeStart: CGFloat = -150
             let splashFadeEnd: CGFloat = 0
             let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
@@ -225,10 +225,8 @@ struct EpisodeView: View {
                                             Button(action: {
                                                 withAnimation {
                                                     if episode.playbackPosition > 0 {
-                                                        player.stop()
                                                         player.markAsPlayed(for: episode, manually: true)
                                                     } else {
-                                                        player.stop()
                                                         episode.playbackPosition = 0
                                                         toggleQueued(episode)
                                                     }
@@ -241,17 +239,17 @@ struct EpisodeView: View {
                                             
                                             Button(action: {
                                                 withAnimation {
-                                                    toggleSaved(episode)
+                                                    toggleFav(episode)
                                                 }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label(episode.isSaved ? "Remove from saved episodes" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
-                                                    .if(episode.isSaved, transform: {
+                                                Label(episode.isFav ? "Remove from Favorites" : "Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                                                    .if(episode.isFav, transform: {
                                                         $0.foregroundStyle(Color.accentColor)
                                                     })
                                             }
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, borderless: true))
-                                            .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+                                            .sensoryFeedback(episode.isFav ? .success : .warning, trigger: episode.isFav)
                                             .contentTransition(.symbolEffect(.replace))
                                             
                                         }
@@ -286,7 +284,7 @@ struct EpisodeView: View {
                                                 }
                                                 try? episode.managedObjectContext?.save()
                                             }) {
-                                                Label(episode.isSaved ? "Remove from saved episodes" : "Save episode", systemImage: episode.isSaved ? "bookmark.fill" : "bookmark")
+                                                Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
                                                     .if(episode.isSaved, transform: {
                                                         $0.foregroundStyle(Color.accentColor)
                                                     })
@@ -309,6 +307,51 @@ struct EpisodeView: View {
                     }
                 }
             }
+            VStack {
+                Menu {
+                    Button(action: {
+                        withAnimation {
+                            player.markAsPlayed(for: episode, manually: true)
+                        }
+                        try? episode.managedObjectContext?.save()
+                    }) {
+                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.slash" : "checkmark.circle")
+                    }
+                    
+                    if episode.playbackPosition < 0.1 {
+                        Button(action: {
+                            withAnimation {
+                                toggleQueued(episode)
+                            }
+                            try? episode.managedObjectContext?.save()
+                        }) {
+                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                        }
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            toggleSaved(episode)
+                        }
+                        try? episode.managedObjectContext?.save()
+                    }) {
+                        Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            toggleFav(episode)
+                        }
+                        try? episode.managedObjectContext?.save()
+                    }) {
+                        Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis")
+                }
+                .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+            }
+            .padding(.top).padding(.trailing)
             
 //            FadeInView(delay: 0.1) {
 //                VStack(alignment:.leading) {

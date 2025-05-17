@@ -36,7 +36,15 @@ struct LibraryView: View {
                             SavedEpisodes(namespace: namespace)
                         }
                     } label: {
-                        RowItem(icon: "bookmark", label: "Saved for Later")
+                        RowItem(icon: "arrowshape.bounce.right", label: "Play Later")
+                    }
+                    
+                    NavigationLink {
+                        PPPopover(showBg: true) {
+                            FavEpisodes(namespace: namespace)
+                        }
+                    } label: {
+                        RowItem(icon: "heart", label: "Favorites")
                     }
                 }
             }

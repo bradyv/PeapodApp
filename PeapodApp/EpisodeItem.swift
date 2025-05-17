@@ -17,6 +17,7 @@ struct EpisodeItem: View {
     @State private var isLoading = false
     @State private var playbackPosition: Double = 0
     @State private var episodePlayed: Bool = false
+    var showActions: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
     var savedView: Bool = false
@@ -50,6 +51,77 @@ struct EpisodeItem: View {
                 Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textDetail()
+                
+                Spacer()
+                
+                Menu {
+                    Button(action: {
+                        episodeSelectionManager.selectEpisode(episode)
+                    }) {
+                        Label("Go to Episode", systemImage: "info.square")
+                    }
+                    
+                    Divider()
+                    
+                    Button(action: {
+                        withAnimation {
+                            player.markAsPlayed(for: episode, manually: true)
+                        }
+                        try? episode.managedObjectContext?.save()
+                    }) {
+                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.slash" : "checkmark.circle")
+                    }
+                    
+                    if episode.playbackPosition < 0.1 {
+                        Button(action: {
+                            withAnimation {
+                                toggleQueued(episode)
+                            }
+                            try? episode.managedObjectContext?.save()
+                        }) {
+                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                        }
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            toggleSaved(episode)
+                        }
+                        try? episode.managedObjectContext?.save()
+                    }) {
+                        Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            toggleFav(episode)
+                        }
+                        try? episode.managedObjectContext?.save()
+                    }) {
+                        Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                    }
+                    
+                    Divider()
+                    
+                    NavigationLink {
+                        if episode.podcast?.isSubscribed != false {
+                            PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
+                                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                            }
+                        } else {
+                            PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
+                                PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                            }
+                        }
+                    } label: {
+                        Label("Go to Show", systemImage: "widget.large")
+                    }
+                } label: {
+                    Label("More", systemImage: "ellipsis")
+                        .frame(width:24,height:24)
+                }
+                .labelStyle(.iconOnly)
+                .foregroundStyle(displayedInQueue ? .white : .heading)
             }
             .frame(maxWidth:.infinity, alignment:.leading)
             
@@ -100,55 +172,92 @@ struct EpisodeItem: View {
             }
             
             // Episode Actions
-            let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
-
-            HStack {
-                // ▶️ Playback Button
-                Button(action: {
-                    guard !isLoading else { return }
-                    isLoading = true  // Let UI reflect this ASAP
-                    if episode.isPlayed && !isPlaying {
-                        episodePlayed = false
+            if showActions {
+                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
+                
+                HStack {
+                    // ▶️ Playback Button
+                    Button(action: {
+                        guard !isLoading else { return }
+                        isLoading = true  // Let UI reflect this ASAP
+                        if episode.isPlayed && !isPlaying {
+                            episodePlayed = false
+                        }
+                        player.togglePlayback(for: episode)
+                    }) {
+                        HStack {
+                            PPCircularPlayButton(
+                                episode: episode,
+                                displayedInQueue: displayedInQueue,
+                                buttonSize: 20
+                            )
+                            
+                            let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+                            let position = episode.playbackPosition
+                            let remaining = max(0, duration - position)
+                            let seconds = Int(remaining)
+                            
+                            if hasStarted {
+                                Text("\(formatDuration(seconds: seconds)) remaining")
+                                    .contentTransition(.numericText())
+                            } else {
+                                Text("Listen Now")
+                            }
+                        }
+                        .frame(maxWidth:.infinity)
                     }
-                    player.togglePlayback(for: episode)
-                }) {
-                   HStack {
-                       PPCircularPlayButton(
-                          episode: episode,
-                          displayedInQueue: displayedInQueue,
-                          buttonSize: 20
-                      )
-                       
-                       let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
-                       let position = episode.playbackPosition
-                       let remaining = max(0, duration - position)
-                       let seconds = Int(remaining)
-                       Text(formatDuration(seconds: seconds))
-                           .contentTransition(.numericText())
-                   }
-               }
-               .buttonStyle(
-                   PPButton(
-                       type: .filled,
-                       colorStyle: .monochrome,
-                       hierarchical: false,
-                       customColors: displayedInQueue ?
-                           ButtonCustomColors(foreground: .black, background: .white) :
-                           nil
-                   )
-               )
-
-                // 📌 "Later" or Queue Toggle
-                if displayedInQueue {
+                    .buttonStyle(
+                        PPButton(
+                            type: .filled,
+                            colorStyle: .monochrome,
+                            hierarchical: false,
+                            customColors: displayedInQueue ?
+                            ButtonCustomColors(foreground: .black, background: .white) :
+                                nil
+                        )
+                    )
+                    
+                    // 📌 "Later" or Queue Toggle
                     if !hasStarted {
+                        if displayedInQueue {
+                            Button(action: {
+                                withAnimation {
+                                    toggleSaved(episode)
+                                }
+                                try? episode.managedObjectContext?.save()
+                            }) {
+                                Label("Play Later", systemImage: "arrowshape.bounce.right")
+                            }
+                            .buttonStyle(
+                                PPButton(
+                                    type: .transparent,
+                                    colorStyle: .monochrome,
+                                    customColors: ButtonCustomColors(
+                                        foreground: .white,
+                                        background: .white.opacity(0.15)
+                                    )
+                                )
+                            )
+                        } else {
+                            Button(action: {
+                                withAnimation {
+                                    toggleQueued(episode)
+                                }
+                                try? episode.managedObjectContext?.save()
+                            }) {
+                                Label(episode.isQueued ? "Queued" : "Up Next", systemImage:episode.isQueued ? "text.badge.checkmark" : "text.append")
+                            }
+                            .buttonStyle(PPButton(type:.transparent, colorStyle:episode.isQueued ? .tinted : .monochrome))
+                        }
+                    } else {
+                        // 🗑️ Remove / Archive / Mark as Played
                         Button(action: {
                             withAnimation {
-                                toggleQueued(episode)
-                                episode.isSaved = true
+                                player.markAsPlayed(for: episode, manually: true)
                             }
                             try? episode.managedObjectContext?.save()
                         }) {
-                            Label("Later", systemImage: "bookmark")
+                            Label("Mark as Played", systemImage: "checkmark.circle")
                         }
                         .buttonStyle(
                             PPButton(
@@ -161,106 +270,46 @@ struct EpisodeItem: View {
                             )
                         )
                     }
-                } else {
-                    Spacer()
                     
-                    Menu {
-                        if episode.playbackPosition > 0 {
-                            Button(action: {
-                                player.markAsPlayed(for: episode, manually: true)
-                                player.stop()
-                                try? episode.managedObjectContext?.save()
-                            }) {
-                                Label("Mark as played", systemImage: "checkmark.circle")
-                            }
-                        } else {
-                            Button(action: {
-                                toggleQueued(episode)
-                                try? episode.managedObjectContext?.save()
-                            }) {
-                                Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                            }
-                        }
-                        
-                        Button(action: {
-                            toggleSaved(episode)
-                            try? episode.managedObjectContext?.save()
-                        }) {
-                            Label(episode.isSaved ? "Remove from Saved" : "Save for Later", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
-                        }
-                    } label: {
-                        Label("More", systemImage: "ellipsis")
-                    }
-                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                    
-//                    Button(action: {
-//                        if isPlaying || player.hasStartedPlayback(for: episode) {
-//                            player.stop()
-//                            player.markAsPlayed(for: episode, manually: true)
-//                        } else {
-//                            withAnimation {
-//                                toggleQueued(episode)
-//                            }
-//                        }
-//                        try? episode.managedObjectContext?.save()
-//                    }) {
-//                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
-//                    }
-//                    .buttonStyle(
-//                        episode.isQueued
-//                        ? PPButton(type: .transparent, colorStyle: .tinted, iconOnly: true)
-//                        : PPButton(type: .transparent, colorStyle: .monochrome)
-//                    )
-//                    .id(episode.isQueued ? "queued" : "unqueued")
-//                    .transition(.opacity)
-//                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
-//
-//                    if savedView {
-//                        Spacer()
-//
-//                        Button(action: {
-//                            withAnimation {
-//                                toggleSaved(episode)
-//                            }
-//                            try? episode.managedObjectContext?.save()
-//                        }) {
-//                            Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
-//                        }
-//                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-//                        .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
-//                    }
-                }
-
-                // 🗑️ Remove / Archive / Mark as Played
-                if displayedInQueue {
-                    Button(action: {
-                        if isPlaying || player.hasStartedPlayback(for: episode) {
-                            withAnimation {
-                                player.markAsPlayed(for: episode, manually: true)
-                            }
-                        } else {
-                            withAnimation {
-                                toggleQueued(episode)
-                            }
-                        }
-                        try? episode.managedObjectContext?.save()
-                    }) {
-                        Label(isPlaying || player.hasStartedPlayback(for: episode) ? "Mark as played" : "Archive", systemImage: isPlaying || player.hasStartedPlayback(for: episode) ? "checkmark.circle" : "archivebox")
-                    }
-                    .buttonStyle(
-                        PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            iconOnly: true,
-                            customColors: ButtonCustomColors(
-                                foreground: .white,
-                                background: .white.opacity(0.15)
-                            )
-                        )
-                    )
+                    //                    Button(action: {
+                    //                        if isPlaying || player.hasStartedPlayback(for: episode) {
+                    //                            player.stop()
+                    //                            player.markAsPlayed(for: episode, manually: true)
+                    //                        } else {
+                    //                            withAnimation {
+                    //                                toggleQueued(episode)
+                    //                            }
+                    //                        }
+                    //                        try? episode.managedObjectContext?.save()
+                    //                    }) {
+                    //                        Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
+                    //                    }
+                    //                    .buttonStyle(
+                    //                        episode.isQueued
+                    //                        ? PPButton(type: .transparent, colorStyle: .tinted, iconOnly: true)
+                    //                        : PPButton(type: .transparent, colorStyle: .monochrome)
+                    //                    )
+                    //                    .id(episode.isQueued ? "queued" : "unqueued")
+                    //                    .transition(.opacity)
+                    //                    .animation(.easeOut(duration: 0.3), value: episode.isQueued)
+                    //
+                    //                    if savedView {
+                    //                        Spacer()
+                    //
+                    //                        Button(action: {
+                    //                            withAnimation {
+                    //                                toggleSaved(episode)
+                    //                            }
+                    //                            try? episode.managedObjectContext?.save()
+                    //                        }) {
+                    //                            Label(episode.isSaved ? "Remove from saved" : "Save episode", systemImage: episode.isSaved ? "bookmark.slash" : "bookmark")
+                    //                        }
+                    //                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                    //                        .sensoryFeedback(episode.isSaved ? .success : .warning, trigger: episode.isSaved)
+                    //                    }
+                    //                }
                 }
             }
-
         }
         .contentShape(Rectangle())
         .frame(maxWidth:.infinity, alignment: .leading)

@@ -70,7 +70,7 @@ struct PPCircularProgress: View {
             // Center icon
             if iconType != .none {
                 Image(systemName: iconName)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundColor(progressColor)
             }
         }

@@ -9,9 +9,11 @@
         <attribute name="episodeImage" optional="YES" attributeType="String"/>
         <attribute name="episodeTint" optional="YES" attributeType="String"/>
         <attribute name="episodeTintDarkened" optional="YES" attributeType="String"/>
+        <attribute name="favDate" optional="YES" attributeType="Date" defaultDateTimeInterval="763509900" usesScalarValueType="NO"/>
         <attribute name="guid" optional="YES" attributeType="String"/>
         <attribute name="hasBeenSeen" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="isFav" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="isPlayed" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="isQueued" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="isSaved" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>

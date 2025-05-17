@@ -47,18 +47,19 @@ struct QueueView: View {
                                     }
                                     
                                     VStack {
-                                        Text("Nothing to play")
+                                        Text("Nothing up next")
                                             .titleCondensed()
                                         
                                         Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes are automatically added.")
                                             .textBody()
                                         
                                         if !episodesViewModel.saved.isEmpty {
-                                            NavigationLink {
-                                                PPPopover(showBg: true) {
-                                                    SavedEpisodes(namespace: namespace)
+                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
+                                            Button(action: {
+                                                for (_, episode) in items {
+                                                    toggleQueued(episode)
                                                 }
-                                            } label: {
+                                            }) {
                                                 HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {
                                                     if episodesViewModel.saved.count > 2 {
                                                         let customOffsets: [(x: CGFloat, y: CGFloat)] = [
@@ -68,8 +69,6 @@ struct QueueView: View {
                                                         ]
                                                         
                                                         ZStack {
-                                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
-                                                            
                                                             ForEach(items, id: \.element.id) { index, episode in
                                                                 let offset = customOffsets[index]
                                                                 ArtworkView(url: episode.podcast?.image ?? "", size: 14, cornerRadius: 3)
@@ -85,6 +84,38 @@ struct QueueView: View {
                                                 }
                                             }
                                             .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+                                            
+//                                            NavigationLink {
+//                                                PPPopover(showBg: true) {
+//                                                    SavedEpisodes(namespace: namespace)
+//                                                }
+//                                            } label: {
+//                                                HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {
+//                                                    if episodesViewModel.saved.count > 2 {
+//                                                        let customOffsets: [(x: CGFloat, y: CGFloat)] = [
+//                                                            (x: 2, y: -5),   // back
+//                                                            (x: 8, y: 0),  // middle
+//                                                            (x: 0, y: 4)     // front
+//                                                        ]
+//                                                        
+//                                                        ZStack {
+//                                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
+//                                                            
+//                                                            ForEach(items, id: \.element.id) { index, episode in
+//                                                                let offset = customOffsets[index]
+//                                                                ArtworkView(url: episode.podcast?.image ?? "", size: 14, cornerRadius: 3)
+//                                                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
+//                                                                    .offset(x: offset.x, y: offset.y)
+//                                                            }
+//                                                        }
+//                                                    } else {
+//                                                        Image(systemName: "plus.circle")
+//                                                    }
+//                                                    
+//                                                    Text("Add from Play Later")
+//                                                }
+//                                            }
+//                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
                                         }
                                     }
                                     .offset(x:-16)

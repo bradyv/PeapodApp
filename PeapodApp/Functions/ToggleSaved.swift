@@ -12,8 +12,8 @@ import SwiftUI
     
     episode.isSaved.toggle()
     
-    if episode.isQueued {
-        toggleQueued(episode)
+    if episode.isQueued && !episode.isSaved {
+        removeFromQueue(episode)
     }
     
     if episode.isSaved {

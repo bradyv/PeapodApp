@@ -315,7 +315,7 @@ struct EpisodeView: View {
                         }
                         try? episode.managedObjectContext?.save()
                     }) {
-                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.slash" : "checkmark.circle")
+                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
                     }
                     
                     if episode.playbackPosition < 0.1 {

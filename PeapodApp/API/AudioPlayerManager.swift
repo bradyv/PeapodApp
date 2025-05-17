@@ -204,6 +204,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Move episode to front of queue in background
         Task.detached(priority: .background) {
             self.moveEpisodeToFrontOfQueue(episode)
+            
+            if episode.isSaved {
+                episode.isSaved.toggle()
+            }
         }
 
         // Save playback position of previous episode if needed

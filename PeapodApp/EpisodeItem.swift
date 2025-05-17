@@ -63,13 +63,23 @@ struct EpisodeItem: View {
                     
                     Divider()
                     
+                    if !episode.nowPlaying {
+                        Button(action: {
+                            withAnimation {
+                                player.togglePlayback(for: episode)
+                            }
+                        }) {
+                            Label(episode.isPlayed ? "Listen Again" : "Listen Now", systemImage: "play.circle")
+                        }
+                    }
+                    
                     Button(action: {
                         withAnimation {
                             player.markAsPlayed(for: episode, manually: true)
                         }
                         try? episode.managedObjectContext?.save()
                     }) {
-                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.slash" : "checkmark.circle")
+                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
                     }
                     
                     if episode.playbackPosition < 0.1 {
@@ -81,15 +91,15 @@ struct EpisodeItem: View {
                         }) {
                             Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
-                    }
-                    
-                    Button(action: {
-                        withAnimation {
-                            toggleSaved(episode)
+                        
+                        Button(action: {
+                            withAnimation {
+                                toggleSaved(episode)
+                            }
+                            try? episode.managedObjectContext?.save()
+                        }) {
+                            Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
                         }
-                        try? episode.managedObjectContext?.save()
-                    }) {
-                        Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
                     }
                     
                     Button(action: {
@@ -201,7 +211,7 @@ struct EpisodeItem: View {
                                 Text("\(formatDuration(seconds: seconds)) remaining")
                                     .contentTransition(.numericText())
                             } else {
-                                Text("Listen Now")
+                                Text(episode.isPlayed ? "Listen Again" : "Listen Now")
                             }
                         }
                         .frame(maxWidth:.infinity)

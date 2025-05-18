@@ -124,9 +124,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private init() {
-        configureAudioSession()
+        primePlayer()
         configureRemoteTransportControls()
         setupNotifications()
+    }
+    
+    private func primePlayer() {
+        // Pre-warm a player without hijacking audio session
+        self.player = AVPlayer()
     }
     
     private func setupNotifications() {
@@ -223,9 +228,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
         // Configure player and start playback
         await MainActor.run {
-            let newPlayer = AVPlayer(playerItem: playerItem)
             self.cachedArtwork = nil
-            self.player = newPlayer
+            self.player?.replaceCurrentItem(with: playerItem)
             self.progress = lastPosition
             self.configureAudioSession(activePlayback: true)
             self.setupPlayerItemObservations(playerItem, for: episodeID)
@@ -361,11 +365,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         statusObservation = nil
         
         // Use a more controlled teardown sequence
-        if let player = self.player {
-            player.pause()
-            player.replaceCurrentItem(with: nil)
-            self.player = nil
-        }
+        player?.pause()
+        player?.replaceCurrentItem(with: nil)
     }
     
     // MARK: - Time Control
@@ -659,20 +660,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     // MARK: - Audio Session
-    
     private func configureAudioSession(activePlayback: Bool = false) {
         do {
             let session = AVAudioSession.sharedInstance()
             let options: AVAudioSession.CategoryOptions = activePlayback ? [] : [.mixWithOthers]
             try session.setCategory(.playback, mode: .default, options: options)
-            try session.setActive(true)
+
+            if activePlayback {
+                try session.setActive(true)
+            }
         } catch {
             print("❌ Failed to set up AVAudioSession: \(error)")
         }
     }
     
     // MARK: - Remote Controls
-    
     private func configureRemoteTransportControls() {
         let commandCenter = MPRemoteCommandCenter.shared()
 

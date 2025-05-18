@@ -42,7 +42,7 @@ struct ShadowButton: ButtonStyle {
         })
         .foregroundStyle(filled ? Color.white : Color.black)
         .if(!small, transform: {
-            $0.textBody()
+            $0.textBodyEmphasis()
         })
         .if(small, transform: {
             $0.textDetail()

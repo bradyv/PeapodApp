@@ -313,7 +313,7 @@ struct EpisodeItem: View {
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
         }
-        .onChange(of: player.state) { newState in
+        .onChange(of: player.state) { _, newState in
             withTransaction(Transaction(animation: .easeInOut(duration: 0.3))) {
                 isPlaying = player.isPlayingEpisode(episode)
                 isLoading = player.isLoadingEpisode(episode)
@@ -324,7 +324,7 @@ struct EpisodeItem: View {
             }
         }
         // Track changes to episode.isPlayed
-        .onChange(of: episode.isPlayed) { newValue in
+        .onChange(of: episode.isPlayed) { _, newValue in
             episodePlayed = newValue
             
             // If marked as played, reset progress display

@@ -244,7 +244,7 @@ struct PodcastDetailView: View {
         .animation(.interactiveSpring(duration: 0.25), value: showSearch)
         .onAppear {
             print("PodcastDetailView feedUrl: \(podcast?.feedUrl ?? "none")")
-            print("PodcastDetailView objectID: \(podcast?.objectID.uriRepresentation().absoluteString)")
+            print("PodcastDetailView objectID: \(podcast?.objectID.uriRepresentation().absoluteString ?? "")")
             print("isSubscribed: \(podcast?.isSubscribed ?? false ? "YES" : "NO")")
         }
     }

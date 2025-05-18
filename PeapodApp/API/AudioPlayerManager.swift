@@ -372,7 +372,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     // MARK: - Time Control
     
     func seek(to time: Double) {
-        guard let player = player, let episode = currentEpisode, let episodeID = episode.id else { return }
+        guard let player = player else { return }
         
         let targetTime = CMTime(seconds: time, preferredTimescale: 1)
         isSeekingManually = true
@@ -680,7 +680,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
         // Play command
         commandCenter.playCommand.addTarget { [weak self] _ in
-            guard let self = self, let episode = self.currentEpisode, let episodeID = episode.id else { return .commandFailed }
+            guard let self = self, let episode = self.currentEpisode else { return .commandFailed }
             
             Task {
                 await self.play(episode: episode)
@@ -782,7 +782,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 
     @objc private func handleAudioInterruption(notification: Notification) {
-        guard let player = player, let episode = currentEpisode, let episodeID = episode.id else { return }
+        guard let player = player, let episode = currentEpisode else { return }
 
         if let userInfo = notification.userInfo,
            let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,

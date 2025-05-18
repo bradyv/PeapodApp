@@ -45,7 +45,7 @@ struct QueueItem: View {
             isPlaying = player.isPlayingEpisode(episode)
             isLoading = player.isLoadingEpisode(episode)
         }
-        .onChange(of: player.state) { newState in
+        .onChange(of: player.state) { _, newState in
             withAnimation(.easeInOut(duration: 0.3)) {
                 isPlaying = player.isPlayingEpisode(episode)
                 isLoading = player.isLoadingEpisode(episode)

@@ -139,7 +139,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     }
 }
 
-extension EpisodesViewModel: NSFetchedResultsControllerDelegate {
+extension EpisodesViewModel: @preconcurrency NSFetchedResultsControllerDelegate {
     func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
         if controller == queueController {
             guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }

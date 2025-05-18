@@ -371,9 +371,9 @@ struct SettingsView: View {
                              .tint(.accentColor)
                              .labelsHidden()
                              .symbolRenderingMode(.hierarchical)
-                             .onChange(of: autoPlayNext) { newValue in
-                                     setAutoplayNext(newValue)
-                                 }
+                             .onChange(of: autoPlayNext) { _, newValue in
+                                 setAutoplayNext(newValue)
+                             }
                          }
                     }
 

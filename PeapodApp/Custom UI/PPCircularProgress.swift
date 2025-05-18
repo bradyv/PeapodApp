@@ -151,7 +151,7 @@ struct PPCircularPlayButton: View {
             }
         }
         // Listen for player state changes (play/pause)
-        .onChange(of: player.state) { newState in
+        .onChange(of: player.state) { _, newState in
             withAnimation(.easeInOut(duration: 0.3)) {
                 // Update local state based on player state
                 isPlaying = player.isPlayingEpisode(episode)
@@ -173,7 +173,7 @@ struct PPCircularPlayButton: View {
             }
         }
         // Track changes to episode.isPlayed
-        .onChange(of: episode.isPlayed) { newValue in
+        .onChange(of: episode.isPlayed) { _, newValue in
             episodePlayed = newValue
             
             // If marked as played, reset progress display

@@ -17,15 +17,14 @@ struct NowPlayingSplash: View {
     var body: some View {
         FadeInView(delay:0.2) {
             ZStack {
-                if let id = episodeID,
-                   let episode = displayedEpisode {
-                    SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
-                        .transition(.opacity)
-                        .id(episode.id) // Forces view identity change to animate transition
-                        .animation(.easeInOut(duration: 0.3), value: episode.id)
+               if let episode = displayedEpisode {
+                SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
+                    .transition(.opacity)
+                    .id(episode.id) // Forces view identity change to animate transition
+                    .animation(.easeInOut(duration: 0.3), value: episode.id)
                 }
             }
-            .onChange(of: episodeID) { newID in
+            .onChange(of: episodeID) { _, newID in
                 if let id = newID {
                     if let match = nowPlaying.first(where: { $0.id == id }) {
                         withAnimation {
@@ -34,7 +33,7 @@ struct NowPlayingSplash: View {
                     }
                 }
             }
-            .onChange(of: nowPlaying.count) { _ in
+            .onChange(of: nowPlaying.count) {
                 if nowPlaying.isEmpty {
                     withAnimation {
                         displayedEpisode = nil
@@ -93,7 +92,7 @@ struct NowPlaying: View {
                     }
                     
                     HStack(spacing: spacing) {
-                        let isLoading = player.isLoadingEpisode(episode)
+//                        let isLoading = player.isLoadingEpisode(episode)
                         Button(action: {
                             player.skipBackward(seconds:currentBackwardInterval)
                             print("Seeking back")
@@ -138,7 +137,7 @@ struct NowPlaying: View {
                     .onAppear {
                         updateNowPlayingState()
                     }
-                    .onChange(of: player.state) { _ in
+                    .onChange(of: player.state) {
                         updateNowPlayingState()
                     }
                     .onReceive(player.$backwardInterval) { newBackwardInterval in

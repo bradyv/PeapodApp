@@ -144,7 +144,7 @@ struct QueueView: View {
                             }
                         }
                     }
-                    .onChange(of: scrollTarget) { id in
+                    .onChange(of: scrollTarget) { _, id in
                         if let id = id {
                             withAnimation {
                                 proxy.scrollTo(id, anchor: .leading)
@@ -171,7 +171,6 @@ struct QueueView: View {
                             Spacer()
                             ForEach(episodesViewModel.queue.indices, id: \.self) { index in
                                 let isCurrent = index == Int(scrollOffset)
-                                let episode = episodesViewModel.queue[index]
                                 
                                 VStack {
                                     Capsule()
@@ -252,7 +251,7 @@ struct QueueItemView: View {
                 }
             }
             // Only update when progress actually changes significantly
-            .onChange(of: player.progress) { newProgress in
+            .onChange(of: player.progress) { _, newProgress in
                 if abs(playbackPosition - player.getProgress(for: episode)) > 1.0 {
                     playbackPosition = player.getProgress(for: episode)
                 }

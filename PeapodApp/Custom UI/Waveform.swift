@@ -24,7 +24,7 @@ struct WaveformView: View {
         }
         .frame(width:18,height: 16)
         .onAppear { if isPlaying { startAnimating() } }
-        .onChange(of: isPlaying) { playing in
+        .onChange(of: isPlaying) { _, playing in
             playing ? startAnimating() : stopAnimating()
         }
         .onDisappear(perform: stopAnimating)

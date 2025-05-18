@@ -258,6 +258,7 @@ struct EpisodeItem: View {
                                 PPButton(
                                     type: .transparent,
                                     colorStyle: .monochrome,
+                                    iconOnly: true,
                                     customColors: ButtonCustomColors(
                                         foreground: .white,
                                         background: .white.opacity(0.15)

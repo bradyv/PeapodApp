@@ -164,7 +164,7 @@ struct PodcastDetailView: View {
                                 
                                 Spacer().frame(height:44)
                                 
-                                ArtworkView(url:podcast.image ?? "", size: shrink, cornerRadius:16)
+                                ArtworkView(url:podcast.image ?? "", size: shrink, cornerRadius:16, showGlare: true)
                                     .shadow(color:Color.tint(for:podcast),
                                             radius: 128
                                     )

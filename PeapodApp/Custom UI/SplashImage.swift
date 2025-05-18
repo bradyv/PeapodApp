@@ -17,7 +17,7 @@ struct SplashImage: View {
             KFImage(URL(string: image))
                 .resizable()
                 .aspectRatio(1,contentMode:.fit)
-                .blur(radius:64)
+                .blur(radius:50)
                 .mask(
                     LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                    startPoint: .top, endPoint: .bottom)

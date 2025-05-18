@@ -535,7 +535,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         let isCurrentlyPlaying = (currentEpisode?.id == episode.id) && isPlaying
         let progressBeforeStop = isCurrentlyPlaying ? (player?.currentTime().seconds ?? 0) : episode.playbackPosition
 
-        // Stop first, if necessary
+        // Only stop and cleanup if this episode is currently playing
         if isCurrentlyPlaying {
             stop()
         }
@@ -559,8 +559,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 podcast.playedSeconds += playedTime
                 print("Recorded \(playedTime) seconds for \(episode.title ?? "episode")")
             }
+
             removeFromQueue(episode)
-            cleanupPlayer()
+
+            // Only cleanup the player if it's still pointing to this episode
+            if currentEpisode?.id == episode.id {
+                cleanupPlayer()
+            }
         }
 
         context.perform {

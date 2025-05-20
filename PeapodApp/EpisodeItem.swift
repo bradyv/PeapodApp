@@ -90,7 +90,9 @@ struct EpisodeItem: View {
                         
                         Button(action: {
                             // Remove withAnimation for instant response
-                            toggleSaved(episode)
+                            Task {
+                                await EpisodeStateManager.shared.toggleSaved(episode)
+                            }
                         }) {
                             Label(
                                 episode.isSaved
@@ -227,7 +229,9 @@ struct EpisodeItem: View {
                         if displayedInQueue {
                             Button(action: {
                                 // Remove withAnimation for instant response
-                                toggleSaved(episode)
+                                Task {
+                                    await EpisodeStateManager.shared.toggleSaved(episode)
+                                }
                             }) {
                                 Label("Play Later", systemImage: "arrowshape.bounce.right")
                             }

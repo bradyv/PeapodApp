@@ -50,7 +50,7 @@ struct ContentView: View {
                     let now = Date()
                     if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
                         lastRefreshDate = now
-                        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                        PodcastManager.shared.refreshAllSubscribedPodcasts()
                     }
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
@@ -58,13 +58,13 @@ struct ContentView: View {
                         let now = Date()
                         if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
                             lastRefreshDate = now
-                            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                            PodcastManager.shared.refreshAllSubscribedPodcasts()
                         }
                     }
                 }
                 .scrollDisabled(subscriptions.isEmpty)
                 .refreshable {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                    PodcastManager.shared.refreshAllSubscribedPodcasts()
                 }
                 
                 VStack(alignment:.trailing) {
@@ -125,10 +125,7 @@ struct ContentView: View {
                 fetchRequest.fetchLimit = 1
                 
                 if let foundEpisode = try? context.fetch(fetchRequest).first {
-                    // Instead of setting tappedEpisode, use the episodeSelectionManager
                     episodeSelectionManager.selectEpisode(foundEpisode)
-                } else {
-                    print("❌ Could not find episode for id \(id)")
                 }
             }
         }

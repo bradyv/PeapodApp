@@ -39,113 +39,14 @@ func reorderQueue(_ episodes: [Episode], episodesViewModel: EpisodesViewModel? =
 
 /// Toggle the saved state of an episode
 func toggleSaved(_ episode: Episode) {
-    // Create background context outside of the Task for better performance
-    let backgroundContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
-    backgroundContext.parent = PersistenceController.shared.container.viewContext
-    backgroundContext.automaticallyMergesChangesFromParent = false
-    
-    var wasRemoved = false
-    
-    Task(priority: .userInitiated) {
-        await withCheckedContinuation { continuation in
-            backgroundContext.perform {
-                do {
-                    guard let bgEpisode = try backgroundContext.existingObject(with: episode.objectID) as? Episode else {
-                        continuation.resume()
-                        return
-                    }
-                    
-                    bgEpisode.isSaved.toggle()
-                    
-                    if bgEpisode.isSaved {
-                        bgEpisode.savedDate = Date.now
-                        
-                        // Remove from queue if it's queued
-                        if bgEpisode.isQueued {
-                            bgEpisode.isQueued = false
-                            bgEpisode.queuePosition = -1
-                            wasRemoved = true
-                            
-                            // Remove from playlist relationship
-                            let queuePlaylist = getQueuePlaylist(context: backgroundContext)
-                            queuePlaylist.removeFromItems(bgEpisode)
-                        }
-                    } else {
-                        bgEpisode.savedDate = nil
-                    }
-                    
-                    try backgroundContext.save()
-                    
-                    // Merge to main context asynchronously
-                    DispatchQueue.main.async {
-                        do {
-                            try PersistenceController.shared.container.viewContext.save()
-                            continuation.resume()
-                        } catch {
-                            print("❌ Error merging to main context: \(error)")
-                            continuation.resume()
-                        }
-                    }
-                } catch {
-                    print("❌ Error toggling saved state: \(error)")
-                    backgroundContext.rollback()
-                    continuation.resume()
-                }
-            }
-        }
-        
-        // If episode was removed from queue, update QueueManager UI
-        if wasRemoved {
-            await MainActor.run {
-                QueueManager.shared.remove(episode)
-            }
-        }
+    Task {
+        await EpisodeStateManager.shared.toggleSaved(episode)
     }
 }
-
 /// Toggle the favorite state of an episode
 func toggleFav(_ episode: Episode) {
-    // Create background context outside of the Task for better performance
-    let backgroundContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
-    backgroundContext.parent = PersistenceController.shared.container.viewContext
-    backgroundContext.automaticallyMergesChangesFromParent = false
-    
-    Task(priority: .userInitiated) {
-        await withCheckedContinuation { continuation in
-            backgroundContext.perform {
-                do {
-                    guard let bgEpisode = try backgroundContext.existingObject(with: episode.objectID) as? Episode else {
-                        continuation.resume()
-                        return
-                    }
-                    
-                    bgEpisode.isFav.toggle()
-                    
-                    if bgEpisode.isFav {
-                        bgEpisode.favDate = Date.now
-                    } else {
-                        bgEpisode.favDate = nil
-                    }
-                    
-                    try backgroundContext.save()
-                    
-                    // Merge to main context asynchronously
-                    DispatchQueue.main.async {
-                        do {
-                            try PersistenceController.shared.container.viewContext.save()
-                            continuation.resume()
-                        } catch {
-                            print("❌ Error merging to main context: \(error)")
-                            continuation.resume()
-                        }
-                    }
-                } catch {
-                    print("❌ Error toggling favorite state: \(error)")
-                    backgroundContext.rollback()
-                    continuation.resume()
-                }
-            }
-        }
+    Task {
+        await EpisodeStateManager.shared.toggleFav(episode)
     }
 }
 

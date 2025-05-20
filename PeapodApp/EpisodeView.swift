@@ -191,9 +191,7 @@ struct EpisodeView: View {
                                             .animation(.easeInOut(duration: 0.25), value: player.isPlayingEpisode(episode))
                                             
                                             Button(action: {
-                                                withAnimation {
-                                                    player.toggleFav(episode)
-                                                }
+                                                toggleFavorite(episode)
                                             }) {
                                                 Label(episode.isFav ? "Remove from Favorites" : "Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                                                     .if(episode.isFav, transform: {
@@ -230,9 +228,7 @@ struct EpisodeView: View {
                                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                                             
                                             Button(action: {
-                                                withAnimation {
-                                                    toggleSaved(episode)
-                                                }
+                                                toggleSaved(episode)
                                             }) {
                                                 Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: "arrowshape.bounce.right")
                                             }
@@ -276,9 +272,7 @@ struct EpisodeView: View {
                     }
                     
                     Button(action: {
-                        withAnimation {
-                            player.markAsPlayed(for: episode, manually: true)
-                        }
+                        togglePlayedState(episode)
                     }) {
                         Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
                     }
@@ -294,17 +288,13 @@ struct EpisodeView: View {
                     }
                     
                     Button(action: {
-                        withAnimation {
-                            toggleSaved(episode)
-                        }
+                        toggleSaved(episode)
                     }) {
                         Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "minus.circle" : "arrowshape.bounce.right")
                     }
                     
                     Button(action: {
-                        withAnimation {
-                            player.toggleFav(episode)
-                        }
+                        toggleFavorite(episode)
                     }) {
                         Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
                     }
@@ -324,6 +314,34 @@ struct EpisodeView: View {
             withAnimation(.easeInOut(duration: 0.3)) {
                 isPlaying = player.isPlayingEpisode(episode)
                 isLoading = player.isLoadingEpisode(episode)
+            }
+        }
+    }
+    
+    // MARK: - Helper functions to handle async operations
+    
+    private func toggleSaved(_ episode: Episode) {
+        withAnimation {
+            // Start the async operation without awaiting it directly inside withAnimation
+            Task {
+                await EpisodeStateManager.shared.toggleSaved(episode)
+            }
+        }
+    }
+    
+    private func toggleFavorite(_ episode: Episode) {
+        withAnimation {
+            // Start the async operation without awaiting it directly inside withAnimation
+            Task {
+                await EpisodeStateManager.shared.toggleFav(episode)
+            }
+        }
+    }
+    
+    private func togglePlayedState(_ episode: Episode) {
+        withAnimation {
+            Task {
+                player.markAsPlayed(for: episode, manually: true)
             }
         }
     }

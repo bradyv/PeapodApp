@@ -658,6 +658,7 @@ class AudioPlayerManager: ObservableObject {
         let currentTime = player.currentTime()
         let newTime = CMTime(seconds: currentTime.seconds + seconds, preferredTimescale: 1)
         player.seek(to: newTime)
+        print("Skipping forward to \(newTime)")
     }
     
     func skipBackward(seconds: Double) {
@@ -665,6 +666,7 @@ class AudioPlayerManager: ObservableObject {
         let currentTime = player.currentTime()
         let newTime = CMTime(seconds: max(currentTime.seconds - seconds, 0), preferredTimescale: 1)
         player.seek(to: newTime)
+        print("Skipping back to \(newTime)")
     }
     
     func setPlaybackSpeed(_ speed: Float) {

@@ -151,7 +151,7 @@ struct PodcastDetailView: View {
                         .onAppear {
                             Task.detached(priority: .background) {
                                 await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
-                                await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context)
+                                PodcastManager.shared.refreshAllSubscribedPodcasts()
                             }
                         }
                         

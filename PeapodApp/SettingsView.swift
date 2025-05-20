@@ -616,60 +616,44 @@ struct SettingsView: View {
     
     private func injectTestPodcast() {
         let context = PersistenceController.shared.container.viewContext
+        let testFeedURL = "https://bradyv.github.io/bvfeed.github.io/feed.xml"
 
-        context.perform {
-            let testFeedURL = "https://bradyv.github.io/bvfeed.github.io/feed.xml"
-
-            // Delete old if exists
-            let fetchRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "feedUrl == %@", testFeedURL)
-            if let existing = (try? context.fetch(fetchRequest))?.first {
-                context.delete(existing)
-                print("🗑️ Deleted existing test podcast")
-            }
-
-            // Parse feed
-            FeedParser(URL: URL(string: testFeedURL)!).parseAsync { result in
-                switch result {
-                case .success(let feed):
-                    if let rss = feed.rssFeed {
-                        DispatchQueue.main.async {
-                            let podcast = PodcastLoader.createOrUpdatePodcast(from: rss, feedUrl: testFeedURL, context: context)
-                            podcast.isSubscribed = true
-
-                            // 📢 DIAGNOSTIC PRINTS
-                            print("FeedKit RSS Title:", rss.title ?? "nil")
-                            print("FeedKit RSS iTunes Image:", rss.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-                            print("FeedKit RSS Channel Image:", rss.image?.url ?? "nil")
-                            print("FeedKit RSS First Item Image:", rss.items?.first?.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-
-                            // 📢 MANUAL ASSIGN
-                            let artworkUrl = rss.iTunes?.iTunesImage?.attributes?.href
-                                          ?? rss.image?.url
-                                          ?? rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
-
-                            podcast.image = artworkUrl
-
-                            print("Assigned podcast.image:", podcast.image ?? "nil")
-
-                            // Save and refresh episodes
-                            EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
-                                if let latest = (podcast.episode as? Set<Episode>)?
-                                    .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                    .first {
-                                    toggleQueued(latest)
-                                }
-                                print("✅ Loaded test feed episodes")
-                            }
-
-                            try? context.save()
-                        }
-                    } else {
-                        print("❌ Failed to parse feed")
-                    }
-                case .failure(let error):
-                    print("❌ Feed parsing failed:", error)
+        Task {
+            do {
+                // First check if the podcast already exists and delete it if it does
+                let fetchRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "feedUrl == %@", testFeedURL)
+                
+                if let existing = try? context.fetch(fetchRequest).first {
+                    context.delete(existing)
+                    try context.save()
+                    print("🗑️ Deleted existing test podcast")
                 }
+                
+                // Use the PodcastManager to subscribe to the test feed
+                let podcast = try await PodcastManager.shared.subscribeToPodcast(
+                    feedUrl: testFeedURL,
+                    title: "BV Test Feed",
+                    author: "Brady Valentino"
+                )
+                
+                print("✅ Created test podcast using PodcastManager")
+                
+                // Get the latest episode and add it to the queue
+                await MainActor.run {
+                    if let latestEpisode = (podcast.episode as? Set<Episode>)?
+                        .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                        .first {
+                        
+                        // Add to queue using QueueManager
+                        QueueManager.shared.toggle(latestEpisode)
+                        print("✅ Added latest episode to queue")
+                    } else {
+                        print("⚠️ No episodes found to add to queue")
+                    }
+                }
+            } catch {
+                print("❌ Error injecting test podcast: \(error)")
             }
         }
     }

@@ -53,7 +53,8 @@ struct Peapod: App {
         
         // Run data migrations and cleanup
         runDeduplicationOnceIfNeeded(context: context)
-        appDelegate.scheduleEpisodeCleanup()
+        PodcastManager.shared.mergeDuplicateEpisodes()
+        PodcastManager.shared.scheduleEpisodeCleanup()
         if !hasRunOneTimeSplashMark {
             oneTimeSplashMark(context: context)
             hasRunOneTimeSplashMark = true

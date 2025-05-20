@@ -166,13 +166,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         
         // Perform episode refresh in background
         Task.detached(priority: .userInitiated) {
-            // Assuming EpisodeRefresher.refreshAllSubscribedPodcasts is async
-            // If not, wrap it in a Task.detached
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                Task { @MainActor in
-                    self.fetchAll()
-                }
-            }
+            PodcastManager.shared.refreshAllSubscribedPodcasts()
         }
     }
 }

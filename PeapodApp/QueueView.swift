@@ -11,6 +11,7 @@ import Kingfisher
 struct QueueView: View {
     @Binding var currentEpisodeID: String?
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @ObservedObject private var queueManager = QueueManager.shared
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
@@ -30,7 +31,7 @@ struct QueueView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         LazyHStack(alignment: .top, spacing:8) {
-                            if episodesViewModel.queue.isEmpty {
+                            if queueManager.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
                                         HStack(spacing:16) {
@@ -57,18 +58,29 @@ struct QueueView: View {
                                             let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
                                             Button(action: {
                                                 for (_, episode) in items {
-                                                    withAnimation {
-                                                        toggleQueued(episode)
+                                                    withAnimation(.spring(duration: 0.6, bounce: 0.3)) {
+                                                        queueManager.toggle(episode)
                                                     }
                                                 }
                                             }) {
-                                                HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {
-                                                    if episodesViewModel.saved.count > 2 {
-                                                        let customOffsets: [(x: CGFloat, y: CGFloat)] = [
-                                                            (x: 2, y: -5),   // back
-                                                            (x: 8, y: 0),  // middle
-                                                            (x: 0, y: 4)     // front
-                                                        ]
+                                                HStack(spacing:12) {
+                                                    let customOffsets: [(x: CGFloat, y: CGFloat)] = [
+                                                        (x: 2, y: -5),   // back
+                                                        (x: 8, y: 0),  // middle
+                                                        (x: 0, y: 4)     // front
+                                                    ]
+                                                    
+                                                    ZStack {
+                                                        ZStack {
+                                                            ForEach(0..<3, id: \.self) { index in
+                                                                let offset = customOffsets[index]
+                                                                RoundedRectangle(cornerRadius:3)
+                                                                    .fill(Color.background.opacity(0.15))
+                                                                    .frame(width:14,height:14)
+                                                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
+                                                                    .offset(x: offset.x, y: offset.y)
+                                                            }
+                                                        }
                                                         
                                                         ZStack {
                                                             ForEach(items, id: \.element.id) { index, episode in
@@ -78,46 +90,12 @@ struct QueueView: View {
                                                                     .offset(x: offset.x, y: offset.y)
                                                             }
                                                         }
-                                                    } else {
-                                                        Image(systemName: "plus.circle")
                                                     }
                                                     
                                                     Text("Add from Play Later")
                                                 }
                                             }
                                             .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
-                                            
-//                                            NavigationLink {
-//                                                PPPopover(showBg: true) {
-//                                                    SavedEpisodes(namespace: namespace)
-//                                                }
-//                                            } label: {
-//                                                HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {
-//                                                    if episodesViewModel.saved.count > 2 {
-//                                                        let customOffsets: [(x: CGFloat, y: CGFloat)] = [
-//                                                            (x: 2, y: -5),   // back
-//                                                            (x: 8, y: 0),  // middle
-//                                                            (x: 0, y: 4)     // front
-//                                                        ]
-//                                                        
-//                                                        ZStack {
-//                                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
-//                                                            
-//                                                            ForEach(items, id: \.element.id) { index, episode in
-//                                                                let offset = customOffsets[index]
-//                                                                ArtworkView(url: episode.podcast?.image ?? "", size: 14, cornerRadius: 3)
-//                                                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
-//                                                                    .offset(x: offset.x, y: offset.y)
-//                                                            }
-//                                                        }
-//                                                    } else {
-//                                                        Image(systemName: "plus.circle")
-//                                                    }
-//                                                    
-//                                                    Text("Add from Play Later")
-//                                                }
-//                                            }
-//                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
                                         }
                                     }
                                     .offset(x:-16)
@@ -125,39 +103,42 @@ struct QueueView: View {
                                     .zIndex(1)
                                 }
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
+                                .transition(.opacity.animation(.spring(duration: 0.8, bounce: 0.4)))
                             } else {
-                                ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
+                                ForEach(Array(queueManager.episodes.enumerated()), id: \.element.id) { index, episode in
                                     QueueItemView(episode: episode, index: index, namespace: namespace) {
                                         selectedEpisode = episode
                                     }
+                                    .transition(.opacity.animation(.spring(duration: 0.8, bounce: 0.4)))
                                 }
                             }
                         }
                         .scrollTargetLayout()
+                        .animation(.spring(duration: 0.6, bounce: 0.3), value: queueManager.episodes.map { $0.id })
                     }
                     .scrollTargetBehavior(.viewAligned)
                     .onPreferenceChange(ScrollOffsetKey.self) { values in
                         if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
                             scrollOffset = CGFloat(nearest.key)
-                            if episodesViewModel.queue.indices.contains(Int(scrollOffset)) {
-                                currentEpisodeID = episodesViewModel.queue[Int(scrollOffset)].id
+                            if queueManager.episodes.indices.contains(Int(scrollOffset)) {
+                                currentEpisodeID = queueManager.episodes[Int(scrollOffset)].id
                             }
                         }
                     }
                     .onChange(of: scrollTarget) { _, id in
                         if let id = id {
-                            withAnimation {
+                            withAnimation(.easeInOut(duration: 0.5)) {
                                 proxy.scrollTo(id, anchor: .leading)
                             }
                         }
                     }
-                    .scrollDisabled(episodesViewModel.queue.isEmpty)
+                    .scrollDisabled(queueManager.isEmpty)
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal,16, for: .scrollContent)
-                    .onChange(of: episodesViewModel.queue.first?.id) { oldID, newID in
+                    .onChange(of: queueManager.first?.id) { oldID, newID in
                         if let id = newID {
-                            DispatchQueue.main.async {
-                                withAnimation {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.easeInOut(duration: 0.5)) {
                                     proxy.scrollTo(id, anchor: .leading)
                                 }
                             }
@@ -165,11 +146,11 @@ struct QueueView: View {
                     }
                 }
                 
-                if episodesViewModel.queue.count > 1 {
+                if queueManager.count > 1 {
                     GeometryReader { geo in
                         HStack(spacing: 8) {
                             Spacer()
-                            ForEach(episodesViewModel.queue.indices, id: \.self) { index in
+                            ForEach(queueManager.episodes.indices, id: \.self) { index in
                                 let isCurrent = index == Int(scrollOffset)
                                 
                                 VStack {
@@ -183,8 +164,8 @@ struct QueueView: View {
                                 .frame(height:44)
                                 .fixedSize()
                                 .onTapGesture {
-                                    if let id = episodesViewModel.queue[index].id {
-                                        withAnimation {
+                                    if let id = queueManager.episodes[index].id {
+                                        withAnimation(.easeInOut(duration: 0.5)) {
                                             scrollTarget = id
                                         }
                                     }
@@ -196,6 +177,7 @@ struct QueueView: View {
                         .clipped()
                         .padding(.horizontal)
                         .contentShape(Rectangle())
+                        .animation(.easeInOut(duration: 0.3), value: queueManager.episodes.count)
                     }
                 }
             }

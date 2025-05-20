@@ -15,6 +15,7 @@ struct EpisodeView: View {
     @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
+    @ObservedObject private var queueManager = QueueManager.shared
     @State private var scrollOffset: CGFloat = 0
     @State private var selectedPodcast: Podcast? = nil
     @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
@@ -70,16 +71,6 @@ struct EpisodeView: View {
                         }
                     Spacer().frame(height:256)
                     
-//                    FadeInView(delay: 0.1) {
-//                        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-//                            .resizable()
-//                            .frame(width:128,height:128)
-//                            .clipShape(RoundedRectangle(cornerRadius:16))
-//                            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
-//                        
-//                        Spacer().frame(
-//                    }
-                    
                     VStack {
                         FadeInView(delay: 0.2) {
                             VStack(spacing:8) {
@@ -131,7 +122,7 @@ struct EpisodeView: View {
                     VStack {
                         VStack(spacing:16) {
                             VStack(spacing:0) {
-                                if episode.isQueued {
+                                if queueManager.contains(episode) {
                                     VStack(spacing:2) {
                                         PPProgress(
                                             value: Binding(
@@ -155,34 +146,11 @@ struct EpisodeView: View {
                                 }
                                 
                                 // new actions
-                                if episode.isQueued {
+                                if queueManager.contains(episode) {
                                     
                                     Group {
                                         HStack(spacing:16) {
                                             AirPlayButton()
-                                            
-                                            Menu {
-                                                let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
-
-                                                Section(header: Text("Playback Speed")) {
-                                                    ForEach(speeds, id: \.self) { speed in
-                                                        speedButton(for: speed)
-                                                    }
-                                                }
-                                            } label: {
-                                                Label("Playback Speed", systemImage:
-                                                    currentSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
-                                                    currentSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
-                                                    currentSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
-                                                    currentSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
-                                                    "gauge.with.dots.needle.50percent"
-                                                )
-                                                .shadow(color: currentSpeed != 1.0 ? Color.accentColor.opacity(0.5) : Color.clear, radius: 8)
-                                            }
-                                            .onReceive(player.$playbackSpeed) { newSpeed in
-                                                currentSpeed = newSpeed
-                                            }
-                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly:true, borderless: true, customColors: ButtonCustomColors(foreground: currentSpeed != 1.0 ? Color.accentColor : Color.heading, background: Color.surface)))
                                             
                                             HStack(spacing: player.isPlayingEpisode(episode) ? -4 : -22) {
                                                 Button(action: {
@@ -224,21 +192,7 @@ struct EpisodeView: View {
                                             
                                             Button(action: {
                                                 withAnimation {
-                                                    if episode.playbackPosition > 0 {
-                                                        player.markAsPlayed(for: episode, manually: true)
-                                                    } else {
-                                                        episode.playbackPosition = 0
-                                                        toggleQueued(episode)
-                                                    }
-                                                }
-                                            }) {
-                                                Label(episode.playbackPosition > 0 ? "Mark as played" : "Archive", systemImage: episode.playbackPosition > 0 ? "checkmark.circle" : "archivebox")
-                                            }
-                                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true, borderless: true))
-                                            
-                                            Button(action: {
-                                                withAnimation {
-                                                    toggleFav(episode)
+                                                    player.toggleFav(episode)
                                                 }
                                             }) {
                                                 Label(episode.isFav ? "Remove from Favorites" : "Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
@@ -268,7 +222,7 @@ struct EpisodeView: View {
                                             
                                             Button(action: {
                                                 withAnimation {
-                                                    toggleQueued(episode)
+                                                    queueManager.toggle(episode)
                                                 }
                                             }) {
                                                 Label("Up Next", systemImage: "text.append")
@@ -302,6 +256,25 @@ struct EpisodeView: View {
             }
             VStack {
                 Menu {
+                    Menu {
+                        let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
+                        ForEach(speeds, id: \.self) { speed in
+                            speedButton(for: speed)
+                        }
+                    } label: {
+                        Label("Playback Speed", systemImage:
+                            currentSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
+                            currentSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
+                            currentSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
+                            currentSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
+                            "gauge.with.dots.needle.50percent"
+                        )
+                        .shadow(color: currentSpeed != 1.0 ? Color.accentColor.opacity(0.5) : Color.clear, radius: 8)
+                    }
+                    .onReceive(player.$playbackSpeed) { newSpeed in
+                        currentSpeed = newSpeed
+                    }
+                    
                     Button(action: {
                         withAnimation {
                             player.markAsPlayed(for: episode, manually: true)
@@ -313,10 +286,10 @@ struct EpisodeView: View {
                     if episode.playbackPosition < 0.1 {
                         Button(action: {
                             withAnimation {
-                                toggleQueued(episode)
+                                queueManager.toggle(episode)
                             }
                         }) {
-                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                            Label(queueManager.contains(episode) ? "Remove from Up Next" : "Add to Up Next", systemImage: queueManager.contains(episode) ? "archivebox" : "text.append")
                         }
                     }
                     
@@ -330,7 +303,7 @@ struct EpisodeView: View {
                     
                     Button(action: {
                         withAnimation {
-                            toggleFav(episode)
+                            player.toggleFav(episode)
                         }
                     }) {
                         Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
@@ -341,26 +314,6 @@ struct EpisodeView: View {
                 .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
             }
             .padding(.top).padding(.trailing)
-            
-//            FadeInView(delay: 0.1) {
-//                VStack(alignment:.leading) {
-//                    let minSize: CGFloat = 64
-//                    let maxSize: CGFloat = 172
-//                    let threshold: CGFloat = 72
-//                    let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
-//                    
-//                    KFImage(URL(string:episode.podcast?.image ?? ""))
-//                        .resizable()
-//                        .frame(width: shrink, height: shrink)
-//                        .clipShape(RoundedRectangle(cornerRadius: 16))
-//                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
-//                        .animation(.easeOut(duration: 0.1), value: shrink)
-//                    
-//                    Spacer()
-//                }
-//                .frame(maxWidth:.infinity, alignment:.leading)
-//                .padding()
-//            }
         }
         .frame(maxWidth:.infinity)
         .onAppear {

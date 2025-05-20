@@ -9,8 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct NowPlayingSplash: View {
-    @FetchRequest(fetchRequest: Episode.queueFetchRequest(), animation: .interactiveSpring())
-    var nowPlaying: FetchedResults<Episode>
+    @ObservedObject private var queueManager = QueueManager.shared
     var episodeID: String?
     @State private var displayedEpisode: Episode?
     
@@ -26,18 +25,29 @@ struct NowPlayingSplash: View {
             }
             .onChange(of: episodeID) { _, newID in
                 if let id = newID {
-                    if let match = nowPlaying.first(where: { $0.id == id }) {
+                    if let match = queueManager.episodes.first(where: { $0.id == id }) {
                         withAnimation {
                             displayedEpisode = match
                         }
                     }
                 }
             }
-            .onChange(of: nowPlaying.count) {
-                if nowPlaying.isEmpty {
+            .onChange(of: queueManager.episodes) { _, newEpisodes in
+                if newEpisodes.isEmpty {
                     withAnimation {
                         displayedEpisode = nil
                     }
+                } else if displayedEpisode == nil, let firstEpisode = newEpisodes.first {
+                    // Show the first episode if no episode is currently displayed
+                    withAnimation {
+                        displayedEpisode = firstEpisode
+                    }
+                }
+            }
+            .onAppear {
+                // Initialize with the first episode if available
+                if displayedEpisode == nil, let firstEpisode = queueManager.first {
+                    displayedEpisode = firstEpisode
                 }
             }
         }
@@ -48,6 +58,7 @@ struct NowPlaying: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var player = AudioPlayerManager.shared
+    @ObservedObject private var queueManager = QueueManager.shared
     @State private var selectedEpisode: Episode? = nil
     @State private var spacing: CGFloat = -38
     @State private var infoMaxWidth: CGFloat = 100
@@ -55,15 +66,13 @@ struct NowPlaying: View {
     @State private var isLoading = false
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
-    @FetchRequest(fetchRequest: Episode.queueFetchRequest(), animation: .interactiveSpring())
-    var nowPlaying: FetchedResults<Episode>
     var displayedInQueue: Bool = false
     var namespace: Namespace.ID
     var onTap: ((Episode) -> Void)?
 
     var body: some View {
         
-        if let episode = nowPlaying.first {
+        if let episode = queueManager.first {
             VStack(alignment:.center) {
                 Spacer()
                 
@@ -168,7 +177,7 @@ struct NowPlaying: View {
     }
     
     private func updateNowPlayingState() {
-        guard let episode = nowPlaying.first else { return }
+        guard let episode = queueManager.first else { return }
         let isPlaying = player.isPlayingEpisode(episode)
         if isPlaying != isNowPlaying {
             isNowPlaying = isPlaying

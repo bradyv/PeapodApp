@@ -10,15 +10,19 @@ import CoreData
 
 @MainActor
 final class EpisodesViewModel: NSObject, ObservableObject {
-    @Published var queue: [Episode] = []
+    // Use the shared queue manager for queue episodes
+    @Published var queueManager = QueueManager.shared
+    
+    // Other episode categories
     @Published var latest: [Episode] = []
     @Published var unplayed: [Episode] = []
     @Published var saved: [Episode] = []
     @Published var favs: [Episode] = []
     @Published var old: [Episode] = []
 
-    private var queueController: NSFetchedResultsController<Episode>?
+    // Core Data controllers for categories that need real-time updates
     private var savedController: NSFetchedResultsController<Episode>?
+    private var favsController: NSFetchedResultsController<Episode>?
     var context: NSManagedObjectContext?
 
     override init() {
@@ -31,36 +35,13 @@ final class EpisodesViewModel: NSObject, ObservableObject {
 
     func setup(context: NSManagedObjectContext) {
         self.context = context
-        setupQueueController()
         setupSavedController()
+        setupFavsController()
         fetchAll()
     }
 
-    private func setupQueueController() {
-        guard let context else { return }
+    // MARK: - Fetched Results Controllers
 
-        let request = Episode.queueFetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.queuePosition, ascending: true)]
-
-        let controller = NSFetchedResultsController(
-            fetchRequest: request,
-            managedObjectContext: context,
-            sectionNameKeyPath: nil,
-            cacheName: nil
-        )
-
-        controller.delegate = self
-
-        do {
-            try controller.performFetch()
-            self.queue = controller.fetchedObjects ?? []
-        } catch {
-            print("Failed to fetch queue episodes: \(error)")
-        }
-
-        self.queueController = controller
-    }
-    
     private func setupSavedController() {
         guard let context else { return }
 
@@ -84,69 +65,128 @@ final class EpisodesViewModel: NSObject, ObservableObject {
 
         self.savedController = controller
     }
+    
+    private func setupFavsController() {
+        guard let context else { return }
+
+        let request = Episode.favEpisodesRequest()
+        
+        let controller = NSFetchedResultsController(
+            fetchRequest: request,
+            managedObjectContext: context,
+            sectionNameKeyPath: nil,
+            cacheName: nil
+        )
+
+        controller.delegate = self
+
+        do {
+            try controller.performFetch()
+            self.favs = controller.fetchedObjects ?? []
+        } catch {
+            print("Failed to fetch favorite episodes: \(error)")
+        }
+
+        self.favsController = controller
+    }
+
+    // MARK: - Fetch Methods
 
     func fetchLatest() {
         guard let context else { return }
-        let request = Episode.latestEpisodesRequest()
-        latest = (try? context.fetch(request)) ?? []
+        
+        Task.detached(priority: .userInitiated) {
+            let request = Episode.latestEpisodesRequest()
+            let episodes = (try? context.fetch(request)) ?? []
+            
+            await MainActor.run {
+                self.latest = episodes
+            }
+        }
     }
 
     func fetchUnplayed() {
         guard let context else { return }
-        let request = Episode.unplayedEpisodesRequest()
-        unplayed = (try? context.fetch(request)) ?? []
+        
+        Task.detached(priority: .userInitiated) {
+            let request = Episode.unplayedEpisodesRequest()
+            let episodes = (try? context.fetch(request)) ?? []
+            
+            await MainActor.run {
+                self.unplayed = episodes
+            }
+        }
     }
 
     func fetchSaved() {
-        guard let context else { return }
-        let request = Episode.savedEpisodesRequest()
-        saved = (try? context.fetch(request)) ?? []
+        // Saved episodes are managed by the fetched results controller
+        // so this is just for manual refresh if needed
+        do {
+            try savedController?.performFetch()
+            self.saved = savedController?.fetchedObjects ?? []
+        } catch {
+            print("Failed to refresh saved episodes: \(error)")
+        }
     }
     
     func fetchFavs() {
-        guard let context else { return }
-        let request = Episode.favEpisodesRequest()
-        favs = (try? context.fetch(request)) ?? []
+        // Favorite episodes are managed by the fetched results controller
+        // so this is just for manual refresh if needed
+        do {
+            try favsController?.performFetch()
+            self.favs = favsController?.fetchedObjects ?? []
+        } catch {
+            print("Failed to refresh favorite episodes: \(error)")
+        }
     }
 
     func fetchOld() {
         guard let context else { return }
-        let request = Episode.oldEpisodesRequest()
-        old = (try? context.fetch(request)) ?? []
+        
+        Task.detached(priority: .userInitiated) {
+            let request = Episode.oldEpisodesRequest()
+            let episodes = (try? context.fetch(request)) ?? []
+            
+            await MainActor.run {
+                self.old = episodes
+            }
+        }
     }
 
     func fetchAll() {
         fetchLatest()
         fetchUnplayed()
         fetchSaved()
+        fetchFavs()
         fetchOld()
     }
 
     func refreshEpisodes() {
         guard let context else { return }
-        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-            self.fetchAll()
-        }
-    }
-
-    func updateQueue() {
-        do {
-            try queueController?.performFetch()
-            self.queue = queueController?.fetchedObjects ?? []
-        } catch {
-            print("Failed to update queue: \(error)")
+        
+        // Perform episode refresh in background
+        Task.detached(priority: .userInitiated) {
+            // Assuming EpisodeRefresher.refreshAllSubscribedPodcasts is async
+            // If not, wrap it in a Task.detached
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                Task { @MainActor in
+                    self.fetchAll()
+                }
+            }
         }
     }
 }
 
+// MARK: - NSFetchedResultsControllerDelegate
+
 extension EpisodesViewModel: @preconcurrency NSFetchedResultsControllerDelegate {
     func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
-        if controller == queueController {
-            guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
-            self.queue = updatedEpisodes
-        } else if controller == savedController {
+        if controller == savedController {
             guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
             self.saved = updatedEpisodes
+        } else if controller == favsController {
+            guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
+            self.favs = updatedEpisodes
         }
     }
 }

@@ -50,6 +50,15 @@ struct SettingsView: View {
         
         return typeRaw // Fallback to raw value if not in enum
     }
+    
+    private var currentSplashImage: String {
+        // Find the matching app icon and return its splash image
+        if let matchingIcon = appIcons.first(where: { $0.asset == selectedIconName }) {
+            return matchingIcon.splash
+        }
+        // Fallback to default splash if no match found
+        return "Splash-Green" // or whatever your default should be
+    }
 
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @State private var podcastCount = 0
@@ -77,14 +86,14 @@ struct SettingsView: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
     
     @State var appIcons = [
-        AppIcons(name: "Peapod", asset: "AppIcon-Green"),
-        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint"),
-        AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
-        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino"),
-        AppIcons(name: "Pride", asset: "AppIcon-Pride"),
-        AppIcons(name: "Coachella", asset: "AppIcon-Coachella"),
-        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler"),
-        AppIcons(name: "Clouds", asset: "AppIcon-Clouds"),
+        AppIcons(name: "Peapod", asset: "AppIcon-Green", splash: "Splash-Green"),
+        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint", splash: "Splash-Blueprint"),
+        AppIcons(name: "Pastel", asset: "AppIcon-Pastel", splash: "Splash-Pastel"),
+        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino", splash: "Splash-Cupertino"),
+        AppIcons(name: "Pride", asset: "AppIcon-Pride", splash: "Splash-Pride"),
+        AppIcons(name: "Coachella", asset: "AppIcon-Coachella", splash: "Splash-Coachella"),
+        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler", splash: "Splash-Rinzler"),
+        AppIcons(name: "Clouds", asset: "AppIcon-Clouds", splash: "Splash-Clouds"),
     ]
     
     var namespace: Namespace.ID
@@ -96,15 +105,16 @@ struct SettingsView: View {
             let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
             let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) + 0.15
             
-            Image("launchimage")
+            Image(currentSplashImage)
                 .resizable()
                 .frame(maxWidth:.infinity,maxHeight:500)
                 .mask(
                     LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                   startPoint: .init(x:0.5, y:0.65), endPoint: .bottom)
+                                   startPoint: .top, endPoint: .bottom)
                 )
                 .ignoresSafeArea(.all)
                 .opacity(opacity)
+                .transition(.opacity)
             
             ScrollView {
                 Color.clear
@@ -139,18 +149,18 @@ struct SettingsView: View {
                         
                         FadeInView(delay:0.3) {
                             Text("Peapod")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Color.heading)
                                 .titleSerif()
                         }
                         
                         FadeInView(delay:0.4) {
                             if memberTypeDisplay == "Listener" {
                                 Text("Listening since \(formattedUserSince)")
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(Color.text)
                                     .textBody()
                             } else {
                                 Text("\(memberTypeDisplay) • Listening since \(formattedUserSince)")
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(Color.text)
                                     .textBody()
                             }
                         }
@@ -161,16 +171,16 @@ struct SettingsView: View {
                             VStack(alignment:.leading, spacing: 8) {
                                 let hours = Int(totalPlayedSeconds) / 3600
                                 Image(systemName:"airpods.max")
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(Color.heading)
                                 VStack(alignment:.leading) {
                                     Text("\(hours)")
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(Color.heading)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Hours listened")
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(Color.heading)
                                         .textDetail()
                                 }
                             }
@@ -199,18 +209,18 @@ struct SettingsView: View {
                         FadeInView(delay:0.6) {
                             VStack(alignment:.leading, spacing:8) {
                                 Image(systemName:"play.circle")
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(Color.heading)
                                     .symbolRenderingMode(.hierarchical)
                                 
                                 VStack(alignment:.leading) {
                                     Text("\(playCount)")
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(Color.heading)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Episodes played")
-                                        .foregroundStyle(Color.white)
+                                        .foregroundStyle(Color.heading)
                                         .textDetail()
                                 }
                             }
@@ -427,7 +437,9 @@ struct SettingsView: View {
                                                             print("❌ Failed to switch icon: \(error)")
                                                         } else {
                                                             print("✅ Icon switched to \(icon.name)")
-                                                            selectedIconName = icon.asset
+                                                            withAnimation(.easeInOut(duration: 0.5)) {
+                                                                selectedIconName = icon.asset
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -673,12 +685,13 @@ extension Bundle {
 }
 
 struct AppIcons {
-
     var name: String
     var asset: String
-
-    init(name: String, asset: String) {
+    var splash: String
+    
+    init(name: String, asset: String, splash: String) {
         self.name = name
         self.asset = asset
+        self.splash = splash
     }
 }

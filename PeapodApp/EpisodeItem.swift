@@ -12,6 +12,7 @@ struct EpisodeItem: View {
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
+    @ObservedObject var queueManager = QueueManager.shared
     @State private var selectedPodcast: Podcast? = nil
     @State private var isPlaying = false
     @State private var isLoading = false
@@ -65,35 +66,31 @@ struct EpisodeItem: View {
                     
                     if !episode.nowPlaying {
                         Button(action: {
-                            withAnimation {
-                                player.togglePlayback(for: episode)
-                            }
+                            // Remove withAnimation for instant response
+                            player.togglePlayback(for: episode)
                         }) {
                             Label(episode.isPlayed ? "Listen Again" : "Listen Now", systemImage: "play.circle")
                         }
                     }
                     
                     Button(action: {
-                        withAnimation {
-                            player.markAsPlayed(for: episode, manually: true)
-                        }
+                        // Remove withAnimation for instant response
+                        player.markAsPlayed(for: episode, manually: true)
                     }) {
                         Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
                     }
                     
                     if episode.playbackPosition < 0.1 {
                         Button(action: {
-                            withAnimation {
-                                toggleQueued(episode)
-                            }
+                            // Remove withAnimation for instant response
+                            queueManager.toggle(episode)
                         }) {
-                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                            Label(queueManager.contains(episode) ? "Remove from Up Next" : "Add to Up Next", systemImage: queueManager.contains(episode) ? "archivebox" : "text.append")
                         }
                         
                         Button(action: {
-                            withAnimation {
-                                toggleSaved(episode)
-                            }
+                            // Remove withAnimation for instant response
+                            toggleSaved(episode)
                         }) {
                             Label(
                                 episode.isSaved
@@ -105,9 +102,8 @@ struct EpisodeItem: View {
                     }
                     
                     Button(action: {
-                        withAnimation {
-                            toggleFav(episode)
-                        }
+                        // Remove withAnimation for instant response
+                        player.toggleFav(episode)
                     }) {
                         Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
                     }
@@ -190,10 +186,13 @@ struct EpisodeItem: View {
                     // ▶️ Playback Button
                     Button(action: {
                         guard !isLoading else { return }
-                        isLoading = true  // Let UI reflect this ASAP
+                        
+                        // Update local state immediately for instant UI feedback
                         if episode.isPlayed && !isPlaying {
                             episodePlayed = false
                         }
+                        
+                        // Call player without animation wrapper for instant response
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
@@ -208,11 +207,8 @@ struct EpisodeItem: View {
                             let remaining = max(0, duration - position)
                             let seconds = Int(remaining)
                             
-                            Text("\(formatDuration(seconds: seconds))")
+                            Text("\(player.formatDuration(seconds: seconds))")
                                 .contentTransition(.numericText())
-//                            } else {
-//                                Text(episode.isPlayed ? "Listen Again" : "Listen Now")
-//                            }
                         }
                     }
                     .buttonStyle(
@@ -230,9 +226,8 @@ struct EpisodeItem: View {
                     if !hasStarted {
                         if displayedInQueue {
                             Button(action: {
-                                withAnimation {
-                                    toggleSaved(episode)
-                                }
+                                // Remove withAnimation for instant response
+                                toggleSaved(episode)
                             }) {
                                 Label("Play Later", systemImage: "arrowshape.bounce.right")
                             }
@@ -248,9 +243,8 @@ struct EpisodeItem: View {
                             )
                             
                             Button(action: {
-                                withAnimation {
-                                    toggleQueued(episode)
-                                }
+                                // Remove withAnimation for instant response
+                                queueManager.remove(episode)
                             }) {
                                 Label("Archive", systemImage: "archivebox")
                             }
@@ -267,20 +261,18 @@ struct EpisodeItem: View {
                             )
                         } else {
                             Button(action: {
-                                withAnimation {
-                                    toggleQueued(episode)
-                                }
+                                // Remove withAnimation for instant response
+                                queueManager.toggle(episode)
                             }) {
-                                Label(episode.isQueued ? "Queued" : "Up Next", systemImage:episode.isQueued ? "text.badge.checkmark" : "text.append")
+                                Label(queueManager.contains(episode) ? "Queued" : "Up Next", systemImage: queueManager.contains(episode) ? "text.badge.checkmark" : "text.append")
                             }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:episode.isQueued ? .tinted : .monochrome))
+                            .buttonStyle(PPButton(type:.transparent, colorStyle: queueManager.contains(episode) ? .tinted : .monochrome))
                         }
                     } else {
                         // 🗑️ Remove / Archive / Mark as Played
                         Button(action: {
-                            withAnimation {
-                                player.markAsPlayed(for: episode, manually: true)
-                            }
+                            // Remove withAnimation for instant response
+                            player.markAsPlayed(for: episode, manually: true)
                         }) {
                             Label("Mark as Played", systemImage: "checkmark.circle")
                         }
@@ -303,14 +295,18 @@ struct EpisodeItem: View {
             playbackPosition = player.getProgress(for: episode)
             episodePlayed = episode.isPlayed
             
-            // Do background tasks
-            Task.detached(priority: .background) {
+            // Do ALL background tasks without blocking
+            Task(priority: .utility) {
                 await player.writeActualDuration(for: episode)
+            }
+            
+            Task(priority: .utility) {
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
         }
         .onChange(of: player.state) { _, newState in
-            withTransaction(Transaction(animation: .easeInOut(duration: 0.3))) {
+            // Use explicit animation only for state changes, not for button presses
+            withAnimation(.easeInOut(duration: 0.2)) {
                 isPlaying = player.isPlayingEpisode(episode)
                 isLoading = player.isLoadingEpisode(episode)
 
@@ -321,11 +317,13 @@ struct EpisodeItem: View {
         }
         // Track changes to episode.isPlayed
         .onChange(of: episode.isPlayed) { _, newValue in
-            episodePlayed = newValue
-            
-            // If marked as played, reset progress display
-            if newValue {
-                playbackPosition = 0
+            withAnimation(.easeInOut(duration: 0.2)) {
+                episodePlayed = newValue
+                
+                // If marked as played, reset progress display
+                if newValue {
+                    playbackPosition = 0
+                }
             }
         }
         .onTapGesture {

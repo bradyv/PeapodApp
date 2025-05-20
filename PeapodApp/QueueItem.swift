@@ -18,7 +18,8 @@ struct QueueItem: View {
     
     var body: some View {
         let frame = UIScreen.main.bounds.width - 32
-
+        let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
+        
         ZStack(alignment:.bottomLeading) {
             EpisodeItem(episode:episode, showActions: true, displayedInQueue: true, namespace: namespace)
                 .lineLimit(3)
@@ -26,7 +27,7 @@ struct QueueItem: View {
                 .frame(maxWidth: .infinity)
             
             VStack {
-                KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+                KFImage(URL(string:artwork))
                     .resizable()
                     .frame(width: frame, height: frame)
                     .mask(
@@ -38,7 +39,15 @@ struct QueueItem: View {
             }
         }
         .frame(width: frame, height: 450)
-        .background(Color.tint(for:episode, darkened: true))
+        .background(
+            KFImage(URL(string:artwork))
+                .resizable()
+                .aspectRatio(1, contentMode: .fill)
+                .blur(radius:44)
+                .opacity(0.5)
+        )
+        .background(Color.black)
+//        .background(Color.tint(for:episode, darkened: true))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
         .onAppear {

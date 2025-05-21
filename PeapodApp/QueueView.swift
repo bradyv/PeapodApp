@@ -54,22 +54,34 @@ struct QueueView: View {
                                             .textBody()
                                         
                                         if !episodesViewModel.saved.isEmpty {
-                                            NavigationLink {
-                                                PPPopover(showBg: true) {
-                                                    SavedEpisodes(namespace: namespace)
-                                                }
-                                            } label: {
-                                                HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {
-                                                    if episodesViewModel.saved.count > 2 {
-                                                        let customOffsets: [(x: CGFloat, y: CGFloat)] = [
-                                                            (x: 2, y: -5),   // back
-                                                            (x: 8, y: 0),  // middle
-                                                            (x: 0, y: 4)     // front
-                                                        ]
+                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
+                                                Button(action: {
+                                                    for (_, episode) in items {
+                                                        withAnimation {
+                                                            toggleQueued(episode)
+                                                        }
+                                                    }
+                                                }) {
+                                                HStack(spacing:12) {
+                                                    let customOffsets: [(x: CGFloat, y: CGFloat)] = [
+                                                        (x: 2, y: -5),   // back
+                                                        (x: 8, y: 0),  // middle
+                                                        (x: 0, y: 4)     // front
+                                                    ]
+                                                    
+                                                    ZStack {
+                                                        ZStack {
+                                                            ForEach(0..<3, id: \.self) { index in
+                                                                let offset = customOffsets[index]
+                                                                RoundedRectangle(cornerRadius:3)
+                                                                    .fill(Color.background.opacity(0.15))
+                                                                    .frame(width:14,height:14)
+                                                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
+                                                                    .offset(x: offset.x, y: offset.y)
+                                                            }
+                                                        }
                                                         
                                                         ZStack {
-                                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
-                                                            
                                                             ForEach(items, id: \.element.id) { index, episode in
                                                                 let offset = customOffsets[index]
                                                                 ArtworkView(url: episode.podcast?.image ?? "", size: 14, cornerRadius: 3)
@@ -77,8 +89,6 @@ struct QueueView: View {
                                                                     .offset(x: offset.x, y: offset.y)
                                                             }
                                                         }
-                                                    } else {
-                                                        Image(systemName: "plus.circle")
                                                     }
                                                     
                                                     Text("Add from Play Later")

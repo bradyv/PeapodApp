@@ -41,7 +41,7 @@ func deduplicatePodcasts(context: NSManagedObjectContext) {
 }
 
 func runDeduplicationOnceIfNeeded(context: NSManagedObjectContext) {
-    let versionKey = "com.bradyv.Peapod.Dev.didDeduplicatePodcasts.v1"
+    let versionKey = "com.bradyv.Peapod.Dev.didDeduplicatePodcasts.v2"
     if UserDefaults.standard.bool(forKey: versionKey) {
         return
     }

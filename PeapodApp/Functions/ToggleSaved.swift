@@ -9,12 +9,11 @@ import SwiftUI
 
 @MainActor func toggleSaved(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
-    
-    episode.isSaved.toggle()
-    
-    if episode.isQueued && !episode.isSaved {
+    if episode.isQueued && episode.isSaved == false {
         removeFromQueue(episode)
     }
+    
+    episode.isSaved.toggle()
     
     if episode.isSaved {
         episode.savedDate = Date()

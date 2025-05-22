@@ -119,6 +119,15 @@ struct PPButton: ButtonStyle {
         .foregroundColor(effectiveForeground)
         .textBodyEmphasis()
         .clipShape(Capsule())
+        .overlay {
+            if type == .transparent && colorStyle == .monochrome && !borderless {
+                if iconOnly {
+                    Circle().stroke(Color.heading.opacity(0.15), lineWidth: 1)
+                } else {
+                    Capsule().stroke(Color.heading.opacity(0.15), lineWidth: 1)
+                }
+            }
+        }
         .scaleEffect(isPressed ? 0.95 : 1)
         .animation(.easeOut(duration: 0.2), value: isPressed)
     }

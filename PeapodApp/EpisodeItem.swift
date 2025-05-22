@@ -207,10 +207,10 @@ struct EpisodeItem: View {
                                 Text("\(formatDuration(seconds: seconds)) remaining")
                                     .contentTransition(.numericText())
                             } else {
-                                Text(episode.isPlayed ? "Listen Again" : "Listen Now")
+                                Text("\(formatDuration(seconds: seconds))")
+                                    .contentTransition(.numericText())
                             }
                         }
-                        .frame(maxWidth:.infinity)
                     }
                     .buttonStyle(
                         PPButton(

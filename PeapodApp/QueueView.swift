@@ -202,37 +202,36 @@ struct QueueItemView: View {
     @ObservedObject private var player = AudioPlayerManager.shared
     
     var body: some View {
-        QueueItem(episode: episode, namespace: namespace)
-            .matchedTransitionSource(id: episode.id, in: namespace)
-            .id(episode.id)
-            .lineLimit(3)
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .preference(key: ScrollOffsetKey.self,
-                                    value: [index: geo.frame(in: .global).minX])
+        Button(action: {
+            episodeSelectionManager.selectEpisode(episode)
+        }) {
+            QueueItem(episode: episode, namespace: namespace)
+                .matchedTransitionSource(id: episode.id, in: namespace)
+                .id(episode.id)
+                .lineLimit(3)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .preference(key: ScrollOffsetKey.self,
+                                        value: [index: geo.frame(in: .global).minX])
+                    }
+                )
+                .scrollTransition { content, phase in
+                    content
+                        .opacity(phase.isIdentity ? 1 : 0.5)
+                        .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
                 }
-            )
-            .scrollTransition { content, phase in
-                content
-                    .opacity(phase.isIdentity ? 1 : 0.5)
-                    .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
-            }
-            .onAppear {
-                // Cache the playback position to avoid frequent reads
-                playbackPosition = player.getProgress(for: episode)
-            }
-            .onTapGesture {
-                // Ensure we don't animate during tap
-                withAnimation(.none) {
-                    episodeSelectionManager.selectEpisode(episode)
-                }
-            }
-            // Only update when progress actually changes significantly
-            .onChange(of: player.progress) { newProgress in
-                if abs(playbackPosition - player.getProgress(for: episode)) > 1.0 {
+                .onAppear {
+                    // Cache the playback position to avoid frequent reads
                     playbackPosition = player.getProgress(for: episode)
                 }
-            }
+                // Only update when progress actually changes significantly
+                .onChange(of: player.progress) { newProgress in
+                    if abs(playbackPosition - player.getProgress(for: episode)) > 1.0 {
+                        playbackPosition = player.getProgress(for: episode)
+                    }
+                }
+        }
+        .buttonStyle(NoHighlight())
     }
 }

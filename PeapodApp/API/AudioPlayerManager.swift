@@ -414,7 +414,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func getActualDuration(for episode: Episode) -> Double {
-        // If the episode is currently playing, use the player item's actual duration
+        // Always prefer the saved actualDuration from Core Data
+        if episode.actualDuration > 0 {
+            return episode.actualDuration
+        }
+        
+        // Only fall back to the player's duration if we don't have actualDuration saved yet
+        // AND this is the currently playing episode
         if let currentEpisode = currentEpisode,
            let currentID = currentEpisode.id,
            let episodeID = episode.id,
@@ -427,8 +433,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return durationSeconds.isNaN || durationSeconds <= 0 ? episode.duration : durationSeconds
         }
         
-        // Otherwise use the saved actual duration, falling back to the feed duration
-        return episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+        // Final fallback to feed duration
+        return episode.duration
     }
     
     func writeActualDuration(for episode: Episode) {

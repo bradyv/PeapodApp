@@ -126,13 +126,8 @@ struct EpisodeItem: View {
                             let remaining = max(0, duration - position)
                             let seconds = Int(remaining)
                             
-                            if hasStarted {
-                                Text("\(formatDuration(seconds: seconds)) remaining")
-                                    .contentTransition(.numericText())
-                            } else {
-                                Text("\(formatDuration(seconds: seconds))")
-                                    .contentTransition(.numericText())
-                            }
+                            Text("\(formatDuration(seconds: seconds))")
+                                .contentTransition(.numericText())
                         }
                     }
                     .buttonStyle(

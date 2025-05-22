@@ -149,38 +149,33 @@ struct SettingsView: View {
                         
                         FadeInView(delay:0.3) {
                             Text("Peapod")
-                                .foregroundStyle(Color.white)
                                 .titleSerif()
                         }
                         
                         FadeInView(delay:0.4) {
                             if memberTypeDisplay == "Listener" {
                                 Text("Listening since \(formattedUserSince)")
-                                    .foregroundStyle(Color.white)
                                     .textBody()
                             } else {
                                 Text("\(memberTypeDisplay) • Listening since \(formattedUserSince)")
-                                    .foregroundStyle(Color.white)
                                     .textBody()
                             }
                         }
                     }
+                    .foregroundStyle(Color.heading)
                     
                     HStack {
                         FadeInView(delay:0.5) {
                             VStack(alignment:.leading, spacing: 8) {
                                 let hours = Int(totalPlayedSeconds) / 3600
                                 Image(systemName:"airpods.max")
-                                    .foregroundStyle(Color.white)
                                 VStack(alignment:.leading) {
                                     Text("\(hours)")
-                                        .foregroundStyle(Color.white)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Hours listened")
-                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                             }
@@ -209,18 +204,15 @@ struct SettingsView: View {
                         FadeInView(delay:0.6) {
                             VStack(alignment:.leading, spacing:8) {
                                 Image(systemName:"play.circle")
-                                    .foregroundStyle(Color.white)
                                     .symbolRenderingMode(.hierarchical)
                                 
                                 VStack(alignment:.leading) {
                                     Text("\(playCount)")
-                                        .foregroundStyle(Color.white)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Episodes played")
-                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                             }

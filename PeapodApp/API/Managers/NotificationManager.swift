@@ -99,7 +99,3 @@ private func downloadImageAndAttach(from url: URL, content: UNMutableNotificatio
     }
     task.resume()
 }
-
-extension Notification.Name {
-    static let didTapEpisodeNotification = Notification.Name("didTapEpisodeNotification")
-}

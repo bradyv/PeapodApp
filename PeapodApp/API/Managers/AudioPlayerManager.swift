@@ -1054,7 +1054,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
    }
 }
 
-// MARK: - Helper Extension
 extension Float {
     func nonZeroOrDefault(_ defaultValue: Float) -> Float {
         return self == 0 ? defaultValue : self

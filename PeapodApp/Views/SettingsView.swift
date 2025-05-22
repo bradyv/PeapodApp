@@ -654,15 +654,6 @@ struct SettingsView: View {
     }
 }
 
-extension Bundle {
-    var releaseVersionNumber: String? {
-        return infoDictionary?["CFBundleShortVersionString"] as? String
-    }
-    var buildVersionNumber: String? {
-        return infoDictionary?["CFBundleVersion"] as? String
-    }
-}
-
 struct AppIcons {
 
     var name: String

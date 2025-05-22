@@ -37,3 +37,16 @@ extension User {
         }
     }
 }
+
+extension Bundle {
+    var releaseVersionNumber: String? {
+        return infoDictionary?["CFBundleShortVersionString"] as? String
+    }
+    var buildVersionNumber: String? {
+        return infoDictionary?["CFBundleVersion"] as? String
+    }
+}
+
+extension Notification.Name {
+    static let didTapEpisodeNotification = Notification.Name("didTapEpisodeNotification")
+}

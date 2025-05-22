@@ -95,8 +95,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0)
     @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30
     @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15
-    @Published var autoplayNext: Bool = UserDefaults.standard.bool(forKey: "autoplayNext")
     @Published var isSeekingManually: Bool = false
+    @Published var autoplayNext: Bool = UserDefaults.standard.bool(forKey: "autoplayNext") {
+        didSet {
+            UserDefaults.standard.set(autoplayNext, forKey: "autoplayNext")
+        }
+    }
     
     // Helper function to check if a specific episode is loading
     func isLoadingEpisode(_ episode: Episode) -> Bool {
@@ -882,12 +886,15 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
        currentEpisode = nil
        
        // Fetch the next episode AFTER removing the current one
-       if autoplayNext {
-           // Wait briefly to ensure queue updates are processed
-           DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-               // Check if there are more episodes in the queue to play next
-               self.playNextInQueue()
-           }
+        if self.autoplayNext {
+            Task.detached(priority: .background) {
+                await MainActor.run {
+                    // Wait briefly to ensure queue updates are processed
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        self.playNextInQueue()
+                    }
+                }
+            }
        }
    }
     

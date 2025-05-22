@@ -25,8 +25,8 @@ struct Peapod: App {
     
     init() {
         #if !DEBUG
+        LogManager.shared.setupAppLifecycleLogging()
         LogManager.shared.startLogging()
-        LogManager.shared.cleanOldLogs()
         #endif
     }
 

@@ -65,7 +65,6 @@ struct SettingsView: View {
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
-    @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
     @State private var showDebugTools = false
     @State private var showingMailView = false
     @State private var showMailErrorAlert = false
@@ -365,16 +364,13 @@ struct SettingsView: View {
 //                        }
                         
                         RowItem(icon: "sparkles.rectangle.stack", label: "Autoplay Next Episode") {
-                             Toggle(isOn: $autoPlayNext) {
-                                 Text("Autoplay Next Episode")
-                             }
-                             .tint(.accentColor)
-                             .labelsHidden()
-                             .symbolRenderingMode(.hierarchical)
-                             .onChange(of: autoPlayNext) { _, newValue in
-                                 setAutoplayNext(newValue)
-                             }
-                         }
+                            Toggle(isOn: $player.autoplayNext) {
+                                Text("Autoplay Next Episode")
+                            }
+                            .tint(.accentColor)
+                            .labelsHidden()
+                            .symbolRenderingMode(.hierarchical)
+                        }
                     }
 
                     VStack {
@@ -503,7 +499,6 @@ struct SettingsView: View {
                             }
                             .sheet(isPresented: $showingMailView) {
                                 MailView(
-                                    logFileURL: LogManager.shared.getLogFileURL(),
                                     messageBody: generateSupportMessageBody()
                                 )
                             }
@@ -518,6 +513,23 @@ struct SettingsView: View {
                                     .headerSection()
                                     .frame(maxWidth:.infinity, alignment:.leading)
                                     .padding(.top,24)
+                                
+                                RowItem(icon: "doc.text", label: "Log Storage") {
+                                    Text(LogManager.shared.getTotalLogSize())
+                                        .textBody()
+                                }
+                                
+                                Button {
+                                    LogManager.shared.clearLog()
+                                } label: {
+                                    RowItem(icon: "trash", label: "Clear Logs", tint: Color.orange)
+                                }
+                                
+                                Button {
+                                    LogManager.shared.cleanupOldLogs()
+                                } label: {
+                                    RowItem(icon: "eraser", label: "Cleanup Old Logs", tint: Color.blue)
+                                }
                                 
                                 Button {
                                     injectTestPodcast()
@@ -596,11 +608,6 @@ struct SettingsView: View {
             }
         }
     }
-    
-    func setAutoplayNext(_ enabled: Bool) {
-         player.autoplayNext = false
-         UserDefaults.standard.set(enabled, forKey: "autoplayNext")
-     }
     
     private func injectTestPodcast() {
         let context = PersistenceController.shared.container.viewContext

@@ -194,28 +194,69 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             print("⏸ Already playing — pausing.")
             pause()
             return
+            
         case .paused(let id) where id == episodeID:
             print("▶️ Resuming paused episode")
-            // Resume playback
-            player?.playImmediately(atRate: playbackSpeed)
-            // Rate observer will update state to playing
+            
+            // Check if player/item is still valid before resuming
+            if let player = player,
+               let currentItem = player.currentItem,
+               currentItem.status == .readyToPlay {
+                player.playImmediately(atRate: playbackSpeed)
+            } else {
+                print("⚠️ Player item invalid - restarting playback instead of resuming")
+                // Fall through to restart playback completely
+                self.restartPlayback(for: episode)
+            }
             return
+            
         case .loading(let id) where id == episodeID:
             print("⏳ Already loading — ignoring.")
             return
+            
         default:
             break
         }
 
-        // ✅ Immediately update UI state on main thread
+        // Start fresh playback
+        self.startFreshPlayback(for: episode)
+    }
+
+    // Split the playback logic into separate methods for clarity
+    private func restartPlayback(for episode: Episode) {
+        guard let episodeID = episode.id else { return }
+        
+        // Clean up any existing player state
+        cleanupPlayer()
+        
+        // Start fresh
+        self.state = .loading(episodeID: episodeID)
+        self.currentEpisode = episode
+        
+        Task.detached(priority: .userInitiated) {
+            await self.play(episode: episode)
+            
+            await MainActor.run {
+                episode.nowPlaying = true
+                if episode.isPlayed {
+                    episode.isPlayed = false
+                    episode.playedDate = nil
+                }
+            }
+            
+            await self.saveEpisodeOnMainThread(episode)
+        }
+    }
+
+    private func startFreshPlayback(for episode: Episode) {
+        guard let episodeID = episode.id else { return }
+        
         self.state = .loading(episodeID: episodeID)
         self.currentEpisode = episode
 
-        // ✅ Now do everything else off the main thread
         Task.detached(priority: .userInitiated) {
             await self.play(episode: episode)
 
-            // Only update episode flags *after* playback starts
             await MainActor.run {
                 episode.nowPlaying = true
                 if episode.isPlayed {
@@ -325,12 +366,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private func setupPlayerItemObservations(_ playerItem: AVPlayerItem, for episodeID: String) {
-        // Remove the immediate state transitions - let the rate observer handle it
         playerItemObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
-                // Only log readiness, don't change state yet
                 if item.isPlaybackLikelyToKeepUp {
                     print("🟢 Player item ready to keep up for episode: \(episodeID)")
                 }
@@ -341,16 +380,76 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             guard let self = self else { return }
             
             DispatchQueue.main.async {
-                if item.status == .readyToPlay {
+                switch item.status {
+                case .readyToPlay:
                     print("✅ Player item ready for episode: \(episodeID)")
-                } else if item.status == .failed {
-                    print("❌ AVPlayerItem failed: \(item.error?.localizedDescription ?? "unknown error")")
                     
-                    // Only reset state on failure
-                    if case .loading(let id) = self.state, id == episodeID {
-                        self.updateState(to: .idle)
+                case .failed:
+                    let errorDescription = item.error?.localizedDescription ?? "unknown error"
+                    print("❌ AVPlayerItem failed: \(errorDescription)")
+                    
+                    // Handle the "Cannot Complete Action" error specifically
+                    if let error = item.error as NSError?,
+                       error.localizedDescription.contains("Cannot Complete Action") {
+                        print("🔄 Attempting to recover from 'Cannot Complete Action' error")
+                        
+                        // Only attempt recovery if we're in a loading or playing state for this episode
+                        if case .loading(let id) = self.state, id == episodeID {
+                            self.handlePlayerItemFailure(for: episodeID)
+                        } else if case .playing(let id) = self.state, id == episodeID {
+                            self.handlePlayerItemFailure(for: episodeID)
+                        } else {
+                            // Just reset state if we're not actively trying to play this episode
+                            self.updateState(to: .idle)
+                        }
+                    } else {
+                        // For other errors, just reset state
+                        if case .loading(let id) = self.state, id == episodeID {
+                            self.updateState(to: .idle)
+                        }
                     }
+                    
+                case .unknown:
+                    print("⚠️ AVPlayerItem status unknown for episode: \(episodeID)")
+                
+                @unknown default:
+                    print("⚠️ Unknown AVPlayerItem status for episode: \(episodeID)")
                 }
+            }
+        }
+    }
+    
+    private func handlePlayerItemFailure(for episodeID: String) {
+        guard let episode = currentEpisode, episode.id == episodeID else {
+            print("❌ Cannot recover - episode mismatch")
+            updateState(to: .idle)
+            return
+        }
+        
+        print("🔄 Attempting to recover playback for episode: \(episodeID)")
+        
+        // Save current position before recovery
+        if let player = player {
+            let currentPosition = player.currentTime().seconds
+            savePlaybackPosition(for: episode, position: currentPosition)
+            print("💾 Saved position \(currentPosition) before recovery")
+        }
+        
+        // Clean up the failed player completely
+        cleanupPlayer()
+        
+        // Wait a brief moment for cleanup, then retry
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            
+            print("🔄 Retrying playback after failure recovery")
+            
+            // Set state back to loading for the retry
+            self.updateState(to: .loading(episodeID: episodeID))
+            
+            // Retry the playback
+            Task.detached(priority: .userInitiated) {
+                await self.play(episode: episode)
             }
         }
     }
@@ -383,6 +482,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func pause() {
         guard let player = player, let episode = currentEpisode, let episodeID = episode.id else { return }
+        
+        // Check if player item is still valid before pausing
+        if let currentItem = player.currentItem, currentItem.status == .failed {
+            print("⚠️ Cannot pause - player item has failed")
+            // Don't call pause() on a failed player, just update state
+            updateState(to: .paused(episodeID: episodeID))
+            return
+        }
         
         savePlaybackPosition(for: episode, position: player.currentTime().seconds)
         player.pause() // This will trigger the rate observer to update state to paused

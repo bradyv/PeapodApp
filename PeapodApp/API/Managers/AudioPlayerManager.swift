@@ -176,35 +176,135 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     // MARK: - Core Playback Control
     func togglePlayback(for episode: Episode) {
-        print("▶️ togglePlayback called for episode: \(episode.title ?? "Episode")")
+        let startTime = CFAbsoluteTimeGetCurrent()
+        print("🔍 [0ms] togglePlayback started for: \(episode.title ?? "Episode")")
         
-        guard let episodeID = episode.id else { return }
+        guard let episodeID = episode.id else {
+            print("🔍 [EARLY EXIT] No episode ID")
+            return
+        }
+        
+        print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Got episode ID")
         
         // Early exits for same episode
         switch state {
         case .playing(let id) where id == episodeID:
-            print("⏸ Already playing — pausing.")
+            print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Already playing — pausing.")
             pause()
             return
         case .loading(let id) where id == episodeID:
-            print("⏳ Already loading — ignoring.")
+            print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Already loading — ignoring.")
             return
         default:
             break
         }
         
+        print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to update state")
+        
         // Set state/loading immediately to update UI
         DispatchQueue.main.async {
+            print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] In main queue - setting state")
             self.state = .loading(episodeID: episodeID)
             self.currentEpisode = episode
+            print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] State set")
         }
         
+        print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to create Task")
+        
         Task {
+            print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Task started")
             await self.play(episode: episode)
+            print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Task completed")
             
             // Update episode state in background
             await self.updateEpisodeStateOnPlayback(episode)
         }
+        
+        print("🔍 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] togglePlayback method end")
+    }
+
+    private func play(episode: Episode) async {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        print("🎵 [0ms] play() started")
+        
+        guard let audio = episode.audio,
+              let url = URL(string: audio),
+              let episodeID = episode.id else {
+            print("🎵 [EARLY EXIT] Invalid audio/URL/ID")
+            await MainActor.run {
+                self.state = .idle
+                self.currentEpisode = nil
+            }
+            return
+        }
+        
+        print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] URL validated")
+        
+        // Prepare player item off-main-thread
+        print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to create player item")
+        let playerItem = await withCheckedContinuation { continuation in
+            Task.detached(priority: .utility) {
+                print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Creating AVPlayerItem")
+                let item = AVPlayerItem(url: url)
+                print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] AVPlayerItem created")
+                continuation.resume(returning: item)
+            }
+        }
+        print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Player item ready")
+        
+        // Save previous episode state in background (skip for now to isolate)
+        print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to get saved position")
+        let lastPosition = getSavedPlaybackPosition(for: episode)
+        print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Got saved position: \(lastPosition)")
+        
+        // Finalize player setup on main thread
+        print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to run on MainActor")
+        await MainActor.run {
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] In MainActor - starting cleanup")
+            self.cleanupPlayer()
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Player cleaned up")
+            
+            let player = AVPlayer(playerItem: playerItem)
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] AVPlayer created")
+            
+            self.cachedArtwork = nil
+            self.player = player
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Player assigned")
+            
+            self.addTimeObserver()
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Time observer added")
+            
+            self.setupPlayerItemObservations(playerItem, for: episodeID)
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Observations setup")
+            
+            self.configureAudioSession(activePlayback: true)
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Audio session configured")
+            
+            self.progress = lastPosition
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Progress set")
+            
+            if lastPosition > 0 {
+                print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to seek")
+                player.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
+                    print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Seek completed - starting playback")
+                    guard let self = self else { return }
+                    self.player?.playImmediately(atRate: self.playbackSpeed)
+                    self.updateState(to: .playing(episodeID: episodeID))
+                    print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Playback started with seek")
+                }
+            } else {
+                print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Starting immediate playback")
+                player.playImmediately(atRate: self.playbackSpeed)
+                self.updateState(to: .playing(episodeID: episodeID))
+                print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Immediate playback started")
+            }
+            
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to update now playing")
+            self.updateNowPlayingInfo()
+            print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Now playing updated")
+        }
+        
+        print("🎵 [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] play() method end")
     }
     
     private func updateEpisodeStateOnPlayback(_ episode: Episode) async {
@@ -218,75 +318,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 backgroundEpisode.isPlayed = false
                 backgroundEpisode.playedDate = nil
             }
-        }
-    }
-    
-    private func play(episode: Episode) async {
-        guard let audio = episode.audio,
-              let url = URL(string: audio),
-              let episodeID = episode.id else {
-            await MainActor.run {
-                self.state = .idle
-                self.currentEpisode = nil
-            }
-            return
-        }
-        
-        // Prepare player item off-main-thread
-        let playerItem = await withCheckedContinuation { continuation in
-            Task.detached(priority: .utility) {
-                let item = AVPlayerItem(url: url)
-                continuation.resume(returning: item)
-            }
-        }
-        
-        // Move episode to front of queue (background context)
-        Task.detached(priority: .background) {
-            await self.moveEpisodeToFrontOfQueueAsync(episode)
-        }
-        
-        // Save previous episode state in background
-        if let previous = currentEpisode, previous.id != episode.id {
-            let previousPosition = player?.currentTime().seconds ?? 0
-            
-            Task.detached(priority: .background) {
-                await self.savePlaybackPositionAsync(for: previous, position: previousPosition, markNotPlaying: true)
-            }
-        }
-        
-        let lastPosition = getSavedPlaybackPosition(for: episode)
-        
-        // Finalize player setup on main thread
-        await MainActor.run {
-            self.cleanupPlayer()
-            let player = AVPlayer(playerItem: playerItem)
-            self.cachedArtwork = nil
-            self.player = player
-            self.addTimeObserver()
-            self.setupPlayerItemObservations(playerItem, for: episodeID)
-            self.configureAudioSession(activePlayback: true)
-            self.progress = lastPosition
-            
-            if lastPosition > 0 {
-                player.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
-                    guard let self = self else { return }
-                    self.player?.playImmediately(atRate: self.playbackSpeed)
-                    self.updateState(to: .playing(episodeID: episodeID))
-                }
-            } else {
-                player.playImmediately(atRate: self.playbackSpeed)
-                self.updateState(to: .playing(episodeID: episodeID))
-            }
-            
-            print("🎧 Playback started for \(episode.title ?? "Episode")")
-            self.updateNowPlayingInfo()
-        }
-        
-        setupLoadingTimeout(for: episodeID)
-        
-        // Write actual duration in background
-        Task.detached(priority: .background) {
-            await self.writeActualDurationAsync(for: episode)
         }
     }
     
@@ -503,7 +534,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func getActualDuration(for episode: Episode) -> Double {
-        // If the episode is currently playing, use the player item's actual duration
+        // Always prefer the saved actualDuration from Core Data
+        if episode.actualDuration > 0 {
+            return episode.actualDuration
+        }
+        
+        // Only fall back to the player's duration if we don't have actualDuration saved yet
+        // AND this is the currently playing episode
         if let currentEpisode = currentEpisode,
            let currentID = currentEpisode.id,
            let episodeID = episode.id,
@@ -516,8 +553,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return durationSeconds.isNaN || durationSeconds <= 0 ? episode.duration : durationSeconds
         }
         
-        // Otherwise use the saved actual duration, falling back to the feed duration
-        return episode.actualDuration > 0 ? episode.actualDuration : episode.duration
+        // Final fallback to feed duration
+        return episode.duration
     }
     
     func writeActualDuration(for episode: Episode) {
@@ -842,9 +879,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private func updateNowPlayingInfo() {
-        guard let episode = currentEpisode else { return }
-        let duration = getActualDuration(for: episode)
+        let startTime = CFAbsoluteTimeGetCurrent()
+        print("🎵🖼️ [0ms] updateNowPlayingInfo started")
         
+        guard let episode = currentEpisode else {
+            print("🎵🖼️ [EARLY EXIT] No current episode")
+            return
+        }
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Got current episode")
+        
+        let duration = getActualDuration(for: episode)
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Got duration: \(duration)")
+        
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to create nowPlayingInfo dict")
         var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: episode.title ?? "Episode",
             MPMediaItemPropertyArtist: episode.podcast?.title ?? "Podcast",
@@ -853,59 +900,73 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyMediaType: 1
         ]
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Created nowPlayingInfo dict")
         
-        if let cachedArtwork = cachedArtwork {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = cachedArtwork
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-        } else {
-            fetchArtwork(for: episode) { artwork in
-                DispatchQueue.main.async {
-                    if let artwork = artwork {
-                        nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-                    }
-                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-                }
-            }
-        }
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to set MPNowPlayingInfoCenter")
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] Set MPNowPlayingInfoCenter")
+        
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] About to handle artwork")
+        handleArtworkAsync(for: episode)
+        print("🎵🖼️ [\((CFAbsoluteTimeGetCurrent() - startTime) * 1000)ms] updateNowPlayingInfo completed")
     }
-    private var cachedArtwork: MPMediaItemArtwork?
-    
-    private func fetchArtwork(for episode: Episode, completion: @escaping (MPMediaItemArtwork?) -> Void) {
+
+    private func handleArtworkAsync(for episode: Episode) {
+        // If we have cached artwork, use it immediately
         if let cachedArtwork = cachedArtwork {
-            completion(cachedArtwork)
+            updateNowPlayingWithArtwork(cachedArtwork, for: episode)
             return
         }
         
+        // Otherwise fetch artwork on background queue - don't block anything
+        Task.detached(priority: .background) {
+            await self.fetchAndCacheArtwork(for: episode)
+        }
+    }
+
+    private func updateNowPlayingWithArtwork(_ artwork: MPMediaItemArtwork, for episode: Episode) {
+        // Only update if this is still the current episode
+        guard currentEpisode?.id == episode.id else { return }
+        
+        var updatedInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+        updatedInfo[MPMediaItemPropertyArtwork] = artwork
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = updatedInfo
+    }
+
+    private func fetchAndCacheArtwork(for episode: Episode) async {
         let imageUrls = [episode.episodeImage, episode.podcast?.image]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
         
-        guard let validImageUrl = imageUrls.first, let url = URL(string: validImageUrl) else {
+        guard let validImageUrl = imageUrls.first,
+              let url = URL(string: validImageUrl) else {
             print("❌ No valid artwork URL for episode: \(episode.title ?? "Episode")")
-            completion(nil)
             return
         }
         
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            guard let self = self else { return }
+        do {
+            // Use async URLSession
+            let (data, _) = try await URLSession.shared.data(from: url)
             
-            if let error = error {
-                print("⚠️ Artwork fetch error: \(error.localizedDescription)")
-                completion(nil)
-                return
-            }
-            
-            guard let data = data, let image = UIImage(data: data) else {
+            guard let image = UIImage(data: data) else {
                 print("⚠️ Failed to decode artwork from \(validImageUrl)")
-                completion(nil)
                 return
             }
             
             let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-            self.cachedArtwork = artwork
-            completion(artwork)
-        }.resume()
+            
+            // Update on main thread
+            await MainActor.run {
+                self.cachedArtwork = artwork
+                self.updateNowPlayingWithArtwork(artwork, for: episode)
+            }
+            
+        } catch {
+            print("⚠️ Artwork fetch error: \(error.localizedDescription)")
+        }
     }
+    
+    private var cachedArtwork: MPMediaItemArtwork?
     
     @objc private func handleAudioInterruption(notification: Notification) {
         guard let player = player, let episode = currentEpisode, let episodeID = episode.id else { return }

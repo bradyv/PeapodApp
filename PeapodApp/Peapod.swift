@@ -24,8 +24,8 @@ struct Peapod: App {
     }
     
     init() {
-        LogManager.shared.setupAppLifecycleLogging()
-        LogManager.shared.startLogging()
+//        LogManager.shared.setupAppLifecycleLogging()
+//        LogManager.shared.startLogging()
     }
 
     var body: some Scene {

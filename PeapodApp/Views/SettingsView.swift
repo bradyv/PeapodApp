@@ -244,7 +244,7 @@ struct SettingsView: View {
                 
                 FadeInView(delay:0.7) {
                     VStack {
-                        Text("Settings")
+                        Text("Playback")
                             .headerSection()
                             .frame(maxWidth:.infinity, alignment: .leading)
                             .padding(.top,24)
@@ -454,23 +454,17 @@ struct SettingsView: View {
                         }
                         
                         VStack(alignment:.leading) {
-                            Text("About")
+                            Text("Peapod")
                                 .headerSection()
                                 .frame(maxWidth:.infinity, alignment:.leading)
                                 .padding(.top,24)
-                            
-//                            Text("Hey, thanks for taking the time to check out Peapod! This is the podcast app I've wanted to use for years and I hope you enjoy using it as much as I do. It's a continuous work in progress so if you have any thoughts, positive or negative, please feel free to share them with me.")
-//                                .textBody()
-//                                .multilineTextAlignment(.leading)
-                            
-//                            Text("I have no plans to monetize this app but if you'd like to support its ongoing development please consider purchasing a membership.")
                             
                             RowItem(icon: "info.circle", label: "Version") {
                                 Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
                                     .textBody()
                             }
                             
-                            RowItem(icon: "icloud", label: "Synced") {
+                            RowItem(icon: "cloud.circle", label: "Synced") {
                                 if let lastSynced = lastSynced {
                                     Text("\(lastSynced.formatted(date: .abbreviated, time: .shortened))")
                                         .textBody()
@@ -480,19 +474,6 @@ struct SettingsView: View {
                                 }
                             }
                             
-                            NavigationLink {
-                                PPPopover(showBg: true) {
-                                    Acknowledgements()
-                                }
-                            } label: {
-                                RowItem(icon: "hands.clap", label: "Libraries")
-                            }
-                            
-                            Text("Help")
-                                .headerSection()
-                                .frame(maxWidth:.infinity, alignment:.leading)
-                                .padding(.top,24)
-                            
                             Button {
                                 if MFMailComposeViewController.canSendMail() {
                                     showingMailView = true
@@ -500,7 +481,7 @@ struct SettingsView: View {
                                     showMailErrorAlert = true
                                 }
                             } label: {
-                                RowItem(icon: "paperplane", label: "Send Feedback")
+                                RowItem(icon: "paperplane.circle", label: "Send Feedback")
                             }
                             .sheet(isPresented: $showingMailView) {
                                 MailView(
@@ -511,6 +492,18 @@ struct SettingsView: View {
                                 Button("OK", role: .cancel) { }
                             } message: {
                                 Text("Please set up a Mail account in order to send logs.")
+                            }
+                            
+                            Text("Hey, thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I hope that you enjoy using it as much as I do. I’m continuously working to improve the app so if you have any feedback please don’t hesitate to share it with me.")
+                                .multilineTextAlignment(.leading)
+                                .textBody()
+                            
+                            NavigationLink {
+                                PPPopover(showBg: true) {
+                                    Acknowledgements()
+                                }
+                            } label: {
+                                RowItem(icon: "link.circle", label: "Acknowledgements")
                             }
                             
                             if _isDebugAssertConfiguration() || showDebugTools {

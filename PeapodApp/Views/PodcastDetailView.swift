@@ -10,10 +10,9 @@ import FeedKit
 import CoreData
 
 struct PodcastDetailView: View {
-//    @Environment(\.colorScheme) var colorScheme
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var toastManager: ToastManager
     @FetchRequest var podcastResults: FetchedResults<Podcast>
-//    @State private var episodes: [Episode] = []
     @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
     @State private var showSearch = false
@@ -142,6 +141,11 @@ struct PodcastDetailView: View {
                                 }
                             }
                         }
+                        .refreshable {
+                            EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
+                                toastManager.show(message: "Updated \(podcast.title ?? "")", icon: "sparkles")
+                            }
+                        }
                         .coordinateSpace(name: "scroll")
                         .contentMargins(16, for: .scrollContent)
                         .maskEdge(.top)
@@ -203,7 +207,8 @@ struct PodcastDetailView: View {
                                         
                                         Button(action: {
                                             podcast.isSubscribed.toggle()
-
+                                            toastManager.show(message: podcast.isSubscribed ? "Followed \(podcast.title ?? "")" : "Unfollowed \(podcast.title ?? "")", icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle")
+                                            
                                             if podcast.isSubscribed {
                                                 if let latest = (podcast.episode as? Set<Episode>)?
                                                     .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })

@@ -64,7 +64,9 @@ struct ContentView: View {
                 }
                 .scrollDisabled(subscriptions.isEmpty)
                 .refreshable {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                        toastManager.show(message: "Updated All Feeds", icon: "sparkles")
+                    }
                 }
                 
                 VStack(alignment:.trailing) {
@@ -132,7 +134,7 @@ struct ContentView: View {
                 }
             }
         }
-//        .toast()
+        .toast()
     }
     
     private func requestNotificationPermissions() {

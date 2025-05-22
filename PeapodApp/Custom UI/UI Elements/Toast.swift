@@ -34,7 +34,6 @@ struct Toast: View {
                 .inset(by: 1)
                 .stroke(Color.white.opacity(0.10), lineWidth: 1)
         )
-        .padding(.bottom, 16)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
@@ -77,12 +76,12 @@ struct ToastModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: .bottom) {
+            .overlay(alignment: .top) {
                 Group {
                     if let message = toastManager.message,
                        let icon = toastManager.icon {
                         Toast(message: message, icon: icon)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .transition(.move(edge: .top).combined(with: .opacity))
                     }
                 }
             }

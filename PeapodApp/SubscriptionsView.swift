@@ -46,6 +46,7 @@ struct SubscriptionsView: View {
                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.surface, lineWidth: 1))
                         .matchedTransitionSource(id: "ppsearch", in: namespace)
                     }
+                    .buttonStyle(NoHighlight())
 
                     // Real podcasts
                     if !subscriptions.isEmpty {
@@ -63,6 +64,7 @@ struct SubscriptionsView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
                                     .matchedTransitionSource(id: podcast.id, in: namespace)
                             }
+                            .buttonStyle(NoHighlight())
                         }
                     }
                 }

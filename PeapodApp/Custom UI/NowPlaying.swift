@@ -91,6 +91,7 @@ struct NowPlaying: View {
                             .maskEdge(.trailing)
                         }
                     }
+                    .buttonStyle(NoHighlight())
                     
                     HStack(spacing: spacing) {
                         let isLoading = player.isLoadingEpisode(episode)

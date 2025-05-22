@@ -85,6 +85,7 @@ struct EpisodeView: View {
                         
                         FadeInView(delay: 0.3) {
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal)
                                 .multilineTextAlignment(.leading)
                                 .environment(\.openURL, OpenURLAction { url in

@@ -76,6 +76,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private var timeObserver: Any?
     private var playerItemObservation: NSKeyValueObservation?
     private var statusObservation: NSKeyValueObservation?
+    private var rateObserver: NSKeyValueObservation?
     @Published private(set) var state: AudioPlayerState = .idle {
         didSet {
             // Update derived properties when state changes
@@ -100,6 +101,35 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         didSet {
             UserDefaults.standard.set(autoplayNext, forKey: "autoplayNext")
         }
+    }
+    
+    private func addRateObserver(for episodeID: String) {
+        guard let player = player else { return }
+        
+        // Observe the player's rate to know when it actually starts playing
+        let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] player, _ in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                // Only transition from loading to playing when rate > 0 AND we're in loading state
+                if case .loading(let id) = self.state,
+                   id == episodeID,
+                   player.rate > 0 {
+                    print("🎵 Audio actually started playing for episode: \(episodeID)")
+                    self.updateState(to: .playing(episodeID: episodeID))
+                }
+                // Handle pause state when rate becomes 0 while we were playing
+                else if case .playing(let id) = self.state,
+                         id == episodeID,
+                         player.rate == 0 {
+                    print("⏸️ Audio paused for episode: \(episodeID)")
+                    self.updateState(to: .paused(episodeID: episodeID))
+                }
+            }
+        }
+        
+        // Store the observer so we can clean it up later
+        self.rateObserver = rateObserver
     }
     
     // Helper function to check if a specific episode is loading
@@ -154,6 +184,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         case .playing(let id) where id == episodeID:
             print("⏸ Already playing — pausing.")
             pause()
+            return
+        case .paused(let id) where id == episodeID:
+            print("▶️ Resuming paused episode")
+            // Resume playback
+            player?.playImmediately(atRate: playbackSpeed)
+            // Rate observer will update state to playing
             return
         case .loading(let id) where id == episodeID:
             print("⏳ Already loading — ignoring.")
@@ -210,7 +246,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
 
-        // Handle previous episode state (playback position, flags)
+        // Handle previous episode state
         let previousEpisode = await MainActor.run { self.currentEpisode }
         if let previous = previousEpisode, previous.id != episode.id {
             let previousID = previous.objectID
@@ -237,6 +273,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self.progress = lastPosition
             self.configureAudioSession(activePlayback: true)
             self.setupPlayerItemObservations(playerItem, for: episodeID)
+            self.addRateObserver(for: episodeID) // Add this line
             self.addTimeObserver()
         }
 
@@ -245,13 +282,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 self.player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
                     guard let self = self else { return }
                     self.player?.playImmediately(atRate: self.playbackSpeed)
-                    self.updateState(to: .playing(episodeID: episodeID))
+                    // State will be updated by rate observer when playback actually starts
                 }
             }
         } else {
             await MainActor.run {
                 self.player?.playImmediately(atRate: self.playbackSpeed)
-                self.updateState(to: .playing(episodeID: episodeID))
+                // State will be updated by rate observer when playback actually starts
             }
         }
 
@@ -260,39 +297,47 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self.updateNowPlayingInfo()
         }
 
-        setupLoadingTimeout(for: episodeID)
+        // Keep the existing timeout as backup - reduced to 8 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
+            guard let self = self else { return }
+            
+            if case .loading(let id) = self.state, id == episodeID {
+                print("⚠️ Loading timeout triggered for episode \(episodeID)")
+                
+                // Check if player is actually playing despite loading state
+                if let player = self.player, player.rate > 0 {
+                    self.updateState(to: .playing(episodeID: episodeID))
+                } else {
+                    // Otherwise reset to idle
+                    self.updateState(to: .idle)
+                }
+            }
+        }
     }
     
     private func setupPlayerItemObservations(_ playerItem: AVPlayerItem, for episodeID: String) {
-        // Observe when the player is ready for playback
+        // Remove the immediate state transitions - let the rate observer handle it
         playerItemObservation = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
+                // Only log readiness, don't change state yet
                 if item.isPlaybackLikelyToKeepUp {
-                    // If we're still in loading state for this episode, update to playing
-                    if case .loading(let id) = self.state, id == episodeID, self.player?.rate ?? 0 > 0 {
-                        self.updateState(to: .playing(episodeID: episodeID))
-                    }
+                    print("🟢 Player item ready to keep up for episode: \(episodeID)")
                 }
             }
         }
         
-        // Also observe the player item status
         statusObservation = playerItem.observe(\.status, options: [.new]) { [weak self] item, _ in
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 if item.status == .readyToPlay {
-                    // If we're still in loading state for this episode, update to playing
-                    if case .loading(let id) = self.state, id == episodeID, self.player?.rate ?? 0 > 0 {
-                        self.updateState(to: .playing(episodeID: episodeID))
-                    }
+                    print("✅ Player item ready for episode: \(episodeID)")
                 } else if item.status == .failed {
-                    // Handle error
                     print("❌ AVPlayerItem failed: \(item.error?.localizedDescription ?? "unknown error")")
                     
-                    // If this is the current episode, reset state
+                    // Only reset state on failure
                     if case .loading(let id) = self.state, id == episodeID {
                         self.updateState(to: .idle)
                     }
@@ -331,10 +376,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         guard let player = player, let episode = currentEpisode, let episodeID = episode.id else { return }
         
         savePlaybackPosition(for: episode, position: player.currentTime().seconds)
-        player.pause()
+        player.pause() // This will trigger the rate observer to update state to paused
         
-        // Update state to paused
-        updateState(to: .paused(episodeID: episodeID))
         updateNowPlayingInfo()
     }
     
@@ -367,6 +410,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         statusObservation?.invalidate()
         statusObservation = nil
+        
+        rateObserver?.invalidate() // Add this line
+        rateObserver = nil         // Add this line
         
         // Use a more controlled teardown sequence
         player?.pause()

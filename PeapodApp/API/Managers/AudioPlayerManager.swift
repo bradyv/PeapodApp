@@ -901,57 +901,56 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     @objc private func playerDidFinishPlaying(notification: Notification) {
-       guard let finishedEpisode = currentEpisode else { return }
-       print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
-       
-       // Store the finished episode info before clearing it
-       let wasFinishedEpisode = finishedEpisode
-       
-       // Reset player state first
-       progress = 0
-       updateState(to: .idle)
-       
-       // Clean up player before doing queue operations
-       cleanupPlayer()
-       
-       // Clear now playing info
-       MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-       
-       // Mark episode as played after cleanup
-       wasFinishedEpisode.isPlayed = true
-       wasFinishedEpisode.nowPlaying = false
-       wasFinishedEpisode.playedDate = Date.now
-       
-       // Update podcast stats
-       if let podcast = wasFinishedEpisode.podcast {
-           podcast.playCount += 1
-           podcast.playedSeconds += getActualDuration(for: wasFinishedEpisode)
-       }
-       
-       // Remove from queue
-       removeFromQueue(wasFinishedEpisode)
-       
-       // Reset playback position
-       wasFinishedEpisode.playbackPosition = 0
-       
-       // Save changes explicitly
-       try? wasFinishedEpisode.managedObjectContext?.save()
-       
-       // Clear current episode reference
-       currentEpisode = nil
-       
-       // Fetch the next episode AFTER removing the current one
-        if self.autoplayNext {
-            Task.detached(priority: .background) {
-                await MainActor.run {
-                    // Wait briefly to ensure queue updates are processed
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        self.playNextInQueue()
-                    }
-                }
+        guard let finishedEpisode = currentEpisode else { return }
+        print("🏁 Episode finished playing: \(finishedEpisode.title ?? "Episode")")
+        
+        // Store the finished episode info before clearing it
+        let wasFinishedEpisode = finishedEpisode
+        
+        // Mark episode as played FIRST while we still have context
+        wasFinishedEpisode.isPlayed = true
+        wasFinishedEpisode.nowPlaying = false
+        wasFinishedEpisode.playedDate = Date.now
+        wasFinishedEpisode.playbackPosition = 0
+        
+        // Update podcast stats
+        if let podcast = wasFinishedEpisode.podcast {
+            podcast.playCount += 1
+            podcast.playedSeconds += getActualDuration(for: wasFinishedEpisode)
+        }
+        
+        // Remove from queue
+        removeFromQueue(wasFinishedEpisode)
+        
+        // Save changes explicitly
+        try? wasFinishedEpisode.managedObjectContext?.save()
+        
+        // Check for next episode BEFORE clearing current state
+        let queuedEpisodes = fetchQueuedEpisodes()
+        let nextEpisode = autoplayNext ? queuedEpisodes.first : nil
+        
+        // Now clean up current playback
+        progress = 0
+        updateState(to: .idle)
+        cleanupPlayer()
+        currentEpisode = nil
+        
+        // Clear now playing info temporarily
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        
+        // If we have a next episode, start it immediately
+        if let nextEpisode = nextEpisode {
+            print("🔄 Auto-playing next episode: \(nextEpisode.title ?? "Next Episode")")
+            
+            // Use togglePlayback instead of calling play directly
+            // This ensures proper state management
+            Task { @MainActor in
+                // Small delay to ensure cleanup is complete
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                self.togglePlayback(for: nextEpisode)
             }
-       }
-   }
+        }
+    }
     
     private func moveEpisodeToFrontOfQueue(_ episode: Episode) {
         // Ensure episode is in the queue by moving it to position 0
@@ -997,14 +996,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
    
-   private func playNextInQueue() {
-       let queuedEpisodes = fetchQueuedEpisodes()
-       if let nextEpisode = queuedEpisodes.first {
-           Task {
-               await self.play(episode: nextEpisode)
-           }
-       }
-   }
+    private func playNextInQueue() {
+        // This method is now only used for manual "play next" actions
+        // Autoplay is handled directly in playerDidFinishPlaying
+        let queuedEpisodes = fetchQueuedEpisodes()
+        if let nextEpisode = queuedEpisodes.first {
+            togglePlayback(for: nextEpisode)
+        }
+    }
     
     @MainActor
     private func saveEpisodeOnMainThread(_ episode: Episode) {

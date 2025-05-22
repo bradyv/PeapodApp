@@ -117,7 +117,15 @@ struct EpisodeContextMenu: View {
             Label("More", systemImage: "ellipsis")
                 .frame(width:24,height:24)
         }
-        .buttonStyle(PPButton(type:.transparent, colorStyle: .monochrome, iconOnly: true))
+        .buttonStyle(PPButton(
+            type:.transparent,
+            colorStyle: .monochrome,
+            iconOnly: true,
+            customColors: displayedInQueue ?
+            ButtonCustomColors(foreground: .white, background: .white.opacity(0.15)) :
+                nil
+            )
+        )
         .menuOrder(.fixed)
     }
 }

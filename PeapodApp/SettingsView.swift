@@ -65,7 +65,6 @@ struct SettingsView: View {
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
-    @State private var autoPlayNext = UserDefaults.standard.bool(forKey: "autoplayNext")
     @State private var showDebugTools = false
     @State private var showingMailView = false
     @State private var showMailErrorAlert = false
@@ -365,16 +364,13 @@ struct SettingsView: View {
 //                        }
                         
                         RowItem(icon: "sparkles.rectangle.stack", label: "Autoplay Next Episode") {
-                             Toggle(isOn: $autoPlayNext) {
-                                 Text("Autoplay Next Episode")
-                             }
-                             .tint(.accentColor)
-                             .labelsHidden()
-                             .symbolRenderingMode(.hierarchical)
-                             .onChange(of: autoPlayNext) { newValue in
-                                     setAutoplayNext(newValue)
-                                 }
-                         }
+                            Toggle(isOn: $player.autoplayNext) {  // Direct binding to player
+                                Text("Autoplay Next Episode")
+                            }
+                            .tint(.accentColor)
+                            .labelsHidden()
+                            .symbolRenderingMode(.hierarchical)
+                        }
                     }
 
                     VStack {
@@ -596,11 +592,6 @@ struct SettingsView: View {
             }
         }
     }
-    
-    func setAutoplayNext(_ enabled: Bool) {
-         player.autoplayNext = false
-         UserDefaults.standard.set(enabled, forKey: "autoplayNext")
-     }
     
     private func injectTestPodcast() {
         let context = PersistenceController.shared.container.viewContext

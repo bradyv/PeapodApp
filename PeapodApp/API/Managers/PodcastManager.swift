@@ -215,7 +215,24 @@ class EpisodeManager {
             if isNewEpisode && handleNewEpisodes && podcast.isSubscribed {
                 print("📣 New episode detected: \(episode.title ?? "Unknown") — sending notification")
                 sendNewEpisodeNotification(for: episode)
-                toggleQueued(episode)
+                
+                do {
+                    try context.save()
+                    
+                    // Queue the episode using its ID to avoid cross-context issues
+                    DispatchQueue.main.async {
+                        let mainContext = PersistenceController.shared.container.viewContext
+                        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                        fetchRequest.predicate = NSPredicate(format: "id == %@", episode.id ?? "")
+                        fetchRequest.fetchLimit = 1
+                        
+                        if let mainEpisode = try? mainContext.fetch(fetchRequest).first {
+                            toggleQueued(mainEpisode)
+                        }
+                    }
+                } catch {
+                    print("❌ Error saving episode before queueing: \(error)")
+                }
             } else if !isNewEpisode {
                 print("🧹 Existing episode updated: \(episode.title ?? "Unknown") — no notification")
             }

@@ -120,7 +120,7 @@ struct PPButton: ButtonStyle {
         .textBodyEmphasis()
         .clipShape(Capsule())
         .overlay {
-            if type == .transparent && colorStyle == .monochrome && !borderless {
+            if type == .transparent && !borderless {
                 if iconOnly {
                     Circle().stroke(Color.heading.opacity(0.15), lineWidth: 1)
                 } else {

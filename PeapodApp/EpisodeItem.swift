@@ -51,83 +51,6 @@ struct EpisodeItem: View {
                 Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textDetail()
-                
-                Spacer()
-                
-                Menu {
-                    Button(action: {
-                        episodeSelectionManager.selectEpisode(episode)
-                    }) {
-                        Label("Go to Episode", systemImage: "info.square")
-                    }
-                    
-                    Divider()
-                    
-                    if !episode.nowPlaying {
-                        Button(action: {
-                            withAnimation {
-                                player.togglePlayback(for: episode)
-                            }
-                        }) {
-                            Label(episode.isPlayed ? "Listen Again" : "Listen Now", systemImage: "play.circle")
-                        }
-                    }
-                    
-                    Button(action: {
-                        withAnimation {
-                            player.markAsPlayed(for: episode, manually: true)
-                        }
-                    }) {
-                        Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage:episode.isPlayed ? "circle.badge.minus" : "checkmark.circle")
-                    }
-                    
-                    if episode.playbackPosition < 0.1 {
-                        Button(action: {
-                            withAnimation {
-                                toggleQueued(episode)
-                            }
-                        }) {
-                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                        }
-                        
-                        Button(action: {
-                            withAnimation {
-                                toggleSaved(episode)
-                            }
-                        }) {
-                            Label(episode.isSaved ? "Remove from Play Later" : "Play Later", systemImage: episode.isSaved ? "square.slash" : "arrowshape.bounce.right")
-                        }
-                    }
-                    
-                    Button(action: {
-                        withAnimation {
-                            toggleFav(episode)
-                        }
-                    }) {
-                        Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
-                    }
-                    
-                    Divider()
-                    
-                    NavigationLink {
-                        if episode.podcast?.isSubscribed != false {
-                            PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                            }
-                        } else {
-                            PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                                PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                            }
-                        }
-                    } label: {
-                        Label("Go to Show", systemImage: "widget.large")
-                    }
-                } label: {
-                    Label("More", systemImage: "ellipsis")
-                        .frame(width:24,height:24)
-                }
-                .labelStyle(.iconOnly)
-                .foregroundStyle(displayedInQueue ? .white : .heading)
             }
             .frame(maxWidth:.infinity, alignment:.leading)
             
@@ -252,6 +175,7 @@ struct EpisodeItem: View {
                                 Label(episode.isQueued ? "Queued" : "Up Next", systemImage:episode.isQueued ? "text.badge.checkmark" : "text.append")
                             }
                             .buttonStyle(PPButton(type:.transparent, colorStyle:episode.isQueued ? .tinted : .monochrome))
+                            .animation(.easeInOut(duration: 0.3), value: episode.isQueued)
                         }
                     } else {
                         // 🗑️ Remove / Archive / Mark as Played
@@ -273,6 +197,10 @@ struct EpisodeItem: View {
                             )
                         )
                     }
+                    
+                    Spacer()
+                    
+                    EpisodeContextMenu(episode: episode, displayedInQueue: displayedInQueue, namespace: namespace)
                 }
             }
         }

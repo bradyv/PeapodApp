@@ -103,6 +103,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    
     private func addRateObserver(for episodeID: String) {
         guard let player = player else { return }
         
@@ -111,19 +112,27 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             guard let self = self else { return }
             
             DispatchQueue.main.async {
-                // Only transition from loading to playing when rate > 0 AND we're in loading state
-                if case .loading(let id) = self.state,
-                   id == episodeID,
-                   player.rate > 0 {
-                    print("🎵 Audio actually started playing for episode: \(episodeID)")
-                    self.updateState(to: .playing(episodeID: episodeID))
+                // Handle transitions to playing state (rate > 0)
+                if player.rate > 0 {
+                    switch self.state {
+                    case .loading(let id) where id == episodeID:
+                        print("🎵 Audio started playing from loading for episode: \(episodeID)")
+                        self.updateState(to: .playing(episodeID: episodeID))
+                        
+                    case .paused(let id) where id == episodeID:
+                        print("▶️ Audio resumed from paused for episode: \(episodeID)")
+                        self.updateState(to: .playing(episodeID: episodeID))
+                        
+                    default:
+                        break
+                    }
                 }
-                // Handle pause state when rate becomes 0 while we were playing
-                else if case .playing(let id) = self.state,
-                         id == episodeID,
-                         player.rate == 0 {
-                    print("⏸️ Audio paused for episode: \(episodeID)")
-                    self.updateState(to: .paused(episodeID: episodeID))
+                // Handle transitions to paused state (rate == 0)
+                else if player.rate == 0 {
+                    if case .playing(let id) = self.state, id == episodeID {
+                        print("⏸️ Audio paused for episode: \(episodeID)")
+                        self.updateState(to: .paused(episodeID: episodeID))
+                    }
                 }
             }
         }

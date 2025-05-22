@@ -499,7 +499,6 @@ struct SettingsView: View {
                             }
                             .sheet(isPresented: $showingMailView) {
                                 MailView(
-                                    logFileURL: LogManager.shared.getLogFileURL(),
                                     messageBody: generateSupportMessageBody()
                                 )
                             }
@@ -515,6 +514,23 @@ struct SettingsView: View {
                                     .frame(maxWidth:.infinity, alignment:.leading)
                                     .padding(.top,24)
                                 
+                                RowItem(icon: "doc.text", label: "Log Storage") {
+                                    Text(LogManager.shared.getTotalLogSize())
+                                        .textBody()
+                                }
+                                
+                                Button {
+                                    LogManager.shared.clearLog()
+                                } label: {
+                                    RowItem(icon: "trash", label: "Clear Logs", tint: Color.orange)
+                                }
+                                
+                                Button {
+                                    LogManager.shared.cleanupOldLogs()
+                                } label: {
+                                    RowItem(icon: "eraser", label: "Cleanup Old Logs", tint: Color.blue)
+                                }
+                            
                                 Button {
                                     injectTestPodcast()
                                 } label: {

@@ -9,7 +9,6 @@ import SwiftUI
 import MessageUI
 
 struct MailView: UIViewControllerRepresentable {
-    let logFileURL: URL
     let messageBody: String
 
     class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
@@ -30,8 +29,13 @@ struct MailView: UIViewControllerRepresentable {
         vc.setSubject("Peapod Feedback")
         vc.setMessageBody(messageBody, isHTML: false)
 
-        if let data = try? Data(contentsOf: logFileURL) {
-            vc.addAttachmentData(data, mimeType: "text/plain", fileName: "peapod-logs.txt")
+        // Attach ALL log files (current + rotated)
+        let allLogFiles = LogManager.shared.getAllLogFiles()
+        for (index, logFileURL) in allLogFiles.enumerated() {
+            if let data = try? Data(contentsOf: logFileURL) {
+                let fileName = index == 0 ? "peapod-logs-current.txt" : "peapod-logs-\(index).txt"
+                vc.addAttachmentData(data, mimeType: "text/plain", fileName: fileName)
+            }
         }
 
         vc.mailComposeDelegate = context.coordinator
@@ -49,6 +53,9 @@ func generateSupportMessageBody() -> String {
     let deviceModel = device.model
     let systemName = device.systemName
     let systemVersion = device.systemVersion
+    
+    // Add log storage info for debugging
+    let logSize = LogManager.shared.getTotalLogSize()
 
     return """
     Please describe the issue you're experiencing:
@@ -58,5 +65,7 @@ func generateSupportMessageBody() -> String {
     App Version: \(appVersion) (\(buildNumber))
     Device: \(deviceModel)
     OS: \(systemName) \(systemVersion)
+    Log Storage: \(logSize)
     """
 }
+

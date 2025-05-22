@@ -263,3 +263,35 @@ func reorderQueue(_ episodes: [Episode], episodesViewModel: EpisodesViewModel? =
         }
     }
 }
+
+func addMultipleToQueue(_ episodes: [Episode], episodesViewModel: EpisodesViewModel? = nil) {
+    let episodeObjectIDs = episodes.map { $0.objectID }
+    
+    performBackgroundSave({ context in
+        queueLock.lock()
+        defer { queueLock.unlock() }
+        
+        let queuePlaylist = getQueuePlaylist(context: context)
+        let existingItems = (queuePlaylist.items as? Set<Episode>) ?? []
+        var maxPosition = existingItems.map(\.queuePosition).max() ?? -1
+        
+        for objectID in episodeObjectIDs {
+            guard let backgroundEpisode = try? context.existingObject(with: objectID) as? Episode else { continue }
+            
+            if !backgroundEpisode.isQueued {
+                maxPosition += 1
+                backgroundEpisode.isQueued = true
+                backgroundEpisode.queuePosition = maxPosition
+                queuePlaylist.addToItems(backgroundEpisode)
+                
+                if backgroundEpisode.isSaved {
+                    backgroundEpisode.isSaved.toggle()
+                }
+            }
+        }
+    }) {
+        Task { @MainActor in
+            episodesViewModel?.updateQueue()
+        }
+    }
+}

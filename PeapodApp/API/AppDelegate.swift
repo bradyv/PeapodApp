@@ -10,13 +10,31 @@ import BackgroundTasks
 import CoreData
 import UserNotifications
 
-class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     static var pendingNotificationEpisodeID: String?
     
     override init() {
         super.init()
         print("🧬 AppDelegate initialized")
         UNUserNotificationCenter.current().delegate = self
+    }
+    
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        // Enable remote control events when app becomes active
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+        
+        // Make AppDelegate the first responder
+        self.becomeFirstResponder()
+    }
+
+    // Now these overrides will work
+    override func remoteControlReceived(with event: UIEvent?) {
+        print("🎛️ AppDelegate received remote control event")
+        AudioPlayerManager.shared.remoteControlReceived(with: event)
+    }
+
+    override var canBecomeFirstResponder: Bool {
+        return true
     }
     
     func application(_ application: UIApplication,

@@ -607,47 +607,30 @@ struct SettingsView: View {
                 print("🗑️ Deleted existing test podcast")
             }
 
-            // Parse feed
-            FeedParser(URL: URL(string: testFeedURL)!).parseAsync { result in
-                switch result {
-                case .success(let feed):
-                    if let rss = feed.rssFeed {
-                        DispatchQueue.main.async {
-                            let podcast = PodcastLoader.createOrUpdatePodcast(from: rss, feedUrl: testFeedURL, context: context)
-                            podcast.isSubscribed = true
+            // Use the new consolidated PodcastManager instead
+            PodcastManager.loadPodcastFromFeed(feedUrl: testFeedURL, context: context) { podcast in
+                guard let podcast = podcast else {
+                    print("❌ Failed to load test podcast")
+                    return
+                }
+                
+                podcast.isSubscribed = true
 
-                            // 📢 DIAGNOSTIC PRINTS
-                            print("FeedKit RSS Title:", rss.title ?? "nil")
-                            print("FeedKit RSS iTunes Image:", rss.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-                            print("FeedKit RSS Channel Image:", rss.image?.url ?? "nil")
-                            print("FeedKit RSS First Item Image:", rss.items?.first?.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-
-                            // 📢 MANUAL ASSIGN
-                            let artworkUrl = rss.iTunes?.iTunesImage?.attributes?.href
-                                          ?? rss.image?.url
-                                          ?? rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
-
-                            podcast.image = artworkUrl
-
-                            print("Assigned podcast.image:", podcast.image ?? "nil")
-
-                            // Save and refresh episodes
-                            EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
-                                if let latest = (podcast.episode as? Set<Episode>)?
-                                    .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                    .first {
-                                    toggleQueued(latest)
-                                }
-                                print("✅ Loaded test feed episodes")
-                            }
-
-                            try? context.save()
-                        }
-                    } else {
-                        print("❌ Failed to parse feed")
+                // Save and refresh episodes
+                EpisodeManager.refreshPodcastEpisodes(for: podcast, context: context) {
+                    if let latest = (podcast.episode as? Set<Episode>)?
+                        .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                        .first {
+                        toggleQueued(latest)
                     }
-                case .failure(let error):
-                    print("❌ Feed parsing failed:", error)
+                    print("✅ Loaded test feed episodes")
+                }
+
+                do {
+                    try context.save()
+                    print("✅ Test podcast saved successfully")
+                } catch {
+                    print("❌ Failed to save test podcast: \(error)")
                 }
             }
         }

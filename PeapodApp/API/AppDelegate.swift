@@ -125,7 +125,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let context = PersistenceController.shared.container.newBackgroundContext()
 
         context.perform {
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+            EpisodeManager.refreshAllSubscribedPodcasts(context: context) {
                 task.setTaskCompleted(success: true)
                 self.scheduleEpisodeRefresh() // Reschedule after completing
             }

@@ -124,7 +124,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
 
     func refreshEpisodes() {
         guard let context else { return }
-        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+        EpisodeManager.refreshAllSubscribedPodcasts(context: context) {
             self.fetchAll()
         }
     }

@@ -97,7 +97,7 @@ struct WelcomeView: View {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                     poppedPodcastID = nil
                                 }
-                                PodcastLoader.loadFeed(from: url, context: context) { loadedPodcast in
+                                PodcastManager.loadPodcastFromFeed(feedUrl: url, context: context) { loadedPodcast in
                                     if let podcastEntity = loadedPodcast {
                                         podcastEntity.isSubscribed = true
                                         

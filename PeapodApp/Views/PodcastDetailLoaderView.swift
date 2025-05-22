@@ -26,7 +26,7 @@ struct PodcastDetailLoaderView: View {
             }
         }
         .onAppear {
-            PodcastLoader.loadFeed(from: feedUrl, context: context) { podcast in
+            PodcastManager.loadPodcastFromFeed(feedUrl: feedUrl, context: context) { podcast in
                 self.loadedPodcast = podcast
             }
         }

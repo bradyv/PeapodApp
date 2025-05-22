@@ -50,7 +50,7 @@ struct ContentView: View {
                     let now = Date()
                     if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
                         lastRefreshDate = now
-                        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                        EpisodeManager.refreshAllSubscribedPodcasts(context: context)
                     }
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
@@ -58,13 +58,15 @@ struct ContentView: View {
                         let now = Date()
                         if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
                             lastRefreshDate = now
-                            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                            EpisodeManager.refreshAllSubscribedPodcasts(context: context)
                         }
                     }
                 }
                 .scrollDisabled(subscriptions.isEmpty)
                 .refreshable {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                    EpisodeManager.refreshAllSubscribedPodcasts(context: context) {
+                        toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+                    }
                 }
                 
                 VStack(alignment:.trailing) {
@@ -132,7 +134,7 @@ struct ContentView: View {
                 }
             }
         }
-//        .toast()
+        .toast()
     }
     
     private func requestNotificationPermissions() {

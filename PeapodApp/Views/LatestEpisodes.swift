@@ -43,17 +43,6 @@ struct LatestEpisodes: View {
                         .titleSerif()
                     
                     Spacer()
-                    
-//                    Button {
-//                        withAnimation {
-//                            showAll.toggle()
-//                        }
-//                    } label: {
-//                        Label(showAll ? "All" : "Unplayed", systemImage: "chevron.compact.down")
-//                    }
-//                    .labelStyle(.titleOnly)
-//                    .foregroundStyle(Color.accentColor)
-//                    .textBody()
                 }
                 .padding(.horizontal).padding(.top,24)
             }
@@ -156,13 +145,12 @@ struct LatestEpisodes: View {
         .onAppear {
             episodesViewModel.fetchLatest()
         }
-        .toast()
         .maskEdge(.top)
         .maskEdge(.bottom)
-//        .refreshable {
-//            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-////                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-//            }
-//        }
+        .refreshable {
+            EpisodeManager.refreshAllSubscribedPodcasts(context: context) {
+                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
+            }
+        }
     }
 }

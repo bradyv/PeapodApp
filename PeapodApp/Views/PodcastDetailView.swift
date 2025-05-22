@@ -12,6 +12,7 @@ import CoreData
 struct PodcastDetailView: View {
 //    @Environment(\.colorScheme) var colorScheme
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var toastManager: ToastManager
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
     @State private var selectedEpisode: Episode? = nil
@@ -138,6 +139,11 @@ struct PodcastDetailView: View {
                                 }
                             }
                         }
+                        .refreshable {
+                            EpisodeManager.refreshPodcastEpisodes(for: podcast, context: context) {
+                                toastManager.show(message: "\(podcast.title ?? "") is up to date", icon: "checkmark.circle")
+                            }
+                        }
                         .coordinateSpace(name: "scroll")
                         .contentMargins(16, for: .scrollContent)
                         .maskEdge(.top)
@@ -151,7 +157,7 @@ struct PodcastDetailView: View {
                             Task.detached(priority: .background) {
                                 await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
                                 
-                                await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
+                                await EpisodeManager.refreshPodcastEpisodes(for: podcast, context: context) {
                                     DispatchQueue.main.async {
                                         let episodesArray = (podcast.episode as? Set<Episode>)?.sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
                                         episodes = episodesArray

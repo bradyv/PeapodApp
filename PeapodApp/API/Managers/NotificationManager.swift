@@ -7,6 +7,7 @@
 
 import UserNotifications
 import UIKit
+import Kingfisher
 
 func sendNewEpisodeNotification(for episode: Episode) {
     guard let title = episode.podcast?.title else { return }
@@ -19,85 +20,77 @@ func sendNewEpisodeNotification(for episode: Episode) {
     content.sound = .default
     content.userInfo = ["episodeID": episode.id ?? ""]
 
-    // If artwork exists, try to attach it
+    // Try to get image from Kingfisher cache first
     if let imageUrlString = episode.podcast?.image,
        let imageUrl = URL(string: imageUrlString) {
         
-        // Download the image asynchronously
-        URLSession.shared.downloadTask(with: imageUrl) { tempFileUrl, response, error in
-            if let tempFileUrl = tempFileUrl {
-                do {
-                    let ext = imageUrl.pathExtension.isEmpty ? "jpg" : imageUrl.pathExtension
-                    let uniqueName = UUID().uuidString + "." + ext
-                    let localUrl = FileManager.default.temporaryDirectory.appendingPathComponent(uniqueName)
-
-                    try FileManager.default.moveItem(at: tempFileUrl, to: localUrl)
-
-                    let attachment = try UNNotificationAttachment(identifier: "episodeImage", url: localUrl)
-                    content.attachments = [attachment]
-                } catch {
-                    print("❌ Failed to attach image to notification: \(error.localizedDescription)")
-                }
-            } else {
-                print("❌ Image download failed: \(error?.localizedDescription ?? "Unknown error")")
-            }
-
-            // Whether download succeeds or fails, always send notification
-            let request = UNNotificationRequest(
-                identifier: UUID().uuidString,
-                content: content,
-                trigger: nil
-            )
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error = error {
-                    print("❌ Failed to schedule notification: \(error.localizedDescription)")
+        KingfisherManager.shared.cache.retrieveImage(forKey: imageUrl.cacheKey) { result in
+            switch result {
+            case .success(let value):
+                if let cachedImage = value.image {
+                    sendNotificationWithCachedImage(image: cachedImage, content: content, title: title)
                 } else {
-                    print("✅ Notification sent for \(title)")
+                    sendNotificationWithoutImage(content: content, title: title)
                 }
-            }
-        }.resume()
-        
-    } else {
-        // No artwork, send notification immediately
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ Failed to schedule notification: \(error.localizedDescription)")
-            } else {
-                print("✅ Notification sent for \(title)")
+            case .failure(let error):
+                print("❌ Failed to retrieve cached image: \(error.localizedDescription)")
+                sendNotificationWithoutImage(content: content, title: title)
             }
         }
+    } else {
+        sendNotificationWithoutImage(content: content, title: title)
     }
 }
 
-private func downloadImageAndAttach(from url: URL, content: UNMutableNotificationContent, completion: @escaping (UNNotificationRequest) -> Void) {
-    let task = URLSession.shared.downloadTask(with: url) { tempFileUrl, response, error in
-        guard let tempFileUrl = tempFileUrl else {
-            completion(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
-            return
-        }
-
-        let ext = url.pathExtension.isEmpty ? "jpg" : url.pathExtension
-        let uniqueName = UUID().uuidString + "." + ext
-        let localUrl = FileManager.default.temporaryDirectory.appendingPathComponent(uniqueName)
-
-        do {
-            try FileManager.default.moveItem(at: tempFileUrl, to: localUrl)
-
-            let attachment = try UNNotificationAttachment(identifier: "episodeImage", url: localUrl)
-            content.attachments = [attachment]
-        } catch {
-            print("❌ Could not attach image to notification: \(error.localizedDescription)")
-        }
-
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        completion(request)
+private func sendNotificationWithCachedImage(image: UIImage, content: UNMutableNotificationContent, title: String) {
+    guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        print("❌ Failed to convert image to JPEG data")
+        sendNotificationWithoutImage(content: content, title: title)
+        return
     }
-    task.resume()
+    
+    let tempURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathExtension("jpg")
+    
+    do {
+        try imageData.write(to: tempURL)
+        let attachment = try UNNotificationAttachment(identifier: "episodeImage", url: tempURL)
+        content.attachments = [attachment]
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            // Clean up temp file after notification is scheduled
+            try? FileManager.default.removeItem(at: tempURL)
+            
+            if let error = error {
+                print("❌ Failed to schedule notification: \(error.localizedDescription)")
+            } else {
+                print("✅ Notification sent for \(title) with cached image")
+            }
+        }
+    } catch {
+        print("❌ Failed to create image attachment: \(error.localizedDescription)")
+        // Clean up temp file on error
+        try? FileManager.default.removeItem(at: tempURL)
+        sendNotificationWithoutImage(content: content, title: title)
+    }
+}
+
+private func sendNotificationWithoutImage(content: UNMutableNotificationContent, title: String) {
+    let request = UNNotificationRequest(
+        identifier: UUID().uuidString,
+        content: content,
+        trigger: nil
+    )
+    
+    UNUserNotificationCenter.current().add(request) { error in
+        if let error = error {
+            print("❌ Failed to schedule notification: \(error.localizedDescription)")
+        } else {
+            print("✅ Notification sent for \(title)")
+        }
+    }
 }
 
 extension Notification.Name {

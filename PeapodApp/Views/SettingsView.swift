@@ -68,6 +68,17 @@ struct SettingsView: View {
     @State private var showDebugTools = false
     @State private var showingMailView = false
     @State private var showMailErrorAlert = false
+    @State private var showingAppIcons = false
+    @State var appIcons = [
+        AppIcons(name: "Peapod", asset: "AppIcon-Green", splash: "Splash-Green"),
+        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint", splash: "Splash-Blueprint"),
+        AppIcons(name: "Pastel", asset: "AppIcon-Pastel", splash: "Splash-Pastel"),
+        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino", splash: "Splash-Cupertino"),
+        AppIcons(name: "Pride", asset: "AppIcon-Pride", splash: "Splash-Pride"),
+        AppIcons(name: "Coachella", asset: "AppIcon-Coachella", splash: "Splash-Coachella"),
+        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler", splash: "Splash-Rinzler"),
+        AppIcons(name: "Clouds", asset: "AppIcon-Clouds", splash: "Splash-Clouds"),
+    ]
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -82,19 +93,6 @@ struct SettingsView: View {
         // Fallback to default splash if no match found
         return "Splash-Green" // or whatever your default should be
     }
-    
-    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
-    
-    @State var appIcons = [
-        AppIcons(name: "Peapod", asset: "AppIcon-Green", splash: "Splash-Green"),
-        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint", splash: "Splash-Blueprint"),
-        AppIcons(name: "Pastel", asset: "AppIcon-Pastel", splash: "Splash-Pastel"),
-        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino", splash: "Splash-Cupertino"),
-        AppIcons(name: "Pride", asset: "AppIcon-Pride", splash: "Splash-Pride"),
-        AppIcons(name: "Coachella", asset: "AppIcon-Coachella", splash: "Splash-Coachella"),
-        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler", splash: "Splash-Rinzler"),
-        AppIcons(name: "Clouds", asset: "AppIcon-Clouds", splash: "Splash-Clouds"),
-    ]
     
     var namespace: Namespace.ID
     
@@ -377,81 +375,45 @@ struct SettingsView: View {
                     }
 
                     VStack {
+                        let themeIcon = appTheme.icon
+                        let themeLabel = appTheme.rawValue
+                        
                         Text("Appearance")
                             .headerSection()
                             .frame(maxWidth:.infinity, alignment: .leading)
                             .padding(.top,24)
                         
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing:8), count: 3)) {
-                            ForEach(AppTheme.allCases) { theme in
-                                let isSelected = appTheme == theme
-                                VStack(alignment:.leading, spacing: 8) {
-                                    Image(systemName: theme.icon)
-                                        .symbolRenderingMode(.hierarchical)
-                                    Text(theme.label)
-                                        .textBody()
+                        RowItem(icon: themeIcon, label: "Theme") {
+                            Menu {
+                                ForEach(AppTheme.allCases) { theme in
+                                    Button(action: {
+                                        appThemeRawValue = theme.rawValue
+                                    }) {
+                                        HStack {
+                                            Text(theme.label.capitalized)
+                                            Image(systemName:theme.icon)
+                                                .symbolRenderingMode(.hierarchical)
+                                        }
+                                    }
                                 }
-                                .frame(maxWidth:.infinity, alignment:.leading)
-                                .padding()
-                                .clipShape(RoundedRectangle(cornerRadius:8))
-                                .contentShape(RoundedRectangle(cornerRadius:8))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius:8)
-                                        .stroke(isSelected ? Color.heading : Color.surface, lineWidth: 2)
-                                )
-                                .onTapGesture {
-                                    appThemeRawValue = theme.rawValue
+                            } label: {
+                                HStack {
+                                    Text(themeLabel.capitalized)
+                                        .textBody()
+                                    Image(systemName:"chevron.up.chevron.down")
                                 }
                             }
                         }
                         
-                        VStack {
-                            Text("App Icon")
-                                .headerSection()
-                                .frame(maxWidth:.infinity, alignment: .leading)
-                                .padding(.top,24)
-                            
-                            LazyVGrid(columns:columns) {
-                                ForEach(appIcons, id: \.name) { icon in
-                                    let isSelected = selectedIconName == icon.asset
-                                    VStack {
-                                        ZStack(alignment:.bottomTrailing) {
-                                            Image(icon.name)
-                                                .resizable()
-                                                .aspectRatio(1,contentMode: .fit)
-                                                .frame(width:64,height:64)
-                                                .onTapGesture {
-                                                    UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon" ? nil : icon.asset) { error in
-                                                        if let error = error {
-                                                            print("❌ Failed to switch icon: \(error)")
-                                                        } else {
-                                                            print("✅ Icon switched to \(icon.name)")
-                                                            withAnimation(.easeInOut(duration: 0.5)) {
-                                                                selectedIconName = icon.asset
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            
-                                            VStack {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundStyle(Color.heading)
-                                            }
-                                            .padding(2)
-                                            .background(Color.background)
-                                            .clipShape(Circle())
-                                            .opacity(isSelected ? 1 : 0)
-                                            .offset(x:4,y:4)
-                                        }
-                                        
-                                        Text(icon.name)
-                                            .foregroundStyle(isSelected ? .heading : .text)
-                                            .textDetail()
-                                        
-                                    }
-                                }
+                        RowItem(icon: "app.badge", label: "App Icon")
+                            .onTapGesture {
+                                showingAppIcons = true
                             }
-                        }
+                            .sheet(isPresented: $showingAppIcons) {
+                                AppIconView(selectedIconName: $selectedIconName)
+                                    .modifier(PPSheet())
+                                    .presentationDetents([.medium,.large])
+                            }
                         
                         VStack(alignment:.leading) {
                             Text("Peapod")
@@ -498,13 +460,13 @@ struct SettingsView: View {
                                 .multilineTextAlignment(.leading)
                                 .textBody()
                             
-                            NavigationLink {
-                                PPPopover(showBg: true) {
-                                    Acknowledgements()
-                                }
-                            } label: {
-                                RowItem(icon: "link.circle", label: "Acknowledgements")
-                            }
+//                            NavigationLink {
+//                                PPPopover(showBg: true) {
+//                                    Acknowledgements()
+//                                }
+//                            } label: {
+//                                RowItem(icon: "link.circle", label: "Acknowledgements")
+//                            }
                             
                             if _isDebugAssertConfiguration() || showDebugTools {
                                 Text("Debug")

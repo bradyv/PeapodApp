@@ -9,16 +9,9 @@ import SwiftUI
 
 struct AppIconView: View {
     @Binding var selectedIconName: String
-    @State var appIcons = [
-        AppIcons(name: "Peapod", asset: "AppIcon-Green", splash: "Splash-Green"),
-        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint", splash: "Splash-Blueprint"),
-        AppIcons(name: "Pastel", asset: "AppIcon-Pastel", splash: "Splash-Pastel"),
-        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino", splash: "Splash-Cupertino"),
-        AppIcons(name: "Pride", asset: "AppIcon-Pride", splash: "Splash-Pride"),
-        AppIcons(name: "Coachella", asset: "AppIcon-Coachella", splash: "Splash-Coachella"),
-        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler", splash: "Splash-Rinzler"),
-        AppIcons(name: "Clouds", asset: "AppIcon-Clouds", splash: "Splash-Clouds"),
-    ]
+    private var appIcons: [AppIcons] {
+        return AppIconManager.shared.availableIcons
+    }
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
     
     var body: some View {

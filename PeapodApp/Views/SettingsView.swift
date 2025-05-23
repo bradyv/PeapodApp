@@ -69,29 +69,13 @@ struct SettingsView: View {
     @State private var showingMailView = false
     @State private var showMailErrorAlert = false
     @State private var showingAppIcons = false
-    @State var appIcons = [
-        AppIcons(name: "Peapod", asset: "AppIcon-Green", splash: "Splash-Green"),
-        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint", splash: "Splash-Blueprint"),
-        AppIcons(name: "Pastel", asset: "AppIcon-Pastel", splash: "Splash-Pastel"),
-        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino", splash: "Splash-Cupertino"),
-        AppIcons(name: "Pride", asset: "AppIcon-Pride", splash: "Splash-Pride"),
-        AppIcons(name: "Coachella", asset: "AppIcon-Coachella", splash: "Splash-Coachella"),
-        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler", splash: "Splash-Rinzler"),
-        AppIcons(name: "Clouds", asset: "AppIcon-Clouds", splash: "Splash-Clouds"),
-    ]
+    private var currentSplashImage: String {
+        return AppIconManager.shared.splashImage(for: selectedIconName)
+    }
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
         set { appThemeRawValue = newValue.rawValue }
-    }
-    
-    private var currentSplashImage: String {
-        // Find the matching app icon and return its splash image
-        if let matchingIcon = appIcons.first(where: { $0.asset == selectedIconName }) {
-            return matchingIcon.splash
-        }
-        // Fallback to default splash if no match found
-        return "Splash-Green" // or whatever your default should be
     }
     
     var namespace: Namespace.ID
@@ -636,17 +620,5 @@ extension Bundle {
     }
     var buildVersionNumber: String? {
         return infoDictionary?["CFBundleVersion"] as? String
-    }
-}
-
-struct AppIcons {
-    var name: String
-    var asset: String
-    var splash: String
-    
-    init(name: String, asset: String, splash: String) {
-        self.name = name
-        self.asset = asset
-        self.splash = splash
     }
 }

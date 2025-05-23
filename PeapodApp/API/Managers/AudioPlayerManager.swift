@@ -10,6 +10,7 @@ import AVFoundation
 import Combine
 import MediaPlayer
 import CoreData
+import Kingfisher
 
 // MARK: - AudioPlayerState enum for more precise state tracking
 enum AudioPlayerState: Equatable {
@@ -932,25 +933,82 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
 
+        // Try Kingfisher cache first
+        KingfisherManager.shared.cache.retrieveImage(forKey: url.cacheKey) { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let value):
+                if let cachedImage = value.image {
+                    // Found in cache - create artwork immediately
+                    let artwork = MPMediaItemArtwork(boundsSize: cachedImage.size) { _ in cachedImage }
+                    self.cachedArtwork = artwork
+                    completion(artwork)
+                    print("✅ Using cached artwork for: \(episode.title ?? "Episode")")
+                } else {
+                    // Not in cache - download and cache it
+                    self.downloadAndCacheArtwork(from: url, for: episode, completion: completion)
+                }
+            case .failure(let error):
+                print("⚠️ Cache retrieval error: \(error.localizedDescription)")
+                // Fallback to download
+                self.downloadAndCacheArtwork(from: url, for: episode, completion: completion)
+            }
+        }
+    }
+
+    private func downloadAndCacheArtwork(from url: URL, for episode: Episode, completion: @escaping (MPMediaItemArtwork?) -> Void) {
         URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
             guard let self = self else { return }
             
             if let error = error {
-                print("⚠️ Artwork fetch error: \(error.localizedDescription)")
+                print("⚠️ Artwork download error: \(error.localizedDescription)")
                 completion(nil)
                 return
             }
 
             guard let data = data, let image = UIImage(data: data) else {
-                print("⚠️ Failed to decode artwork from \(validImageUrl)")
+                print("⚠️ Failed to decode artwork from \(url.absoluteString)")
                 completion(nil)
                 return
             }
+
+            // Cache the image in Kingfisher for future use
+            KingfisherManager.shared.cache.store(image, forKey: url.cacheKey)
+            print("✅ Cached artwork for future use: \(episode.title ?? "Episode")")
 
             let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
             self.cachedArtwork = artwork
             completion(artwork)
         }.resume()
+    }
+
+    private func preloadArtwork(for episode: Episode) {
+        let imageUrls = [episode.episodeImage, episode.podcast?.image]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+
+        guard let validImageUrl = imageUrls.first, let url = URL(string: validImageUrl) else { return }
+
+        // Check if already cached
+        KingfisherManager.shared.cache.retrieveImage(forKey: url.cacheKey) { result in
+            switch result {
+            case .success(let value):
+                if value.image == nil {
+                    // Not cached, preload it
+                    KingfisherManager.shared.retrieveImage(with: url) { result in
+                        switch result {
+                        case .success(let imageResult):
+                            print("✅ Preloaded artwork for: \(episode.title ?? "Episode")")
+                        case .failure(let error):
+                            print("⚠️ Failed to preload artwork: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            case .failure:
+                break
+            }
+        }
     }
 
     @objc private func handleAudioInterruption(notification: Notification) {

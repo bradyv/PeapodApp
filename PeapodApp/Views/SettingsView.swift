@@ -557,7 +557,7 @@ struct SettingsView: View {
         let context = PersistenceController.shared.container.viewContext
 
         context.perform {
-            let testFeedURL = "https://bradyv.github.io/bvfeed.github.io/feed.xml"
+            let testFeedURL = "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml"
 
             // Delete old if exists
             let fetchRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()

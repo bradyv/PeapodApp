@@ -7,6 +7,8 @@
 
 import SwiftUI
 import BackgroundTasks
+import FirebaseCore
+import FirebaseMessaging
 
 @main
 struct Peapod: App {
@@ -24,6 +26,9 @@ struct Peapod: App {
     }
     
     init() {
+        // Configure Firebase based on environment
+        FirebaseConfig.configure()
+        
         #if !DEBUG
         LogManager.shared.setupAppLifecycleLogging()
         LogManager.shared.startLogging()

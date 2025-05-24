@@ -83,7 +83,6 @@
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
         <string>com.bradyv.Peapod.Dev.deleteOldEpisodes.v1</string>
-        <string>com.bradyv.Peapod.Dev.refreshEpisodes.v1</string>
     </array>
 </dict>
 </plist>

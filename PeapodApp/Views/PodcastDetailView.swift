@@ -5,6 +5,13 @@
 //  Created by Brady Valentino on 2025-03-31.
 //
 
+//
+//  PodcastDetailView.swift
+//  PeapodApp
+//
+//  Created by Brady Valentino on 2025-03-31.
+//
+
 import SwiftUI
 import FeedKit
 import CoreData
@@ -102,6 +109,9 @@ struct PodcastDetailView: View {
                                     Button("Delete", role: .destructive) {
                                         context.delete(podcast)
                                         try? context.save()
+                                        
+                                        // 🔥 Sync subscription changes with Firebase after deletion
+                                        SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
                                     }
                                     Button("Cancel", role: .cancel) { }
                                 } message: { podcast in
@@ -206,17 +216,21 @@ struct PodcastDetailView: View {
                                         .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                                         
                                         Button(action: {
+                                            // Toggle subscription state
                                             podcast.isSubscribed.toggle()
+                                            
+                                            // Show toast message
                                             toastManager.show(message: podcast.isSubscribed ? "Followed \(podcast.title ?? "")" : "Unfollowed \(podcast.title ?? "")", icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle")
                                             
                                             if podcast.isSubscribed {
+                                                // Add latest episode to queue when subscribing
                                                 if let latest = (podcast.episode as? Set<Episode>)?
                                                     .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
                                                     .first {
                                                     toggleQueued(latest)
                                                 }
                                             } else {
-                                                // Remove all of this podcast's episodes from the Queue playlist
+                                                // Remove all of this podcast's episodes from the Queue playlist when unsubscribing
                                                 let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
                                                 request.predicate = NSPredicate(format: "name == %@", "Queue")
 
@@ -230,7 +244,16 @@ struct PodcastDetailView: View {
                                                 }
                                             }
 
-                                            try? podcast.managedObjectContext?.save()
+                                            // Save Core Data changes
+                                            do {
+                                                try podcast.managedObjectContext?.save()
+                                                
+                                                // 🔥 Sync subscription changes with Firebase after Core Data save
+                                                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+                                                
+                                            } catch {
+                                                print("❌ Failed to save subscription change: \(error)")
+                                            }
                                         }) {
                                             Text(podcast.isSubscribed ? "Unfollow" : "Follow")
                                         }

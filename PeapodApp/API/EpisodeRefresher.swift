@@ -47,8 +47,6 @@ class EpisodeRefresher {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     context.perform {
-                        // No transaction methods in NSManagedObjectContext, using normal operations
-                        
                         // Update podcast metadata
                         if podcast.image == nil {
                             podcast.image = rss.image?.url ??
@@ -131,6 +129,8 @@ class EpisodeRefresher {
                             }
                         }
                         
+                        var newEpisodesAdded = 0
+                        
                         // Process episodes
                         for item in rss.items ?? [] {
                             guard let title = item.title else { continue }
@@ -164,6 +164,7 @@ class EpisodeRefresher {
                             if existingEpisode == nil {
                                 episode.id = UUID().uuidString
                                 episode.podcast = podcast
+                                newEpisodesAdded += 1
                             }
                             
                             // Update episode attributes
@@ -177,21 +178,23 @@ class EpisodeRefresher {
                             }
                             episode.episodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
                             
-                            // Handle new episodes: notify and queue
+                            // Handle new episodes: queue them if subscribed
                             if existingEpisode == nil, podcast.isSubscribed {
-                                print("📣 New episode detected: \(episode.title ?? "Unknown") — sending notification")
-                                sendNewEpisodeNotification(for: episode)
-                                
+                                print("🆕 New episode detected in app: \(episode.title ?? "Unknown")")
                                 toggleQueued(episode)
                             } else if existingEpisode != nil {
-                                print("🧹 Existing episode updated: \(episode.title ?? "Unknown") — no notification")
+//                                print("🧹 Existing episode updated: \(episode.title ?? "Unknown")")
                             }
                         }
                         
                         // Save changes
                         do {
                             try context.save()
-                            print("✅ Saved episodes for \(podcast.title ?? "Unknown")")
+                            if newEpisodesAdded > 0 {
+                                print("✅ Saved episodes for \(podcast.title ?? "Unknown") - \(newEpisodesAdded) new episodes added")
+                            } else {
+                                print("✅ Saved episodes for \(podcast.title ?? "Unknown")")
+                            }
                             completion?()
                         } catch {
                             print("❌ Error saving podcast refresh: \(error)")
@@ -241,5 +244,12 @@ class EpisodeRefresher {
                 completion?()
             }
         }
+    }
+    
+    // 🆕 NEW: Force refresh for push notifications
+    static func forceRefreshForNotification(completion: (() -> Void)? = nil) {
+        print("🔔 Force refreshing all subscribed podcasts due to push notification")
+        let context = PersistenceController.shared.container.newBackgroundContext()
+        refreshAllSubscribedPodcasts(context: context, completion: completion)
     }
 }

@@ -15,6 +15,7 @@
 		239EFB8D2DE2607A0036D6F3 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 239EFB8C2DE2607A0036D6F3 /* FirebaseMessaging */; };
 		239EFB942DE26AE20036D6F3 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 239EFB932DE26AE20036D6F3 /* FirebaseFunctions */; };
 		239EFBA02DE285950036D6F3 /* NotificationServiceExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 239EFB992DE285950036D6F3 /* NotificationServiceExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		239EFDEF2DE2D4340036D6F3 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 239EFDEE2DE2D4340036D6F3 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,15 @@
 			);
 			target = 239EFB982DE285950036D6F3 /* NotificationServiceExtension */;
 		};
+		239EFDF12DE2D4500036D6F3 /* Exceptions for "PeapodApp" folder in "NotificationServiceExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				API/Firebase/FirebaseConfig.swift,
+				"GoogleService-Info-Debug.plist",
+				"GoogleService-Info-Release.plist",
+			);
+			target = 239EFB982DE285950036D6F3 /* NotificationServiceExtension */;
+		};
 		23A314BB2DA5D41300519189 /* Exceptions for "PeapodApp" folder in "PeapodApp" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -84,6 +94,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				23A314BB2DA5D41300519189 /* Exceptions for "PeapodApp" folder in "PeapodApp" target */,
+				239EFDF12DE2D4500036D6F3 /* Exceptions for "PeapodApp" folder in "NotificationServiceExtension" target */,
 			);
 			path = PeapodApp;
 			sourceTree = "<group>";
@@ -141,6 +152,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				239EFDEF2DE2D4340036D6F3 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -154,6 +166,7 @@
 				23599E432D9B895D00F2DE3B /* PeapodAppTests */,
 				23599E4D2D9B895D00F2DE3B /* PeapodAppUITests */,
 				239EFB9A2DE285950036D6F3 /* NotificationServiceExtension */,
+				239EFDED2DE2D4340036D6F3 /* Frameworks */,
 				23599E2C2D9B895C00F2DE3B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -167,6 +180,13 @@
 				239EFB992DE285950036D6F3 /* NotificationServiceExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		239EFDED2DE2D4340036D6F3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -266,6 +286,7 @@
 			);
 			name = NotificationServiceExtension;
 			packageProductDependencies = (
+				239EFDEE2DE2D4340036D6F3 /* FirebaseMessaging */,
 			);
 			productName = NotificationServiceExtension;
 			productReference = 239EFB992DE285950036D6F3 /* NotificationServiceExtension.appex */;
@@ -859,6 +880,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 239EFB8B2DE2607A0036D6F3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFunctions;
+		};
+		239EFDEE2DE2D4340036D6F3 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 239EFB8B2DE2607A0036D6F3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

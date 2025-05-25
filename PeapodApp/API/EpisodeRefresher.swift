@@ -150,6 +150,71 @@ class EpisodeRefresher {
         return episodeMap
     }
     
+    private static func findExistingEpisode(
+        item: RSSFeedItem,
+        podcast: Podcast,
+        existingEpisodes: [String: Episode],
+        context: NSManagedObjectContext
+    ) -> Episode? {
+        
+        let title = item.title
+        let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let audioUrl = item.enclosure?.attributes?.url
+        let airDate = item.pubDate
+        
+        // Strategy 1: Match by audio URL (most reliable)
+        if let audioUrl = audioUrl {
+            if let existing = existingEpisodes[audioUrl] {
+                print("🎯 Found existing episode by audio URL: \(existing.title ?? "Unknown")")
+                return existing
+            }
+        }
+        
+        // Strategy 2: Match by GUID
+        if let guid = guid {
+            if let existing = existingEpisodes[guid] {
+                print("🎯 Found existing episode by GUID: \(existing.title ?? "Unknown")")
+                return existing
+            }
+        }
+        
+        // Strategy 3: Match by title + air date
+        if let title = title, let airDate = airDate {
+            let titleDateKey = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
+            if let existing = existingEpisodes[titleDateKey] {
+                print("🎯 Found existing episode by title+date: \(existing.title ?? "Unknown")")
+                return existing
+            }
+        }
+        
+        // Strategy 4: FALLBACK - Direct database query for extra safety
+        // This catches cases where the pre-fetch might have missed something
+        if let guid = guid {
+            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcast == %@", guid, podcast)
+            fetchRequest.fetchLimit = 1
+            
+            if let existing = try? context.fetch(fetchRequest).first {
+                print("🎯 Found existing episode via fallback database query: \(existing.title ?? "Unknown")")
+                return existing
+            }
+        }
+        
+        // Strategy 5: LAST RESORT - Match by title alone (for episodes with inconsistent GUIDs)
+        if let title = title {
+            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "title == %@ AND podcast == %@", title, podcast)
+            fetchRequest.fetchLimit = 1
+            
+            if let existing = try? context.fetch(fetchRequest).first {
+                print("🎯 Found existing episode by title match: \(existing.title ?? "Unknown")")
+                return existing
+            }
+        }
+        
+        return nil
+    }
+    
     // 🚀 Process a batch of episodes
     private static func processBatch(
         items: [RSSFeedItem],
@@ -162,23 +227,13 @@ class EpisodeRefresher {
         for item in items {
             guard let title = item.title else { continue }
             
-            let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let audioUrl = item.enclosure?.attributes?.url
-            let airDate = item.pubDate
-            
-            // Try to find existing episode
-            var existingEpisode: Episode?
-            
-            if let audioUrl = audioUrl {
-                existingEpisode = existingEpisodes[audioUrl]
-            }
-            if existingEpisode == nil, let guid = guid {
-                existingEpisode = existingEpisodes[guid]
-            }
-            if existingEpisode == nil, let airDate = airDate {
-                let titleDateKey = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
-                existingEpisode = existingEpisodes[titleDateKey]
-            }
+            // Use enhanced duplicate detection
+            let existingEpisode = findExistingEpisode(
+                item: item,
+                podcast: podcast,
+                existingEpisodes: existingEpisodes,
+                context: context
+            )
             
             // Create or update episode
             let episode = existingEpisode ?? Episode(context: context)
@@ -188,10 +243,14 @@ class EpisodeRefresher {
                 episode.podcast = podcast
                 newEpisodesCount += 1
                 
+                print("🆕 Creating NEW episode: \(title)")
+                
                 // Queue new episodes if subscribed
                 if podcast.isSubscribed {
                     toggleQueued(episode)
                 }
+            } else {
+                print("🔄 Updating EXISTING episode: \(title)")
             }
             
             // Update episode attributes

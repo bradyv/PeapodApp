@@ -16,7 +16,7 @@ class FirebaseConfig {
             return
         }
         
-        var configFileName = "GoogleService-Info"
+        var configFileName = "GoogleService-Info-Release"
         
         switch bundleId {
         case "com.bradyv.Peapod.Debug":
@@ -24,21 +24,31 @@ class FirebaseConfig {
             print("🔥 Detected DEBUG environment")
             
         case "com.bradyv.Peapod.Dev":
-            configFileName = "GoogleService-Info-Dev"
+            configFileName = "GoogleService-Info-Release"
             print("🔥 Detected DEV environment")
             
         default:
+            configFileName = "GoogleService-Info-Release" // Explicit default
             print("🔥 Using default Firebase config for bundle: \(bundleId)")
         }
+        
+        print("🔍 Looking for config file: \(configFileName).plist")
         
         if let path = Bundle.main.path(forResource: configFileName, ofType: "plist"),
            let options = FirebaseOptions(contentsOfFile: path) {
             FirebaseApp.configure(options: options)
             print("✅ Firebase configured with \(configFileName).plist")
+            print("✅ Project ID: \(options.projectID ?? "unknown")")
         } else {
+            print("❌ Could not find \(configFileName).plist in bundle")
+            print("📁 Available plist files in bundle:")
+            Bundle.main.paths(forResourcesOfType: "plist", inDirectory: nil).forEach { path in
+                print("   - \(URL(fileURLWithPath: path).lastPathComponent)")
+            }
+            
             // Fallback to default
             FirebaseApp.configure()
-            print("⚠️ Fallback to default Firebase config (couldn't find \(configFileName).plist)")
+            print("⚠️ Fallback to default Firebase config")
         }
     }
 }

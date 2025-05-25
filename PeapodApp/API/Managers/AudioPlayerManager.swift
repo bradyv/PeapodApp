@@ -108,16 +108,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func addRateObserver(for episodeID: String) {
         guard let player = player else { return }
         
-        // Observe the player's rate to know when it actually starts playing
-        let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] player, _ in
+        let rateObserver = player.observe(\.rate, options: [.new, .old]) { [weak self] player, change in
             guard let self = self else { return }
             
+            let newRate = change.newValue ?? 0
+            let oldRate = change.oldValue ?? 0
+            
             DispatchQueue.main.async {
-                // Handle transitions to playing state (rate > 0)
-                if player.rate > 0 {
+                // Only transition to playing when rate actually goes from 0 to >0
+                if newRate > 0 && oldRate == 0 {
                     switch self.state {
                     case .loading(let id) where id == episodeID:
-                        print("🎵 Audio started playing from loading for episode: \(episodeID)")
+                        print("🎵 Audio actually started playing for episode: \(episodeID)")
                         self.updateState(to: .playing(episodeID: episodeID))
                         
                     case .paused(let id) where id == episodeID:
@@ -128,8 +130,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                         break
                     }
                 }
-                // Handle transitions to paused state (rate == 0)
-                else if player.rate == 0 {
+                // Handle transitions to paused state (rate goes from >0 to 0)
+                else if newRate == 0 && oldRate > 0 {
                     if case .playing(let id) = self.state, id == episodeID {
                         print("⏸️ Audio paused for episode: \(episodeID)")
                         self.updateState(to: .paused(episodeID: episodeID))
@@ -138,7 +140,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
         
-        // Store the observer so we can clean it up later
         self.rateObserver = rateObserver
     }
     
@@ -324,7 +325,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self.progress = lastPosition
             self.configureAudioSession(activePlayback: true)
             self.setupPlayerItemObservations(playerItem, for: episodeID)
-            self.addRateObserver(for: episodeID) // Add this line
+            self.addRateObserver(for: episodeID)
             self.addTimeObserver()
         }
 
@@ -333,36 +334,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 self.player?.seek(to: CMTime(seconds: lastPosition, preferredTimescale: 1)) { [weak self] _ in
                     guard let self = self else { return }
                     self.player?.playImmediately(atRate: self.playbackSpeed)
-                    // State will be updated by rate observer when playback actually starts
                 }
             }
         } else {
             await MainActor.run {
                 self.player?.playImmediately(atRate: self.playbackSpeed)
-                // State will be updated by rate observer when playback actually starts
             }
         }
 
         // Defer metadata updates
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             self.updateNowPlayingInfo()
-        }
-
-        // Keep the existing timeout as backup - reduced to 8 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
-            guard let self = self else { return }
-            
-            if case .loading(let id) = self.state, id == episodeID {
-                print("⚠️ Loading timeout triggered for episode \(episodeID)")
-                
-                // Check if player is actually playing despite loading state
-                if let player = self.player, player.rate > 0 {
-                    self.updateState(to: .playing(episodeID: episodeID))
-                } else {
-                    // Otherwise reset to idle
-                    self.updateState(to: .idle)
-                }
-            }
         }
     }
     
@@ -373,6 +355,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             DispatchQueue.main.async {
                 if item.isPlaybackLikelyToKeepUp {
                     print("🟢 Player item ready to keep up for episode: \(episodeID)")
+                    // DON'T change state here - let rate observer handle it
                 }
             }
         }
@@ -384,29 +367,29 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 switch item.status {
                 case .readyToPlay:
                     print("✅ Player item ready for episode: \(episodeID)")
+                    // DON'T transition from loading here - wait for actual audio playback
                     
                 case .failed:
                     let errorDescription = item.error?.localizedDescription ?? "unknown error"
                     print("❌ AVPlayerItem failed: \(errorDescription)")
                     
-                    // Handle the "Cannot Complete Action" error specifically
                     if let error = item.error as NSError?,
                        error.localizedDescription.contains("Cannot Complete Action") {
                         print("🔄 Attempting to recover from 'Cannot Complete Action' error")
                         
-                        // Only attempt recovery if we're in a loading or playing state for this episode
                         if case .loading(let id) = self.state, id == episodeID {
                             self.handlePlayerItemFailure(for: episodeID)
                         } else if case .playing(let id) = self.state, id == episodeID {
                             self.handlePlayerItemFailure(for: episodeID)
                         } else {
-                            // Just reset state if we're not actively trying to play this episode
                             self.updateState(to: .idle)
                         }
                     } else {
-                        // For other errors, just reset state
+                        // For other errors, only reset if we're loading this episode
                         if case .loading(let id) = self.state, id == episodeID {
+                            print("❌ Abandoning playback attempt due to player item failure")
                             self.updateState(to: .idle)
+                            self.cleanupPlayer()
                         }
                     }
                     

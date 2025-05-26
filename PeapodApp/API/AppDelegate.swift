@@ -25,7 +25,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
-        setupCurrentUser(context: PersistenceController.shared.container.viewContext)
+        UserManager.shared.setupCurrentUser()
 
         // Keep cleanup task for old episodes
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1", using: nil) { task in
@@ -193,7 +193,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
     
     private func sendTokenToBackend(token: String) {
-        guard let user = getCurrentUser() else {
+        guard UserManager.shared.currentUser != nil else {
             print("❌ No current user found")
             return
         }
@@ -207,7 +207,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             let subscribedPodcasts = try context.fetch(request)
             let feedUrls = subscribedPodcasts.compactMap { $0.feedUrl }
             
-            let cleanUserID = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+            let cleanUserID = UserManager.shared.cleanUserID
             print("✅ Using UUID user ID for Firebase: \(cleanUserID)")
             
             // Send to Firebase Functions using Firebase SDK
@@ -218,7 +218,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 "fcmToken": token,
                 "userID": cleanUserID,
                 "subscribedFeeds": feedUrls,
-                "environment": getCurrentEnvironment()
+                "environment": UserManager.shared.currentEnvironment
             ]
             
             registerUser.call(data) { result, error in
@@ -232,25 +232,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         } catch {
             print("❌ Failed to fetch subscribed podcasts: \(error)")
         }
-    }
-    
-    private func getCurrentEnvironment() -> String {
-        guard let bundleId = Bundle.main.bundleIdentifier else { return "unknown" }
-        
-        switch bundleId {
-        case "com.bradyv.Peapod.Debug":
-            return "debug"
-        case "com.bradyv.Peapod.Dev":
-            return "dev"
-        default:
-            return "prod"
-        }
-    }
-    
-    private func getCurrentUser() -> User? {
-        let context = PersistenceController.shared.container.viewContext
-        let request: NSFetchRequest<User> = User.fetchRequest()
-        return try? context.fetch(request).first
     }
     
     // MARK: - Background Tasks (keeping cleanup only)
@@ -313,54 +294,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             try BGTaskScheduler.shared.submit(request)
         } catch {
             print("Could not schedule episode cleanup task: \(error)")
-        }
-    }
-    
-    func checkAndSetUserSince(for user: User, context: NSManagedObjectContext) {
-        // Check if userSince is nil
-        if user.userSince == nil {
-            // Set to current date
-            user.userSince = Date()
-            
-            // Save the context
-            do {
-                try context.save()
-                print("User since date set to: \(user.userSince!)")
-            } catch {
-                print("Failed to save user since date: \(error)")
-            }
-        }
-    }
-    
-    func setupCurrentUser(context: NSManagedObjectContext) {
-        let request: NSFetchRequest<User> = User.fetchRequest()
-        
-        do {
-            let users = try context.fetch(request)
-            
-            if let existingUser = users.first {
-                checkAndSetUserSince(for: existingUser, context: context)
-            } else {
-                let newUser = User(context: context)
-                newUser.userSince = Date()
-                
-                // Use the computed property from the extension
-                if let receiptURL = Bundle.main.appStoreReceiptURL {
-                    let isDownloadedFromTestFlight = receiptURL.lastPathComponent == "sandboxReceipt"
-                    // Use the value of isDownloadedFromTestFlight to determine if the app is running through TestFlight Beta
-                    
-                    if isDownloadedFromTestFlight {
-                        newUser.memberType = .betaTester
-                    } else {
-                        newUser.memberType = .listener
-                    }
-                }
-                
-                try context.save()
-                print("New user created with userSince: \(newUser.userSince!)")
-            }
-        } catch {
-            print("Failed to fetch or create user: \(error)")
         }
     }
 }

@@ -11,50 +11,9 @@ import FeedKit
 import MessageUI
 
 struct SettingsView: View {
-    @State private var showingUpgrade = false
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \User.userSince, ascending: true)],
-        animation: .default)
-    private var users: FetchedResults<User>
-    
-    // Convenience computed property to get the user (first and likely only one)
-    private var user: User? {
-        return users.first
-    }
-    
-    // Format date nicely
-    private var formattedUserSince: String {
-        guard let date = user?.userSince else { return "Unknown" }
-        
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
-    }
-    
-    // Get a display name for member type
-    private var memberTypeDisplay: String {
-        guard let typeRaw = user?.userType else { return "None" }
-        
-        if let type = MemberType(rawValue: typeRaw) {
-            switch type {
-            case .listener:
-                return "Listener"
-            case .betaTester:
-                return "Beta Tester"
-            case .subscriber:
-                return "Subscriber"
-            }
-        }
-        
-        return typeRaw // Fallback to raw value if not in enum
-    }
-    
-    private var isSubscriber: Bool {
-//        return user?.memberType == .subscriber
-        return user?.memberType == .listener
-    }
-
+    @ObservedObject private var userManager = UserManager.shared
+    @ObservedObject var player = AudioPlayerManager.shared
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @State private var podcastCount = 0
     @State private var episodeCount = 0
@@ -64,7 +23,6 @@ struct SettingsView: View {
     @State private var subscribedCount: Int = 0
     @State private var playCount: Int = 0
     @State private var scrollOffset: CGFloat = 0
-    @ObservedObject var player = AudioPlayerManager.shared
     @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
@@ -73,6 +31,7 @@ struct SettingsView: View {
     @State private var showingMailView = false
     @State private var showMailErrorAlert = false
     @State private var showingAppIcons = false
+    @State private var showingUpgrade = false
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -112,11 +71,11 @@ struct SettingsView: View {
                 
                 VStack {
                     HStack(alignment:.top) {
-                        Image(isSubscriber ? "peapod-plus-mark" : "peapod-mark")
+                        Image(userManager.isSubscriber ? "peapod-plus-mark" : "peapod-mark")
                         
                         Spacer()
                         
-                        if isSubscriber {
+                        if userManager.isSubscriber {
                             Text("Manage Subscription")
                                 .textDetail()
                         }
@@ -125,15 +84,15 @@ struct SettingsView: View {
                     
                     HStack {
                         VStack(alignment:.leading) {
-                            Text(memberTypeDisplay)
+                            Text(userManager.memberTypeDisplay)
                                 .titleCondensed()
                             
-                            Text("Since \(formattedUserSince)")
+                            Text("Since \(userManager.userDateString)")
                                 .textDetail()
                         }
                         Spacer()
                         
-                        if !isSubscriber {
+                        if !userManager.isSubscriber {
                             HStack {
                                 let hours = Int(totalPlayedSeconds) / 3600
                                 
@@ -161,7 +120,7 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth:.infinity)
                     
-                    if isSubscriber {
+                    if userManager.isSubscriber {
                         HStack {
                             FadeInView(delay:0.5) {
                                 VStack(alignment:.leading, spacing: 8) {
@@ -281,7 +240,7 @@ struct SettingsView: View {
                 .foregroundStyle(Color.white)
                 .padding()
                 .background {
-                    if isSubscriber {
+                    if userManager.isSubscriber {
                         GeometryReader { geometry in
                             Color(hex: "#C9C9C9")
                             Image("pro-pattern")
@@ -513,7 +472,7 @@ struct SettingsView: View {
                                 Text("Please set up a Mail account in order to send logs.")
                             }
                             
-                            Text("Thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I’ve put a lot of love into building it. I hope that you enjoy using it as much as I do.\n\nIf you’d like to support the ongoing development of an independent podcast app, consider purchasing a subscription. You’ll get custom app icons, more listening insights, and my eternal gratitude.")
+                            Text("Thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I’ve put a lot of love into building it. I hope that you enjoy using it as much as I do.\n\nIf you’d like to support the ongoing development of an independent podcast app, consider purchasing a subscription. You’ll get custom app icons, more listening insights, and my eternal gratitude.\n")
                                 .multilineTextAlignment(.leading)
                                 .textBody()
                             
@@ -521,21 +480,23 @@ struct SettingsView: View {
                                 .multilineTextAlignment(.leading)
                                 .font(.custom("Bradley Hand", size: 17))
                             
-                            Button(action: {
-                                showingUpgrade = true
-                            }) {
-                                Text("Become a Supporter")
-                                    .frame(maxWidth:.infinity)
-                            }
-                            .buttonStyle(PPButton(
-                                type:.filled,
-                                colorStyle:.monochrome,
-                                peapodPlus: true
-                            ))
-                            .sheet(isPresented: $showingUpgrade) {
-                                UpgradeView()
-                                    .modifier(PPSheet())
-                                    .presentationDetents([.medium])
+                            if !userManager.isSubscriber {
+                                Button(action: {
+                                    showingUpgrade = true
+                                }) {
+                                    Text("Become a Supporter")
+                                        .frame(maxWidth:.infinity)
+                                }
+                                .buttonStyle(PPButton(
+                                    type:.filled,
+                                    colorStyle:.monochrome,
+                                    peapodPlus: true
+                                ))
+                                .sheet(isPresented: $showingUpgrade) {
+                                    UpgradeView()
+                                        .modifier(PPSheet())
+                                        .presentationDetents([.medium])
+                                }
                             }
                             
 //                            NavigationLink {

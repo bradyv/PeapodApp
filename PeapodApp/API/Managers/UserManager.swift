@@ -36,14 +36,24 @@ class UserManager: ObservableObject {
     }
     
     private func loadCurrentUser() {
-        let request: NSFetchRequest<User> = User.fetchRequest()
-        request.fetchLimit = 1
-        
-        do {
-            currentUser = try context.fetch(request).first
-        } catch {
-            print("❌ UserManager: Failed to fetch current user: \(error)")
-            currentUser = nil
+        // Ensure Core Data operations happen on the context's queue
+        context.perform { [weak self] in
+            guard let self = self else { return }
+            
+            let request: NSFetchRequest<User> = User.fetchRequest()
+            request.fetchLimit = 1
+            
+            do {
+                let user = try self.context.fetch(request).first
+                DispatchQueue.main.async {
+                    self.currentUser = user
+                }
+            } catch {
+                print("❌ UserManager: Failed to fetch current user: \(error)")
+                DispatchQueue.main.async {
+                    self.currentUser = nil
+                }
+            }
         }
     }
     
@@ -62,6 +72,7 @@ class UserManager: ObservableObject {
     /// Whether the user is a subscriber
     var isSubscriber: Bool {
         return userType == .subscriber
+//        return userType == .listener
     }
     
     /// Whether the user is a beta tester
@@ -213,10 +224,16 @@ class UserManager: ObservableObject {
     // MARK: - Helper Methods
     
     private func saveContext() {
-        do {
-            try context.save()
-        } catch {
-            print("❌ UserManager: Failed to save context: \(error)")
+        context.perform { [weak self] in
+            guard let self = self else { return }
+            
+            if self.context.hasChanges {
+                do {
+                    try self.context.save()
+                } catch {
+                    print("❌ UserManager: Failed to save context: \(error)")
+                }
+            }
         }
     }
 }
@@ -237,7 +254,7 @@ extension UserManager {
         case "com.bradyv.Peapod.Debug":
             return "debug"
         case "com.bradyv.Peapod.Dev":
-            return "prod"
+            return "dev"
         default:
             return "prod"
         }

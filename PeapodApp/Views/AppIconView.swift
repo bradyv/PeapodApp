@@ -8,26 +8,13 @@
 import SwiftUI
 
 struct AppIconView: View {
+    @ObservedObject private var userManager = UserManager.shared
     @Binding var selectedIconName: String
     @State private var showingUpgrade = false
     private var appIcons: [AppIcons] {
         return AppIconManager.shared.availableIcons
     }
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
-    
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \User.userSince, ascending: true)],
-        animation: .default)
-    private var users: FetchedResults<User>
-    
-    // Convenience computed property to get the user (first and likely only one)
-    private var user: User? {
-        return users.first
-    }
-    
-    private var isSubscriber: Bool {
-        return user?.memberType == .subscriber
-    }
     
     var body: some View {
         VStack {
@@ -43,7 +30,7 @@ struct AppIconView: View {
                     let isSelected = selectedIconName == icon.asset
                     
                     Button(action: {
-                        if isSubscriber {
+                        if userManager.isSubscriber {
                             UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon-Green" ? nil : icon.asset) { error in
                                 if let error = error {
                                     print("❌ Failed to switch icon: \(error)")
@@ -82,7 +69,7 @@ struct AppIconView: View {
                                 .padding(2)
                                 .background(Color.background)
                                 .clipShape(Circle())
-                                .opacity(isSubscriber ? 0 : 1)
+                                .opacity(userManager.isSubscriber ? 0 : 1)
                                 .offset(x:4,y:4)
                             }
                             
@@ -94,9 +81,9 @@ struct AppIconView: View {
                     .buttonStyle(PlainButtonStyle())
                 }
             }
-//            .disabled(!isSubscriber)
+            .disabled(!userManager.isSubscriber)
         
-            if !isSubscriber {
+            if !userManager.isSubscriber {
                 Spacer().frame(height:24)
                 Text("Support the ongoing development of an independent podcast app. You’ll get custom app icons, more listening insights, and my eternal gratitude.")
                     .textBody()

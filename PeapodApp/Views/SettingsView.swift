@@ -11,6 +11,7 @@ import FeedKit
 import MessageUI
 
 struct SettingsView: View {
+    @State private var showingUpgrade = false
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \User.userSince, ascending: true)],
@@ -27,7 +28,6 @@ struct SettingsView: View {
         guard let date = user?.userSince else { return "Unknown" }
         
         let formatter = DateFormatter()
-//        formatter.dateFormat = "yyyy"
         formatter.dateStyle = .medium
         return formatter.string(from: date)
     }
@@ -36,7 +36,6 @@ struct SettingsView: View {
     private var memberTypeDisplay: String {
         guard let typeRaw = user?.userType else { return "None" }
         
-        // Assuming you're using the enum approach we discussed
         if let type = MemberType(rawValue: typeRaw) {
             switch type {
             case .listener:
@@ -49,6 +48,11 @@ struct SettingsView: View {
         }
         
         return typeRaw // Fallback to raw value if not in enum
+    }
+    
+    private var isSubscriber: Bool {
+//        return user?.memberType == .subscriber
+        return user?.memberType == .listener
     }
 
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
@@ -69,9 +73,6 @@ struct SettingsView: View {
     @State private var showingMailView = false
     @State private var showMailErrorAlert = false
     @State private var showingAppIcons = false
-    private var currentSplashImage: String {
-        return AppIconManager.shared.splashImage(for: selectedIconName)
-    }
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -82,21 +83,23 @@ struct SettingsView: View {
     
     var body: some View {
         ZStack(alignment:.topLeading) {
-            let splashFadeStart: CGFloat = -150
-            let splashFadeEnd: CGFloat = 0
-            let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
-            let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) + 0.15
-            
-            Image(currentSplashImage)
-                .resizable()
-                .frame(maxWidth:.infinity,maxHeight:500)
-                .mask(
-                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                   startPoint: .top, endPoint: .bottom)
-                )
-                .ignoresSafeArea(.all)
-                .opacity(opacity)
-                .transition(.opacity)
+//            let splashFadeStart: CGFloat = -150
+//            let splashFadeEnd: CGFloat = 0
+//            let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
+//            let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) - 0.5
+//            
+//            if isSubscriber {
+//                Image("pro-pattern")
+//                    .resizable()
+//                    .frame(maxWidth:.infinity,maxHeight:500)
+//                    .mask(
+//                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+//                                       startPoint: .top, endPoint: .bottom)
+//                    )
+//                    .ignoresSafeArea(.all)
+//                    .opacity(opacity)
+//                    .transition(.opacity)
+//            }
             
             ScrollView {
                 Color.clear
@@ -105,92 +108,48 @@ struct SettingsView: View {
                         scrollOffset = value
                     }
                 
-                VStack(spacing:24) {
-                    Spacer().frame(height:8)
-                    VStack(spacing:0) {
-                        FadeInView(delay:0.2) {
-                            Image("Peapod.white")
-                                .resizable()
-                                .frame(width:64,height:55.5)
-                                .onTapGesture(count: 5) {
-                                    withAnimation {
-                                        showDebugTools.toggle()
-                                    }
-                                }
-                            
-//                            ZStack {
-//                                Image("Peapod.white")
-//                                    .resizable()
-//                                    .frame(width:64,height:55.5)
-//                                
-//                                PPArc(text: "Beta Tester • Beta Tester • ".uppercased(), radius: 37, size:.init(width: 100, height: 100))
-//                                    .font(.system(size: 13, design: .monospaced)).bold()
-//                                    .foregroundStyle(.white)
-//                            }
-                        }
+                Spacer().frame(height:32)
+                
+                VStack {
+                    HStack(alignment:.top) {
+                        Image(isSubscriber ? "peapod-plus-mark" : "peapod-mark")
                         
-                        FadeInView(delay:0.3) {
-                            Text("Peapod")
-                                .titleSerif()
-                        }
+                        Spacer()
                         
-                        FadeInView(delay:0.4) {
-                            if memberTypeDisplay == "Listener" {
-                                Text("Listening since \(formattedUserSince)")
-                                    .textBody()
-                            } else {
-                                Text("\(memberTypeDisplay) • Listening since \(formattedUserSince)")
-                                    .textBody()
-                            }
+                        if isSubscriber {
+                            Text("Manage Subscription")
+                                .textDetail()
                         }
                     }
-                    .foregroundStyle(Color.heading)
+                    .frame(maxWidth:.infinity, alignment:.leading)
                     
                     HStack {
-                        FadeInView(delay:0.5) {
-                            VStack(alignment:.leading, spacing: 8) {
+                        VStack(alignment:.leading) {
+                            Text(memberTypeDisplay)
+                                .titleCondensed()
+                            
+                            Text("Since \(formattedUserSince)")
+                                .textDetail()
+                        }
+                        Spacer()
+                        
+                        if !isSubscriber {
+                            HStack {
                                 let hours = Int(totalPlayedSeconds) / 3600
-                                Image(systemName:"airpods.max")
-                                VStack(alignment:.leading) {
+                                
+                                VStack(alignment: .leading) {
                                     Text("\(hours)")
-                                        .titleSerif()
+                                        .titleCondensed()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Hours listened")
                                         .textDetail()
                                 }
-                            }
-                            .padding(16)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .background(
-                                LinearGradient(
-                                    stops: [
-                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                    ],
-                                    startPoint: UnitPoint(x: 0, y: 0),
-                                    endPoint: UnitPoint(x: 0.5, y: 1)
-                                )
-                            )
-                            .background(.white.opacity(0.15))
-                            .cornerRadius(16)
-                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .inset(by: 1)
-                                    .stroke(.white.opacity(0.15), lineWidth: 1)
-                            )
-                        }
-                        
-                        FadeInView(delay:0.6) {
-                            VStack(alignment:.leading, spacing:8) {
-                                Image(systemName:"play.circle")
-                                    .symbolRenderingMode(.hierarchical)
                                 
-                                VStack(alignment:.leading) {
+                                VStack(alignment: .leading) {
                                     Text("\(playCount)")
-                                        .titleSerif()
+                                        .titleCondensed()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
@@ -198,35 +157,149 @@ struct SettingsView: View {
                                         .textDetail()
                                 }
                             }
-                            .padding(16)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .background(
-                                LinearGradient(
-                                    stops: [
-                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                    ],
-                                    startPoint: UnitPoint(x: 0, y: 0),
-                                    endPoint: UnitPoint(x: 0.5, y: 1)
-                                )
-                            )
-                            .background(.white.opacity(0.15))
-                            .cornerRadius(16)
-                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .inset(by: 1)
-                                    .stroke(.white.opacity(0.15), lineWidth: 1)
-                            )
                         }
                     }
-                    .frame(maxWidth:.infinity, alignment:.leading)
+                    .frame(maxWidth:.infinity)
+                    
+                    if isSubscriber {
+                        HStack {
+                            FadeInView(delay:0.5) {
+                                VStack(alignment:.leading, spacing: 8) {
+                                    let hours = Int(totalPlayedSeconds) / 3600
+                                    Image(systemName:"airpods.max")
+                                    VStack(alignment:.leading) {
+                                        Text("\(hours)")
+                                            .titleSerif()
+                                            .monospaced()
+                                            .contentTransition(.numericText())
+                                        
+                                        Text("Hours listened")
+                                            .textDetail()
+                                    }
+                                }
+                                .padding(16)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .background(
+                                    LinearGradient(
+                                        stops: [
+                                            Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
+                                            Gradient.Stop(color: .white.opacity(0), location: 1.00),
+                                        ],
+                                        startPoint: UnitPoint(x: 0, y: 0),
+                                        endPoint: UnitPoint(x: 0.5, y: 1)
+                                    )
+                                )
+                                .background(.white.opacity(0.15))
+                                .cornerRadius(16)
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .inset(by: 1)
+                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+                                )
+                            }
+                            
+                            FadeInView(delay:0.6) {
+                                VStack(alignment:.leading, spacing:8) {
+                                    Image(systemName:"play.circle")
+                                        .symbolRenderingMode(.hierarchical)
+                                    
+                                    VStack(alignment:.leading) {
+                                        Text("\(playCount)")
+                                            .titleSerif()
+                                            .monospaced()
+                                            .contentTransition(.numericText())
+                                        
+                                        Text("Episodes played")
+                                            .textDetail()
+                                    }
+                                }
+                                .padding(16)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .background(
+                                    LinearGradient(
+                                        stops: [
+                                            Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
+                                            Gradient.Stop(color: .white.opacity(0), location: 1.00),
+                                        ],
+                                        startPoint: UnitPoint(x: 0, y: 0),
+                                        endPoint: UnitPoint(x: 0.5, y: 1)
+                                    )
+                                )
+                                .background(.white.opacity(0.15))
+                                .cornerRadius(16)
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .inset(by: 1)
+                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+                                )
+                            }
+                        }
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                        
+                        NavigationLink {
+                            PPPopover(showBg: true) {
+                                ActivityView(namespace: namespace)
+                            }
+                        } label: {
+                            Text("View Stats")
+                                .frame(maxWidth:.infinity)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        gradient: Gradient(colors: [
+                                            Color(hex: "#3CA4F4") ?? .blue,
+                                            Color(hex: "#9D93C5") ?? .purple,
+                                            Color(hex: "#E98D64") ?? .orange
+                                        ]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        }
+                        .buttonStyle(ShadowButton())
+                        
+                    } else {
+                        Button(action: {
+                            showingUpgrade = true
+                        }) {
+                            Text("Become a Supporter")
+                                .frame(maxWidth:.infinity)
+                        }
+                        .buttonStyle(PPButton(
+                            type:.filled,
+                            colorStyle:.monochrome,
+                            peapodPlus: true
+                        ))
+                        .sheet(isPresented: $showingUpgrade) {
+                            UpgradeView()
+                                .modifier(PPSheet())
+                                .presentationDetents([.medium])
+                        }
+                    }
                 }
-                .opacity(opacity)
+                .foregroundStyle(Color.white)
+                .padding()
+                .background {
+                    if isSubscriber {
+                        GeometryReader { geometry in
+                            Color(hex: "#C9C9C9")
+                            Image("pro-pattern")
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                                .clipped()
+                        }
+                        .ignoresSafeArea(.all)
+                    } else {
+                        Color.surface
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius:16))
                 
                 FadeInView(delay:0.7) {
                     VStack {
-                        Text("Playback")
+                        Text("Settings")
                             .headerSection()
                             .frame(maxWidth:.infinity, alignment: .leading)
                             .padding(.top,24)
@@ -396,11 +469,11 @@ struct SettingsView: View {
                             .sheet(isPresented: $showingAppIcons) {
                                 AppIconView(selectedIconName: $selectedIconName)
                                     .modifier(PPSheet())
-                                    .presentationDetents([.medium,.large])
+                                    .presentationDetents([.medium])
                             }
                         
                         VStack(alignment:.leading) {
-                            Text("Peapod")
+                            Text("About")
                                 .headerSection()
                                 .frame(maxWidth:.infinity, alignment:.leading)
                                 .padding(.top,24)
@@ -440,9 +513,30 @@ struct SettingsView: View {
                                 Text("Please set up a Mail account in order to send logs.")
                             }
                             
-                            Text("Hey, thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I hope that you enjoy using it as much as I do. I’m continuously working to improve the app so if you have any feedback please don’t hesitate to share it with me.")
+                            Text("Thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I’ve put a lot of love into building it. I hope that you enjoy using it as much as I do.\n\nIf you’d like to support the ongoing development of an independent podcast app, consider purchasing a subscription. You’ll get custom app icons, more listening insights, and my eternal gratitude.")
                                 .multilineTextAlignment(.leading)
                                 .textBody()
+                            
+                            Text("- Brady")
+                                .multilineTextAlignment(.leading)
+                                .font(.custom("Bradley Hand", size: 17))
+                            
+                            Button(action: {
+                                showingUpgrade = true
+                            }) {
+                                Text("Become a Supporter")
+                                    .frame(maxWidth:.infinity)
+                            }
+                            .buttonStyle(PPButton(
+                                type:.filled,
+                                colorStyle:.monochrome,
+                                peapodPlus: true
+                            ))
+                            .sheet(isPresented: $showingUpgrade) {
+                                UpgradeView()
+                                    .modifier(PPSheet())
+                                    .presentationDetents([.medium])
+                            }
                             
 //                            NavigationLink {
 //                                PPPopover(showBg: true) {
@@ -501,22 +595,6 @@ struct SettingsView: View {
                             }
                         }
                         .frame(maxWidth:.infinity,alignment:.leading)
-                        
-                        VStack {
-                            Text("Made in Canada")
-                                .textBody()
-                            
-                            Text("Built by a cute lil guy with a nose ring.")
-                                .textDetail()
-                            
-                            Text("Love to Kat, Brad, Dave, and JD for their support and guidance.")
-                                .textDetail()
-                            
-                            Spacer().frame(height:24)
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(Color.surface)
-                        }
-                        .padding(.top,24)
                     }
                 }
             }

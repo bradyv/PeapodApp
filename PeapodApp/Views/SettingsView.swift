@@ -46,7 +46,7 @@ struct SettingsView: View {
 //            let splashFadeEnd: CGFloat = 0
 //            let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
 //            let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) - 0.5
-//            
+//
 //            if isSubscriber {
 //                Image("pro-pattern")
 //                    .resizable()
@@ -472,7 +472,7 @@ struct SettingsView: View {
                                 Text("Please set up a Mail account in order to send logs.")
                             }
                             
-                            Text("Thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I’ve put a lot of love into building it. I hope that you enjoy using it as much as I do.\n\nIf you’d like to support the ongoing development of an independent podcast app, consider purchasing a subscription. You’ll get custom app icons, more listening insights, and my eternal gratitude.\n")
+                            Text("Thanks for taking the time to check out Peapod! This is the podcast app I've wanted for years and I've put a lot of love into building it. I hope that you enjoy using it as much as I do.\n\nIf you'd like to support the ongoing development of an independent podcast app, consider purchasing a subscription. You'll get custom app icons, more listening insights, and my eternal gratitude.\n")
                                 .multilineTextAlignment(.leading)
                                 .textBody()
                             
@@ -564,26 +564,7 @@ struct SettingsView: View {
             .maskEdge(.top)
             .maskEdge(.bottom)
             .task {
-                let context = PersistenceController.shared.container.viewContext
-                podcastCount = (try? context.count(for: Podcast.fetchRequest())) ?? 0
-                episodeCount = (try? context.count(for: Episode.fetchRequest())) ?? 0
-                
-                // Calculate the values but don't assign them yet
-                let playedSeconds = (try? await Podcast.totalPlayedDuration(in: context)) ?? 0
-                let subscribed = (try? Podcast.totalSubscribedCount(in: context)) ?? 0
-                let plays = (try? Podcast.totalPlayCount(in: context)) ?? 0
-                
-                // Wait to allow the UI to render with zeros
-                try? await Task.sleep(for: .nanoseconds(1))
-                
-                // Use DispatchQueue to delay the update and apply animation
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    withAnimation(.easeInOut) {
-                        totalPlayedSeconds = playedSeconds
-                        subscribedCount = subscribed
-                        playCount = plays
-                    }
-                }
+                await loadStatistics()
             }
             .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
                 lastSynced = Date()
@@ -592,6 +573,44 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Statistics Loading
+    private func loadStatistics() async {
+        let context = PersistenceController.shared.container.viewContext
+        
+        do {
+            // Use the consolidated fetch requests
+            let podcasts = try Podcast.totalPodcastCount(in: context)
+            let episodes = try Episode.totalEpisodeCount(in: context)
+            let playedSeconds = try await Podcast.totalPlayedDuration(in: context)
+            let subscribed = try Podcast.totalSubscribedCount(in: context)
+            let plays = try Podcast.totalPlayCount(in: context)
+            
+            // Update state variables
+            podcastCount = podcasts
+            episodeCount = episodes
+            
+            // Wait to allow the UI to render with zeros, then animate the updates
+            try? await Task.sleep(for: .nanoseconds(1))
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                withAnimation(.easeInOut) {
+                    totalPlayedSeconds = playedSeconds
+                    subscribedCount = subscribed
+                    playCount = plays
+                }
+            }
+        } catch {
+            print("Error loading statistics: \(error)")
+            // Set default values on error
+            podcastCount = 0
+            episodeCount = 0
+            totalPlayedSeconds = 0
+            subscribedCount = 0
+            playCount = 0
+        }
+    }
+    
+    // MARK: - Test Functions
     private func injectTestPodcast() {
         let context = PersistenceController.shared.container.viewContext
 

@@ -345,20 +345,6 @@ class EpisodeRefresher {
     
     // 🚀 Optimized refresh all with better concurrency control
     static func refreshAllSubscribedPodcasts(context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
-        // ✅ Add global refresh throttling
-        let lastRefreshKey = "lastGlobalRefresh"
-        let now = Date()
-        let lastRefresh = UserDefaults.standard.object(forKey: lastRefreshKey) as? Date ?? Date.distantPast
-        
-        // Don't refresh if we refreshed less than 2 minutes ago
-        if now.timeIntervalSince(lastRefresh) < 120 {
-            print("⏩ Skipping refresh - too recent (\(Int(now.timeIntervalSince(lastRefresh)))s ago)")
-            completion?()
-            return
-        }
-        
-        UserDefaults.standard.set(now, forKey: lastRefreshKey)
-        
         let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
         backgroundContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         backgroundContext.stalenessInterval = 0.0

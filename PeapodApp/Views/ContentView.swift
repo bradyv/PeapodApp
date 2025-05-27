@@ -44,35 +44,18 @@ struct ContentView: View {
                 }
                 .maskEdge(.top)
                 .maskEdge(.bottom)
-                .onAppear {
-                    // Clear badge when app appears
-                    UIApplication.shared.applicationIconBadgeNumber = 0
-                    
-                    // Force refresh to get latest episodes
-                    let now = Date()
-                    if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
-                        lastRefreshDate = now
-                        forceRefreshPodcasts()
-                    }
-                }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     if newPhase == .active {
                         // Clear badge when app becomes active
                         UIApplication.shared.applicationIconBadgeNumber = 0
-                        
-                        // Force refresh when app becomes active to get new episodes
-                        let now = Date()
-                        if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
-                            lastRefreshDate = now
-                            forceRefreshPodcasts()
-                        }
                     }
                 }
                 .scrollDisabled(subscriptions.isEmpty)
                 .refreshable {
                     // Manual pull to refresh - full refresh
                     EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                        toastManager.show(message: "Updated All Feeds", icon: "sparkles")
+                        toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+                        print("✨ Pulled to refresh feeds at \(Date())")
                     }
                 }
                 
@@ -124,6 +107,8 @@ struct ContentView: View {
                 .modifier(PPSheet())
         }
         .onAppear {
+            UIApplication.shared.applicationIconBadgeNumber = 0
+            
             if episodesViewModel.context == nil { // not yet initialized properly
                 episodesViewModel.setup(context: context)
             }
@@ -158,15 +143,8 @@ struct ContentView: View {
     
     // 🆕 Force refresh to actually fetch new episodes (not just light refresh)
     private func forceRefreshPodcasts() {
-        let now = Date()
-        // Only refresh if >2 minutes since last refresh
-        if now.timeIntervalSince(lastRefreshDate) > 120 {
-            lastRefreshDate = now
-            print("🔄 Force refreshing all subscribed podcasts")
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-        } else {
-            print("⏩ Skipping refresh - too recent")
-        }
+        print("🔄 Force refreshing all subscribed podcasts")
+        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
     }
     
     private func checkPendingNotification() {

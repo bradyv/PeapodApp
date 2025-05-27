@@ -270,6 +270,7 @@ struct ActivityView: View {
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius:16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
                 
                 VStack(alignment:.leading) {
                     Image("peapod-plus-mark")
@@ -282,12 +283,7 @@ struct ActivityView: View {
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(reordered, id: \.1.id) { (index, podcast) in
                             ZStack(alignment:.bottom) {
-                                KFImage(URL(string: podcast.image ?? ""))
-                                    .resizable()
-                                    .frame(width: index == 0 ? 128 : 64, height: index == 0 ? 128 : 64)
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                ArtworkView(url:podcast.image ?? "", size: index == 0 ? 128 : 64, cornerRadius: index == 0 ? 16 : 8)
                                     .if(index == 0, transform: {
                                         $0.background(
                                             Image("rays")
@@ -326,6 +322,7 @@ struct ActivityView: View {
                         .opacity(0.5)
                 }
                 .clipShape(RoundedRectangle(cornerRadius:16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
                 
                 if let longestEpisode = longestEpisodes.first {
                     VStack(alignment:.leading) {
@@ -381,6 +378,7 @@ struct ActivityView: View {
                             .opacity(0.5)
                     }
                     .clipShape(RoundedRectangle(cornerRadius:16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
                     
                 } else {
                     Text("No episodes found")

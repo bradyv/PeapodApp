@@ -242,6 +242,7 @@ struct SettingsView: View {
                         Color.surface
                     }
                 }
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(userManager.isSubscriber ? Color.border : Color.clear, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius:16))
                 
                 FadeInView(delay:0.7) {

@@ -10,7 +10,6 @@ import Kingfisher
 
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
-    @Environment(\.colorScheme) var colorScheme
     @Environment(\.openURL) private var openURL
     @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @ObservedObject var episode: Episode

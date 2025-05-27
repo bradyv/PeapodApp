@@ -9,7 +9,6 @@ import SwiftUI
 import Kingfisher
 
 struct SubscriptionsView: View {
-    @Environment(\.colorScheme) var colorScheme
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
@@ -59,7 +58,7 @@ struct SubscriptionsView: View {
                                     .resizable()
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
                                     .aspectRatio(1, contentMode: .fit)
-                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
                             }
                         }
                     }

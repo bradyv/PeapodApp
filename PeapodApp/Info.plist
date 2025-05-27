@@ -13,18 +13,18 @@
 					<string>AppIcon-Blueprint</string>
 				</array>
 			</dict>
-			<key>AppIcon-Clouds</key>
+			<key>AppIcon-Business</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Clouds</string>
+					<string>AppIcon-Business</string>
 				</array>
 			</dict>
-			<key>AppIcon-Coachella</key>
+			<key>AppIcon-Minty</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Coachella</string>
+					<string>AppIcon-Minty</string>
 				</array>
 			</dict>
 			<key>AppIcon-Cupertino</key>
@@ -34,11 +34,11 @@
 					<string>AppIcon-Cupertino</string>
 				</array>
 			</dict>
-			<key>AppIcon-Dev</key>
+			<key>AppIcon-Plus</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Dev</string>
+					<string>AppIcon-Plus</string>
 				</array>
 			</dict>
 			<key>AppIcon-Green</key>
@@ -55,18 +55,11 @@
 					<string>AppIcon-Pastel</string>
 				</array>
 			</dict>
-			<key>AppIcon-Pride</key>
+			<key>AppIcon-Starry</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Pride</string>
-				</array>
-			</dict>
-			<key>AppIcon-Rinzler</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIcon-Rinzler</string>
+					<string>AppIcon-Starry</string>
 				</array>
 			</dict>
 		</dict>

@@ -494,7 +494,7 @@ struct SettingsView: View {
                                 }
                                 
                                 Button {
-                                    injectTestPodcast()
+                                    subscribeViaURL(feedUrl: "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml")
                                 } label: {
                                     HStack(spacing: 8) {
                                         Image(systemName: "plus.diamond")
@@ -554,67 +554,6 @@ struct SettingsView: View {
         } catch {
             print("Error loading statistics: \(error)")
             // Keep default zero values on error
-        }
-    }
-    
-    // MARK: - Test Functions
-    private func injectTestPodcast() {
-        let context = PersistenceController.shared.container.viewContext
-
-        context.perform {
-            let testFeedURL = "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml"
-
-            // Delete old if exists
-            let fetchRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "feedUrl == %@", testFeedURL)
-            if let existing = (try? context.fetch(fetchRequest))?.first {
-                context.delete(existing)
-                print("🗑️ Deleted existing test podcast")
-            }
-
-            // Parse feed
-            FeedParser(URL: URL(string: testFeedURL)!).parseAsync { result in
-                switch result {
-                case .success(let feed):
-                    if let rss = feed.rssFeed {
-                        DispatchQueue.main.async {
-                            let podcast = PodcastLoader.createOrUpdatePodcast(from: rss, feedUrl: testFeedURL, context: context)
-                            podcast.isSubscribed = true
-
-                            // 📢 DIAGNOSTIC PRINTS
-                            print("FeedKit RSS Title:", rss.title ?? "nil")
-                            print("FeedKit RSS iTunes Image:", rss.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-                            print("FeedKit RSS Channel Image:", rss.image?.url ?? "nil")
-                            print("FeedKit RSS First Item Image:", rss.items?.first?.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-
-                            // 📢 MANUAL ASSIGN
-                            let artworkUrl = rss.iTunes?.iTunesImage?.attributes?.href
-                                          ?? rss.image?.url
-                                          ?? rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
-
-                            podcast.image = artworkUrl
-
-                            print("Assigned podcast.image:", podcast.image ?? "nil")
-
-                            // Save and refresh episodes
-                            EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
-                                if let latest = (podcast.episode as? Set<Episode>)?
-                                    .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                    .first {
-                                    toggleQueued(latest)
-                                }
-                                print("✅ Loaded test feed episodes")
-                            }
-
-                            try? context.save()
-                        }
-                    } else {
-                        print("❌ Failed to parse feed")
-                    }
-                case .failure(let error):
-                    print("❌ Feed parsing failed:", error)
-                }
-            }
         }
     }
 }

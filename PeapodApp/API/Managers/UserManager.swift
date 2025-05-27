@@ -19,6 +19,13 @@ class UserManager: ObservableObject {
     // Published properties for SwiftUI reactivity
     @Published private(set) var currentUser: User?
     
+    // Cache keys for UserDefaults
+    private let hasCompletedInitialSetupKey = "UserManager.hasCompletedInitialSetup"
+    private let lastUserCheckVersionKey = "UserManager.lastUserCheckVersion"
+    
+    // Version for invalidating cache when user setup logic changes
+    private let currentSetupVersion = "1.0"
+    
     private init() {
         setupUserObservation()
         loadCurrentUser()
@@ -27,37 +34,133 @@ class UserManager: ObservableObject {
     // MARK: - Core Data Observation
     
     private func setupUserObservation() {
-        // Listen for Core Data changes
+        // Listen for Core Data changes, but only refresh if User entities were affected
         NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange)
+            .compactMap { notification -> Notification? in
+                // Only process if User entities were changed
+                let userInfo = notification.userInfo
+                let insertedObjects = userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? Set()
+                let updatedObjects = userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject> ?? Set()
+                let deletedObjects = userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? Set()
+                
+                let allChangedObjects = insertedObjects.union(updatedObjects).union(deletedObjects)
+                let hasUserChanges = allChangedObjects.contains { $0 is User }
+                
+                return hasUserChanges ? notification : nil
+            }
             .sink { [weak self] _ in
-                self?.loadCurrentUser()
+                // Only reload if we haven't just completed initial setup
+                guard let self = self else { return }
+                
+                // Avoid reloading immediately after we just set up the user
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.loadCurrentUser()
+                }
             }
             .store(in: &cancellables)
     }
     
     private func loadCurrentUser() {
-        // Ensure Core Data operations happen on the context's queue
-        context.perform { [weak self] in
-            guard let self = self else { return }
-            
-            let request: NSFetchRequest<User> = User.fetchRequest()
-            request.fetchLimit = 1
-            
-            do {
-                let user = try self.context.fetch(request).first
-                DispatchQueue.main.async {
-                    self.currentUser = user
-                }
-            } catch {
-                print("❌ UserManager: Failed to fetch current user: \(error)")
-                DispatchQueue.main.async {
-                    self.currentUser = nil
-                }
-            }
+        let request: NSFetchRequest<User> = User.fetchRequest()
+        request.fetchLimit = 1
+        
+        do {
+            let user = try context.fetch(request).first
+            self.currentUser = user
+        } catch {
+            print("❌ UserManager: Failed to fetch current user: \(error)")
+            self.currentUser = nil
         }
     }
     
-    // MARK: - Public API
+    // MARK: - Setup Caching Logic
+    
+    private var hasCompletedInitialSetup: Bool {
+        get {
+            // Check if we've completed setup AND if it's for the current version
+            let hasCompleted = UserDefaults.standard.bool(forKey: hasCompletedInitialSetupKey)
+            let lastVersion = UserDefaults.standard.string(forKey: lastUserCheckVersionKey)
+            return hasCompleted && lastVersion == currentSetupVersion
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: hasCompletedInitialSetupKey)
+            UserDefaults.standard.set(currentSetupVersion, forKey: lastUserCheckVersionKey)
+        }
+    }
+    
+    private func markSetupComplete() {
+        hasCompletedInitialSetup = true
+        print("✅ UserManager: Marked initial setup as complete")
+    }
+    
+    // MARK: - User Management
+    
+    /// Creates a new user if none exists, or returns the existing user
+    /// Now with caching to avoid unnecessary operations
+    @discardableResult
+    func setupCurrentUser() -> User? {
+        // Fast path: If we've already completed setup and have a user, just return it
+        if hasCompletedInitialSetup, let existingUser = currentUser {
+            print("ℹ️ UserManager: Using cached user setup")
+            return existingUser
+        }
+        
+        print("🔄 UserManager: Performing user setup...")
+        
+        // Force a fresh load in case currentUser is stale
+        loadCurrentUser()
+        
+        if let existingUser = currentUser {
+            // Ensure userSince is set if it's nil (migration case)
+            var needsSave = false
+            
+            if existingUser.userSince == nil {
+                existingUser.userSince = Date()
+                needsSave = true
+                print("✅ UserManager: Set userSince for existing user")
+            }
+            
+            if needsSave {
+                saveContextSynchronously()
+            }
+            
+            markSetupComplete()
+            return existingUser
+        } else {
+            let newUser = createNewUser()
+            markSetupComplete()
+            return newUser
+        }
+    }
+    
+    /// Force a complete re-setup (useful for testing or when user data might be corrupted)
+    func forceResetSetup() {
+        print("🔄 UserManager: Forcing setup reset")
+        hasCompletedInitialSetup = false
+        setupCurrentUser()
+    }
+    
+    /// Creates a new user with default values
+    private func createNewUser() -> User? {
+        let newUser = User(context: context)
+        newUser.userSince = Date()
+        
+        // Determine member type based on TestFlight vs App Store
+        if let receiptURL = Bundle.main.appStoreReceiptURL {
+            let isDownloadedFromTestFlight = receiptURL.lastPathComponent == "sandboxReceipt"
+            newUser.memberType = isDownloadedFromTestFlight ? .betaTester : .listener
+        } else {
+            newUser.memberType = .listener
+        }
+        
+        saveContextSynchronously()
+        loadCurrentUser() // Refresh the cached user
+        
+        print("✅ UserManager: Created new user with type: \(newUser.memberType?.rawValue ?? "unknown")")
+        return newUser
+    }
+    
+    // MARK: - Rest of your existing methods...
     
     /// The current user's member type
     var userType: MemberType? {
@@ -71,7 +174,6 @@ class UserManager: ObservableObject {
     
     /// Whether the user is a subscriber
     var isSubscriber: Bool {
-//        return userType == .subscriber
         return userType == .listener
     }
     
@@ -95,7 +197,7 @@ class UserManager: ObservableObject {
         return currentUser?.purchaseDate
     }
     
-    /// The relevant date for display purposes (purchase date for subscribers, user since for others)
+    /// The relevant date for display purposes
     var userDateString: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -141,43 +243,6 @@ class UserManager: ObservableObject {
         return formatter.string(from: date)
     }
     
-    // MARK: - User Management
-    
-    /// Creates a new user if none exists, or returns the existing user
-    @discardableResult
-    func setupCurrentUser() -> User? {
-        if let existingUser = currentUser {
-            // Ensure userSince is set if it's nil
-            if existingUser.userSince == nil {
-                existingUser.userSince = Date()
-                saveContext()
-            }
-            return existingUser
-        } else {
-            return createNewUser()
-        }
-    }
-    
-    /// Creates a new user with default values
-    private func createNewUser() -> User? {
-        let newUser = User(context: context)
-        newUser.userSince = Date()
-        
-        // Determine member type based on TestFlight vs App Store
-        if let receiptURL = Bundle.main.appStoreReceiptURL {
-            let isDownloadedFromTestFlight = receiptURL.lastPathComponent == "sandboxReceipt"
-            newUser.memberType = isDownloadedFromTestFlight ? .betaTester : .listener
-        } else {
-            newUser.memberType = .listener
-        }
-        
-        saveContext()
-        loadCurrentUser() // Refresh the cached user
-        
-        print("✅ UserManager: Created new user with type: \(newUser.memberType?.rawValue ?? "unknown")")
-        return newUser
-    }
-    
     /// Updates the user's member type
     func updateMemberType(_ newType: MemberType) {
         guard let user = currentUser else {
@@ -193,11 +258,11 @@ class UserManager: ObservableObject {
             user.purchaseDate = Date()
         }
         
-        saveContext()
+        saveContextSynchronously()
         print("✅ UserManager: Updated member type from \(oldType?.rawValue ?? "nil") to \(newType.rawValue)")
     }
     
-    /// Sets the user's purchase date (typically called when completing a purchase)
+    /// Sets the user's purchase date
     func setPurchaseDate(_ date: Date = Date()) {
         guard let user = currentUser else {
             print("❌ UserManager: No current user to update")
@@ -205,11 +270,11 @@ class UserManager: ObservableObject {
         }
         
         user.purchaseDate = date
-        saveContext()
+        saveContextSynchronously()
         print("✅ UserManager: Set purchase date to \(date)")
     }
     
-    /// Clears the user's purchase date (typically called when subscription expires)
+    /// Clears the user's purchase date
     func clearPurchaseDate() {
         guard let user = currentUser else {
             print("❌ UserManager: No current user to update")
@@ -217,22 +282,18 @@ class UserManager: ObservableObject {
         }
         
         user.purchaseDate = nil
-        saveContext()
+        saveContextSynchronously()
         print("✅ UserManager: Cleared purchase date")
     }
     
     // MARK: - Helper Methods
     
-    private func saveContext() {
-        context.perform { [weak self] in
-            guard let self = self else { return }
-            
-            if self.context.hasChanges {
-                do {
-                    try self.context.save()
-                } catch {
-                    print("❌ UserManager: Failed to save context: \(error)")
-                }
+    private func saveContextSynchronously() {
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                print("❌ UserManager: Failed to save context: \(error)")
             }
         }
     }

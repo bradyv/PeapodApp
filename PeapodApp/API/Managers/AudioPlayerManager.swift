@@ -11,6 +11,7 @@ import Combine
 import MediaPlayer
 import CoreData
 import Kingfisher
+import UIKit
 
 // MARK: - AudioPlayerState enum for more precise state tracking
 enum AudioPlayerState: Equatable {
@@ -78,6 +79,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private var playerItemObservation: NSKeyValueObservation?
     private var statusObservation: NSKeyValueObservation?
     private var rateObserver: NSKeyValueObservation?
+    private var wasPlayingBeforeBackground = false
+    private var lastKnownPosition: Double = 0
+    private var lastSavedPosition: Double = 0
+    private let positionSaveThreshold: Double = 5.0 // Only save every 5 seconds
+    private var positionSaveTimer: Timer?
     @Published private(set) var state: AudioPlayerState = .idle {
         didSet {
             // Update derived properties when state changes
@@ -104,6 +110,22 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    private func logPlayerState(context: String) {
+        guard let player = player else {
+            print("🐛 [\(context)] Player: nil")
+            return
+        }
+        
+        let rate = player.rate
+        let timeControlStatus = player.timeControlStatus
+        let currentItemStatus = player.currentItem?.status
+        
+        print("🐛 [\(context)] Player rate: \(rate), timeControlStatus: \(timeControlStatus)")
+        
+        if let error = player.currentItem?.error {
+            print("🐛 [\(context)] Player item error: \(error.localizedDescription)")
+        }
+    }
     
     private func addRateObserver(for episodeID: String) {
         guard let player = player else { return }
@@ -184,6 +206,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         NotificationCenter.default.addObserver(self, selector: #selector(savePlaybackOnExit), name: UIApplication.willTerminateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying), name: .AVPlayerItemDidPlayToEndTime, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioRouteChange), name: AVAudioSession.routeChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(appDidEnterBackground),
+                name: UIApplication.didEnterBackgroundNotification,
+                object: nil
+            )
+            
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(appWillEnterForeground),
+                name: UIApplication.willEnterForegroundNotification,
+                object: nil
+            )
     }
     
     // MARK: - Core Playback Control
@@ -272,15 +307,20 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private func play(episode: Episode) async {
+        // Validate inputs first
         guard let audio = episode.audio,
+              !audio.isEmpty,
               let url = URL(string: audio),
               let episodeID = episode.id else {
+            print("❌ Invalid episode data for playback")
             await MainActor.run {
-                self.state = .idle
+                self.updateState(to: .idle)
                 self.currentEpisode = nil
             }
             return
         }
+
+        print("▶️ Starting playback for: \(episode.title ?? "Episode")")
 
         // Load player item in background
         let playerItem = await withCheckedContinuation { continuation in
@@ -405,8 +445,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func handlePlayerItemFailure(for episodeID: String) {
         guard let episode = currentEpisode, episode.id == episodeID else {
-            print("❌ Cannot recover - episode mismatch")
+            print("❌ Cannot recover - episode mismatch or nil")
             updateState(to: .idle)
+            cleanupPlayer()
             return
         }
         
@@ -415,25 +456,51 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Save current position before recovery
         if let player = player {
             let currentPosition = player.currentTime().seconds
-            savePlaybackPosition(for: episode, position: currentPosition)
-            print("💾 Saved position \(currentPosition) before recovery")
+            if currentPosition > 0 {
+                savePlaybackPosition(for: episode, position: currentPosition)
+                print("💾 Saved position \(currentPosition) before recovery")
+            }
         }
         
         // Clean up the failed player completely
         cleanupPlayer()
         
-        // Wait a brief moment for cleanup, then retry
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        // Check if this is a background-related failure or regular failure
+        let currentState = state
+        switch currentState {
+        case .loading(let id) where id == episodeID:
+            // Regular loading failure - retry once
+            print("🔄 Regular loading failure - retrying once")
+            retryPlayback(for: episode, episodeID: episodeID)
+            
+        case .playing(let id) where id == episodeID:
+            // Was playing but failed - likely background related
+            print("🔄 Playback failure during play - attempting recovery")
+            retryPlayback(for: episode, episodeID: episodeID)
+            
+        default:
+            print("⚠️ Unexpected state during failure recovery: \(currentState)")
+            updateState(to: .idle)
+        }
+    }
+    
+    private func retryPlayback(for episode: Episode, episodeID: String) {
+        // Set loading state for retry
+        updateState(to: .loading(episodeID: episodeID))
+        
+        // Wait a moment for cleanup, then retry
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let self = self else { return }
             
-            print("🔄 Retrying playback after failure recovery")
-            
-            // Set state back to loading for the retry
-            self.updateState(to: .loading(episodeID: episodeID))
-            
-            // Retry the playback
-            Task.detached(priority: .userInitiated) {
-                await self.play(episode: episode)
+            // Double-check we're still trying to play this episode
+            if case .loading(let currentID) = self.state, currentID == episodeID {
+                print("🔄 Retrying playback after failure recovery")
+                
+                Task.detached(priority: .userInitiated) {
+                    await self.play(episode: episode)
+                }
+            } else {
+                print("⚠️ State changed during recovery delay - not retrying")
             }
         }
     }
@@ -678,8 +745,40 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func savePlaybackPosition(for episode: Episode?, position: Double) {
         guard let episode = episode else { return }
-        episode.playbackPosition = position
-        try? episode.managedObjectContext?.save()
+        
+        let objectID = episode.objectID
+        
+        // Use background context to avoid blocking main thread
+        Task.detached(priority: .background) {
+            let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
+            
+            backgroundContext.perform {
+                do {
+                    if let episodeInBackground = try backgroundContext.existingObject(with: objectID) as? Episode {
+                        episodeInBackground.playbackPosition = position
+                        
+                        if backgroundContext.hasChanges {
+                            try backgroundContext.save()
+                        }
+                    }
+                } catch {
+                    print("❌ Failed to save playback position: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func savePlaybackPositionThrottled(for episode: Episode, position: Double) {
+        lastSavedPosition = position
+        
+        // Cancel existing timer
+        positionSaveTimer?.invalidate()
+        
+        // Set a timer to save after a brief delay (debouncing)
+        positionSaveTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            self.savePlaybackPosition(for: episode, position: position)
+        }
     }
     
     func getSavedPlaybackPosition(for episode: Episode) -> Double {
@@ -781,7 +880,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             let currentDuration = self.getActualDuration(for: episode)
             
             // Check if we're at the end of the episode
-            // More precise end detection - within 0.2 seconds of the end
             if currentTime >= currentDuration - 0.2 {
                 print("🎯 End of episode detected at \(currentTime) of \(currentDuration)")
                 self.playerDidFinishPlaying(notification: Notification(name: .AVPlayerItemDidPlayToEndTime))
@@ -792,8 +890,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 self.progress = roundedTime
                 self.updateNowPlayingInfo()
                 
-                // Save position every second
-                self.savePlaybackPosition(for: episode, position: roundedTime)
+                // Only save to Core Data every 5 seconds or significant changes
+                if abs(roundedTime - self.lastSavedPosition) >= self.positionSaveThreshold {
+                    self.savePlaybackPositionThrottled(for: episode, position: roundedTime)
+                }
             }
         }
     }
@@ -1097,6 +1197,96 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                 self.togglePlayback(for: nextEpisode)
             }
+        }
+    }
+
+    @objc private func appDidEnterBackground() {
+        guard let currentEpisode = currentEpisode else { return }
+        
+        logPlayerState(context: "appDidEnterBackground")
+        
+        // Save current state
+        wasPlayingBeforeBackground = isPlaying
+        lastKnownPosition = player?.currentTime().seconds ?? getSavedPlaybackPosition(for: currentEpisode)
+        
+        // Save position to Core Data
+        savePlaybackPosition(for: currentEpisode, position: lastKnownPosition)
+        
+        print("📱 App backgrounded - saved position: \(lastKnownPosition), was playing: \(wasPlayingBeforeBackground), state: \(state)")
+    }
+
+    @objc private func appWillEnterForeground() {
+        guard let currentEpisode = currentEpisode else { return }
+        
+        print("📱 App foregrounding - checking player state")
+        logPlayerState(context: "appWillEnterForeground")
+        
+        // Ensure we're still dealing with the same episode
+        guard let episodeID = currentEpisode.id else { return }
+        
+        // Check if player item is still valid
+        if let player = player,
+           let currentItem = player.currentItem {
+            
+            if currentItem.status == .failed {
+                print("⚠️ Player item failed while backgrounded - will restart")
+                handleBackgroundRecovery(for: currentEpisode)
+            } else if wasPlayingBeforeBackground && player.rate == 0 {
+                print("🔄 Resuming playback after background")
+                // Update state first
+                updateState(to: .playing(episodeID: episodeID))
+                // Try to resume where we left off
+                player.seek(to: CMTime(seconds: lastKnownPosition, preferredTimescale: 1)) { [weak self] _ in
+                    guard let self = self else { return }
+                    self.player?.playImmediately(atRate: self.playbackSpeed)
+                    self.logPlayerState(context: "afterForegroundResume")
+                }
+            }
+        } else if wasPlayingBeforeBackground {
+            print("🔄 Player lost while backgrounded - restarting")
+            handleBackgroundRecovery(for: currentEpisode)
+        }
+        
+        // Reset background state
+        wasPlayingBeforeBackground = false
+    }
+
+    private func handleBackgroundRecovery(for episode: Episode) {
+        guard let episodeID = episode.id else { return }
+        
+        print("🔄 Handling background recovery for: \(episode.title ?? "Episode")")
+        
+        // Ensure we're still dealing with the same episode
+        guard currentEpisode?.id == episodeID else {
+            print("⚠️ Episode changed during background recovery - aborting")
+            return
+        }
+        
+        // Clean up the invalid player completely
+        cleanupPlayer()
+        
+        // Use a dedicated recovery method instead of calling play() directly
+        recoverPlaybackAfterBackground(for: episode)
+    }
+    
+    private func recoverPlaybackAfterBackground(for episode: Episode) {
+        guard let episodeID = episode.id else { return }
+        
+        // Set to loading state for recovery
+        updateState(to: .loading(episodeID: episodeID))
+        
+        Task.detached(priority: .userInitiated) {
+            // Validate we still have the same episode before recovery
+            await MainActor.run {
+                guard self.currentEpisode?.id == episodeID else {
+                    print("⚠️ Episode changed during recovery task - aborting")
+                    self.updateState(to: .idle)
+                    return
+                }
+            }
+            
+            // Proceed with recovery
+            await self.play(episode: episode)
         }
     }
     

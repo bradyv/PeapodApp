@@ -165,7 +165,7 @@ class EpisodeRefresher {
         // Strategy 1: Match by audio URL (most reliable)
         if let audioUrl = audioUrl {
             if let existing = existingEpisodes[audioUrl] {
-                print("🎯 Found existing episode by audio URL: \(existing.title ?? "Unknown")")
+//                print("🎯 Found existing episode by audio URL: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
@@ -173,7 +173,7 @@ class EpisodeRefresher {
         // Strategy 2: Match by GUID
         if let guid = guid {
             if let existing = existingEpisodes[guid] {
-                print("🎯 Found existing episode by GUID: \(existing.title ?? "Unknown")")
+//                print("🎯 Found existing episode by GUID: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
@@ -182,7 +182,7 @@ class EpisodeRefresher {
         if let title = title, let airDate = airDate {
             let titleDateKey = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
             if let existing = existingEpisodes[titleDateKey] {
-                print("🎯 Found existing episode by title+date: \(existing.title ?? "Unknown")")
+//                print("🎯 Found existing episode by title+date: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
@@ -195,7 +195,7 @@ class EpisodeRefresher {
             fetchRequest.fetchLimit = 1
             
             if let existing = try? context.fetch(fetchRequest).first {
-                print("🎯 Found existing episode via fallback database query: \(existing.title ?? "Unknown")")
+//                print("🎯 Found existing episode via fallback database query: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
@@ -207,7 +207,7 @@ class EpisodeRefresher {
             fetchRequest.fetchLimit = 1
             
             if let existing = try? context.fetch(fetchRequest).first {
-                print("🎯 Found existing episode by title match: \(existing.title ?? "Unknown")")
+//                print("🎯 Found existing episode by title match: \(existing.title ?? "Unknown")")
                 return existing
             }
         }

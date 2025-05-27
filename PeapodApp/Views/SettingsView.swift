@@ -49,12 +49,13 @@ struct SettingsView: View {
                 
                 VStack {
                     HStack(alignment:.top) {
-                        Image(userManager.isSubscriber ? "peapod-plus-mark" : "peapod-mark")
+                        Image(userManager.isSubscriber ? "peapod-plus-mark" : "peapod-mark-adaptive")
                         
                         Spacer()
                         
                         if userManager.isSubscriber {
                             Text("Manage Subscription")
+                                .foregroundStyle(Color.white)
                                 .textDetail()
                         }
                     }
@@ -63,11 +64,14 @@ struct SettingsView: View {
                     HStack {
                         VStack(alignment:.leading) {
                             Text(userManager.memberTypeDisplay)
+                                .foregroundStyle(userManager.isSubscriber ? Color.white : Color.heading)
                                 .titleCondensed()
                             
                             Text("Since \(userManager.userDateString)")
+                                .foregroundStyle(userManager.isSubscriber ? Color.white : Color.heading)
                                 .textDetail()
                         }
+                        
                         Spacer()
                         
                         if !userManager.isSubscriber {
@@ -104,13 +108,17 @@ struct SettingsView: View {
                                 VStack(alignment:.leading, spacing: 8) {
                                     let hours = Int(statistics.totalPlayedSeconds) / 3600
                                     Image(systemName:"airpods.max")
+                                        .foregroundStyle(Color.white)
+                                    
                                     VStack(alignment:.leading) {
                                         Text("\(hours)")
+                                            .foregroundStyle(Color.white)
                                             .titleSerif()
                                             .monospaced()
                                             .contentTransition(.numericText())
                                         
                                         Text("Hours listened")
+                                            .foregroundStyle(Color.white)
                                             .textDetail()
                                     }
                                 }
@@ -139,15 +147,18 @@ struct SettingsView: View {
                             FadeInView(delay:0.6) {
                                 VStack(alignment:.leading, spacing:8) {
                                     Image(systemName:"play.circle")
+                                        .foregroundStyle(Color.white)
                                         .symbolRenderingMode(.hierarchical)
                                     
                                     VStack(alignment:.leading) {
                                         Text("\(statistics.playCount)")
+                                            .foregroundStyle(Color.white)
                                             .titleSerif()
                                             .monospaced()
                                             .contentTransition(.numericText())
                                         
                                         Text("Episodes played")
+                                            .foregroundStyle(Color.white)
                                             .textDetail()
                                     }
                                 }
@@ -215,7 +226,6 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .foregroundStyle(Color.white)
                 .padding()
                 .background {
                     if userManager.isSubscriber {

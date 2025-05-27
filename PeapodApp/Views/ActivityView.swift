@@ -79,9 +79,11 @@ struct ActivityView: View {
                     
                     VStack(alignment:.leading) {
                         Text(userManager.memberTypeDisplay)
+                            .foregroundStyle(Color.white)
                             .titleCondensed()
                         
                         Text("Since \(userManager.userDateString)")
+                            .foregroundStyle(Color.white)
                             .textDetail()
                     }
                     
@@ -90,13 +92,17 @@ struct ActivityView: View {
                             VStack(alignment:.leading, spacing: 8) {
                                 let hours = Int(statistics.totalPlayedSeconds) / 3600
                                 Image(systemName:"airpods.max")
+                                    .foregroundStyle(Color.white)
+                                
                                 VStack(alignment:.leading) {
                                     Text("\(hours)")
+                                        .foregroundStyle(Color.white)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Hours listened")
+                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                             }
@@ -125,15 +131,18 @@ struct ActivityView: View {
                         FadeInView(delay:0.6) {
                             VStack(alignment:.leading, spacing:8) {
                                 Image(systemName:"play.circle")
+                                    .foregroundStyle(Color.white)
                                     .symbolRenderingMode(.hierarchical)
                                 
                                 VStack(alignment:.leading) {
                                     Text("\(statistics.playCount)")
+                                        .foregroundStyle(Color.white)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Episodes played")
+                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                             }
@@ -165,13 +174,17 @@ struct ActivityView: View {
                         FadeInView(delay:0.5) {
                             VStack(alignment:.leading, spacing: 8) {
                                 Image(systemName:"widget.small")
+                                    .foregroundStyle(Color.white)
+                                
                                 VStack(alignment:.leading) {
                                     Text("\(statistics.podcastCount)")
+                                        .foregroundStyle(Color.white)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Unique podcasts")
+                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                             }
@@ -200,15 +213,18 @@ struct ActivityView: View {
                         FadeInView(delay:0.6) {
                             VStack(alignment:.leading, spacing:8) {
                                 Image(systemName:"checkmark.circle")
+                                    .foregroundStyle(Color.white)
                                     .symbolRenderingMode(.hierarchical)
                                 
                                 VStack(alignment:.leading) {
                                     Text("91%")
+                                        .foregroundStyle(Color.white)
                                         .titleSerif()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("Completion rate")
+                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                             }
@@ -259,6 +275,7 @@ struct ActivityView: View {
                     Image("peapod-plus-mark")
                     
                     Text("My Top Podcasts")
+                        .foregroundStyle(Color.white)
                         .titleCondensed()
                         .multilineTextAlignment(.center)
                     
@@ -327,6 +344,7 @@ struct ActivityView: View {
                         }
                         
                         Text("Longest Completed Episode")
+                            .foregroundStyle(Color.white)
                             .titleCondensed()
                             .multilineTextAlignment(.center)
                         
@@ -336,11 +354,15 @@ struct ActivityView: View {
                             VStack(alignment:.leading) {
                                 HStack {
                                     Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
+                                        .foregroundStyle(Color.white)
                                         .textDetailEmphasis()
+                                    
                                     Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
+                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                                 Text(longestEpisode.title ?? "Untitled")
+                                    .foregroundStyle(Color.white)
                                     .titleCondensed()
                                     .lineLimit(1)
                             }

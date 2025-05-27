@@ -16,7 +16,10 @@ class EpisodeRefresher {
     private static let BATCH_SIZE = 50
     
     static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
+        print("🔄 Starting refresh for: \(podcast.title ?? "Unknown")")
+            
         guard let feedUrl = podcast.feedUrl, let url = URL(string: feedUrl) else {
+            print("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
             completion?()
             return
         }
@@ -51,7 +54,10 @@ class EpisodeRefresher {
                             rss: rss,
                             podcast: podcast,
                             context: context,
-                            completion: completion
+                            completion: {
+                                print("✅ Completed refresh for: \(podcast.title ?? "Unknown")")
+                                completion?()
+                            }
                         )
                     }
                 } else {
@@ -117,6 +123,9 @@ class EpisodeRefresher {
             } catch {
                 print("❌ Error saving podcast refresh: \(error)")
             }
+        } else {
+            // Add this logging to see when no changes are made
+            print("ℹ️ \(podcast.title ?? "Podcast"): No changes to save")
         }
         
         completion?()
@@ -383,11 +392,15 @@ class EpisodeRefresher {
             }
             
             group.notify(queue: .global(qos: .utility)) {
+                print("🎯 All podcast refreshes completed")
+                
                 // Final save and cleanup
                 do {
                     if backgroundContext.hasChanges {
                         try backgroundContext.save()
                         print("✅ Background context saved after podcast refresh")
+                    } else {
+                        print("ℹ️ No background context changes to save (all episodes up-to-date)")
                     }
                     
                     // Run deduplication even less frequently

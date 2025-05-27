@@ -158,8 +158,15 @@ struct ContentView: View {
     
     // 🆕 Force refresh to actually fetch new episodes (not just light refresh)
     private func forceRefreshPodcasts() {
-        print("🔄 Force refreshing all subscribed podcasts")
-        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+        let now = Date()
+        // Only refresh if >2 minutes since last refresh
+        if now.timeIntervalSince(lastRefreshDate) > 120 {
+            lastRefreshDate = now
+            print("🔄 Force refreshing all subscribed podcasts")
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+        } else {
+            print("⏩ Skipping refresh - too recent")
+        }
     }
     
     private func checkPendingNotification() {

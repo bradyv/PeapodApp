@@ -82,12 +82,14 @@ class EpisodeRefresher {
         // 🚀 Pre-fetch all existing episodes to avoid repeated database queries
         let existingEpisodes = fetchAllExistingEpisodes(for: podcast, context: context)
         
-        var newEpisodesCount = 0
+        var totalNewEpisodes = 0
         let totalItems = items.count
         
-        // Process items in batches
-        for i in stride(from: 0, to: totalItems, by: BATCH_SIZE) {
-            let endIndex = min(i + BATCH_SIZE, totalItems)
+        // Process items in larger batches to reduce save frequency
+        let batchSize = 100 // Increased from 50
+        
+        for i in stride(from: 0, to: totalItems, by: batchSize) {
+            let endIndex = min(i + batchSize, totalItems)
             let batch = Array(items[i..<endIndex])
             
             let batchNewEpisodes = processBatch(
@@ -97,22 +99,24 @@ class EpisodeRefresher {
                 context: context
             )
             
-            newEpisodesCount += batchNewEpisodes
+            totalNewEpisodes += batchNewEpisodes
             
-            // 🚀 Save every few batches to prevent memory buildup
-            if i % (BATCH_SIZE * 3) == 0 {
+            // ✅ Save less frequently - only every 3 batches (300 episodes)
+            if i % (batchSize * 3) == 0 && context.hasChanges {
                 saveContextIfNeeded(context: context)
             }
         }
         
-        // Final save
-        do {
-            try context.save()
-            if newEpisodesCount > 0 {
-                print("✅ Saved episodes for \(podcast.title ?? "Unknown") - \(newEpisodesCount) new episodes added")
+        // Final save only if there are changes
+        if context.hasChanges {
+            do {
+                try context.save()
+                if totalNewEpisodes > 0 {
+                    print("✅ \(podcast.title ?? "Podcast"): \(totalNewEpisodes) new episodes saved")
+                }
+            } catch {
+                print("❌ Error saving podcast refresh: \(error)")
             }
-        } catch {
-            print("❌ Error saving podcast refresh: \(error)")
         }
         
         completion?()
@@ -223,6 +227,7 @@ class EpisodeRefresher {
         context: NSManagedObjectContext
     ) -> Int {
         var newEpisodesCount = 0
+        var updatedEpisodesCount = 0
         
         for item in items {
             guard let title = item.title else { continue }
@@ -235,29 +240,56 @@ class EpisodeRefresher {
                 context: context
             )
             
-            // Create or update episode
-            let episode = existingEpisode ?? Episode(context: context)
-            
-            if existingEpisode == nil {
+            if let existing = existingEpisode {
+                // ✅ Only update if something actually changed
+                if hasEpisodeChanged(episode: existing, item: item, podcast: podcast) {
+                    updateEpisodeAttributes(episode: existing, item: item, podcast: podcast)
+                    updatedEpisodesCount += 1
+                    print("📝 Updated episode: \(title)")
+                }
+                // ✅ No logging for unchanged episodes
+            } else {
+                // Create new episode
+                let episode = Episode(context: context)
                 episode.id = UUID().uuidString
                 episode.podcast = podcast
+                updateEpisodeAttributes(episode: episode, item: item, podcast: podcast)
                 newEpisodesCount += 1
                 
-                print("🆕 Creating NEW episode: \(title)")
+                print("🆕 Created new episode: \(title)")
                 
                 // Queue new episodes if subscribed
                 if podcast.isSubscribed {
                     toggleQueued(episode)
                 }
-            } else {
-                print("🔄 Updating EXISTING episode: \(title)")
             }
-            
-            // Update episode attributes
-            updateEpisodeAttributes(episode: episode, item: item, podcast: podcast)
+        }
+        
+        // ✅ Only log summary if there were actual changes
+        if newEpisodesCount > 0 || updatedEpisodesCount > 0 {
+            print("📊 \(podcast.title ?? "Podcast"): \(newEpisodesCount) new, \(updatedEpisodesCount) updated")
         }
         
         return newEpisodesCount
+    }
+    
+    private static func hasEpisodeChanged(episode: Episode, item: RSSFeedItem, podcast: Podcast) -> Bool {
+        let newGuid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newTitle = item.title
+        let newAudio = item.enclosure?.attributes?.url
+        let newDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
+        let newAirDate = item.pubDate
+        let newDuration = item.iTunes?.iTunesDuration ?? 0
+        let newEpisodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
+        
+        // Compare each field - only return true if something actually changed
+        return episode.guid != newGuid ||
+               episode.title != newTitle ||
+               episode.audio != newAudio ||
+               episode.episodeDescription != newDescription ||
+               episode.airDate != newAirDate ||
+               (newDuration > 0 && abs(episode.duration - newDuration) > 1.0) || // Allow 1 second tolerance
+               episode.episodeImage != newEpisodeImage
     }
     
     // 🚀 Separate method to update episode attributes
@@ -268,8 +300,8 @@ class EpisodeRefresher {
         episode.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
         episode.airDate = item.pubDate
         
-        if let durationString = item.iTunes?.iTunesDuration {
-            episode.duration = Double(durationString)
+        if let duration = item.iTunes?.iTunesDuration {
+            episode.duration = duration
         }
         
         episode.episodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
@@ -304,10 +336,22 @@ class EpisodeRefresher {
     
     // 🚀 Optimized refresh all with better concurrency control
     static func refreshAllSubscribedPodcasts(context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
+        // ✅ Add global refresh throttling
+        let lastRefreshKey = "lastGlobalRefresh"
+        let now = Date()
+        let lastRefresh = UserDefaults.standard.object(forKey: lastRefreshKey) as? Date ?? Date.distantPast
+        
+        // Don't refresh if we refreshed less than 2 minutes ago
+        if now.timeIntervalSince(lastRefresh) < 120 {
+            print("⏩ Skipping refresh - too recent (\(Int(now.timeIntervalSince(lastRefresh)))s ago)")
+            completion?()
+            return
+        }
+        
+        UserDefaults.standard.set(now, forKey: lastRefreshKey)
+        
         let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
         backgroundContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        
-        // 🚀 Set a reasonable timeout for operations
         backgroundContext.stalenessInterval = 0.0
         
         backgroundContext.perform {
@@ -319,8 +363,10 @@ class EpisodeRefresher {
                 return
             }
             
+            print("🔄 Refreshing \(podcasts.count) subscribed podcasts")
+            
             // 🚀 Limit concurrent operations to prevent overwhelming the system
-            let semaphore = DispatchSemaphore(value: 3) // Max 3 concurrent refreshes
+            let semaphore = DispatchSemaphore(value: 2) // Reduced from 3 to 2
             let group = DispatchGroup()
             
             for podcast in podcasts {
@@ -341,11 +387,11 @@ class EpisodeRefresher {
                 do {
                     if backgroundContext.hasChanges {
                         try backgroundContext.save()
-                        print("✅ Background context saved after refreshing subscribed podcasts")
+                        print("✅ Background context saved after podcast refresh")
                     }
                     
-                    // Run deduplication less frequently
-                    if Bool.random() { // Only 50% of the time
+                    // Run deduplication even less frequently
+                    if Int.random(in: 1...10) == 1 { // Only 10% of the time
                         mergeDuplicateEpisodes(context: backgroundContext)
                     }
                     
@@ -362,7 +408,20 @@ class EpisodeRefresher {
     
     // 🆕 Force refresh for push notifications - restored method
     static func forceRefreshForNotification(completion: (() -> Void)? = nil) {
-        print("🔔 Force refreshing all subscribed podcasts due to push notification")
+        let lastNotificationRefreshKey = "lastNotificationRefresh"
+        let now = Date()
+        let lastRefresh = UserDefaults.standard.object(forKey: lastNotificationRefreshKey) as? Date ?? Date.distantPast
+        
+        // Don't refresh if we refreshed less than 1 minute ago for notifications
+        if now.timeIntervalSince(lastRefresh) < 60 {
+            print("⏩ Skipping notification refresh - too recent")
+            completion?()
+            return
+        }
+        
+        UserDefaults.standard.set(now, forKey: lastNotificationRefreshKey)
+        
+        print("🔔 Force refreshing for notification")
         let context = PersistenceController.shared.container.newBackgroundContext()
         refreshAllSubscribedPodcasts(context: context, completion: completion)
     }

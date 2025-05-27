@@ -15,13 +15,9 @@ struct SettingsView: View {
     @ObservedObject private var userManager = UserManager.shared
     @ObservedObject var player = AudioPlayerManager.shared
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
-    @State private var podcastCount = 0
-    @State private var episodeCount = 0
+    @State private var statistics = AppStatistics(podcastCount: 0, episodeCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
     @State private var lastSynced: Date? = UserDefaults.standard.object(forKey: "lastCloudSyncDate") as? Date
     @State private var selectedIconName: String = UIApplication.shared.alternateIconName ?? "AppIcon-Green"
-    @State private var totalPlayedSeconds: Double = 0
-    @State private var subscribedCount: Int = 0
-    @State private var playCount: Int = 0
     @State private var scrollOffset: CGFloat = 0
     @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
@@ -42,24 +38,6 @@ struct SettingsView: View {
     
     var body: some View {
         ZStack(alignment:.topLeading) {
-//            let splashFadeStart: CGFloat = -150
-//            let splashFadeEnd: CGFloat = 0
-//            let clamped = min(max(scrollOffset, splashFadeStart), splashFadeEnd)
-//            let opacity = (clamped - splashFadeStart) / (splashFadeEnd - splashFadeStart) - 0.5
-//
-//            if isSubscriber {
-//                Image("pro-pattern")
-//                    .resizable()
-//                    .frame(maxWidth:.infinity,maxHeight:500)
-//                    .mask(
-//                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-//                                       startPoint: .top, endPoint: .bottom)
-//                    )
-//                    .ignoresSafeArea(.all)
-//                    .opacity(opacity)
-//                    .transition(.opacity)
-//            }
-            
             ScrollView {
                 Color.clear
                     .frame(height: 1)
@@ -94,7 +72,7 @@ struct SettingsView: View {
                         
                         if !userManager.isSubscriber {
                             HStack {
-                                let hours = Int(totalPlayedSeconds) / 3600
+                                let hours = Int(statistics.totalPlayedSeconds) / 3600
                                 
                                 VStack(alignment: .leading) {
                                     Text("\(hours)")
@@ -107,7 +85,7 @@ struct SettingsView: View {
                                 }
                                 
                                 VStack(alignment: .leading) {
-                                    Text("\(playCount)")
+                                    Text("\(statistics.playCount)")
                                         .titleCondensed()
                                         .monospaced()
                                         .contentTransition(.numericText())
@@ -124,7 +102,7 @@ struct SettingsView: View {
                         HStack {
                             FadeInView(delay:0.5) {
                                 VStack(alignment:.leading, spacing: 8) {
-                                    let hours = Int(totalPlayedSeconds) / 3600
+                                    let hours = Int(statistics.totalPlayedSeconds) / 3600
                                     Image(systemName:"airpods.max")
                                     VStack(alignment:.leading) {
                                         Text("\(hours)")
@@ -164,7 +142,7 @@ struct SettingsView: View {
                                         .symbolRenderingMode(.hierarchical)
                                     
                                     VStack(alignment:.leading) {
-                                        Text("\(playCount)")
+                                        Text("\(statistics.playCount)")
                                             .titleSerif()
                                             .monospaced()
                                             .contentTransition(.numericText())
@@ -373,13 +351,6 @@ struct SettingsView: View {
                             }
                         }
                         
-//                        RowItem(icon: "app.badge", label: "Notifications") {
-//                            Toggle(isOn: $allowNotifications) {
-//                                Text("Push Notifications")
-//                            }
-//                            .labelsHidden()
-//                        }
-                        
                         RowItem(icon: "sparkles.rectangle.stack", label: "Autoplay Next Episode") {
                             Toggle(isOn: $player.autoplayNext) {
                                 Text("Autoplay Next Episode")
@@ -499,14 +470,6 @@ struct SettingsView: View {
                                 }
                             }
                             
-//                            NavigationLink {
-//                                PPPopover(showBg: true) {
-//                                    Acknowledgements()
-//                                }
-//                            } label: {
-//                                RowItem(icon: "link.circle", label: "Acknowledgements")
-//                            }
-                            
                             if _isDebugAssertConfiguration() || showDebugTools {
                                 Text("Debug")
                                     .headerSection()
@@ -578,35 +541,19 @@ struct SettingsView: View {
         let context = PersistenceController.shared.container.viewContext
         
         do {
-            // Use the consolidated fetch requests
-            let podcasts = try Podcast.totalPodcastCount(in: context)
-            let episodes = try Episode.totalEpisodeCount(in: context)
-            let playedSeconds = try await Podcast.totalPlayedDuration(in: context)
-            let subscribed = try Podcast.totalSubscribedCount(in: context)
-            let plays = try Podcast.totalPlayCount(in: context)
-            
-            // Update state variables
-            podcastCount = podcasts
-            episodeCount = episodes
+            let newStats = try await AppStatistics.load(from: context)
             
             // Wait to allow the UI to render with zeros, then animate the updates
             try? await Task.sleep(for: .nanoseconds(1))
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 withAnimation(.easeInOut) {
-                    totalPlayedSeconds = playedSeconds
-                    subscribedCount = subscribed
-                    playCount = plays
+                    statistics = newStats
                 }
             }
         } catch {
             print("Error loading statistics: \(error)")
-            // Set default values on error
-            podcastCount = 0
-            episodeCount = 0
-            totalPlayedSeconds = 0
-            subscribedCount = 0
-            playCount = 0
+            // Keep default zero values on error
         }
     }
     

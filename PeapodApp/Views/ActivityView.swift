@@ -10,6 +10,10 @@ import CoreData
 import Kingfisher
 
 struct ActivityView: View {
+    @ObservedObject private var userManager = UserManager.shared
+    @State private var statistics = AppStatistics(podcastCount: 0, episodeCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
+    @State private var showingUpgrade = false
+    
     @FetchRequest(
         fetchRequest: Episode.recentlyPlayedRequest(limit: 5),
         animation: .interactiveSpring()
@@ -17,12 +21,17 @@ struct ActivityView: View {
     var played: FetchedResults<Episode>
     
     @FetchRequest(
+        fetchRequest: Episode.longestPlayedEpisodeRequest(),
+        animation: .default
+    )
+    var longestEpisodes: FetchedResults<Episode>
+    
+    @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default
     )
     var topPodcasts: FetchedResults<Podcast>
-    @State private var selectedEpisode: Episode? = nil
-    @State private var selectedPodcast: Podcast? = nil
+    
     @State var degreesRotating = 0.0
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     @State private var isSpinning = false
@@ -31,80 +40,9 @@ struct ActivityView: View {
     var body: some View {
         ScrollView {
             Spacer().frame(height:52)
-            Text("My Activity")
+            Text("My Stats")
                 .titleSerif()
                 .frame(maxWidth:.infinity, alignment:.leading)
-                .padding(.horizontal)
-            
-            if !played.isEmpty {
-                FadeInView(delay: 0.2) {
-                    Text("Top Shows")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,16)
-                }
-                
-                let podiumOrder = [1, 0, 2]
-                let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
-                    guard index < topPodcasts.count else { return nil }
-                    return (index, topPodcasts[index])
-                }
-                
-                FadeInView(delay: 0.3) {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(reordered, id: \.1.id) { (index, podcast) in
-                            ZStack(alignment:.bottom) {
-                                if index == 0 {
-                                    ZStack {
-                                        // Background spinning rays
-                                        Image("rays")
-                                            .opacity(0.05)
-                                            .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
-                                            .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
-                                        
-                                        // Blurred background version of the image (larger)
-                                        KFImage(URL(string: podcast.image ?? ""))
-                                            .resizable()
-                                            .frame(width: 128, height: 128)
-                                            .aspectRatio(1, contentMode: .fit)
-                                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                                            .blur(radius: 64)
-                                            .opacity(0.3)
-                                        
-                                        // Main crisp image on top
-                                        KFImage(URL(string: podcast.image ?? ""))
-                                            .resizable()
-                                            .frame(width: 128, height: 128)
-                                            .aspectRatio(1, contentMode: .fit)
-                                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                    }
-                                } else {
-                                    // Regular image for non-winners
-                                    KFImage(URL(string: podcast.image ?? ""))
-                                        .resizable()
-                                        .frame(width: 64, height: 64)
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                }
-                                
-                                Spacer()
-                                
-                                Text("\(podcast.formattedPlayedHours)")
-                                    .foregroundStyle(Color.background)
-                                    .textMini()
-                                    .padding(.vertical, 3)
-                                    .padding(.horizontal, 8)
-                                    .background(Color.heading)
-                                    .clipShape(Capsule())
-                                        .overlay(Capsule().stroke(Color.background, lineWidth: 2))
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-            }
             
             if played.isEmpty {
                 FadeInView(delay: 0.5) {
@@ -130,30 +68,332 @@ struct ActivityView: View {
                     }
                 }
             } else {
-                FadeInView(delay: 0.4) {
-                    Text("Listening Activity")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,24)
+                let podiumOrder = [1, 0, 2]
+                let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
+                    guard index < topPodcasts.count else { return nil }
+                    return (index, topPodcasts[index])
                 }
                 
-                VStack {
-                    ForEach(played, id: \.id) { episode in
-                        FadeInView(delay: 0.5) {
-                            EpisodeItem(episode: episode, namespace: namespace)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .padding(.horizontal)
-                                .matchedTransitionSource(id: episode.id, in: namespace)
+                VStack(alignment:.leading) {
+                    Image("peapod-plus-mark")
+                    
+                    VStack(alignment:.leading) {
+                        Text(userManager.memberTypeDisplay)
+                            .titleCondensed()
+                        
+                        Text("Since \(userManager.userDateString)")
+                            .textDetail()
+                    }
+                    
+                    HStack {
+                        FadeInView(delay:0.5) {
+                            VStack(alignment:.leading, spacing: 8) {
+                                let hours = Int(statistics.totalPlayedSeconds) / 3600
+                                Image(systemName:"airpods.max")
+                                VStack(alignment:.leading) {
+                                    Text("\(hours)")
+                                        .titleSerif()
+                                        .monospaced()
+                                        .contentTransition(.numericText())
+                                    
+                                    Text("Hours listened")
+                                        .textDetail()
+                                }
+                            }
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .background(
+                                LinearGradient(
+                                    stops: [
+                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
+                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
+                                    ],
+                                    startPoint: UnitPoint(x: 0, y: 0),
+                                    endPoint: UnitPoint(x: 0.5, y: 1)
+                                )
+                            )
+                            .background(.white.opacity(0.15))
+                            .cornerRadius(16)
+                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .inset(by: 1)
+                                    .stroke(.white.opacity(0.15), lineWidth: 1)
+                            )
+                        }
+                        
+                        FadeInView(delay:0.6) {
+                            VStack(alignment:.leading, spacing:8) {
+                                Image(systemName:"play.circle")
+                                    .symbolRenderingMode(.hierarchical)
+                                
+                                VStack(alignment:.leading) {
+                                    Text("\(statistics.playCount)")
+                                        .titleSerif()
+                                        .monospaced()
+                                        .contentTransition(.numericText())
+                                    
+                                    Text("Episodes played")
+                                        .textDetail()
+                                }
+                            }
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .background(
+                                LinearGradient(
+                                    stops: [
+                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
+                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
+                                    ],
+                                    startPoint: UnitPoint(x: 0, y: 0),
+                                    endPoint: UnitPoint(x: 0.5, y: 1)
+                                )
+                            )
+                            .background(.white.opacity(0.15))
+                            .cornerRadius(16)
+                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .inset(by: 1)
+                                    .stroke(.white.opacity(0.15), lineWidth: 1)
+                            )
+                        }
+                    }
+                    .frame(maxWidth:.infinity, alignment:.leading)
+                    
+                    HStack {
+                        FadeInView(delay:0.5) {
+                            VStack(alignment:.leading, spacing: 8) {
+                                Image(systemName:"widget.small")
+                                VStack(alignment:.leading) {
+                                    Text("\(statistics.podcastCount)")
+                                        .titleSerif()
+                                        .monospaced()
+                                        .contentTransition(.numericText())
+                                    
+                                    Text("Unique podcasts")
+                                        .textDetail()
+                                }
+                            }
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .background(
+                                LinearGradient(
+                                    stops: [
+                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
+                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
+                                    ],
+                                    startPoint: UnitPoint(x: 0, y: 0),
+                                    endPoint: UnitPoint(x: 0.5, y: 1)
+                                )
+                            )
+                            .background(.white.opacity(0.15))
+                            .cornerRadius(16)
+                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .inset(by: 1)
+                                    .stroke(.white.opacity(0.15), lineWidth: 1)
+                            )
+                        }
+                        
+                        FadeInView(delay:0.6) {
+                            VStack(alignment:.leading, spacing:8) {
+                                Image(systemName:"checkmark.circle")
+                                    .symbolRenderingMode(.hierarchical)
+                                
+                                VStack(alignment:.leading) {
+                                    Text("91%")
+                                        .titleSerif()
+                                        .monospaced()
+                                        .contentTransition(.numericText())
+                                    
+                                    Text("Completion rate")
+                                        .textDetail()
+                                }
+                            }
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .background(
+                                LinearGradient(
+                                    stops: [
+                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
+                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
+                                    ],
+                                    startPoint: UnitPoint(x: 0, y: 0),
+                                    endPoint: UnitPoint(x: 0.5, y: 1)
+                                )
+                            )
+                            .background(.white.opacity(0.15))
+                            .cornerRadius(16)
+                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .inset(by: 1)
+                                    .stroke(.white.opacity(0.15), lineWidth: 1)
+                            )
+                        }
+                    }
+                    .frame(maxWidth:.infinity, alignment:.leading)
+                }
+                .foregroundStyle(Color.white)
+                .padding()
+                .background {
+                    if userManager.isSubscriber {
+                        GeometryReader { geometry in
+                            Color(hex: "#C9C9C9")
+                            Image("pro-pattern")
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                                .clipped()
+                        }
+                        .ignoresSafeArea(.all)
+                    } else {
+                        Color.surface
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius:16))
+                
+                VStack(alignment:.leading) {
+                    Image("peapod-plus-mark")
+                    
+                    Text("My Top Podcasts")
+                        .titleCondensed()
+                        .multilineTextAlignment(.center)
+                    
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(reordered, id: \.1.id) { (index, podcast) in
+                            ZStack(alignment:.bottom) {
+                                KFImage(URL(string: podcast.image ?? ""))
+                                    .resizable()
+                                    .frame(width: index == 0 ? 128 : 64, height: index == 0 ? 128 : 64)
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                    .if(index == 0, transform: {
+                                        $0.background(
+                                            Image("rays")
+                                                .opacity(0.5)
+                                                .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
+                                                .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
+                                        )
+                                    })
+                                
+                                Spacer()
+                                
+                                Text("\(podcast.formattedPlayedHours)")
+                                    .foregroundStyle(Color.black)
+                                    .textDetailEmphasis()
+                                    .padding(.vertical, 3)
+                                    .padding(.horizontal, 8)
+                                    .background(Color.white)
+                                    .clipShape(Capsule())
+                                    .offset(y:12)
+                            }
+                            .zIndex(index == 0 ? 0 : 1)
                         }
                     }
                 }
+                .frame(maxWidth:.infinity,alignment:.leading)
+                .foregroundStyle(Color.white)
+                .padding([.horizontal,.top]).padding(.bottom,44)
+                .background {
+                    if let winner = reordered.first(where: { $0.0 == 0 }) {
+                        ArtworkView(url: winner.1.image ?? "", size: 500, cornerRadius: 0)
+                            .blur(radius: 128)
+                    }
+                    Image("Noise")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .opacity(0.5)
+                }
+                .clipShape(RoundedRectangle(cornerRadius:16))
+                
+                if let longestEpisode = longestEpisodes.first {
+                    VStack(alignment:.leading) {
+                        HStack(alignment:.top) {
+                            let duration = Int(longestEpisode.actualDuration)
+                            Image("peapod-plus-mark")
+                            Spacer()
+                            
+                            Text("\(formatDuration(seconds: duration))")
+                                .foregroundStyle(Color.black)
+                                .textBody()
+                                .padding(.vertical, 3)
+                                .padding(.horizontal, 8)
+                                .background(Color.white)
+                                .clipShape(Capsule())
+                        }
+                        
+                        Text("Longest Completed Episode")
+                            .titleCondensed()
+                            .multilineTextAlignment(.center)
+                        
+                        HStack {
+                            ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 44, cornerRadius: 8)
+                            
+                            VStack(alignment:.leading) {
+                                HStack {
+                                    Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
+                                        .textDetailEmphasis()
+                                    Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
+                                        .textDetail()
+                                }
+                                Text(longestEpisode.title ?? "Untitled")
+                                    .titleCondensed()
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth:.infinity,alignment:.leading)
+                        }
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    .foregroundStyle(Color.white)
+                    .padding()
+                    .background {
+                        ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 500, cornerRadius: 0)
+                            .blur(radius: 128)
+                        Image("Noise")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .opacity(0.5)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius:16))
+                    
+                } else {
+                    Text("No episodes found")
+                }
             }
         }
+        .contentMargins(.horizontal,16, for:.scrollContent)
         .maskEdge(.top)
         .maskEdge(.bottom)
         .onAppear {
             isSpinning = true
+        }
+        .task {
+            await loadStatistics()
+        }
+    }
+    
+    // MARK: - Statistics Loading
+    private func loadStatistics() async {
+        let context = PersistenceController.shared.container.viewContext
+        
+        do {
+            let newStats = try await AppStatistics.load(from: context)
+            
+            // Wait to allow the UI to render with zeros, then animate the updates
+            try? await Task.sleep(for: .nanoseconds(1))
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                withAnimation(.easeInOut) {
+                    statistics = newStats
+                }
+            }
+        } catch {
+            print("Error loading statistics: \(error)")
+            // Keep default zero values on error
         }
     }
 }

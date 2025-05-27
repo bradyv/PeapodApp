@@ -364,6 +364,8 @@ struct ActivityView: View {
                     Text("No episodes found")
                 }
             }
+            
+            Spacer().frame(height:64)
         }
         .contentMargins(.horizontal,16, for:.scrollContent)
         .maskEdge(.top)

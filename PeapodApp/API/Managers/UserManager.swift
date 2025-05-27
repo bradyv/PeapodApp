@@ -174,7 +174,7 @@ class UserManager: ObservableObject {
     
     /// Whether the user is a subscriber
     var isSubscriber: Bool {
-        return userType == .listener
+        return userType == .listener || userType == .betaTester || userType == .subscriber
     }
     
     /// Whether the user is a beta tester

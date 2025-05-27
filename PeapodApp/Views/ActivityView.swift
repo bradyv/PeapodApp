@@ -23,7 +23,9 @@ struct ActivityView: View {
     var topPodcasts: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
+    @State var degreesRotating = 0.0
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    @State private var isSpinning = false
     var namespace: Namespace.ID
     
     var body: some View {
@@ -51,26 +53,53 @@ struct ActivityView: View {
                 FadeInView(delay: 0.3) {
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(reordered, id: \.1.id) { (index, podcast) in
-                            VStack {
-                                let image = KFImage(URL(string: podcast.image ?? ""))
-                                    .resizable()
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                            ZStack(alignment:.bottom) {
+                                if index == 0 {
+                                    ZStack {
+                                        // Background spinning rays
+                                        Image("rays")
+                                            .opacity(0.05)
+                                            .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
+                                            .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
+                                        
+                                        // Blurred background version of the image (larger)
+                                        KFImage(URL(string: podcast.image ?? ""))
+                                            .resizable()
+                                            .frame(width: 128, height: 128)
+                                            .aspectRatio(1, contentMode: .fit)
+                                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                                            .blur(radius: 64)
+                                            .opacity(0.3)
+                                        
+                                        // Main crisp image on top
+                                        KFImage(URL(string: podcast.image ?? ""))
+                                            .resizable()
+                                            .frame(width: 128, height: 128)
+                                            .aspectRatio(1, contentMode: .fit)
+                                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                    }
+                                } else {
+                                    // Regular image for non-winners
+                                    KFImage(URL(string: podcast.image ?? ""))
+                                        .resizable()
+                                        .frame(width: 64, height: 64)
+                                        .aspectRatio(1, contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                }
                                 
-                                let styledImage = image
-                                    .if(index == 0, transform: {
-                                        $0.shadow(color: Color.tint(for: podcast, opacity: 0.5), radius: 32, x: 0, y: 0)
-                                    })
+                                Spacer()
                                 
-                                styledImage
-                                
-                                Text(podcast.formattedPlayedHours)
-                                    .textBody()
+                                Text("\(podcast.formattedPlayedHours)")
+                                    .foregroundStyle(Color.background)
+                                    .textMini()
+                                    .padding(.vertical, 3)
+                                    .padding(.horizontal, 8)
+                                    .background(Color.heading)
+                                    .clipShape(Capsule())
+                                        .overlay(Capsule().stroke(Color.background, lineWidth: 2))
                             }
-                            .if(index != 0, transform: {
-                                $0.scaleEffect(0.75)
-                            })
                         }
                     }
                     .padding(.horizontal)
@@ -123,6 +152,9 @@ struct ActivityView: View {
         }
         .maskEdge(.top)
         .maskEdge(.bottom)
+        .onAppear {
+            isSpinning = true
+        }
     }
 }
 

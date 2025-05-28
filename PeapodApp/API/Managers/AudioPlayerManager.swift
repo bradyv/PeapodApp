@@ -542,7 +542,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
-        savePlaybackPosition(for: episode, position: player.currentTime().seconds)
+        savePlaybackPositionImmediate(for: episode, position: player.currentTime().seconds)
         player.pause() // This will trigger the rate observer to update state to paused
         
         updateNowPlayingInfo()
@@ -766,6 +766,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 }
             }
         }
+    }
+    
+    private func savePlaybackPositionImmediate(for episode: Episode, position: Double) {
+        // Save synchronously on main context for critical events
+        episode.playbackPosition = position
+        try? episode.managedObjectContext?.save()
     }
     
     private func savePlaybackPositionThrottled(for episode: Episode, position: Double) {

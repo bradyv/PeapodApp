@@ -222,7 +222,6 @@ struct SettingsView: View {
                         .sheet(isPresented: $showingUpgrade) {
                             UpgradeView()
                                 .modifier(PPSheet())
-                                .presentationDetents([.medium])
                         }
                     }
                 }
@@ -410,7 +409,6 @@ struct SettingsView: View {
                             .sheet(isPresented: $showingAppIcons) {
                                 AppIconView(selectedIconName: $selectedIconName)
                                     .modifier(PPSheet())
-                                    .presentationDetents([.medium])
                             }
                         
                         VStack(alignment:.leading) {
@@ -477,7 +475,6 @@ struct SettingsView: View {
                                 .sheet(isPresented: $showingUpgrade) {
                                     UpgradeView()
                                         .modifier(PPSheet())
-                                        .presentationDetents([.medium])
                                 }
                             }
                             

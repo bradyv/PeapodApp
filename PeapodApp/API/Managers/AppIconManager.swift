@@ -12,7 +12,7 @@ class AppIconManager: ObservableObject {
     
     private init() {}
     
-    private let baseIcons = [
+    let baseIcons = [
         AppIcons(name: "Peapod", asset: "AppIcon-Green"),
         AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
         AppIcons(name: "Starry", asset: "AppIcon-Starry"),
@@ -23,10 +23,24 @@ class AppIconManager: ObservableObject {
         AppIcons(name: "Plus", asset: "AppIcon-Plus"),
     ]
     
-    var availableIcons: [AppIcons] {
-        var icons = baseIcons
-        return icons
-    }
+    let legacyIcons = [
+        AppIcons(name:"LegacyPeapod", asset:"AppIcon-Legacy-Peapod"),
+        AppIcons(name:"LegacyCupertino", asset:"AppIcon-Legacy-Cupertino"),
+        AppIcons(name:"LegacyPastel", asset:"AppIcon-Legacy-Pastel"),
+        AppIcons(name:"LegacyPride", asset:"AppIcon-Legacy-Pride"),
+        AppIcons(name:"LegacyRinzler", asset:"AppIcon-Legacy-Rinzler"),
+        AppIcons(name:"LegacyCoachella", asset:"AppIcon-Legacy-Coachella"),
+        AppIcons(name:"LegacyClouds", asset:"AppIcon-Legacy-Clouds"),
+    ]
+    
+    let mkiIcons = [
+        AppIcons(name:"MkI", asset:"AppIcon-MkI-Peapod"),
+    ]
+    
+//    var availableIcons: [AppIcons] {
+//        var icons = baseIcons + legacyIcons + mkiIcons
+//        return icons
+//    }
 }
 
 struct AppIcons {

@@ -6,103 +6,248 @@
 //
 
 import SwiftUI
+import StoreKit
 
 struct UpgradeView: View {
-    private var tiers = SubscriptionManager.shared.tiers
-    @State private var selectedTier: String = ""
+    @StateObject private var subscriptionManager = SubscriptionManager.shared
+    @State private var selectedProduct: Product?
+    @State private var isPurchasing = false
+    @State private var showError = false
+    @State private var errorMessage = ""
     
     var body: some View {
         VStack {
-            Spacer().frame(height:24)
+            Spacer().frame(height: 24)
             
             Image("peapod-plus-mark")
             
             Text("I pour my heart into building Peapod. With a Peapod+ subscription, you'll support a true independent podcast app and unlock exclusive extras.")
                 .textBody()
-                .multilineTextAlignment(.center)
+                .multilineTextAlignment(.leading)
             
-            HStack {
-                ForEach(tiers, id: \.term) { tier in
-                    let isSelected = selectedTier == tier.term
-
-                    VStack(alignment:.leading, spacing: 8) {
-                        Text(tier.term)
-                            .titleCondensed()
-                        
-                        Text(tier.price)
-                            .textBody()
-                    }
-                    .frame(maxWidth:.infinity, alignment:.leading)
+            if subscriptionManager.isLoading {
+                ProgressView("Loading subscriptions...")
                     .padding()
-                    .background(
-                        LinearGradient(
-                            stops: [
-                                Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                            ],
-                            startPoint: UnitPoint(x: 0, y: 0),
-                            endPoint: UnitPoint(x: 0.5, y: 1)
-                        )
-                    )
-                    .background(.white.opacity(0.15))
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .inset(by: 1)
-                            .stroke(isSelected ? Color.heading : .white.opacity(0.15), lineWidth: isSelected ? 2 : 1)
-                    )
-                    .onTapGesture {
-                        selectedTier = tier.term
+            } else {
+                subscriptionOptionsView
+            }
+            
+            purchaseButton
+            
+            restoreButton
+        }
+        .padding(.horizontal)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background {
+            backgroundView
+        }
+        .task {
+            await subscriptionManager.loadProducts()
+        }
+        .alert("Purchase Error", isPresented: $showError) {
+            Button("OK") { }
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private var subscriptionOptionsView: some View {
+        VStack(spacing: 16) {
+            // Subscription products
+            if !subscriptionManager.subscriptionProducts.isEmpty {
+                Text("Subscriptions")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                HStack {
+                    ForEach(subscriptionManager.subscriptionProducts, id: \.id) { product in
+                        ProductCard(
+                            product: product,
+                            isSelected: selectedProduct?.id == product.id
+                        ) {
+                            selectedProduct = product
+                        }
                     }
                 }
             }
             
-            Button(action: {
-                //
-            }) {
-                Text("Become a Supporter")
-                    .frame(maxWidth:.infinity)
-                    .foregroundStyle(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(hex: "#3CA4F4") ?? .blue,
-                                Color(hex: "#9D93C5") ?? .purple,
-                                Color(hex: "#E98D64") ?? .orange
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+            // Non-consumable products (like lifetime purchase)
+            if !subscriptionManager.nonConsumableProducts.isEmpty {
+                Text("One-Time Purchase")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                ForEach(subscriptionManager.nonConsumableProducts, id: \.id) { product in
+                    ProductCard(
+                        product: product,
+                        isSelected: selectedProduct?.id == product.id,
+                        isLifetime: true
+                    ) {
+                        selectedProduct = product
+                    }
+                }
             }
-            .buttonStyle(ShadowButton())
+        }
+    }
+    
+    private var purchaseButton: some View {
+        Button(action: {
+            Task {
+                await purchaseSelectedProduct()
+            }
+        }) {
+            HStack {
+                if isPurchasing {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+                }
+                
+                Text(isPurchasing ? "Processing..." : "Become a Supporter")
+            }
+            .frame(maxWidth: .infinity)
+            .foregroundStyle(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(hex: "#3CA4F4") ?? .blue,
+                        Color(hex: "#9D93C5") ?? .purple,
+                        Color(hex: "#E98D64") ?? .orange
+                    ]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+        }
+        .buttonStyle(ShadowButton())
+        .disabled(selectedProduct == nil || isPurchasing)
+        .opacity(selectedProduct == nil ? 0.6 : 1.0)
+    }
+    
+    private var restoreButton: some View {
+        Button(action: {
+            Task {
+                await subscriptionManager.restorePurchases()
+            }
+        }) {
+            Text("Restore purchases")
+                .textBody()
+        }
+        .foregroundStyle(Color.white)
+        .disabled(isPurchasing)
+    }
+    
+    private var backgroundView: some View {
+        GeometryReader { geometry in
+            Color(hex: "#C9C9C9")
+            Image("pro-pattern")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+        }
+        .ignoresSafeArea(.all)
+    }
+    
+    private func purchaseSelectedProduct() async {
+        guard let product = selectedProduct else { return }
+        
+        isPurchasing = true
+        
+        do {
+            try await subscriptionManager.purchase(product)
+            // Purchase successful - you might want to dismiss this view or show success
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+        
+        isPurchasing = false
+    }
+}
+
+struct ProductCard: View {
+    let product: Product
+    let isSelected: Bool
+    let isLifetime: Bool
+    let onTap: () -> Void
+    
+    init(product: Product, isSelected: Bool, isLifetime: Bool = false, onTap: @escaping () -> Void) {
+        self.product = product
+        self.isSelected = isSelected
+        self.isLifetime = isLifetime
+        self.onTap = onTap
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(productTypeText)
+                .titleCondensed()
             
-            Button(action: {
-                //
-            }) {
-                Text("Restore purchases")
-                    .textBody()
+            Text(product.displayPrice)
+                .textBody()
+            
+            if let savings = savingsText {
+                Text(savings)
+                    .font(.caption)
+                    .foregroundColor(.green)
             }
-            .foregroundStyle(Color.white)
-        }
-        .padding(.horizontal)
-        .frame(maxWidth:.infinity, maxHeight:.infinity, alignment:.top)
-        .background {
-            GeometryReader { geometry in
-                Color(hex: "#C9C9C9")
-                Image("pro-pattern")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-            }
-            .ignoresSafeArea(.all)
-        }
-        .onAppear {
-            // Select the first tier by default
-            if selectedTier.isEmpty && !tiers.isEmpty {
-                selectedTier = tiers[0].term
+            
+            if isLifetime {
+                Text("Pay once, own forever")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(
+            LinearGradient(
+                stops: [
+                    Gradient.Stop(color: .white.opacity(isSelected ? 0.4 : 0.3), location: 0.00),
+                    Gradient.Stop(color: .white.opacity(0), location: 1.00),
+                ],
+                startPoint: UnitPoint(x: 0, y: 0),
+                endPoint: UnitPoint(x: 0.5, y: 1)
+            )
+        )
+        .background(.white.opacity(isSelected ? 0.25 : 0.15))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .inset(by: 1)
+                .stroke(.white.opacity(isSelected ? 0.3 : 0.15), lineWidth: isSelected ? 2 : 1)
+        )
+        .onTapGesture {
+            onTap()
+        }
+    }
+    
+    private var productTypeText: String {
+        if isLifetime {
+            return "Lifetime"
+        }
+        
+        guard let subscription = product.subscription else { return "Unknown" }
+        
+        switch subscription.subscriptionPeriod.unit {
+        case .month:
+            return "Monthly"
+        case .year:
+            return "Annual"
+        default:
+            return subscription.subscriptionPeriod.unit.description
+        }
+    }
+    
+    private var savingsText: String? {
+        // Calculate savings for annual subscription
+        guard let subscription = product.subscription,
+              subscription.subscriptionPeriod.unit == .year else {
+            return nil
+        }
+        
+        // This is a simplified calculation - you'd want to compare with the monthly price
+        return "Save 25%" // Replace with actual calculation
     }
 }
 

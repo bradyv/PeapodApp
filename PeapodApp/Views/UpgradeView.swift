@@ -17,10 +17,7 @@ struct UpgradeView: View {
             
             Image("peapod-plus-mark")
             
-            Text("Join Peapod+")
-                .titleSerif()
-            
-            Text("Support the ongoing development of an independent podcast app. You’ll get custom app icons, more listening insights, and my eternal gratitude.")
+            Text("I pour my heart into building Peapod. With a Peapod+ subscription, you'll support a true independent podcast app and unlock exclusive extras.")
                 .textBody()
                 .multilineTextAlignment(.center)
             

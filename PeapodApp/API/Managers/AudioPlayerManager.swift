@@ -1108,16 +1108,23 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
            let type = AVAudioSession.InterruptionType(rawValue: typeValue) {
 
             if type == .began {
-                // Save position when audio is interrupted
                 let currentPosition = player.currentTime().seconds
                 savePlaybackPosition(for: currentEpisode, position: currentPosition)
                 pause()
             } else if type == .ended {
+                // Be more conservative about auto-resuming
                 if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt,
                    AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
                     
-                    Task {
-                        await play(episode: episode)
+                    // Add a delay and additional checks before resuming
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                        guard let self = self,
+                              // Only resume if we're still in a paused state (not idle)
+                              case .paused = self.state else { return }
+                        
+                        Task {
+                            await self.play(episode: episode)
+                        }
                     }
                 }
             }
@@ -1133,16 +1140,23 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
 
         switch reason {
         case .oldDeviceUnavailable:
-            print("🔌 Audio route changed: old device unavailable (e.g., AirPods removed)")
+            print("🔌 Audio route changed: old device unavailable")
             pause()
             
         case .categoryChange:
             print("⚙️ Audio category changed")
-
+            // Don't auto-resume on category changes
+            
         case .newDeviceAvailable:
-            print("🆕 New audio device available (e.g., plugged in)")
-
+            print("🆕 New audio device available")
+            // Explicitly don't resume - let user manually restart
+            
+        case .routeConfigurationChange:
+            print("🔄 Route configuration changed")
+            // This might happen during complex disconnections
+            
         default:
+            print("🔄 Audio route changed: \(reason.rawValue)")
             break
         }
     }

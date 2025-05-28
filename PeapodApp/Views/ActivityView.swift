@@ -287,7 +287,6 @@ struct ActivityView: View {
                                     .if(index == 0, transform: {
                                         $0.background(
                                             Image("rays")
-                                                .opacity(0.5)
                                                 .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
                                                 .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
                                         )

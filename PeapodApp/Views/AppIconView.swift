@@ -14,7 +14,7 @@ struct AppIconView: View {
     
     private var iconCategories: [(String, [AppIcons])] {
         return [
-            ("Base", AppIconManager.shared.baseIcons),
+            ("Peapod", AppIconManager.shared.baseIcons),
             ("Legacy", AppIconManager.shared.legacyIcons),
             ("MKI", AppIconManager.shared.mkiIcons)
         ]
@@ -30,6 +30,8 @@ struct AppIconView: View {
                 .titleSerif()
                 .frame(maxWidth:.infinity,alignment:.leading)
                 .padding(.top,24)
+            
+            Spacer().frame(height:24)
             
             if !userManager.isSubscriber {
                 VStack {
@@ -81,6 +83,8 @@ struct AppIconView: View {
                 .padding()
                 .background(Color.surface)
                 .clipShape(RoundedRectangle(cornerRadius:16))
+                
+                Spacer().frame(height: 24)
             }
         }
         .frame(maxHeight:.infinity, alignment:.topLeading)

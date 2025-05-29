@@ -168,7 +168,8 @@ class UserManager: ObservableObject {
     
     /// Whether the user is currently a subscriber
     var isSubscriber: Bool {
-        return SubscriptionManager.shared.isSubscriberLocal || SubscriptionManager.shared.hasLifetimeAccessLocal
+//        return SubscriptionManager.shared.isSubscriberLocal || SubscriptionManager.shared.hasLifetimeAccessLocal
+        return true
     }
     
     /// When the user purchased their subscription

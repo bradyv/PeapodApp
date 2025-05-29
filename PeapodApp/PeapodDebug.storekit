@@ -32,6 +32,8 @@
   ],
   "settings" : {
     "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
     "_storeKitErrors" : [
       {
         "current" : null,
@@ -108,7 +110,7 @@
             }
           ],
           "productID" : "peapod.plus.annual",
-          "recurringSubscriptionPeriod" : "P1M",
+          "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Peapod Plus Annual",
           "subscriptionGroupID" : "2C0EDB29",
           "type" : "RecurringSubscription",

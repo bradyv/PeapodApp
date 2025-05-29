@@ -63,6 +63,10 @@ struct AppIconView: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius:16))
                 .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                .onTapGesture {
+                    showingUpgrade = true
+                }
+                Spacer().frame(height:24)
             }
             
             ForEach(iconCategories, id: \.0) { categoryName, icons in

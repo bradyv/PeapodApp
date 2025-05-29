@@ -53,11 +53,11 @@ struct SettingsView: View {
                         
                         Spacer()
                         
-                        if userManager.isSubscriber {
-                            Text("Manage Subscription")
-                                .foregroundStyle(Color.white)
-                                .textDetail()
-                        }
+//                        if userManager.isSubscriber {
+//                            Text("Manage Subscription")
+//                                .foregroundStyle(Color.white)
+//                                .textDetail()
+//                        }
                     }
                     .frame(maxWidth:.infinity, alignment:.leading)
                     

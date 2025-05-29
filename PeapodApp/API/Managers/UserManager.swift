@@ -10,6 +10,7 @@ import CoreData
 import Combine
 import UIKit
 
+@MainActor
 class UserManager: ObservableObject {
     static let shared = UserManager()
     
@@ -53,7 +54,8 @@ class UserManager: ObservableObject {
                 guard let self = self else { return }
                 
                 // Avoid reloading immediately after we just set up the user
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                     self.loadCurrentUser()
                 }
             }
@@ -96,7 +98,6 @@ class UserManager: ObservableObject {
     // MARK: - User Management
     
     /// Creates a new user if none exists, or returns the existing user
-    /// Now with caching to avoid unnecessary operations
     @discardableResult
     func setupCurrentUser() -> User? {
         // Fast path: If we've already completed setup and have a user, just return it
@@ -145,57 +146,34 @@ class UserManager: ObservableObject {
         let newUser = User(context: context)
         newUser.userSince = Date()
         
-        // Determine member type based on TestFlight vs App Store
-        if let receiptURL = Bundle.main.appStoreReceiptURL {
-            let isDownloadedFromTestFlight = receiptURL.lastPathComponent == "sandboxReceipt"
-            newUser.memberType = isDownloadedFromTestFlight ? .betaTester : .listener
-        } else {
-            newUser.memberType = .listener
-        }
+        // All new users start as listeners
+        // Note: This userType field may be deprecated in the future
+        newUser.memberType = .listener
         
         saveContextSynchronously()
         loadCurrentUser() // Refresh the cached user
         
-        print("✅ UserManager: Created new user with type: \(newUser.memberType?.rawValue ?? "unknown")")
+        print("✅ UserManager: Created new user with type: listener")
         return newUser
     }
     
-    // MARK: - Rest of your existing methods...
-    
-    /// The current user's member type
-    var userType: MemberType? {
-        guard let user = currentUser,
-              let typeRaw = user.userType,
-              let type = MemberType(rawValue: typeRaw) else {
-            return nil
-        }
-        return type
-    }
-    
-    /// Whether the user is a subscriber
-    var isSubscriber: Bool {
-//        return userType == .subscriber
-        return true
-    }
-    
-    /// Whether the user is a beta tester
-    var isBetaTester: Bool {
-        return userType == .betaTester
-    }
-    
-    /// Whether the user is a listener (free tier)
-    var isListener: Bool {
-        return userType == .listener
-    }
+    // MARK: - User Properties
     
     /// When the user first started using the app
     var userSince: Date? {
         return currentUser?.userSince
     }
     
-    /// When the user purchased their subscription (if applicable)
+    // MARK: - Subscription Status (delegates to SubscriptionManager)
+    
+    /// Whether the user is currently a subscriber
+    var isSubscriber: Bool {
+        return SubscriptionManager.shared.isSubscriberLocal || SubscriptionManager.shared.hasLifetimeAccessLocal
+    }
+    
+    /// When the user purchased their subscription
     var purchaseDate: Date? {
-        return currentUser?.purchaseDate
+        return SubscriptionManager.shared.relevantPurchaseDate
     }
     
     /// The relevant date for display purposes
@@ -214,16 +192,7 @@ class UserManager: ObservableObject {
     
     /// Display name for the current member type
     var memberTypeDisplay: String {
-        guard let type = userType else { return "Unknown" }
-        
-        switch type {
-        case .listener:
-            return "Listener"
-        case .betaTester:
-            return "Beta Tester"
-        case .subscriber:
-            return "Subscriber"
-        }
+        return isSubscriber ? "Subscriber" : "Listener"
     }
     
     /// Formatted string for "Since" display
@@ -244,47 +213,21 @@ class UserManager: ObservableObject {
         return formatter.string(from: date)
     }
     
-    /// Updates the user's member type
-    func updateMemberType(_ newType: MemberType) {
-        guard let user = currentUser else {
-            print("❌ UserManager: No current user to update")
-            return
+    // MARK: - Legacy Properties (for compatibility - will be removed later)
+    
+    /// The current user's member type (legacy - consider deprecated)
+    var userType: MemberType? {
+        guard let user = currentUser,
+              let typeRaw = user.userType,
+              let type = MemberType(rawValue: typeRaw) else {
+            return nil
         }
-        
-        let oldType = user.memberType
-        user.memberType = newType
-        
-        // Set purchase date when upgrading to subscriber
-        if newType == .subscriber && oldType != .subscriber {
-            user.purchaseDate = Date()
-        }
-        
-        saveContextSynchronously()
-        print("✅ UserManager: Updated member type from \(oldType?.rawValue ?? "nil") to \(newType.rawValue)")
+        return type
     }
     
-    /// Sets the user's purchase date
-    func setPurchaseDate(_ date: Date = Date()) {
-        guard let user = currentUser else {
-            print("❌ UserManager: No current user to update")
-            return
-        }
-        
-        user.purchaseDate = date
-        saveContextSynchronously()
-        print("✅ UserManager: Set purchase date to \(date)")
-    }
-    
-    /// Clears the user's purchase date
-    func clearPurchaseDate() {
-        guard let user = currentUser else {
-            print("❌ UserManager: No current user to update")
-            return
-        }
-        
-        user.purchaseDate = nil
-        saveContextSynchronously()
-        print("✅ UserManager: Cleared purchase date")
+    /// Whether the user is a listener (legacy - will always be true for non-subscribers)
+    var isListener: Bool {
+        return !isSubscriber
     }
     
     // MARK: - Helper Methods
@@ -316,7 +259,7 @@ extension UserManager {
         case "com.bradyv.Peapod.Debug":
             return "debug"
         case "com.bradyv.Peapod.Dev":
-            return "dev"
+            return "prod"
         default:
             return "prod"
         }

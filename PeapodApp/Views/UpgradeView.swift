@@ -9,6 +9,7 @@ import SwiftUI
 import StoreKit
 
 struct UpgradeView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @State private var selectedProduct: Product?
     @State private var isPurchasing = false
@@ -21,7 +22,7 @@ struct UpgradeView: View {
             
             Image("peapod-plus-mark")
             
-            Text("I pour my heart into building Peapod. With a Peapod+ subscription, you'll support a true independent podcast app and unlock exclusive extras.")
+            Text("I pour my heart into designing and building Peapod. By purchasing Peapod+, you'll support a true independent podcast app and unlock exclusive extras.")
                 .textBody()
                 .multilineTextAlignment(.leading)
             
@@ -43,6 +44,13 @@ struct UpgradeView: View {
         }
         .task {
             await subscriptionManager.loadProducts()
+            selectDefaultProduct()
+        }
+        .onChange(of: subscriptionManager.subscriptionProducts) { _, _ in
+            // Auto-select when products finish loading
+            if selectedProduct == nil {
+                selectDefaultProduct()
+            }
         }
         .alert("Purchase Error", isPresented: $showError) {
             Button("OK") { }
@@ -55,27 +63,19 @@ struct UpgradeView: View {
         VStack(spacing: 16) {
             // Subscription products
             if !subscriptionManager.subscriptionProducts.isEmpty {
-                Text("Subscriptions")
-                    .font(.headline)
-                    .foregroundColor(.white)
                 
-                HStack {
-                    ForEach(subscriptionManager.subscriptionProducts, id: \.id) { product in
-                        ProductCard(
-                            product: product,
-                            isSelected: selectedProduct?.id == product.id
-                        ) {
-                            selectedProduct = product
-                        }
+                ForEach(subscriptionManager.subscriptionProducts, id: \.id) { product in
+                    ProductCard(
+                        product: product,
+                        isSelected: selectedProduct?.id == product.id
+                    ) {
+                        selectedProduct = product
                     }
                 }
             }
             
             // Non-consumable products (like lifetime purchase)
             if !subscriptionManager.nonConsumableProducts.isEmpty {
-                Text("One-Time Purchase")
-                    .font(.headline)
-                    .foregroundColor(.white)
                 
                 ForEach(subscriptionManager.nonConsumableProducts, id: \.id) { product in
                     ProductCard(
@@ -103,7 +103,7 @@ struct UpgradeView: View {
                         .scaleEffect(0.8)
                 }
                 
-                Text(isPurchasing ? "Processing..." : "Become a Supporter")
+                Text(isPurchasing ? "Processing..." : "Subscribe")
             }
             .frame(maxWidth: .infinity)
             .foregroundStyle(
@@ -119,8 +119,8 @@ struct UpgradeView: View {
             )
         }
         .buttonStyle(ShadowButton())
-        .disabled(selectedProduct == nil || isPurchasing)
-        .opacity(selectedProduct == nil ? 0.6 : 1.0)
+        .disabled(isPurchasing)
+        .opacity(isPurchasing ? 0.6 : 1.0)
     }
     
     private var restoreButton: some View {
@@ -144,6 +144,15 @@ struct UpgradeView: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .clipped()
+            
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black.opacity(0),
+                    Color.black
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
         .ignoresSafeArea(.all)
     }
@@ -155,13 +164,25 @@ struct UpgradeView: View {
         
         do {
             try await subscriptionManager.purchase(product)
-            // Purchase successful - you might want to dismiss this view or show success
+            // Purchase successful - dismiss the sheet
+            dismiss()
         } catch {
             errorMessage = error.localizedDescription
             showError = true
         }
         
         isPurchasing = false
+    }
+    
+    private func selectDefaultProduct() {
+        // Select annual subscription first (usually the best value)
+        if let annualProduct = subscriptionManager.annualProduct {
+            selectedProduct = annualProduct
+        } else if let firstSubscription = subscriptionManager.subscriptionProducts.first {
+            selectedProduct = firstSubscription
+        } else if let firstProduct = subscriptionManager.nonConsumableProducts.first {
+            selectedProduct = firstProduct
+        }
     }
 }
 
@@ -179,7 +200,7 @@ struct ProductCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(productTypeText)
                 .titleCondensed()
             
@@ -188,15 +209,16 @@ struct ProductCard: View {
             
             if let savings = savingsText {
                 Text(savings)
-                    .font(.caption)
-                    .foregroundColor(.green)
+                    .textDetail()
+                    .padding()
+                    .background(Color.black)
+                    .clipShape(Capsule())
             }
             
-            if isLifetime {
-                Text("Pay once, own forever")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
-            }
+//            if isLifetime {
+//                Text("Pay once, own forever")
+//                    .textDetail()
+//            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()

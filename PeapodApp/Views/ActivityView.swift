@@ -296,7 +296,7 @@ struct ActivityView: View {
                             
                             Text("\(formatDuration(seconds: duration))")
                                 .foregroundStyle(Color.black)
-                                .textBody()
+                                .textDetail()
                                 .padding(.vertical, 3)
                                 .padding(.horizontal, 8)
                                 .background(Color.white)

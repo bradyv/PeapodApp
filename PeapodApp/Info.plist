@@ -13,6 +13,13 @@
 					<string>AppIcon-Blueprint</string>
 				</array>
 			</dict>
+            <key>AppIcon-Plus-Pastel</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIcon-Plus-Pastel</string>
+                </array>
+            </dict>
 			<key>AppIcon-Business</key>
 			<dict>
 				<key>CFBundleIconFiles</key>

@@ -21,6 +21,7 @@ class AppIconManager: ObservableObject {
         AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino"),
         AppIcons(name: "Business", asset: "AppIcon-Business"),
         AppIcons(name: "Plus", asset: "AppIcon-Plus"),
+        AppIcons(name: "Plus-Pastel", asset: "AppIcon-Plus-Pastel")
     ]
     
     let legacyIcons = [

@@ -193,7 +193,7 @@ class UserManager: ObservableObject {
     
     /// Display name for the current member type
     var memberTypeDisplay: String {
-        return isSubscriber ? "Subscriber" : "Listener"
+        return isSubscriber ? "Supporter" : "Listener"
     }
     
     /// Formatted string for "Since" display

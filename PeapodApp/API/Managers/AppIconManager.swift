@@ -24,13 +24,13 @@ class AppIconManager: ObservableObject {
     ]
     
     let legacyIcons = [
-        AppIcons(name:"LegacyPeapod", asset:"AppIcon-Legacy-Peapod"),
-        AppIcons(name:"LegacyCupertino", asset:"AppIcon-Legacy-Cupertino"),
-        AppIcons(name:"LegacyPastel", asset:"AppIcon-Legacy-Pastel"),
-        AppIcons(name:"LegacyPride", asset:"AppIcon-Legacy-Pride"),
-        AppIcons(name:"LegacyRinzler", asset:"AppIcon-Legacy-Rinzler"),
-        AppIcons(name:"LegacyCoachella", asset:"AppIcon-Legacy-Coachella"),
-        AppIcons(name:"LegacyClouds", asset:"AppIcon-Legacy-Clouds"),
+        AppIcons(name: "LegacyPeapod", asset:"AppIcon-Legacy-PP"),
+        AppIcons(name: "LegacyCupertino", asset:"AppIcon-Legacy-Apple"),
+        AppIcons(name: "LegacyPastel", asset:"AppIcon-Legacy-SoftColor"),
+        AppIcons(name: "LegacyPride", asset:"AppIcon-Legacy-Pride"),
+        AppIcons(name: "LegacyRinzler", asset:"AppIcon-Legacy-Rinzler"),
+        AppIcons(name: "LegacyCoachella", asset:"AppIcon-Legacy-Coachella"),
+        AppIcons(name: "LegacyClouds", asset:"AppIcon-Legacy-Clouds"),
     ]
     
     let mkiIcons = [

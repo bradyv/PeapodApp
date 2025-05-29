@@ -16,26 +16,69 @@ struct UpgradeView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     
+    struct Perk {
+        var name: String
+        var icon: String
+        
+        init(name: String, icon: String) {
+            self.name = name
+            self.icon = icon
+        }
+    }
+    
+    private var perks = [
+        Perk(name:"Exclusive app icons", icon:"app.dashed"),
+        Perk(name:"Advanced listening stats", icon:"rays"),
+        Perk(name:"Custom playback speeds", icon:"gauge.with.dots.needle.100percent"),
+        Perk(name:"Custom skip intervals", icon:"30.arrow.trianglehead.clockwise")
+    ]
+    
     var body: some View {
-        VStack {
+        VStack(spacing:24) {
             Spacer().frame(height: 24)
             
-            Image("peapod-plus-mark")
-            
-            Text("I pour my heart into designing and building Peapod. By purchasing Peapod+, you'll support a true independent podcast app and unlock exclusive extras.")
-                .textBody()
-                .multilineTextAlignment(.leading)
-            
-            if subscriptionManager.isLoading {
-                ProgressView("Loading subscriptions...")
-                    .padding()
-            } else {
-                subscriptionOptionsView
+            VStack(spacing:4) {
+                Image("peapod-plus-mark")
+                
+                Text("Peapod+")
+                    .foregroundStyle(Color.white)
+                    .titleSerif()
             }
             
-            purchaseButton
+            Text("I pour my heart into designing and building Peapod. By purchasing Peapod+, you're supporting a true independent podcast app and unlock exclusive extras.")
+                .foregroundStyle(Color.white)
+                .textBody()
+                .multilineTextAlignment(.center)
             
-            restoreButton
+            VStack(alignment:.leading, spacing:8) {
+                ForEach(perks, id: \.name) { perk in
+                    HStack {
+                        Image(systemName:perk.icon)
+                            .foregroundStyle(Color.white)
+                            .frame(width: 24, height: 24)
+                        
+                        Text(perk.name)
+                            .foregroundStyle(Color.white)
+                            .textBody()
+                    }
+                }
+                
+                Spacer()
+            }
+            .frame(maxWidth:.infinity,alignment:.leading)
+            
+            VStack(spacing:16) {
+                if subscriptionManager.isLoading {
+                    ProgressView("Loading subscriptions...")
+                        .padding()
+                } else {
+                    subscriptionOptionsView
+                }
+                
+                purchaseButton
+                
+                restoreButton
+            }
         }
         .padding(.horizontal)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -130,9 +173,9 @@ struct UpgradeView: View {
             }
         }) {
             Text("Restore purchases")
+                .foregroundStyle(Color.white)
                 .textBody()
         }
-        .foregroundStyle(Color.white)
         .disabled(isPurchasing)
     }
     
@@ -200,17 +243,24 @@ struct ProductCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(productTypeText)
-                .titleCondensed()
-            
-            Text(product.displayPrice)
-                .textBody()
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(productTypeText)
+                    .foregroundStyle(Color.white)
+                    .titleCondensed()
+                
+                Text(product.displayPrice)
+                    .foregroundStyle(Color.white)
+                    .textBody()
+            }
             
             if let savings = savingsText {
+                Spacer()
+                
                 Text(savings)
+                    .foregroundStyle(Color.white)
                     .textDetail()
-                    .padding()
+                    .padding(.horizontal,8).padding(.vertical,4)
                     .background(Color.black)
                     .clipShape(Capsule())
             }
@@ -222,22 +272,13 @@ struct ProductCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(
-            LinearGradient(
-                stops: [
-                    Gradient.Stop(color: .white.opacity(isSelected ? 0.4 : 0.3), location: 0.00),
-                    Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                ],
-                startPoint: UnitPoint(x: 0, y: 0),
-                endPoint: UnitPoint(x: 0.5, y: 1)
-            )
-        )
-        .background(.white.opacity(isSelected ? 0.25 : 0.15))
+//        .background(cardBackgroundGradient)
+        .background(.white.opacity(0.15))
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .inset(by: 1)
-                .stroke(.white.opacity(isSelected ? 0.3 : 0.15), lineWidth: isSelected ? 2 : 1)
+                .stroke(.white.opacity(isSelected ? 1 : 0.15), lineWidth: isSelected ? 2 : 1)
         )
         .onTapGesture {
             onTap()

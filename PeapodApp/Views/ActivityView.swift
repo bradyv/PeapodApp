@@ -108,16 +108,7 @@ struct ActivityView: View {
                             }
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .background(
-                                LinearGradient(
-                                    stops: [
-                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                    ],
-                                    startPoint: UnitPoint(x: 0, y: 0),
-                                    endPoint: UnitPoint(x: 0.5, y: 1)
-                                )
-                            )
+                            .background(cardBackgroundGradient)
                             .background(.white.opacity(0.15))
                             .cornerRadius(16)
                             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -148,16 +139,7 @@ struct ActivityView: View {
                             }
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .background(
-                                LinearGradient(
-                                    stops: [
-                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                    ],
-                                    startPoint: UnitPoint(x: 0, y: 0),
-                                    endPoint: UnitPoint(x: 0.5, y: 1)
-                                )
-                            )
+                            .background(cardBackgroundGradient)
                             .background(.white.opacity(0.15))
                             .cornerRadius(16)
                             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -190,16 +172,7 @@ struct ActivityView: View {
                             }
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .background(
-                                LinearGradient(
-                                    stops: [
-                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                    ],
-                                    startPoint: UnitPoint(x: 0, y: 0),
-                                    endPoint: UnitPoint(x: 0.5, y: 1)
-                                )
-                            )
+                            .background(cardBackgroundGradient)
                             .background(.white.opacity(0.15))
                             .cornerRadius(16)
                             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -230,16 +203,7 @@ struct ActivityView: View {
                             }
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .background(
-                                LinearGradient(
-                                    stops: [
-                                        Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                        Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                    ],
-                                    startPoint: UnitPoint(x: 0, y: 0),
-                                    endPoint: UnitPoint(x: 0.5, y: 1)
-                                )
-                            )
+                            .background(cardBackgroundGradient)
                             .background(.white.opacity(0.15))
                             .cornerRadius(16)
                             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)

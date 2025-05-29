@@ -32,6 +32,9 @@ class SubscriptionManager: ObservableObject {
     @Published var subscriptionPurchaseDate: Date?
     @Published var lifetimePurchaseDate: Date?
     
+    // Player
+    private let player = AudioPlayerManager.shared
+    
     // Product IDs from App Store Connect
     private let subscriptionIDs: Set<String> = [
         "peapod.plus.annual",
@@ -274,6 +277,9 @@ class SubscriptionManager: ObservableObject {
             subscriptionPurchaseDate = nil
             statusChanged = true
             print("⚠️ Subscription expired - removed from local status")
+            player.setBackwardInterval(30)
+            player.setForwardInterval(30)
+            player.setPlaybackSpeed(1.0)
         }
         
         // Handle lifetime access

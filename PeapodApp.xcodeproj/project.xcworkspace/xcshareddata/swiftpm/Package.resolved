@@ -1,5 +1,5 @@
 {
-  "originHash" : "07c09ed5d6f57aa6e5ca8d751f9dbf1ba12916e1ef86c795f91b42fde1a0c15f",
+  "originHash" : "27c25bd1c3ff697999ccb82d91d91170f152148d11752e70a2c9c19b3c57dfb8",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -143,6 +143,15 @@
       "state" : {
         "revision" : "4d69c927b8c5b599f2caa58e818290bb7ceebce7",
         "version" : "6.8.1"
+      }
+    },
+    {
+      "identity" : "smoothgradient",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/raymondjavaxx/SmoothGradient.git",
+      "state" : {
+        "revision" : "61bf248fad31c7921c9985b418e6e9297cd7b861",
+        "version" : "1.0.0"
       }
     },
     {

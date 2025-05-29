@@ -24,10 +24,24 @@ struct SettingsView: View {
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var allowNotifications = true
     @State private var showDebugTools = false
-    @State private var showingMailView = false
     @State private var showMailErrorAlert = false
-    @State private var showingAppIcons = false
-    @State private var showingUpgrade = false
+    @State private var activeSheet: SheetType?
+    
+    enum SheetType: Identifiable {
+        case upgrade
+        case stats
+        case appIcons
+        case mail
+        
+        var id: Int {
+            switch self {
+            case .upgrade: return 0
+            case .stats: return 1
+            case .appIcons: return 2
+            case .mail: return 3
+            }
+        }
+    }
 
     private var appTheme: AppTheme {
         get { AppTheme(rawValue: appThemeRawValue) ?? .system }
@@ -124,16 +138,7 @@ struct SettingsView: View {
                                 }
                                 .padding(16)
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
-                                .background(
-                                    LinearGradient(
-                                        stops: [
-                                            Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                            Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                        ],
-                                        startPoint: UnitPoint(x: 0, y: 0),
-                                        endPoint: UnitPoint(x: 0.5, y: 1)
-                                    )
-                                )
+                                .background(cardBackgroundGradient)
                                 .background(.white.opacity(0.15))
                                 .cornerRadius(16)
                                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -164,16 +169,7 @@ struct SettingsView: View {
                                 }
                                 .padding(16)
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
-                                .background(
-                                    LinearGradient(
-                                        stops: [
-                                            Gradient.Stop(color: .white.opacity(0.3), location: 0.00),
-                                            Gradient.Stop(color: .white.opacity(0), location: 1.00),
-                                        ],
-                                        startPoint: UnitPoint(x: 0, y: 0),
-                                        endPoint: UnitPoint(x: 0.5, y: 1)
-                                    )
-                                )
+                                .background(cardBackgroundGradient)
                                 .background(.white.opacity(0.15))
                                 .cornerRadius(16)
                                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -186,30 +182,18 @@ struct SettingsView: View {
                         }
                         .frame(maxWidth:.infinity, alignment:.leading)
                         
-                        NavigationLink {
-                            PPPopover(showBg: true) {
-                                ActivityView(namespace: namespace)
-                            }
-                        } label: {
+                        Button(action: {
+                            activeSheet = .stats
+                        }) {
                             Text("View Stats")
                                 .frame(maxWidth:.infinity)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [
-                                            Color(hex: "#3CA4F4") ?? .blue,
-                                            Color(hex: "#9D93C5") ?? .purple,
-                                            Color(hex: "#E98D64") ?? .orange
-                                        ]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .foregroundStyle(statsButtonGradient)
                         }
                         .buttonStyle(ShadowButton())
                         
                     } else {
                         Button(action: {
-                            showingUpgrade = true
+                            activeSheet = .upgrade
                         }) {
                             Text("Become a Supporter")
                                 .frame(maxWidth:.infinity)
@@ -219,10 +203,6 @@ struct SettingsView: View {
                             colorStyle:.monochrome,
                             peapodPlus: true
                         ))
-                        .sheet(isPresented: $showingUpgrade) {
-                            UpgradeView()
-                                .modifier(PPSheet())
-                        }
                     }
                 }
                 .padding()
@@ -252,112 +232,147 @@ struct SettingsView: View {
                             .padding(.top,24)
                         
                         RowItem(
-                            icon: currentSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
-                                  currentSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
-                                  currentSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
-                                  currentSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
-                                  "gauge.with.dots.needle.50percent",
+                            icon: playbackSpeedIcon,
                             label: "Playback Speed") {
-                            Menu {
-                                let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
-
-                                Section(header: Text("Playback Speed")) {
-                                    ForEach(speeds, id: \.self) { speed in
-                                        Button(action: {
-                                            withAnimation {
-                                                player.setPlaybackSpeed(speed)
-                                            }
-                                        }) {
-                                            HStack {
-                                                if speed == currentSpeed {
-                                                    Image(systemName: "checkmark")
-                                                        .foregroundStyle(Color.heading)
+                                if userManager.isSubscriber {
+                                    Menu {
+                                        let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
+                                        
+                                        Section(header: Text("Playback Speed")) {
+                                            ForEach(speeds, id: \.self) { speed in
+                                                Button(action: {
+                                                    withAnimation {
+                                                        player.setPlaybackSpeed(speed)
+                                                    }
+                                                }) {
+                                                    HStack {
+                                                        if speed == currentSpeed {
+                                                            Image(systemName: "checkmark")
+                                                                .foregroundStyle(Color.heading)
+                                                        }
+                                                        
+                                                        Text("\(speed, specifier: "%.1fx")")
+                                                            .foregroundStyle(Color.heading)
+                                                    }
                                                 }
-                                                
-                                                Text("\(speed, specifier: "%.1fx")")
-                                                    .foregroundStyle(Color.heading)
                                             }
                                         }
+                                    } label: {
+                                        HStack {
+                                            Text("\(currentSpeed, specifier: "%.1fx")")
+                                                .textBody()
+                                            
+                                            Image(systemName: "chevron.up.chevron.down")
+                                        }
+                                    }
+                                    .onReceive(player.$playbackSpeed) { newSpeed in
+                                        currentSpeed = newSpeed
+                                    }
+                                } else {
+                                    HStack {
+                                        Text("\(currentSpeed, specifier: "%.1fx")")
+                                            .textBody()
+                                        
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .foregroundStyle(Color.accentColor)
+                                    }
+                                    .onTapGesture {
+                                        activeSheet = .upgrade
                                     }
                                 }
-                            } label: {
-                                HStack {
-                                    Text("\(currentSpeed, specifier: "%.1fx")")
-                                        .textBody()
-                                    
-                                    Image(systemName: "chevron.up.chevron.down")
-                                }
-                            }
-                            .onReceive(player.$playbackSpeed) { newSpeed in
-                                currentSpeed = newSpeed
-                            }
                         }
                         
-                        RowItem(icon: "\(String(format: "%.0f", currentBackwardInterval)).arrow.trianglehead.counterclockwise", label: "Skip Backwards") {
-                            Menu {
-                                let intervals: [Double] = [45,30,15,10,5]
-
-                                Section(header: Text("Skip Backwards Interval")) {
-                                    ForEach(intervals, id: \.self) { interval in
-                                        Button(action: {
-                                            player.setBackwardInterval(interval)
-                                        }) {
-                                            HStack {
-                                                if interval == currentBackwardInterval {
-                                                    Image(systemName: "checkmark")
+                        RowItem(icon: backwardIntervalIcon, label: "Skip Backwards") {
+                            if userManager.isSubscriber {
+                                Menu {
+                                    let intervals: [Double] = [45,30,15,10,5]
+                                    
+                                    Section(header: Text("Skip Backwards Interval")) {
+                                        ForEach(intervals, id: \.self) { interval in
+                                            Button(action: {
+                                                player.setBackwardInterval(interval)
+                                            }) {
+                                                HStack {
+                                                    if interval == currentBackwardInterval {
+                                                        Image(systemName: "checkmark")
+                                                            .foregroundStyle(Color.heading)
+                                                    }
+                                                    
+                                                    Text("\(interval, specifier: "%.0fs")")
                                                         .foregroundStyle(Color.heading)
                                                 }
-                                                
-                                                Text("\(interval, specifier: "%.0fs")")
-                                                    .foregroundStyle(Color.heading)
                                             }
                                         }
                                     }
+                                } label: {
+                                    HStack {
+                                        Text("\(currentBackwardInterval, specifier: "%.0fs")")
+                                            .textBody()
+                                        
+                                        Image(systemName: "chevron.up.chevron.down")
+                                    }
                                 }
-                            } label: {
+                                .onReceive(player.$backwardInterval) { newBackwardInterval in
+                                    currentBackwardInterval = newBackwardInterval
+                                }
+                            } else {
                                 HStack {
                                     Text("\(currentBackwardInterval, specifier: "%.0fs")")
                                         .textBody()
                                     
                                     Image(systemName: "chevron.up.chevron.down")
+                                        .foregroundStyle(Color.accentColor)
                                 }
-                            }
-                            .onReceive(player.$backwardInterval) { newBackwardInterval in
-                                currentBackwardInterval = newBackwardInterval
+                                .onTapGesture {
+                                    activeSheet = .upgrade
+                                }
                             }
                         }
                         
-                        RowItem(icon: "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise", label: "Skip Forwards") {
-                            Menu {
-                                let intervals: [Double] = [45,30,15,10,5]
-
-                                Section(header: Text("Skip Forwards Interval")) {
-                                    ForEach(intervals, id: \.self) { interval in
-                                        Button(action: {
-                                            player.setForwardInterval(interval)
-                                        }) {
-                                            HStack {
-                                                if interval == currentForwardInterval {
-                                                    Image(systemName: "checkmark")
+                        RowItem(icon: forwardIntervalIcon, label: "Skip Forwards") {
+                            if userManager.isSubscriber {
+                                Menu {
+                                    let intervals: [Double] = [45,30,15,10,5]
+                                    
+                                    Section(header: Text("Skip Forwards Interval")) {
+                                        ForEach(intervals, id: \.self) { interval in
+                                            Button(action: {
+                                                player.setForwardInterval(interval)
+                                            }) {
+                                                HStack {
+                                                    if interval == currentForwardInterval {
+                                                        Image(systemName: "checkmark")
+                                                            .foregroundStyle(Color.heading)
+                                                    }
+                                                    
+                                                    Text("\(interval, specifier: "%.0fs")")
                                                         .foregroundStyle(Color.heading)
                                                 }
-                                                
-                                                Text("\(interval, specifier: "%.0fs")")
-                                                    .foregroundStyle(Color.heading)
                                             }
                                         }
                                     }
+                                } label: {
+                                    HStack {
+                                        Text("\(currentForwardInterval, specifier: "%.0fs")")
+                                            .textBody()
+                                        
+                                        Image(systemName: "chevron.up.chevron.down")
+                                    }
                                 }
-                            } label: {
+                                .onReceive(player.$forwardInterval) { newForwardInterval in
+                                    currentForwardInterval = newForwardInterval
+                                }
+                            } else {
                                 HStack {
                                     Text("\(currentForwardInterval, specifier: "%.0fs")")
                                         .textBody()
                                     
                                     Image(systemName: "chevron.up.chevron.down")
+                                        .foregroundStyle(Color.accentColor)
                                 }
-                            }
-                            .onReceive(player.$forwardInterval) { newForwardInterval in
-                                currentForwardInterval = newForwardInterval
+                                .onTapGesture {
+                                    activeSheet = .upgrade
+                                }
                             }
                         }
                         
@@ -404,11 +419,7 @@ struct SettingsView: View {
                         
                         RowItem(icon: "app.badge", label: "App Icon")
                             .onTapGesture {
-                                showingAppIcons = true
-                            }
-                            .sheet(isPresented: $showingAppIcons) {
-                                AppIconView(selectedIconName: $selectedIconName)
-                                    .modifier(PPSheet())
+                                activeSheet = .appIcons
                             }
                         
                         VStack(alignment:.leading) {
@@ -434,17 +445,12 @@ struct SettingsView: View {
                             
                             Button {
                                 if MFMailComposeViewController.canSendMail() {
-                                    showingMailView = true
+                                    activeSheet = .mail
                                 } else {
                                     showMailErrorAlert = true
                                 }
                             } label: {
                                 RowItem(icon: "paperplane.circle", label: "Send Feedback")
-                            }
-                            .sheet(isPresented: $showingMailView) {
-                                MailView(
-                                    messageBody: generateSupportMessageBody()
-                                )
                             }
                             .alert("Mail not configured", isPresented: $showMailErrorAlert) {
                                 Button("OK", role: .cancel) { }
@@ -462,7 +468,7 @@ struct SettingsView: View {
                             
                             if !userManager.isSubscriber {
                                 Button(action: {
-                                    showingUpgrade = true
+                                    activeSheet = .upgrade
                                 }) {
                                     Text("Become a Supporter")
                                         .frame(maxWidth:.infinity)
@@ -472,10 +478,6 @@ struct SettingsView: View {
                                     colorStyle:.monochrome,
                                     peapodPlus: true
                                 ))
-                                .sheet(isPresented: $showingUpgrade) {
-                                    UpgradeView()
-                                        .modifier(PPSheet())
-                                }
                             }
                             
                             if _isDebugAssertConfiguration() || showDebugTools {
@@ -541,7 +543,58 @@ struct SettingsView: View {
                 lastSynced = Date()
                 UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
             }
+            .sheet(item: $activeSheet) { sheetType in
+                switch sheetType {
+                case .upgrade:
+                    UpgradeView()
+                        .modifier(PPSheet())
+                case .stats:
+                    ActivityView(namespace: namespace)
+                        .modifier(PPSheet())
+                case .appIcons:
+                    AppIconView(selectedIconName: $selectedIconName)
+                        .modifier(PPSheet())
+                case .mail:
+                    MailView(
+                        messageBody: generateSupportMessageBody()
+                    )
+                }
+            }
         }
+    }
+    
+    private var statsButtonGradient: LinearGradient {
+        LinearGradient(
+            gradient: Gradient(colors: [
+                Color(hex: "#3CA4F4") ?? .blue,
+                Color(hex: "#9D93C5") ?? .purple,
+                Color(hex: "#E98D64") ?? .orange
+            ]),
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
+    private var playbackSpeedIcon: String {
+        if currentSpeed < 0.5 {
+            return "gauge.with.dots.needle.0percent"
+        } else if currentSpeed < 0.9 {
+            return "gauge.with.dots.needle.33percent"
+        } else if currentSpeed > 1.2 {
+            return "gauge.with.dots.needle.100percent"
+        } else if currentSpeed > 1.0 {
+            return "gauge.with.dots.needle.67percent"
+        } else {
+            return "gauge.with.dots.needle.50percent"
+        }
+    }
+    
+    private var backwardIntervalIcon: String {
+        return "\(String(format: "%.0f", currentBackwardInterval)).arrow.trianglehead.counterclockwise"
+    }
+    
+    private var forwardIntervalIcon: String {
+        return "\(String(format: "%.0f", currentForwardInterval)).arrow.trianglehead.clockwise"
     }
     
     // MARK: - Statistics Loading

@@ -62,11 +62,11 @@
 					<string>AppIcon-Starry</string>
 				</array>
 			</dict>
-            <key>AppIcon-Legacy-Peapod</key>
+            <key>AppIcon-Legacy-PP</key>
             <dict>
                 <key>CFBundleIconFiles</key>
                 <array>
-                    <string>AppIcon-Legacy-Peapod</string>
+                    <string>AppIcon-Legacy-PP</string>
                 </array>
             </dict>
             <key>AppIcon-Legacy-Clouds</key>
@@ -83,18 +83,18 @@
                     <string>AppIcon-Legacy-Coachella</string>
                 </array>
             </dict>
-            <key>AppIcon-Legacy-Cupertino</key>
+            <key>AppIcon-Legacy-Apple</key>
             <dict>
                 <key>CFBundleIconFiles</key>
                 <array>
-                    <string>AppIcon-Legacy-Cupertino</string>
+                    <string>AppIcon-Legacy-Apple</string>
                 </array>
             </dict>
-            <key>AppIcon-Legacy-Pastel</key>
+            <key>AppIcon-Legacy-SoftColor</key>
             <dict>
                 <key>CFBundleIconFiles</key>
                 <array>
-                    <string>AppIcon-Legacy-Pastel</string>
+                    <string>AppIcon-Legacy-SoftColor</string>
                 </array>
             </dict>
             <key>AppIcon-Legacy-Pride</key>

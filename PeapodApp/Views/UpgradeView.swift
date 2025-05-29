@@ -15,26 +15,29 @@ struct UpgradeView: View {
     @State private var isPurchasing = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State var xOffset: CGFloat = 0
     
     struct Perk {
         var name: String
+        var label: String
         var icon: String
         
-        init(name: String, icon: String) {
+        init(name: String, label: String, icon: String) {
             self.name = name
+            self.label = label
             self.icon = icon
         }
     }
     
     private var perks = [
-        Perk(name:"Exclusive app icons", icon:"app.dashed"),
-        Perk(name:"Advanced listening stats", icon:"rays"),
-        Perk(name:"Custom playback speeds", icon:"gauge.with.dots.needle.100percent"),
-        Perk(name:"Custom skip intervals", icon:"30.arrow.trianglehead.clockwise")
+        Perk(name: "icons", label:"Exclusive app icons", icon:"app.dashed"),
+        Perk(name: "stats", label:"Advanced listening stats", icon:"rays"),
+        Perk(name: "speeds", label:"Custom playback speeds", icon:"gauge.with.dots.needle.100percent"),
+        Perk(name: "intervals", label:"Custom skip intervals", icon:"30.arrow.trianglehead.clockwise")
     ]
     
     var body: some View {
-        VStack(spacing:24) {
+        VStack(spacing:16) {
             Spacer().frame(height: 24)
             
             VStack(spacing:4) {
@@ -49,23 +52,34 @@ struct UpgradeView: View {
                 .foregroundStyle(Color.white)
                 .textBody()
                 .multilineTextAlignment(.center)
+                .padding(.horizontal)
             
-            VStack(alignment:.leading, spacing:8) {
-                ForEach(perks, id: \.name) { perk in
-                    HStack {
-                        Image(systemName:perk.icon)
-                            .foregroundStyle(Color.white)
-                            .frame(width: 24, height: 24)
-                        
-                        Text(perk.name)
-                            .foregroundStyle(Color.white)
-                            .textBody()
+            InfiniteScroller(contentWidth: 208 * 4) {
+                HStack(spacing:0) {
+                    ForEach(perks, id: \.name) { perk in
+                        Image("perk.\(perk.name)")
                     }
                 }
-                
-                Spacer()
             }
-            .frame(maxWidth:.infinity,alignment:.leading)
+            
+            Spacer()
+            
+//            VStack(alignment:.leading, spacing:8) {
+//                ForEach(perks, id: \.name) { perk in
+//                    HStack {
+//                        Image(systemName:perk.icon)
+//                            .foregroundStyle(Color.white)
+//                            .frame(width: 24, height: 24)
+//                        
+//                        Text(perk.name)
+//                            .foregroundStyle(Color.white)
+//                            .textBody()
+//                    }
+//                }
+//                
+//                Spacer()
+//            }
+//            .frame(maxWidth:.infinity,alignment:.leading)
             
             VStack(spacing:16) {
                 if subscriptionManager.isLoading {
@@ -79,8 +93,8 @@ struct UpgradeView: View {
                 
                 restoreButton
             }
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background {
             backgroundView
@@ -103,7 +117,7 @@ struct UpgradeView: View {
     }
     
     private var subscriptionOptionsView: some View {
-        VStack(spacing: 16) {
+        HStack(spacing: 8) {
             // Subscription products
             if !subscriptionManager.subscriptionProducts.isEmpty {
                 
@@ -243,7 +257,7 @@ struct ProductCard: View {
     }
     
     var body: some View {
-        HStack(alignment: .top) {
+        ZStack(alignment:.top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(productTypeText)
                     .foregroundStyle(Color.white)
@@ -253,16 +267,25 @@ struct ProductCard: View {
                     .foregroundStyle(Color.white)
                     .textBody()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(.white.opacity(0.15))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .inset(by: 1)
+                    .stroke(.white.opacity(isSelected ? 1 : 0.15), lineWidth: isSelected ? 2 : 1)
+            )
             
             if let savings = savingsText {
-                Spacer()
-                
                 Text(savings)
                     .foregroundStyle(Color.white)
                     .textDetail()
                     .padding(.horizontal,8).padding(.vertical,4)
                     .background(Color.black)
                     .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.white, lineWidth: 2))
+                    .offset(y:-12)
             }
             
 //            if isLifetime {
@@ -271,15 +294,6 @@ struct ProductCard: View {
 //            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-//        .background(cardBackgroundGradient)
-        .background(.white.opacity(0.15))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .inset(by: 1)
-                .stroke(.white.opacity(isSelected ? 1 : 0.15), lineWidth: isSelected ? 2 : 1)
-        )
         .onTapGesture {
             onTap()
         }

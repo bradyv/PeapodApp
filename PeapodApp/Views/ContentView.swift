@@ -143,6 +143,7 @@ struct ContentView: View {
     
     // 🆕 Force refresh to actually fetch new episodes (not just light refresh)
     private func forceRefreshPodcasts() {
+        toastManager.show(message: "Refreshing", icon: "arrow.trianglehead.2.clockwise")
         print("🔄 Force refreshing all subscribed podcasts")
         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
     }

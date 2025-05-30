@@ -10,10 +10,18 @@ import SwiftUI
 struct Toast: View {
     let message: String
     let icon: String
+    @State private var isRotating = false
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon)
+            let refresh = "arrow.trianglehead.2.clockwise"
+            
+            if icon == refresh {
+                PPSpinner(color: Color.heading)
+                
+            } else {
+                Image(systemName: icon)
+            }
             Text(message)
                 .lineLimit(1)
         }

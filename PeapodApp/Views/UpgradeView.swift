@@ -48,7 +48,7 @@ struct UpgradeView: View {
                     .titleSerif()
             }
             
-            Text("I pour my heart into designing and building Peapod. By purchasing Peapod+, you're supporting a true independent podcast app and unlock exclusive extras.")
+            Text("I pour my heart into building Peapod. Purchasing a subscription helps support a true independent podcast app, and unlocks exclusive extras.")
                 .foregroundStyle(Color.white)
                 .textBody()
                 .multilineTextAlignment(.center)

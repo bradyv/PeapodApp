@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct LatestEpisodes: View {
+struct LatestEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var toastManager: ToastManager

@@ -9,12 +9,18 @@ import SwiftUI
 import CoreData
 import FeedKit
 import MessageUI
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject private var userManager = UserManager.shared
     @ObservedObject var player = AudioPlayerManager.shared
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
+    @AppStorage("appNotificationsEnabled") private var appNotificationsEnabled: Bool = false
+    @State private var systemNotificationsGranted: Bool = false
+    @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
+    @State private var showNotificationAlert = false
+    @State private var showNotificationRequest = false
     @State private var statistics = AppStatistics(podcastCount: 0, episodeCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
     @State private var lastSynced: Date? = UserDefaults.standard.object(forKey: "lastCloudSyncDate") as? Date
     @State private var selectedIconName: String = UIApplication.shared.alternateIconName ?? "AppIcon-Green"
@@ -22,7 +28,6 @@ struct SettingsView: View {
     @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
-    @State private var allowNotifications = true
     @State private var showDebugTools = false
     @State private var showMailErrorAlert = false
     @State private var activeSheet: SheetType?
@@ -384,6 +389,21 @@ struct SettingsView: View {
                             .labelsHidden()
                             .symbolRenderingMode(.hierarchical)
                         }
+                        
+                        RowItem(icon: "bell", label: "Notifications") {
+                            Toggle(isOn: Binding(
+                                get: {
+                                    systemNotificationsGranted && appNotificationsEnabled
+                                },
+                                set: { newValue in
+                                    handleNotificationToggle(newValue)
+                                }
+                            )) {
+                                Text("Notifications")
+                            }
+                            .tint(.accentColor)
+                            .labelsHidden()
+                        }
                     }
 
                     VStack {
@@ -560,6 +580,30 @@ struct SettingsView: View {
                     )
                 }
             }
+            .onAppear {
+                checkNotificationStatus()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                checkNotificationStatus()
+            }
+            .alert("Enable Notifications", isPresented: $showNotificationAlert) {
+                Button("Settings") {
+                    openNotificationSettings()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("To receive notifications, please enable them in your device Settings.")
+            }
+            .sheet(isPresented: $showNotificationRequest) {
+                RequestNotificationsView(
+                    onComplete: {
+                        showNotificationRequest = false
+                        // Refresh status after permission request
+                        checkNotificationStatus()
+                    },
+                    namespace: namespace
+                )
+            }
         }
     }
     
@@ -615,6 +659,48 @@ struct SettingsView: View {
         } catch {
             print("Error loading statistics: \(error)")
             // Keep default zero values on error
+        }
+    }
+    
+    // MARK: - Notification Methods
+    
+    private func handleNotificationToggle(_ enabled: Bool) {
+        if enabled {
+            // User wants to enable notifications
+            if systemNotificationsGranted {
+                // System permission already granted, just enable in app
+                appNotificationsEnabled = true
+            } else if notificationAuthStatus == .notDetermined {
+                // Never asked before, show our request view
+                showNotificationRequest = true
+            } else {
+                // User previously denied, send them to Settings
+                showNotificationAlert = true
+            }
+        } else {
+            // User wants to disable notifications in app
+            appNotificationsEnabled = false
+        }
+    }
+    
+    private func checkNotificationStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                let wasGranted = systemNotificationsGranted
+                systemNotificationsGranted = (settings.authorizationStatus == .authorized)
+                notificationAuthStatus = settings.authorizationStatus
+                
+                // If user just enabled notifications in system settings, enable in app too
+                if !wasGranted && systemNotificationsGranted {
+                    appNotificationsEnabled = true
+                }
+            }
+        }
+    }
+    
+    private func openNotificationSettings() {
+        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(settingsURL)
         }
     }
 }

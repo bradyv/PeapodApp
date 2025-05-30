@@ -35,11 +35,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         scheduleEpisodeCleanup()
         
-        // Request notification permissions immediately
-        requestNotificationPermissions()
-        
-        // Register for remote notifications
-        application.registerForRemoteNotifications()
+        // Check and register for remote notifications
+        checkAndRegisterForNotificationsIfGranted()
         
         return true
     }
@@ -56,6 +53,37 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
     
     // MARK: - Remote Notifications
+    private func checkAndRegisterForNotificationsIfGranted() {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                if settings.authorizationStatus == .authorized {
+                    UIApplication.shared.registerForRemoteNotifications()
+                    
+                    // Update AppStorage to reflect current status
+                    UserDefaults.standard.set(true, forKey: "notificationsGranted")
+                    UserDefaults.standard.set(true, forKey: "notificationsAsked")
+                }
+            }
+        }
+    }
+
+    // Keep the requestNotificationPermissions method for when it's called from the RequestNotificationsView
+    func requestNotificationPermissions() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("✅ Push notifications authorized")
+                DispatchQueue.main.async {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            } else if let error = error {
+                print("❌ Notification permission error: \(error.localizedDescription)")
+            } else {
+                print("❌ Notification permission denied")
+            }
+        }
+    }
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         print("📱 Registered for remote notifications")
@@ -178,20 +206,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
     
     // MARK: - Helper Methods
-    
-    private func requestNotificationPermissions() {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                print("✅ Push notifications authorized")
-            } else if let error = error {
-                print("❌ Notification permission error: \(error.localizedDescription)")
-            } else {
-                print("❌ Notification permission denied")
-            }
-        }
-    }
-    
     private func sendTokenToBackend(token: String) {
         guard UserManager.shared.currentUser != nil else {
             print("❌ No current user found")

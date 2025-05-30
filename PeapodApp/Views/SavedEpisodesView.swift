@@ -1,13 +1,13 @@
 //
-//  FavEpisodes.swift
+//  SavedEpisodes.swift
 //  PeapodApp
 //
-//  Created by Brady Valentino on 2025-05-16.
+//  Created by Brady Valentino on 2025-04-03.
 //
 
 import SwiftUI
 
-struct FavEpisodes: View {
+struct SavedEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     var namespace: Namespace.ID
     
@@ -15,13 +15,13 @@ struct FavEpisodes: View {
         ScrollView {
             Spacer().frame(height:24)
             FadeInView(delay: 0.2) {
-                Text("Favorites")
+                Text("Play Later")
                     .titleSerif()
                     .frame(maxWidth:.infinity, alignment: .leading)
                     .padding(.leading).padding(.top,24)
             }
             
-            if episodesViewModel.favs.isEmpty {
+            if episodesViewModel.saved.isEmpty {
                 ZStack {
                     VStack {
                         ForEach(0..<2, id: \.self) { _ in
@@ -35,17 +35,17 @@ struct FavEpisodes: View {
                     )
                     
                     VStack {
-                        Text("No favorites")
+                        Text("No saved episodes")
                             .titleCondensed()
                         
-                        Text("Tap \(Image(systemName:"heart")) on any episode you'd like to favorite.")
+                        Text("Tap \(Image(systemName:"arrowshape.bounce.right")) on any episode you'd like to save for later.")
                             .textBody()
                     }
                 }
             } else {
-                ForEach(episodesViewModel.favs, id: \.id) { episode in
+                ForEach(episodesViewModel.saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
@@ -54,11 +54,10 @@ struct FavEpisodes: View {
             }
         }
         .onAppear {
-            episodesViewModel.fetchFavs()
+            episodesViewModel.fetchSaved()
         }
         .maskEdge(.top)
         .maskEdge(.bottom)
-        .scrollDisabled(episodesViewModel.favs.isEmpty)
+        .scrollDisabled(episodesViewModel.saved.isEmpty)
     }
 }
-

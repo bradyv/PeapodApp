@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct Acknowledgements: View {
+struct AcknowledgementsView: View {
     @Environment(\.openURL) var openURL
     
     var body: some View {

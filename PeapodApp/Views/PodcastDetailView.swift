@@ -26,6 +26,8 @@ struct PodcastDetailView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var showDebugTools = false
     @State private var showConfirm = false
+    @State private var showNotificationRequest = false
+    @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     var podcast: Podcast? { podcastResults.first }
     var namespace: Namespace.ID
     var episodes: [Episode] {
@@ -229,6 +231,9 @@ struct PodcastDetailView: View {
                                                     .first {
                                                     toggleQueued(latest)
                                                 }
+                                                
+                                                checkAndShowNotificationRequest()
+                                                
                                             } else {
                                                 // Remove all of this podcast's episodes from the Queue playlist when unsubscribing
                                                 let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
@@ -271,9 +276,33 @@ struct PodcastDetailView: View {
         }
         .animation(.interactiveSpring(duration: 0.25), value: showSearch)
         .onAppear {
+            checkNotificationStatus()
             print("PodcastDetailView feedUrl: \(podcast?.feedUrl ?? "none")")
             print("PodcastDetailView objectID: \(podcast?.objectID.uriRepresentation().absoluteString ?? "")")
             print("isSubscribed: \(podcast?.isSubscribed ?? false ? "YES" : "NO")")
+        }
+        .fullScreenCover(isPresented: $showNotificationRequest) {
+            RequestNotificationsView(
+                onComplete: {
+                    showNotificationRequest = false
+                },
+                namespace: namespace
+            )
+        }
+    }
+    
+    private func checkNotificationStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                notificationAuthStatus = settings.authorizationStatus
+            }
+        }
+    }
+    
+    private func checkAndShowNotificationRequest() {
+        // Only show if notifications haven't been granted AND haven't been explicitly denied
+        if notificationAuthStatus == .notDetermined {
+            showNotificationRequest = true
         }
     }
 }

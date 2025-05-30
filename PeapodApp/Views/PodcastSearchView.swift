@@ -19,6 +19,7 @@ struct PodcastSearchView: View {
     @State private var results: [PodcastResult] = []
     @State private var urlFeedPodcast: Podcast?
     @State private var topPodcasts: [PodcastResult] = []
+    @State private var curatedFeeds: [PodcastResult] = []
     @State private var hasSearched = false
     @State private var isLoadingUrlFeed = false
     @State private var urlFeedError: String?
@@ -48,9 +49,45 @@ struct PodcastSearchView: View {
             
             if query.isEmpty {
                 ScrollView {
+                    FadeInView(delay: 0.1) {
+                        Text("Our Favorites")
+                            .headerSection()
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                        
+                        Text("What we're listening to.")
+                            .textDetail()
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                    }
+                    
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
+                            NavigationLink {
+                                PPPopover {
+                                    PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
+                                }
+                            } label: {
+                                VStack {
+                                    FadeInView(delay: Double(index) * 0.05) {
+                                        KFImage(URL(string: podcast.artworkUrl600))
+                                            .resizable()
+                                            .aspectRatio(1, contentMode: .fit)
+                                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer().frame(height:24)
+                    
                     FadeInView(delay: 0.2) {
                         Text("Top Podcasts")
                             .headerSection()
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                        
+                        Text("What the world is listening to.")
+                            .textDetail()
                             .frame(maxWidth:.infinity, alignment:.leading)
                     }
                     
@@ -211,6 +248,9 @@ struct PodcastSearchView: View {
         .ignoresSafeArea(edges:.bottom)
         .onAppear {
             nowPlayingManager.isVisible = false
+            PodcastAPI.fetchCuratedFeeds { podcasts in
+                self.curatedFeeds = podcasts
+            }
             PodcastAPI.fetchTopPodcasts { podcasts in
                 self.topPodcasts = podcasts
             }

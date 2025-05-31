@@ -27,28 +27,29 @@ struct QueueItem: View {
         let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
         
         ZStack(alignment: .bottomLeading) {
-            EpisodeItem(episode: episode, showActions: true, displayedInQueue: true, namespace: namespace)
-                .lineLimit(3)
-                .padding()
-                .frame(maxWidth: .infinity)
-            
             VStack {
                 KFImage(URL(string: artwork))
                     .resizable()
                     .frame(width: frame, height: frame)
                     .mask(
                         LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.75))
+                                       startPoint: .init(x:0.5,y:0.4), endPoint: .init(x:0.5,y:0.8))
                     )
                     .allowsHitTesting(false)
                 Spacer()
             }
+            
+            EpisodeItem(episode: episode, showActions: true, displayedInQueue: true, namespace: namespace)
+                .lineLimit(3)
+                .padding()
+                .frame(maxWidth: .infinity)
         }
         .frame(width: frame, height: 450)
         .background(
             KFImage(URL(string: artwork))
                 .resizable()
                 .aspectRatio(1, contentMode: .fill)
+                .scaleEffect(x: 1, y: -1)
                 .blur(radius: 44)
                 .opacity(0.5)
         )

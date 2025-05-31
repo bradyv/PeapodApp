@@ -66,11 +66,11 @@ struct PPCircularPlayButton: View {
                 Group {
                     if isPlaying {
                         Image(systemName: "pause.fill")
-                            .font(.system(size: buttonSize * 0.4, weight: .medium))
+                            .font(.system(size: buttonSize * 0.6, weight: .medium))
                             .foregroundColor(displayedInQueue ? Color.black : Color.background)
                     } else if !isLoading {
                         Image(systemName: "play.fill")
-                            .font(.system(size: buttonSize * 0.4, weight: .medium))
+                            .font(.system(size: buttonSize * 0.6, weight: .medium))
                             .foregroundColor(displayedInQueue ? Color.black : Color.background)
                     }
                 }

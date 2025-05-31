@@ -133,7 +133,7 @@ struct LatestEpisodesView: View {
             } else {
                 LazyVStack(alignment: .leading) {
                     ForEach(filteredEpisodes, id: \.id) { episode in
-                        EpisodeItem(episode: episode, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)

@@ -145,7 +145,7 @@ struct PodcastDetailView: View {
                                     
                                     FadeInView(delay: 0.7) {
                                         ForEach(remainingEpisodes, id: \.id) { episode in
-                                            EpisodeItem(episode: episode, showActions: episode.isQueued ? true : false, namespace: namespace)
+                                            EpisodeItem(episode: episode, showActions: true, namespace: namespace)
                                                 .lineLimit(3)
                                                 .padding(.bottom, 24)
                                         }

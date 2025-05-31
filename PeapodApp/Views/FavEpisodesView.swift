@@ -45,7 +45,7 @@ struct FavEpisodesView: View {
             } else {
                 ForEach(episodesViewModel.favs, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)

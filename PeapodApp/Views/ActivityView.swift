@@ -87,7 +87,7 @@ struct ActivityView: View {
                         }
                         
                         HStack {
-                            FadeInView(delay:0.5) {
+                            FadeInView(delay:0.6) {
                                 VStack(alignment:.leading, spacing: 8) {
                                     let hours = Int(statistics.totalPlayedSeconds) / 3600
                                     Image(systemName:"airpods.max")
@@ -118,7 +118,7 @@ struct ActivityView: View {
                                 )
                             }
                             
-                            FadeInView(delay:0.6) {
+                            FadeInView(delay:0.7) {
                                 VStack(alignment:.leading, spacing:8) {
                                     Image(systemName:"play.circle")
                                         .foregroundStyle(Color.white)
@@ -152,7 +152,7 @@ struct ActivityView: View {
                         .frame(maxWidth:.infinity, alignment:.leading)
                         
                         HStack {
-                            FadeInView(delay:0.5) {
+                            FadeInView(delay:0.8) {
                                 VStack(alignment:.leading, spacing: 8) {
                                     Image(systemName:"widget.small")
                                         .foregroundStyle(Color.white)
@@ -182,7 +182,7 @@ struct ActivityView: View {
                                 )
                             }
                             
-                            FadeInView(delay:0.6) {
+                            FadeInView(delay:0.9) {
                                 VStack(alignment:.leading, spacing:8) {
                                     Image(systemName:"checkmark.circle")
                                         .foregroundStyle(Color.white)
@@ -240,35 +240,39 @@ struct ActivityView: View {
                     VStack(alignment:.leading) {
                         Image("peapod-plus-mark")
                         
-                        Text("My Top Podcasts")
-                            .foregroundStyle(Color.white)
-                            .titleCondensed()
-                            .multilineTextAlignment(.center)
+                        FadeInView(delay: 0.6) {
+                            Text("My Top Podcasts")
+                                .foregroundStyle(Color.white)
+                                .titleCondensed()
+                                .multilineTextAlignment(.center)
+                        }
                         
-                        LazyVGrid(columns: columns, spacing: 16) {
-                            ForEach(reordered, id: \.1.id) { (index, podcast) in
-                                ZStack(alignment:.bottom) {
-                                    ArtworkView(url:podcast.image ?? "", size: index == 0 ? 128 : 64, cornerRadius: index == 0 ? 16 : 8)
-                                        .if(index == 0, transform: {
-                                            $0.background(
-                                                Image("rays")
-                                                    .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
-                                                    .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
-                                            )
-                                        })
-                                    
-                                    Spacer()
-                                    
-                                    Text("\(podcast.formattedPlayedHours)")
-                                        .foregroundStyle(Color.black)
-                                        .textDetailEmphasis()
-                                        .padding(.vertical, 3)
-                                        .padding(.horizontal, 8)
-                                        .background(Color.white)
-                                        .clipShape(Capsule())
-                                        .offset(y:12)
+                        FadeInView(delay: 0.7) {
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(reordered, id: \.1.id) { (index, podcast) in
+                                    ZStack(alignment:.bottom) {
+                                        ArtworkView(url:podcast.image ?? "", size: index == 0 ? 128 : 64, cornerRadius: index == 0 ? 16 : 8)
+                                            .if(index == 0, transform: {
+                                                $0.background(
+                                                    Image("rays")
+                                                        .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
+                                                        .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
+                                                )
+                                            })
+                                        
+                                        Spacer()
+                                        
+                                        Text("\(podcast.formattedPlayedHours)")
+                                            .foregroundStyle(Color.black)
+                                            .textDetailEmphasis()
+                                            .padding(.vertical, 3)
+                                            .padding(.horizontal, 8)
+                                            .background(Color.white)
+                                            .clipShape(Capsule())
+                                            .offset(y:12)
+                                    }
+                                    .zIndex(index == 0 ? 0 : 1)
                                 }
-                                .zIndex(index == 0 ? 0 : 1)
                             }
                         }
                     }
@@ -297,39 +301,45 @@ struct ActivityView: View {
                                 Image("peapod-plus-mark")
                                 Spacer()
                                 
-                                Text("\(formatDuration(seconds: duration))")
-                                    .foregroundStyle(Color.black)
-                                    .textDetail()
-                                    .padding(.vertical, 3)
-                                    .padding(.horizontal, 8)
-                                    .background(Color.white)
-                                    .clipShape(Capsule())
+                                FadeInView(delay: 0.8) {
+                                    Text("\(formatDuration(seconds: duration))")
+                                        .foregroundStyle(Color.black)
+                                        .textDetail()
+                                        .padding(.vertical, 3)
+                                        .padding(.horizontal, 8)
+                                        .background(Color.white)
+                                        .clipShape(Capsule())
+                                }
                             }
                             
-                            Text("Longest Completed Episode")
-                                .foregroundStyle(Color.white)
-                                .titleCondensed()
-                                .multilineTextAlignment(.center)
+                            FadeInView(delay: 0.6) {
+                                Text("Longest Completed Episode")
+                                    .foregroundStyle(Color.white)
+                                    .titleCondensed()
+                                    .multilineTextAlignment(.center)
+                            }
                             
-                            HStack {
-                                ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 44, cornerRadius: 8)
-                                
-                                VStack(alignment:.leading) {
-                                    HStack {
-                                        Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
+                            FadeInView(delay: 0.7) {
+                                HStack {
+                                    ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 44, cornerRadius: 8)
+                                    
+                                    VStack(alignment:.leading) {
+                                        HStack {
+                                            Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
+                                                .foregroundStyle(Color.white)
+                                                .textDetailEmphasis()
+                                            
+                                            Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
+                                                .foregroundStyle(Color.white)
+                                                .textDetail()
+                                        }
+                                        Text(longestEpisode.title ?? "Untitled")
                                             .foregroundStyle(Color.white)
-                                            .textDetailEmphasis()
-                                        
-                                        Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
-                                            .foregroundStyle(Color.white)
-                                            .textDetail()
+                                            .titleCondensed()
+                                            .lineLimit(1)
                                     }
-                                    Text(longestEpisode.title ?? "Untitled")
-                                        .foregroundStyle(Color.white)
-                                        .titleCondensed()
-                                        .lineLimit(1)
+                                    .frame(maxWidth:.infinity,alignment:.leading)
                                 }
-                                .frame(maxWidth:.infinity,alignment:.leading)
                             }
                         }
                         .frame(maxWidth:.infinity,alignment:.leading)

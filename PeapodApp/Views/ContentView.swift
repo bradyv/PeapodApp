@@ -19,19 +19,18 @@ struct ContentView: View {
     @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
     @StateObject private var episodeSelectionManager = EpisodeSelectionManager()
     @State private var showSettings = false
-    @State private var currentEpisodeID: String? = nil
     @State private var lastRefreshDate = Date.distantPast
     var namespace: Namespace.ID
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment:.topTrailing) {
-                NowPlayingSplash(episodeID: currentEpisodeID)
+            ZStack(alignment: .topTrailing) {
+                NowPlayingSplash()
                     .matchedGeometryEffect(id: "page-bg", in: namespace)
                 
                 ScrollView {
                     FadeInView(delay: 0.1) {
-                        QueueView(currentEpisodeID: $currentEpisodeID, namespace: namespace)
+                        QueueView(namespace: namespace)
                     }
                     FadeInView(delay: 0.2) {
                         LibraryView(namespace: namespace)
@@ -40,7 +39,7 @@ struct ContentView: View {
                         SubscriptionsView(namespace: namespace)
                     }
                     
-                    Spacer().frame(height:96)
+                    Spacer().frame(height: 96)
                 }
                 .maskEdge(.top)
                 .maskEdge(.bottom)
@@ -59,7 +58,7 @@ struct ContentView: View {
                     }
                 }
                 
-                VStack(alignment:.trailing) {
+                VStack(alignment: .trailing) {
                     NavigationLink {
                         PPPopover(showBg: true) {
                             SettingsView(namespace: namespace)
@@ -70,7 +69,7 @@ struct ContentView: View {
                     .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                     Spacer()
                 }
-                .frame(maxWidth:.infinity, alignment:.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal)
             }
             .background(

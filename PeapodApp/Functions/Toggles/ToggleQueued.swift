@@ -155,6 +155,9 @@ func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? =
         Task { @MainActor in
             episodesViewModel?.updateQueue()
         }
+        
+        // NEW: Check if audio player state should be cleared
+        AudioPlayerManager.shared.handleQueueRemoval()
     }
 }
 

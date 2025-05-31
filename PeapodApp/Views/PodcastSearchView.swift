@@ -110,8 +110,10 @@ struct PodcastSearchView: View {
                             }
                         }
                     }
+                    Spacer().frame(height:64)
                 }
-                .padding()
+                .contentMargins(16,for:.scrollContent)
+                
             } else {
                 ScrollView {
                     // Show loading indicator for URL feeds
@@ -183,7 +185,6 @@ struct PodcastSearchView: View {
                                 Divider()
                             }
                         }
-                        .padding(.horizontal)
                     }
                     
                     // Show regular search results
@@ -200,7 +201,6 @@ struct PodcastSearchView: View {
                             Text("Search Results")
                                 .headerSection()
                                 .frame(maxWidth:.infinity, alignment:.leading)
-                                .padding(.horizontal)
                         }
                         
                         VStack(spacing: 8) {
@@ -237,10 +237,12 @@ struct PodcastSearchView: View {
                                     Divider()
                                 }
                             }
-                            .padding(.horizontal)
                         }
                     }
+                    
+                    Spacer().frame(height:64)
                 }
+                .contentMargins(16,for:.scrollContent)
                 .frame(maxWidth:.infinity)
             }
         }

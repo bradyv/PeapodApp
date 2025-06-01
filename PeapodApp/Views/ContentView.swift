@@ -25,7 +25,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .topTrailing) {
-                NowPlayingSplash()
+                MainBackground()
                 
                 ScrollView {
                     QueueView(namespace: namespace)

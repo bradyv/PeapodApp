@@ -121,7 +121,7 @@ struct QueueView: View {
                             if scrollOffset != newScrollOffset {
                                 scrollOffset = newScrollOffset
                                 
-                                // Post notification for NowPlayingSplash
+                                // Post notification for MainBackground
                                 NotificationCenter.default.post(
                                     name: .queueScrollPositionChanged,
                                     object: Int(scrollOffset)

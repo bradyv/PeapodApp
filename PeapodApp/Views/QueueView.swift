@@ -115,8 +115,18 @@ struct QueueView: View {
                     .scrollTargetBehavior(.viewAligned)
                     .onPreferenceChange(ScrollOffsetKey.self) { values in
                         if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
-                            scrollOffset = CGFloat(nearest.key)
-                            // No need to track currentEpisodeID anymore - unified state handles this
+                            let newScrollOffset = CGFloat(nearest.key)
+                            
+                            // Only update if the scroll position actually changed
+                            if scrollOffset != newScrollOffset {
+                                scrollOffset = newScrollOffset
+                                
+                                // Post notification for NowPlayingSplash
+                                NotificationCenter.default.post(
+                                    name: .queueScrollPositionChanged,
+                                    object: Int(scrollOffset)
+                                )
+                            }
                         }
                     }
                     .onChange(of: scrollTarget) { _, id in

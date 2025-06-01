@@ -17,7 +17,7 @@ struct Toast: View {
             let refresh = "arrow.trianglehead.2.clockwise"
             
             if icon == refresh {
-                PPSpinner(color: Color.heading)
+                PPSpinner(color: Color.heading, size: 14)
                 
             } else {
                 Image(systemName: icon)

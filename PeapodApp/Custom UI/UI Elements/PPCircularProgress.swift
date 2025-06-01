@@ -50,6 +50,7 @@ struct PPCircularPlayButton: View {
                 // Progress ring (if episode has been started)
                 if isLoading {
                     PPSpinner(color: displayedInQueue ? Color.black : Color.background)
+                        .transition(.opacity.animation(.easeInOut(duration: 0.3)))
                 } else if progress > 0 && duration > 0 {
                     Circle()
                         .trim(from: 0, to: progress / duration)
@@ -60,6 +61,7 @@ struct PPCircularPlayButton: View {
                         .frame(width: buttonSize, height: buttonSize)
                         .rotationEffect(.degrees(-90))
                         .animation(.easeInOut(duration: 0.3), value: progress)
+                        .transition(.opacity.animation(.easeInOut(duration: 0.3)))
                 }
                 
                 // Play/pause/loading icon

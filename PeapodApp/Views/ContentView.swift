@@ -26,18 +26,11 @@ struct ContentView: View {
         NavigationStack {
             ZStack(alignment: .topTrailing) {
                 NowPlayingSplash()
-                    .matchedGeometryEffect(id: "page-bg", in: namespace)
                 
                 ScrollView {
-                    FadeInView(delay: 0.1) {
-                        QueueView(namespace: namespace)
-                    }
-                    FadeInView(delay: 0.2) {
-                        LibraryView(namespace: namespace)
-                    }
-                    FadeInView(delay: 0.3) {
-                        SubscriptionsView(namespace: namespace)
-                    }
+                    QueueView(namespace: namespace)
+                    LibraryView(namespace: namespace)
+                    SubscriptionsView(namespace: namespace)
                     
                     Spacer().frame(height: 96)
                 }

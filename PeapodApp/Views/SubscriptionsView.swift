@@ -9,7 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct SubscriptionsView: View {
-    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     var namespace: Namespace.ID

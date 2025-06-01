@@ -48,37 +48,24 @@ struct EpisodeItem: View {
                     }
                 } label: {
                     HStack {
-//                        ZStack(alignment:.bottomTrailing) {
+                        ZStack(alignment:.bottomTrailing) {
                             ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
                             
-//                            if episode.isQueued && !displayedInQueue {
-//                                ZStack {
-//                                    Image(systemName:"text.append")
-//                                        .foregroundStyle(Color.accentColor)
-//                                        .textDetail()
-//                                }
-//                                .background(Color.background)
-//                                .clipShape(Circle())
-//                                .overlay(
-//                                    Circle()
-//                                        .stroke(Color.background, lineWidth: 1)
-//                                )
-//                                .offset(x:5,y:5)
-//                            } else if episode.isPlayed && !displayedInQueue {
-//                                ZStack {
-//                                    Image(systemName:"checkmark.circle.fill")
-//                                        .foregroundStyle(Color.accentColor)
-//                                        .textDetail()
-//                                }
-//                                .background(Color.background)
-//                                .clipShape(Circle())
-//                                .overlay(
-//                                    Circle()
-//                                        .stroke(Color.background, lineWidth: 1)
-//                                )
-//                                .offset(x:5,y:5)
-//                            }
-//                        }
+                            if episode.isPlayed && !displayedInQueue {
+                                ZStack {
+                                    Image(systemName:"checkmark.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                        .textDetail()
+                                }
+                                .background(Color.background)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.background, lineWidth: 1)
+                                )
+                                .offset(x:5,y:5)
+                            }
+                        }
                         
                         Text(episode.podcast?.title ?? "Podcast title")
                             .lineLimit(1)

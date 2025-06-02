@@ -6,16 +6,24 @@
 //
 
 import SwiftUI
+import SmoothGradient
 
 struct ScrollMask: View {
     let edge: Edge
 
     var body: some View {
-        LinearGradient(
-            colors: [.black, .black.opacity(0)],
+        SmoothLinearGradient(
+            from: .black,
+            to: .black.opacity(0),
             startPoint: gradientStartPoint(for: edge),
-            endPoint: gradientEndPoint(for: edge)
+            endPoint: gradientEndPoint(for: edge),
+            curve: .easeInOut
         )
+//        LinearGradient(
+//            gradient: Gradient(colors: [.black, .black.opacity(0)]),
+//            startPoint: gradientStartPoint(for: edge),
+//            endPoint: gradientEndPoint(for: edge)
+//        )
         .frame(
             width: edge.isHorizontal ? 32 : nil,
             height: edge.isHorizontal ? nil : 96

@@ -7,6 +7,8 @@
 
 import SwiftUI
 import BackgroundTasks
+import FirebaseCore
+import FirebaseMessaging
 
 @main
 struct Peapod: App {
@@ -14,6 +16,7 @@ struct Peapod: App {
     @StateObject private var toastManager = ToastManager()
     @StateObject private var nowPlayingManager = NowPlayingVisibilityManager()
     @StateObject private var appStateManager = AppStateManager()
+    @StateObject private var userManager = UserManager.shared
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @AppStorage("didFlushTints") private var didFlushTints: Bool = false
     @AppStorage("hasRunOneTimeSplashMark") private var hasRunOneTimeSplashMark = false
@@ -24,6 +27,9 @@ struct Peapod: App {
     }
     
     init() {
+        // Configure Firebase based on environment
+        FirebaseConfig.configure()
+        
         #if !DEBUG
         LogManager.shared.setupAppLifecycleLogging()
         LogManager.shared.startLogging()
@@ -36,6 +42,7 @@ struct Peapod: App {
                 .environmentObject(appStateManager)
                 .environmentObject(nowPlayingManager)
                 .environmentObject(toastManager)
+                .environmentObject(userManager)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .preferredColorScheme(preferredColorScheme(for: appTheme))
                 .onAppear {

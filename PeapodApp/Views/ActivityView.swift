@@ -10,6 +10,10 @@ import CoreData
 import Kingfisher
 
 struct ActivityView: View {
+    @ObservedObject private var userManager = UserManager.shared
+    @State private var statistics = AppStatistics(podcastCount: 0, episodeCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
+    @State private var showingUpgrade = false
+    
     @FetchRequest(
         fetchRequest: Episode.recentlyPlayedRequest(limit: 5),
         animation: .interactiveSpring()
@@ -17,185 +21,472 @@ struct ActivityView: View {
     var played: FetchedResults<Episode>
     
     @FetchRequest(
+        fetchRequest: Episode.longestPlayedEpisodeRequest(),
+        animation: .default
+    )
+    var longestEpisodes: FetchedResults<Episode>
+    
+    @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default
     )
     var topPodcasts: FetchedResults<Podcast>
-    @State private var selectedEpisode: Episode? = nil
-    @State private var selectedPodcast: Podcast? = nil
+    
+    @State var degreesRotating = 0.0
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    @State private var isSpinning = false
+    @State private var favoriteDayName: String = "Loading..."
+    @State private var favoriteDayCount: Int = 0
+    @State private var weeklyData: [WeeklyListeningData] = []
     var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
             Spacer().frame(height:52)
-            Text("My Activity")
+            Text("My Stats")
                 .titleSerif()
                 .frame(maxWidth:.infinity, alignment:.leading)
-                .padding(.horizontal)
             
-            if !played.isEmpty {
-                FadeInView(delay: 0.2) {
-                    Text("Top Shows")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,16)
+            if played.isEmpty {
+                ZStack {
+                    VStack {
+                        ForEach(0..<2, id: \.self) { _ in
+                            EmptyEpisodeItem()
+                                .opacity(0.03)
+                        }
+                    }
+                    .mask(
+                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+                    )
+                    
+                    VStack {
+                        Text("No listening activity")
+                            .titleCondensed()
+                        
+                        Text("Listen to some podcasts already.")
+                            .textBody()
+                    }
                 }
-                
+            } else {
                 let podiumOrder = [1, 0, 2]
                 let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
                     guard index < topPodcasts.count else { return nil }
                     return (index, topPodcasts[index])
                 }
+                let hours = Int(statistics.totalPlayedSeconds) / 3600
+                let hourString = hours > 1 ? "Hours" : "Hour"
+                let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
+                let podcastString = statistics.podcastCount > 1 ? "podcasts" : "podcast"
                 
-                FadeInView(delay: 0.3) {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(reordered, id: \.1.id) { (index, podcast) in
-                            VStack {
-                                let image = KFImage(URL(string: podcast.image ?? ""))
-                                    .resizable()
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                
-                                let styledImage = image
-                                    .if(index == 0, transform: {
-                                        $0.shadow(color: Color.tint(for: podcast, opacity: 0.5), radius: 32, x: 0, y: 0)
-                                    })
-                                
-                                styledImage
-                                
-                                Text(podcast.formattedPlayedHours)
-                                    .textBody()
+                FadeInView(delay: 0.5) {
+                    VStack(alignment:.leading) {
+                        Image("peapod-plus-mark")
+                        
+                        VStack(alignment:.leading) {
+                            Text(userManager.memberTypeDisplay)
+                                .foregroundStyle(Color.white)
+                                .titleCondensed()
+                            
+                            Text("Since \(userManager.userDateString)")
+                                .foregroundStyle(Color.white)
+                                .textDetail()
+                        }
+                        
+                        HStack {
+                            FadeInView(delay:0.6) {
+                                VStack(alignment:.leading, spacing: 8) {
+                                    Image(systemName:"airpods.max")
+                                        .foregroundStyle(Color.white)
+                                    
+                                    VStack(alignment:.leading) {
+                                        Text("\(hours)")
+                                            .foregroundStyle(Color.white)
+                                            .titleSerif()
+                                            .monospaced()
+                                            .contentTransition(.numericText())
+                                        
+                                        Text("\(hourString) listened")
+                                            .foregroundStyle(Color.white)
+                                            .textDetail()
+                                    }
+                                }
+                                .padding(16)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .background(cardBackgroundGradient)
+                                .background(.white.opacity(0.15))
+                                .cornerRadius(16)
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .inset(by: 1)
+                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+                                )
                             }
-                            .if(index != 0, transform: {
-                                $0.scaleEffect(0.75)
-                            })
+                            
+                            FadeInView(delay:0.7) {
+                                VStack(alignment:.leading, spacing:8) {
+                                    Image(systemName:"play.circle")
+                                        .foregroundStyle(Color.white)
+                                        .symbolRenderingMode(.hierarchical)
+                                    
+                                    VStack(alignment:.leading) {
+                                        Text("\(statistics.playCount)")
+                                            .foregroundStyle(Color.white)
+                                            .titleSerif()
+                                            .monospaced()
+                                            .contentTransition(.numericText())
+                                        
+                                        Text("\(episodeString) played")
+                                            .foregroundStyle(Color.white)
+                                            .textDetail()
+                                    }
+                                }
+                                .padding(16)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .background(cardBackgroundGradient)
+                                .background(.white.opacity(0.15))
+                                .cornerRadius(16)
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .inset(by: 1)
+                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+                                )
+                            }
+                        }
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                        
+//                        HStack {
+//                            FadeInView(delay:0.8) {
+//                                VStack(alignment:.leading, spacing: 8) {
+//                                    Image(systemName:"widget.small")
+//                                        .foregroundStyle(Color.white)
+//                                    
+//                                    VStack(alignment:.leading) {
+//                                        Text("\(statistics.podcastCount)")
+//                                            .foregroundStyle(Color.white)
+//                                            .titleSerif()
+//                                            .monospaced()
+//                                            .contentTransition(.numericText())
+//                                        
+//                                        Text("Unique \(podcastString)")
+//                                            .foregroundStyle(Color.white)
+//                                            .textDetail()
+//                                    }
+//                                }
+//                                .padding(16)
+//                                .frame(maxWidth: .infinity, alignment: .topLeading)
+//                                .background(cardBackgroundGradient)
+//                                .background(.white.opacity(0.15))
+//                                .cornerRadius(16)
+//                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+//                                .overlay(
+//                                    RoundedRectangle(cornerRadius: 16)
+//                                        .inset(by: 1)
+//                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+//                                )
+//                            }
+//                            
+//                            FadeInView(delay:0.9) {
+//                                VStack(alignment:.leading, spacing:8) {
+//                                    Image(systemName:"checkmark.circle")
+//                                        .foregroundStyle(Color.white)
+//                                        .symbolRenderingMode(.hierarchical)
+//                                    
+//                                    VStack(alignment:.leading) {
+//                                        Text("91%")
+//                                            .foregroundStyle(Color.white)
+//                                            .titleSerif()
+//                                            .monospaced()
+//                                            .contentTransition(.numericText())
+//                                        
+//                                        Text("Completion rate")
+//                                            .foregroundStyle(Color.white)
+//                                            .textDetail()
+//                                    }
+//                                }
+//                                .padding(16)
+//                                .frame(maxWidth: .infinity, alignment: .topLeading)
+//                                .background(cardBackgroundGradient)
+//                                .background(.white.opacity(0.15))
+//                                .cornerRadius(16)
+//                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+//                                .overlay(
+//                                    RoundedRectangle(cornerRadius: 16)
+//                                        .inset(by: 1)
+//                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+//                                )
+//                            }
+//                        }
+//                        .frame(maxWidth:.infinity, alignment:.leading)
+                    }
+                    .foregroundStyle(Color.white)
+                    .padding()
+                    .background {
+                        if userManager.isSubscriber {
+                            GeometryReader { geometry in
+                                Color(hex: "#C9C9C9")
+                                Image("pro-pattern")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                    .clipped()
+                            }
+                            .ignoresSafeArea(.all)
+                        } else {
+                            Color.surface
                         }
                     }
-                    .padding(.horizontal)
+                    .clipShape(RoundedRectangle(cornerRadius:16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                }
+                
+                FadeInView(delay: 0.5) {
+                    HStack(alignment:.bottom) {
+                        VStack(alignment:.leading) {
+                            Image("peapod-plus-mark")
+                            
+                            Text(favoriteDayName)
+                                .foregroundStyle(Color.white)
+                                .titleCondensed()
+                                .multilineTextAlignment(.center)
+                            
+                            Text("Favorite day to listen")
+                                .foregroundStyle(Color.white)
+                                .textDetail()
+                        }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                        
+                        // Weekly listening chart
+                        HStack(alignment: .bottom, spacing: 16) {
+                            ForEach(weeklyData, id: \.dayOfWeek) { dayData in
+                                VStack(spacing: 4) {
+                                    // Bar
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(Color.white)
+                                        .frame(width: 6, height: max(2, dayData.percentage * 40)) // Min height of 4, max of 40
+                                        .animation(.easeInOut(duration: 0.8).delay(0.1 * Double(dayData.dayOfWeek)), value: dayData.percentage)
+                                        .shadow(color: dayData.percentage == 1.0 ? Color.white : Color.clear, radius: 16)
+                                    
+                                    // Day label
+                                    Text(dayData.dayAbbreviation)
+                                        .foregroundStyle(Color.white)
+                                        .textDetail()
+                                }
+                                .opacity(dayData.percentage == 1.0 ? 1.0 : 0.5)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    .foregroundStyle(Color.white)
+                    .padding()
+                    .background {
+                        LinearGradient(
+                            stops: [
+                                Gradient.Stop(color: Color(red: 1, green: 0.42, blue: 0.42), location: 0.00),
+                                Gradient.Stop(color: Color(red: 0.2, green: 0.2, blue: 0.2), location: 1.00),
+                            ],
+                            startPoint: UnitPoint(x: 0, y: 0.5),
+                            endPoint: UnitPoint(x: 1, y: 0.5)
+                        )
+                        Image("Noise")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .opacity(0.5)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius:16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                }
+                
+                FadeInView(delay: 0.5) {
+                    VStack(alignment:.leading) {
+                        Image("peapod-plus-mark")
+                        
+                        FadeInView(delay: 0.6) {
+                            Text("My Top Podcasts")
+                                .foregroundStyle(Color.white)
+                                .titleCondensed()
+                                .multilineTextAlignment(.center)
+                        }
+                        
+                        FadeInView(delay: 0.7) {
+                            LazyVGrid(columns: columns, spacing: 16) {
+                                ForEach(reordered, id: \.1.id) { (index, podcast) in
+                                    ZStack(alignment:.bottom) {
+                                        ArtworkView(url:podcast.image ?? "", size: index == 0 ? 128 : 64, cornerRadius: index == 0 ? 16 : 8)
+                                            .if(index == 0, transform: {
+                                                $0.background(
+                                                    Image("rays")
+                                                        .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
+                                                        .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
+                                                )
+                                            })
+                                        
+                                        Spacer()
+                                        
+                                        Text("\(podcast.formattedPlayedHours)")
+                                            .foregroundStyle(Color.black)
+                                            .textDetailEmphasis()
+                                            .padding(.vertical, 3)
+                                            .padding(.horizontal, 8)
+                                            .background(Color.white)
+                                            .clipShape(Capsule())
+                                            .offset(y:12)
+                                    }
+                                    .zIndex(index == 0 ? 0 : 1)
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    .foregroundStyle(Color.white)
+                    .padding([.horizontal,.top]).padding(.bottom,44)
+                    .background {
+                        if let winner = reordered.first(where: { $0.0 == 0 }) {
+                            ArtworkView(url: winner.1.image ?? "", size: 500, cornerRadius: 0)
+                                .blur(radius: 128)
+                        }
+                        Image("Noise")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .opacity(0.5)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius:16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                }
+                
+                if let longestEpisode = longestEpisodes.first {
+                    FadeInView(delay: 0.5) {
+                        VStack(alignment:.leading) {
+                            HStack(alignment:.top) {
+                                let duration = Int(longestEpisode.actualDuration)
+                                Image("peapod-plus-mark")
+                                Spacer()
+                                
+                                FadeInView(delay: 0.8) {
+                                    Text("\(formatDuration(seconds: duration))")
+                                        .foregroundStyle(Color.black)
+                                        .textDetailEmphasis()
+                                        .padding(.vertical, 3)
+                                        .padding(.horizontal, 8)
+                                        .background(Color.white)
+                                        .clipShape(Capsule())
+                                }
+                            }
+                            
+                            FadeInView(delay: 0.6) {
+                                Text("Longest Completed Episode")
+                                    .foregroundStyle(Color.white)
+                                    .titleCondensed()
+                                    .multilineTextAlignment(.center)
+                            }
+                            
+                            FadeInView(delay: 0.7) {
+                                HStack {
+                                    ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 44, cornerRadius: 8)
+                                    
+                                    VStack(alignment:.leading) {
+                                        HStack {
+                                            Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
+                                                .foregroundStyle(Color.white)
+                                                .textDetailEmphasis()
+                                            
+                                            Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
+                                                .foregroundStyle(Color.white)
+                                                .textDetail()
+                                        }
+                                        Text(longestEpisode.title ?? "Untitled")
+                                            .foregroundStyle(Color.white)
+                                            .titleCondensed()
+                                            .lineLimit(1)
+                                    }
+                                    .frame(maxWidth:.infinity,alignment:.leading)
+                                }
+                            }
+                        }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                        .foregroundStyle(Color.white)
+                        .padding()
+                        .background {
+                            ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 500, cornerRadius: 0)
+                                .blur(radius: 128)
+                            Image("Noise")
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .opacity(0.5)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius:16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                    }
                 }
             }
             
-            if played.isEmpty {
-                FadeInView(delay: 0.5) {
-                    ZStack {
-                        VStack {
-                            ForEach(0..<2, id: \.self) { _ in
-                                EmptyEpisodeItem()
-                                    .opacity(0.03)
-                            }
-                        }
-                        .mask(
-                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
-                        )
-                        
-                        VStack {
-                            Text("No listening activity")
-                                .titleCondensed()
-                            
-                            Text("Listen to some podcasts already.")
-                                .textBody()
-                        }
+            Spacer().frame(height:64)
+        }
+        .contentMargins(.horizontal,16, for:.scrollContent)
+        .maskEdge(.top)
+        .maskEdge(.bottom)
+        .onAppear {
+            isSpinning = true
+        }
+        .task {
+            await loadStatistics()
+            await loadFavoriteDay()
+        }
+    }
+    
+    // MARK: - Statistics Loading
+    private func loadStatistics() async {
+        let context = PersistenceController.shared.container.viewContext
+        
+        do {
+            let newStats = try await AppStatistics.load(from: context)
+            
+            // Wait to allow the UI to render with zeros, then animate the updates
+            try? await Task.sleep(for: .nanoseconds(1))
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                withAnimation(.easeInOut) {
+                    statistics = newStats
+                }
+            }
+        } catch {
+            print("Error loading statistics: \(error)")
+            // Keep default zero values on error
+        }
+    }
+    
+    private func loadFavoriteDay() async {
+        let context = PersistenceController.shared.container.viewContext
+        
+        do {
+            // Load weekly data
+            let weeklyListeningData = try Episode.getWeeklyListeningData(in: context)
+            
+            // Find favorite day
+            if let (dayOfWeek, count) = try Episode.mostPopularListeningDay(in: context) {
+                let dayName = Episode.dayName(from: dayOfWeek)
+                
+                DispatchQueue.main.async {
+                    withAnimation(.easeInOut) {
+                        self.weeklyData = weeklyListeningData
+                        self.favoriteDayName = dayName
+                        self.favoriteDayCount = count
                     }
                 }
             } else {
-                FadeInView(delay: 0.4) {
-                    Text("Listening Activity")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                        .padding(.leading).padding(.top,24)
-                }
-                
-                VStack {
-                    ForEach(played, id: \.id) { episode in
-                        FadeInView(delay: 0.5) {
-                            EpisodeItem(episode: episode, namespace: namespace)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .padding(.horizontal)
-                                .matchedTransitionSource(id: episode.id, in: namespace)
-                        }
-                    }
+                DispatchQueue.main.async {
+                    self.weeklyData = weeklyListeningData
+                    self.favoriteDayName = "No data yet"
                 }
             }
+        } catch {
+            print("Error loading favorite day: \(error)")
+            DispatchQueue.main.async {
+                self.favoriteDayName = "Unable to load"
+            }
         }
-        .maskEdge(.top)
-        .maskEdge(.bottom)
-    }
-}
-
-extension Podcast {
-    static func topPlayedRequest() -> NSFetchRequest<Podcast> {
-        let request = NSFetchRequest<Podcast>(entityName: "Podcast")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Podcast.playedSeconds, ascending: false)]
-        request.fetchLimit = 3
-        return request
-    }
-    
-    static func totalPlayedDuration(in context: NSManagedObjectContext) async throws -> Double {
-        let request = NSFetchRequest<NSDictionary>(entityName: "Podcast")
-        request.resultType = .dictionaryResultType
-
-        let sumExpression = NSExpressionDescription()
-        sumExpression.name = "totalPlayedDuration"
-        sumExpression.expression = NSExpression(forFunction: "sum:", arguments: [NSExpression(forKeyPath: "playedSeconds")])
-        sumExpression.expressionResultType = .doubleAttributeType
-
-        request.propertiesToFetch = [sumExpression]
-
-        let results = try context.fetch(request)
-        let total = results.first?["totalPlayedDuration"] as? Double ?? 0.0
-        return total
-    }
-    
-    static func totalSubscribedCount(in context: NSManagedObjectContext) throws -> Int {
-        let request = NSFetchRequest<NSNumber>(entityName: "Podcast")
-        request.predicate = NSPredicate(format: "isSubscribed == YES")
-        request.resultType = .countResultType
-
-        return try context.count(for: request)
-    }
-
-    static func totalPlayCount(in context: NSManagedObjectContext) throws -> Int {
-        let request = NSFetchRequest<NSDictionary>(entityName: "Podcast")
-        request.resultType = .dictionaryResultType
-
-        let sumExpression = NSExpressionDescription()
-        sumExpression.name = "totalPlayCount"
-        sumExpression.expression = NSExpression(forFunction: "sum:", arguments: [NSExpression(forKeyPath: "playCount")])
-        sumExpression.expressionResultType = .integer32AttributeType
-
-        request.propertiesToFetch = [sumExpression]
-
-        let results = try context.fetch(request)
-        return results.first?["totalPlayCount"] as? Int ?? 0
-    }
-    
-    var formattedPlayedHours: String {
-        let hours = playedSeconds / 3600
-        let rounded = (hours * 10).rounded() / 10  // round to 1 decimal place
-
-        if rounded < 0.1 {
-            return "Less than 1 hour"
-        }
-
-        if rounded == floor(rounded) {
-            let whole = Int(rounded)
-            return "\(whole) " + (whole == 1 ? "hour" : "hours")
-        } else {
-            return String(format: "%.1f hours", rounded)
-        }
-    }
-}
-
-extension Episode {
-    static func recentlyPlayedRequest(limit: Int = 5) -> NSFetchRequest<Episode> {
-        let request = NSFetchRequest<Episode>(entityName: "Episode")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.playedDate, ascending: false)]
-        request.predicate = NSPredicate(format: "isPlayed == YES")
-        request.fetchLimit = limit
-        return request
     }
 }

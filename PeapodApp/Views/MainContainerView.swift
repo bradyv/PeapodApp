@@ -32,7 +32,18 @@ struct MainContainerView: View {
                 .transition(.opacity)
             }
             
-            // Layer 3: Splash (conditionally visible on top)
+            // Layer 3: Request Notifications (conditionally visible)
+            if appStateManager.currentState == .requestNotifications {
+                RequestNotificationsView(
+                    onComplete: {
+                        appStateManager.completeNotificationRequest()
+                    },
+                    namespace: namespace
+                )
+                .transition(.opacity)
+            }
+            
+            // Layer 4: Splash (conditionally visible on top)
             if appStateManager.currentState == .splash {
                 SplashView()
                     .transition(.opacity)
@@ -40,4 +51,3 @@ struct MainContainerView: View {
         }
     }
 }
-

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Darwin
 
 class LogManager {
     static let shared = LogManager()
@@ -22,12 +23,14 @@ class LogManager {
     }()
 
     func startLogging() {
-        // Check if rotation is needed before starting
+        // Set UTF-8 locale before redirecting
+        setlocale(LC_ALL, "en_US.UTF-8")
+        
         rotateLogIfNeeded()
         cleanupOldLogs()
         
-        freopen(logFileURL.path.cString(using: .ascii), "a+", stderr)
-        freopen(logFileURL.path.cString(using: .ascii), "a+", stdout)
+        freopen(logFileURL.path.cString(using: .utf8), "a+", stderr)
+        freopen(logFileURL.path.cString(using: .utf8), "a+", stdout)
         print("🟢 Logging started at \(Date())\n")
     }
 

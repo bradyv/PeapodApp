@@ -13,38 +13,65 @@ struct EpisodeItem: View {
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var selectedPodcast: Podcast? = nil
-    @State private var isPlaying = false
-    @State private var isLoading = false
-    @State private var playbackPosition: Double = 0
-    @State private var episodePlayed: Bool = false
+    @State private var selectedEpisode: Episode? = nil
     var showActions: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
     var savedView: Bool = false
     var namespace: Namespace.ID
     
+    // Computed properties based on unified state
+    private var isPlaying: Bool {
+        player.isPlayingEpisode(episode)
+    }
+    
+    private var isLoading: Bool {
+        player.isLoadingEpisode(episode)
+    }
+    
+    private var playbackPosition: Double {
+        player.getProgress(for: episode)
+    }
+    
     var body: some View {
-        VStack(alignment:.leading) {
+        VStack(alignment: .leading) {
             // Podcast Info Row
             HStack {
-                NavigationLink {
-                    if episode.podcast?.isSubscribed != false {
-                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                        }
-                    } else {
-                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                HStack {
+                    ZStack(alignment:.bottomTrailing) {
+                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                        
+                        if episode.isPlayed && !displayedInQueue {
+                            ZStack {
+                                Image(systemName:"checkmark.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                    .textDetail()
+                            }
+                            .background(Color.background)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.background, lineWidth: 1)
+                            )
+                            .offset(x:5,y:5)
                         }
                     }
-                } label: {
-                    HStack {
-                        ArtworkView(url:episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
-                        
-                        Text(episode.podcast?.title ?? "Podcast title")
-                            .lineLimit(1)
-                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                            .textDetailEmphasis()
+                    
+                    Text(episode.podcast?.title ?? "Podcast title")
+                        .lineLimit(1)
+                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                        .textDetailEmphasis()
+                }
+                .onTapGesture {
+                    selectedPodcast = episode.podcast
+                }
+                .sheet(item: $selectedPodcast) { podcast in
+                    if podcast.isSubscribed {
+                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                            .modifier(PPSheet())
+                    } else {
+                        PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
+                            .modifier(PPSheet())
                     }
                 }
                 
@@ -52,19 +79,18 @@ struct EpisodeItem: View {
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textDetail()
             }
-            .frame(maxWidth:.infinity, alignment:.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             // Episode Meta
             if displayedInQueue {
                 VStack(alignment: .leading) {
-                    
                     Text("Line\nLine\nLine\nLine")
                         .titleCondensed()
                         .lineLimit(4, reservesSpace: true)
                         .frame(maxWidth: .infinity)
                         .hidden()
-                        .overlay(alignment:.top) {
-                            VStack(alignment: .leading, spacing:4) {
+                        .overlay(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(episode.title ?? "Episode title")
                                     .foregroundStyle(.white)
                                     .multilineTextAlignment(.leading)
@@ -77,13 +103,13 @@ struct EpisodeItem: View {
                                     .multilineTextAlignment(.leading)
                                     .textBody()
                             }
-                            .frame(maxWidth:.infinity, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.clear)
                         }
                 }
             } else {
                 // Body
-                VStack(alignment:.leading, spacing:8) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(episode.title ?? "Episode title")
                         .foregroundStyle(Color.heading)
                         .multilineTextAlignment(.leading)
@@ -97,7 +123,7 @@ struct EpisodeItem: View {
                         .multilineTextAlignment(.leading)
                         .textBody()
                 }
-                .frame(maxWidth:.infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             
             // Episode Actions
@@ -108,10 +134,6 @@ struct EpisodeItem: View {
                     // ▶️ Playback Button
                     Button(action: {
                         guard !isLoading else { return }
-                        isLoading = true  // Let UI reflect this ASAP
-                        if episode.isPlayed && !isPlaying {
-                            episodePlayed = false
-                        }
                         player.togglePlayback(for: episode)
                     }) {
                         HStack {
@@ -121,12 +143,7 @@ struct EpisodeItem: View {
                                 buttonSize: 20
                             )
                             
-                            let duration = episode.actualDuration > 0 ? episode.actualDuration : episode.duration
-                            let position = episode.playbackPosition
-                            let remaining = max(0, duration - position)
-                            let seconds = Int(remaining)
-                            
-                            Text("\(formatDuration(seconds: seconds))")
+                            Text("\(player.getStableRemainingTime(for: episode, pretty: true))")
                                 .contentTransition(.numericText())
                         }
                     }
@@ -167,9 +184,9 @@ struct EpisodeItem: View {
                                     toggleQueued(episode)
                                 }
                             }) {
-                                Label(episode.isQueued ? "Queued" : "Up Next", systemImage:episode.isQueued ? "text.badge.checkmark" : "text.append")
+                                Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
                             }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:episode.isQueued ? .tinted : .monochrome))
+                            .buttonStyle(PPButton(type: .transparent, colorStyle: episode.isQueued ? .tinted : .monochrome))
                         }
                     } else {
                         // 🗑️ Remove / Archive / Mark as Played
@@ -198,41 +215,20 @@ struct EpisodeItem: View {
             }
         }
         .contentShape(Rectangle())
-        .frame(maxWidth:.infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
-            // Initialize state from player/episode on appear
-            isPlaying = player.isPlayingEpisode(episode)
-            isLoading = player.isLoadingEpisode(episode)
-            playbackPosition = player.getProgress(for: episode)
-            episodePlayed = episode.isPlayed
-            
-            // Do background tasks
+            // Background tasks only
             Task.detached(priority: .background) {
                 await player.writeActualDuration(for: episode)
                 await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
         }
-        .onChange(of: player.state) { _, newState in
-            withTransaction(Transaction(animation: .easeInOut(duration: 0.3))) {
-                isPlaying = player.isPlayingEpisode(episode)
-                isLoading = player.isLoadingEpisode(episode)
-
-                if let id = episode.id, let currentId = newState.currentEpisodeID, id == currentId {
-                    playbackPosition = player.getProgress(for: episode)
-                }
-            }
-        }
-        // Track changes to episode.isPlayed
-        .onChange(of: episode.isPlayed) { _, newValue in
-            episodePlayed = newValue
-            
-            // If marked as played, reset progress display
-            if newValue {
-                playbackPosition = 0
-            }
-        }
         .onTapGesture {
-            episodeSelectionManager.selectEpisode(episode)
+            selectedEpisode = episode
+        }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
         }
     }
 }
@@ -242,7 +238,7 @@ struct EmptyEpisodeItem: View {
         VStack {
             HStack {
                 Rectangle()
-                    .frame(width:24, height:24)
+                    .frame(width: 24, height: 24)
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
                 
@@ -256,56 +252,55 @@ struct EmptyEpisodeItem: View {
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
             }
-            .frame(maxWidth:.infinity, alignment:.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
             
-            VStack(alignment:.leading) {
+            VStack(alignment: .leading) {
                 Rectangle()
-                    .frame(maxWidth:.infinity).frame(height:24)
+                    .frame(maxWidth: .infinity).frame(height: 24)
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
                 
                 Rectangle()
-                    .frame(width:100, height:24)
+                    .frame(width: 100, height: 24)
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
             }
-            .frame(maxWidth:.infinity, alignment:.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
             
-            VStack(alignment:.leading) {
-                
+            VStack(alignment: .leading) {
                 Rectangle()
-                    .frame(maxWidth:.infinity).frame(height:12)
+                    .frame(maxWidth: .infinity).frame(height: 12)
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
                 
                 Rectangle()
-                    .frame(maxWidth:.infinity).frame(height:12)
+                    .frame(maxWidth: .infinity).frame(height: 12)
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
                 
                 Rectangle()
-                    .frame(width:128, height:12)
+                    .frame(width: 128, height: 12)
                     .foregroundStyle(Color.heading)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
             }
-            .frame(maxWidth:.infinity, alignment:.leading)
-            .padding(.horizontal).padding(.bottom,16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal).padding(.bottom, 16)
             
             HStack {
                 Capsule()
-                    .frame(width:96,height:40)
+                    .frame(width: 96, height: 40)
                     .foregroundStyle(Color.heading)
                 
                 Capsule()
-                    .frame(width:128,height:40)
+                    .frame(width: 128, height: 40)
                     .foregroundStyle(Color.heading)
             }
-            .frame(maxWidth:.infinity,alignment:.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
         }
-        .padding(.bottom,24)
+        .padding(.bottom, 24)
     }
 }
 

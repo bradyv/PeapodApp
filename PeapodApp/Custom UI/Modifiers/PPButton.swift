@@ -93,6 +93,7 @@ struct PPButton: ButtonStyle {
     var medium: Bool = false
     var large: Bool = false
     var borderless: Bool = false
+    var peapodPlus: Bool = false
     var hierarchical: Bool = true
     var customColors: ButtonCustomColors? = nil
 
@@ -115,8 +116,23 @@ struct PPButton: ButtonStyle {
             })
         .if(medium, transform: { $0.font(.system(size:20))})
         .if(large, transform: { $0.font(.system(size:26))})
-        .background(borderless ? AnyShapeStyle(.clear) : effectiveBackground(isPressed))
-        .foregroundColor(effectiveForeground)
+        .background {
+            if peapodPlus {
+                // Image background for peapodPlus
+                Color.white
+                Image("pro-pattern")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else if borderless {
+                // Clear background for borderless
+                Color.clear
+            } else {
+                // Regular background using AnyShapeStyle
+                Rectangle()
+                    .fill(effectiveBackground(isPressed))
+            }
+        }
+        .foregroundColor(peapodPlus ? Color.white : effectiveForeground)
         .textBodyEmphasis()
         .clipShape(Capsule())
         .overlay {

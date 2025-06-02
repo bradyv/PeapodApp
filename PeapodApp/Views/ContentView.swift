@@ -17,59 +17,48 @@ struct ContentView: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
-    @StateObject private var episodeSelectionManager = EpisodeSelectionManager()
     @State private var showSettings = false
-    @State private var currentEpisodeID: String? = nil
     @State private var lastRefreshDate = Date.distantPast
+    @State private var selectedEpisode: Episode? = nil
+    
     var namespace: Namespace.ID
-
-//    @State private var showOnboarding = true // bv debug
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment:.topTrailing) {
-                NowPlayingSplash(episodeID: currentEpisodeID)
-                    .matchedGeometryEffect(id: "page-bg", in: namespace)
+            ZStack(alignment: .topTrailing) {
+                MainBackground()
                 
                 ScrollView {
-                    FadeInView(delay: 0.1) {
-                        QueueView(currentEpisodeID: $currentEpisodeID, namespace: namespace)
-                    }
-                    FadeInView(delay: 0.2) {
-                        LibraryView(namespace: namespace)
-                    }
-                    FadeInView(delay: 0.3) {
-                        SubscriptionsView(namespace: namespace)
-                    }
+                    QueueView(namespace: namespace)
+                    LibraryView(namespace: namespace)
+                    SubscriptionsView(namespace: namespace)
                     
-                    Spacer().frame(height:96)
+                    Spacer().frame(height: 96)
                 }
                 .maskEdge(.top)
                 .maskEdge(.bottom)
-                .onAppear {
-                    let now = Date()
-                    if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
-                        lastRefreshDate = now
-                        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
-                    }
-                }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     if newPhase == .active {
-                        let now = Date()
-                        if now.timeIntervalSince(lastRefreshDate) > 300 { // only refresh if >5min since last refresh
-                            lastRefreshDate = now
-                            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+                        // Clear badge when app becomes active
+                        UIApplication.shared.applicationIconBadgeNumber = 0
+                        
+                        // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
+                        let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+                        if timeSinceLastRefresh > 30 {
+                            print("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                            forceRefreshPodcasts()
+                        } else {
+                            print("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
                         }
                     }
                 }
                 .scrollDisabled(subscriptions.isEmpty)
                 .refreshable {
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                        toastManager.show(message: "Updated All Feeds", icon: "sparkles")
-                    }
+                    // Manual pull to refresh - always allow
+                    refreshPodcasts(source: "pull-to-refresh")
                 }
                 
-                VStack(alignment:.trailing) {
+                VStack(alignment: .trailing) {
                     NavigationLink {
                         PPPopover(showBg: true) {
                             SettingsView(namespace: namespace)
@@ -80,7 +69,7 @@ struct ContentView: View {
                     .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                     Spacer()
                 }
-                .frame(maxWidth:.infinity, alignment:.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal)
             }
             .background(
@@ -94,41 +83,57 @@ struct ContentView: View {
             )
         }
         .environmentObject(episodesViewModel)
-        .environmentObject(episodeSelectionManager)
-        .overlay {
-            if nowPlayingManager.isVisible {
-                NowPlaying(namespace: namespace) { episode in
-                    episodeSelectionManager.selectEpisode(episode)
+        // Track subscription changes for backend sync
+        .onChange(of: subscriptions.count) { oldCount, newCount in
+            if oldCount != newCount {
+                // Delay sync to allow Core Data to settle
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
                 }
-                .environmentObject(episodeSelectionManager)
             }
         }
-        .sheet(item: $episodeSelectionManager.selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace: namespace)
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
                 .modifier(PPSheet())
         }
+        .overlay {
+            if nowPlayingManager.isVisible {
+                NowPlaying(namespace: namespace)
+            }
+        }
         .onAppear {
+            UIApplication.shared.applicationIconBadgeNumber = 0
+            
             if episodesViewModel.context == nil { // not yet initialized properly
                 episodesViewModel.setup(context: context)
+            }
+            
+            // 🚀 NEW: Only refresh on first appear or after significant time gap
+            let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+            if timeSinceLastRefresh > 30 {
+                print("📱 ContentView appeared - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                forceRefreshPodcasts()
+            } else {
+                print("📱 ContentView appeared - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
             }
             
             checkPendingNotification()
         }
         .onChange(of: appStateManager.currentState) { oldState, newState in
             if oldState != .main && newState == .main {
-                requestNotificationPermissions()
+                // Sync subscriptions when app enters main state
+                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
             if let id = notification.object as? String {
-                let context = PersistenceController.shared.container.viewContext
                 let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
                 fetchRequest.predicate = NSPredicate(format: "id == %@", id)
                 fetchRequest.fetchLimit = 1
                 
                 if let foundEpisode = try? context.fetch(fetchRequest).first {
-                    // Instead of setting tappedEpisode, use the episodeSelectionManager
-                    episodeSelectionManager.selectEpisode(foundEpisode)
+                    print("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
+                    selectedEpisode = foundEpisode
                 } else {
                     print("❌ Could not find episode for id \(id)")
                 }
@@ -137,43 +142,87 @@ struct ContentView: View {
         .toast()
     }
     
-    private func requestNotificationPermissions() {
-        let center = UNUserNotificationCenter.current()
-        center.getNotificationSettings { settings in
-            if settings.authorizationStatus == .notDetermined {
-                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                    if granted {
-                        print("✅ Local notifications authorized")
-                    } else if let error = error {
-                        print("❌ Notification permission error: \(error.localizedDescription)")
-                    } else {
-                        print("❌ Notification permission denied")
-                    }
-                }
-            }
+    // 🚀 UPDATED: Unified refresh method with source tracking and debouncing
+    private func forceRefreshPodcasts() {
+        refreshPodcasts(source: "auto")
+    }
+    
+    private func refreshPodcasts(source: String) {
+        // Update last refresh time immediately to prevent concurrent calls
+        lastRefreshDate = Date()
+        
+        toastManager.show(message: "Refreshing", icon: "arrow.trianglehead.2.clockwise")
+        print("🔄 Force refreshing all subscribed podcasts (\(source))")
+        
+        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+            toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+            print("✨ \(source.capitalized) refreshed feeds at \(Date())")
         }
     }
     
     private func checkPendingNotification() {
         // Check if we have a pending notification episode ID
         if let pendingID = AppDelegate.pendingNotificationEpisodeID {
+            print("🔔 Processing pending notification for episode: \(pendingID)")
             // Clear it immediately to prevent duplicate handling
             AppDelegate.pendingNotificationEpisodeID = nil
             
-            // Fetch and open the episode
-            let context = PersistenceController.shared.container.viewContext
-            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id == %@", pendingID)
-            fetchRequest.fetchLimit = 1
+            // Force refresh first to ensure we have the latest episodes
+            forceRefreshPodcasts()
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                // Small delay to ensure UI is ready
-                if let foundEpisode = try? context.fetch(fetchRequest).first {
-                    episodeSelectionManager.selectEpisode(foundEpisode)
+            // Delay opening the episode to allow refresh to complete
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                // Try to find the episode by the Firebase episode ID format
+                self.findEpisodeByFirebaseId(pendingID)
+            }
+        }
+    }
+    
+    // 🆕 Helper to find episode using Firebase episode ID format
+    private func findEpisodeByFirebaseId(_ episodeID: String) {
+        // Firebase episode IDs are in format: encodedFeedUrl_guid
+        let components = episodeID.components(separatedBy: "_")
+        guard components.count >= 2 else {
+            print("❌ Invalid episode ID format: \(episodeID)")
+            return
+        }
+        
+        let encodedFeedUrl = components[0]
+        let guid = components.dropFirst().joined(separator: "_")
+        
+        // Decode the feed URL
+        guard let feedUrl = encodedFeedUrl.removingPercentEncoding else {
+            print("❌ Could not decode feed URL: \(encodedFeedUrl)")
+            return
+        }
+        
+        print("🔍 Searching for episode with GUID: \(guid) in feed: \(feedUrl)")
+        
+        // Find episode by GUID and feed URL
+        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcast.feedUrl == %@", guid, feedUrl)
+        fetchRequest.fetchLimit = 1
+        
+        do {
+            if let foundEpisode = try context.fetch(fetchRequest).first {
+                print("✅ Found episode from notification: \(foundEpisode.title ?? "Unknown")")
+                selectedEpisode = foundEpisode
+            } else {
+                print("❌ Could not find episode with GUID: \(guid) in feed: \(feedUrl)")
+                // Try fallback search by GUID only
+                let fallbackRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                fallbackRequest.predicate = NSPredicate(format: "guid == %@", guid)
+                fallbackRequest.fetchLimit = 1
+                
+                if let fallbackEpisode = try context.fetch(fallbackRequest).first {
+                    print("✅ Found episode via fallback search: \(fallbackEpisode.title ?? "Unknown")")
+                    selectedEpisode = fallbackEpisode
                 } else {
-                    print("❌ Could not find episode for id \(pendingID)")
+                    print("❌ Episode not found even with fallback search")
                 }
             }
+        } catch {
+            print("❌ Error searching for episode: \(error)")
         }
     }
 }

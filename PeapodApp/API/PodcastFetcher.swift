@@ -11,6 +11,49 @@ import CoreData
 
 enum PodcastAPI {
     
+    static func fetchCuratedFeeds(completion: @escaping ([PodcastResult]) -> Void) {
+        guard let url = URL(string: "https://bradyv.github.io/bvfeed.github.io/curated-feeds.json") else {
+            completion([])
+            return
+        }
+        
+        var request = URLRequest(url: url)
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data else {
+                completion([])
+                return
+            }
+
+            struct FeedResponse: Codable {
+                struct Feed: Codable {
+                    struct Entry: Codable {
+                        struct ID: Codable {
+                            let attributes: Attributes
+                            struct Attributes: Codable {
+                                let imID: String
+                                enum CodingKeys: String, CodingKey { case imID = "im:id" }
+                            }
+                        }
+                        let id: ID
+                    }
+                    let entry: [Entry]
+                }
+                let feed: Feed
+            }
+
+            do {
+                let decoded = try JSONDecoder().decode(FeedResponse.self, from: data)
+                let ids = decoded.feed.entry.map { $0.id.attributes.imID }
+                fetchPodcastResults(for: ids, completion: completion)
+            } catch {
+                print("❌ Failed to decode curated podcasts: \(error)")
+                completion([])
+            }
+        }.resume()
+    }
+    
     static func fetchTopPodcasts(limit: Int = 21, completion: @escaping ([PodcastResult]) -> Void) {
         guard let url = URL(string: "https://itunes.apple.com/us/rss/toppodcasts/limit=\(limit)/json") else {
             completion([])

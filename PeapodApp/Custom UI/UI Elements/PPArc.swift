@@ -32,10 +32,11 @@ struct PPArc: View {
                 .rotationEffect(angle(at: index))
             }
         }
+        .blendMode(.overlay)
         .frame(width: size.width, height: size.height)
         .rotationEffect(.degrees(degreesRotating))
         .onAppear {
-          withAnimation(.linear(duration: 1)
+            withAnimation(.linear(duration: 1.5)
               .speed(0.1).repeatForever(autoreverses: false)) {
                   degreesRotating = 360.0
               }
@@ -77,24 +78,24 @@ struct Sizeable: View {
 #Preview {
     VStack {
         ZStack {
-            Image("Peapod.white")
+            Image("ppface")
                 .resizable()
-                .frame(width:64,height:55.5)
+                .frame(width:64,height:64)
             
-            PPArc(text: "Listener Since Mar 12 • Listener Since Mar 12 •  ".uppercased(), radius: 33, size:.init(width: 100, height: 100))
-                .font(.system(size: 7, design: .monospaced)).bold()
-                .foregroundStyle(.white)
+            PPArc(text: "Listener Since Mar 12 • Listener Since Mar 12 •  ".uppercased(), radius: 48, size:.init(width: 100, height: 100))
+                .font(.system(size:10, design: .monospaced)).bold()
+                .foregroundStyle(.black)
         }
         
-        ZStack {
-            Image("Peapod.white")
-                .resizable()
-                .frame(width:64,height:55.5)
-            
-            PPArc(text: "Beta Tester Since Mar 12 • Beta Tester Since Mar 12 •  ".uppercased(), radius: 37, size:.init(width: 100, height: 100))
-                .font(.system(size: 7, design: .monospaced)).bold()
-                .foregroundStyle(.white)
-        }
+//        ZStack {
+//            Image("ppface")
+//                .resizable()
+//                .frame(width:64,height:64)
+//            
+//            PPArc(text: "Beta Tester Since Mar 12 • Beta Tester Since Mar 12 •  ".uppercased(), radius: 39, size:.init(width: 100, height: 100))
+//                .font(.system(size: 10).width(.condensed)).bold()
+//                .foregroundStyle(.black)
+//        }
     }
-    .background(Image("launchimage"))
+    .background(Image("Splash-Pastel"))
 }

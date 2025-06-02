@@ -35,6 +35,9 @@ struct ActivityView: View {
     @State var degreesRotating = 0.0
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     @State private var isSpinning = false
+    @State private var favoriteDayName: String = "Loading..."
+    @State private var favoriteDayCount: Int = 0
+    @State private var weeklyData: [WeeklyListeningData] = []
     var namespace: Namespace.ID
     
     var body: some View {
@@ -154,69 +157,69 @@ struct ActivityView: View {
                         }
                         .frame(maxWidth:.infinity, alignment:.leading)
                         
-                        HStack {
-                            FadeInView(delay:0.8) {
-                                VStack(alignment:.leading, spacing: 8) {
-                                    Image(systemName:"widget.small")
-                                        .foregroundStyle(Color.white)
-                                    
-                                    VStack(alignment:.leading) {
-                                        Text("\(statistics.podcastCount)")
-                                            .foregroundStyle(Color.white)
-                                            .titleSerif()
-                                            .monospaced()
-                                            .contentTransition(.numericText())
-                                        
-                                        Text("Unique \(podcastString)")
-                                            .foregroundStyle(Color.white)
-                                            .textDetail()
-                                    }
-                                }
-                                .padding(16)
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                                .background(cardBackgroundGradient)
-                                .background(.white.opacity(0.15))
-                                .cornerRadius(16)
-                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .inset(by: 1)
-                                        .stroke(.white.opacity(0.15), lineWidth: 1)
-                                )
-                            }
-                            
-                            FadeInView(delay:0.9) {
-                                VStack(alignment:.leading, spacing:8) {
-                                    Image(systemName:"checkmark.circle")
-                                        .foregroundStyle(Color.white)
-                                        .symbolRenderingMode(.hierarchical)
-                                    
-                                    VStack(alignment:.leading) {
-                                        Text("91%")
-                                            .foregroundStyle(Color.white)
-                                            .titleSerif()
-                                            .monospaced()
-                                            .contentTransition(.numericText())
-                                        
-                                        Text("Completion rate")
-                                            .foregroundStyle(Color.white)
-                                            .textDetail()
-                                    }
-                                }
-                                .padding(16)
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                                .background(cardBackgroundGradient)
-                                .background(.white.opacity(0.15))
-                                .cornerRadius(16)
-                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .inset(by: 1)
-                                        .stroke(.white.opacity(0.15), lineWidth: 1)
-                                )
-                            }
-                        }
-                        .frame(maxWidth:.infinity, alignment:.leading)
+//                        HStack {
+//                            FadeInView(delay:0.8) {
+//                                VStack(alignment:.leading, spacing: 8) {
+//                                    Image(systemName:"widget.small")
+//                                        .foregroundStyle(Color.white)
+//                                    
+//                                    VStack(alignment:.leading) {
+//                                        Text("\(statistics.podcastCount)")
+//                                            .foregroundStyle(Color.white)
+//                                            .titleSerif()
+//                                            .monospaced()
+//                                            .contentTransition(.numericText())
+//                                        
+//                                        Text("Unique \(podcastString)")
+//                                            .foregroundStyle(Color.white)
+//                                            .textDetail()
+//                                    }
+//                                }
+//                                .padding(16)
+//                                .frame(maxWidth: .infinity, alignment: .topLeading)
+//                                .background(cardBackgroundGradient)
+//                                .background(.white.opacity(0.15))
+//                                .cornerRadius(16)
+//                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+//                                .overlay(
+//                                    RoundedRectangle(cornerRadius: 16)
+//                                        .inset(by: 1)
+//                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+//                                )
+//                            }
+//                            
+//                            FadeInView(delay:0.9) {
+//                                VStack(alignment:.leading, spacing:8) {
+//                                    Image(systemName:"checkmark.circle")
+//                                        .foregroundStyle(Color.white)
+//                                        .symbolRenderingMode(.hierarchical)
+//                                    
+//                                    VStack(alignment:.leading) {
+//                                        Text("91%")
+//                                            .foregroundStyle(Color.white)
+//                                            .titleSerif()
+//                                            .monospaced()
+//                                            .contentTransition(.numericText())
+//                                        
+//                                        Text("Completion rate")
+//                                            .foregroundStyle(Color.white)
+//                                            .textDetail()
+//                                    }
+//                                }
+//                                .padding(16)
+//                                .frame(maxWidth: .infinity, alignment: .topLeading)
+//                                .background(cardBackgroundGradient)
+//                                .background(.white.opacity(0.15))
+//                                .cornerRadius(16)
+//                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+//                                .overlay(
+//                                    RoundedRectangle(cornerRadius: 16)
+//                                        .inset(by: 1)
+//                                        .stroke(.white.opacity(0.15), lineWidth: 1)
+//                                )
+//                            }
+//                        }
+//                        .frame(maxWidth:.infinity, alignment:.leading)
                     }
                     .foregroundStyle(Color.white)
                     .padding()
@@ -234,6 +237,64 @@ struct ActivityView: View {
                         } else {
                             Color.surface
                         }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius:16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                }
+                
+                FadeInView(delay: 0.5) {
+                    HStack(alignment:.bottom) {
+                        VStack(alignment:.leading) {
+                            Image("peapod-plus-mark")
+                            
+                            Text(favoriteDayName)
+                                .foregroundStyle(Color.white)
+                                .titleCondensed()
+                                .multilineTextAlignment(.center)
+                            
+                            Text("Favorite day to listen")
+                                .foregroundStyle(Color.white)
+                                .textDetail()
+                        }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                        
+                        // Weekly listening chart
+                        HStack(alignment: .bottom, spacing: 16) {
+                            ForEach(weeklyData, id: \.dayOfWeek) { dayData in
+                                VStack(spacing: 4) {
+                                    // Bar
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(Color.white)
+                                        .frame(width: 6, height: max(2, dayData.percentage * 40)) // Min height of 4, max of 40
+                                        .animation(.easeInOut(duration: 0.8).delay(0.1 * Double(dayData.dayOfWeek)), value: dayData.percentage)
+                                        .shadow(color: dayData.percentage == 1.0 ? Color.white : Color.clear, radius: 16)
+                                    
+                                    // Day label
+                                    Text(dayData.dayAbbreviation)
+                                        .foregroundStyle(Color.white)
+                                        .textDetail()
+                                }
+                                .opacity(dayData.percentage == 1.0 ? 1.0 : 0.5)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    .foregroundStyle(Color.white)
+                    .padding()
+                    .background {
+                        LinearGradient(
+                            stops: [
+                                Gradient.Stop(color: Color(red: 1, green: 0.42, blue: 0.42), location: 0.00),
+                                Gradient.Stop(color: Color(red: 0.2, green: 0.2, blue: 0.2), location: 1.00),
+                            ],
+                            startPoint: UnitPoint(x: 0, y: 0.5),
+                            endPoint: UnitPoint(x: 1, y: 0.5)
+                        )
+                        Image("Noise")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .opacity(0.5)
                     }
                     .clipShape(RoundedRectangle(cornerRadius:16))
                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
@@ -372,6 +433,7 @@ struct ActivityView: View {
         }
         .task {
             await loadStatistics()
+            await loadFavoriteDay()
         }
     }
     
@@ -393,6 +455,38 @@ struct ActivityView: View {
         } catch {
             print("Error loading statistics: \(error)")
             // Keep default zero values on error
+        }
+    }
+    
+    private func loadFavoriteDay() async {
+        let context = PersistenceController.shared.container.viewContext
+        
+        do {
+            // Load weekly data
+            let weeklyListeningData = try Episode.getWeeklyListeningData(in: context)
+            
+            // Find favorite day
+            if let (dayOfWeek, count) = try Episode.mostPopularListeningDay(in: context) {
+                let dayName = Episode.dayName(from: dayOfWeek)
+                
+                DispatchQueue.main.async {
+                    withAnimation(.easeInOut) {
+                        self.weeklyData = weeklyListeningData
+                        self.favoriteDayName = dayName
+                        self.favoriteDayCount = count
+                    }
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.weeklyData = weeklyListeningData
+                    self.favoriteDayName = "No data yet"
+                }
+            }
+        } catch {
+            print("Error loading favorite day: \(error)")
+            DispatchQueue.main.async {
+                self.favoriteDayName = "Unable to load"
+            }
         }
     }
 }

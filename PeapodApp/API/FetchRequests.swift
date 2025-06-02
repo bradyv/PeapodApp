@@ -104,6 +104,44 @@ extension Episode {
         return (dayOfWeek: maxDay.key, count: maxDay.value)
     }
     
+    static func getWeeklyListeningData(in context: NSManagedObjectContext) throws -> [WeeklyListeningData] {
+        let request = Episode.playedEpisodesByDayRequest()
+        let episodes = try context.fetch(request)
+        
+        var dayCount: [Int: Int] = [:]
+        let calendar = Calendar.current
+        
+        // Count episodes for each day of the week
+        for episode in episodes {
+            guard let playedDate = episode.playedDate else { continue }
+            let dayOfWeek = calendar.component(.weekday, from: playedDate)
+            dayCount[dayOfWeek, default: 0] += 1
+        }
+        
+        // Find the maximum count for percentage calculation
+        let maxCount = dayCount.values.max() ?? 1
+        
+        // Create data for all 7 days (1 = Sunday, 7 = Saturday)
+        let dayAbbreviations = ["S", "M", "T", "W", "T", "F", "S"] // Sun, Mon, Tue, Wed, Thu, Fri, Sat
+        
+        var weeklyData: [WeeklyListeningData] = []
+        
+        for day in 1...7 {
+            let count = dayCount[day] ?? 0
+            let percentage = maxCount > 0 ? Double(count) / Double(maxCount) : 0.0
+            
+            weeklyData.append(WeeklyListeningData(
+                dayOfWeek: day,
+                count: count,
+                percentage: percentage,
+                dayAbbreviation: dayAbbreviations[day - 1]
+            ))
+        }
+        
+        return weeklyData
+    }
+
+    
     // NEW: Helper function to get day name from weekday number
     static func dayName(from weekday: Int) -> String {
         let formatter = DateFormatter()
@@ -250,6 +288,13 @@ struct AppStatistics {
             playCount: plays
         )
     }
+}
+
+struct WeeklyListeningData {
+    let dayOfWeek: Int
+    let count: Int
+    let percentage: Double
+    let dayAbbreviation: String
 }
 
 // MARK: - Usage Examples

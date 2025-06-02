@@ -239,7 +239,9 @@ struct SettingsView: View {
                         
                         RowItem(
                             icon: playbackSpeedIcon,
-                            label: "Playback Speed") {
+                            label: "Playback Speed",
+                            tint: Color.green,
+                            framedIcon: true) {
                                 if userManager.isSubscriber {
                                     Menu {
                                         let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
@@ -288,7 +290,11 @@ struct SettingsView: View {
                                 }
                         }
                         
-                        RowItem(icon: backwardIntervalIcon, label: "Skip Backwards") {
+                        RowItem(
+                            icon: backwardIntervalIcon,
+                            label: "Skip Backwards",
+                            tint: Color.blue,
+                            framedIcon: true) {
                             if userManager.isSubscriber {
                                 Menu {
                                     let intervals: [Double] = [45,30,15,10,5]
@@ -335,7 +341,11 @@ struct SettingsView: View {
                             }
                         }
                         
-                        RowItem(icon: forwardIntervalIcon, label: "Skip Forwards") {
+                        RowItem(
+                            icon: forwardIntervalIcon,
+                            label: "Skip Forwards",
+                            tint: Color.blue,
+                            framedIcon: true) {
                             if userManager.isSubscriber {
                                 Menu {
                                     let intervals: [Double] = [45,30,15,10,5]
@@ -382,7 +392,11 @@ struct SettingsView: View {
                             }
                         }
                         
-                        RowItem(icon: "sparkles.rectangle.stack", label: "Autoplay Next Episode") {
+                        RowItem(
+                            icon: "sparkles.rectangle.stack",
+                            label: "Autoplay Next Episode",
+                            tint: Color.orange,
+                            framedIcon: true) {
                             Toggle(isOn: $player.autoplayNext) {
                                 Text("Autoplay Next Episode")
                             }
@@ -391,7 +405,11 @@ struct SettingsView: View {
                             .symbolRenderingMode(.hierarchical)
                         }
                         
-                        RowItem(icon: "bell", label: "Notifications") {
+                        RowItem(
+                            icon: "bell",
+                            label: "Notifications",
+                            tint: Color.red,
+                            framedIcon: true) {
                             Toggle(isOn: Binding(
                                 get: {
                                     systemNotificationsGranted && appNotificationsEnabled
@@ -416,7 +434,11 @@ struct SettingsView: View {
                             .frame(maxWidth:.infinity, alignment: .leading)
                             .padding(.top,24)
                         
-                        RowItem(icon: themeIcon, label: "Theme") {
+                        RowItem(
+                            icon: themeIcon,
+                            label: "Theme",
+                            tint: Color.cyan,
+                            framedIcon: true) {
                             Menu {
                                 ForEach(AppTheme.allCases) { theme in
                                     Button(action: {
@@ -438,7 +460,11 @@ struct SettingsView: View {
                             }
                         }
                         
-                        RowItem(icon: "app.badge", label: "App Icon")
+                        RowItem(
+                            icon: "app.badge",
+                            label: "App Icon",
+                            tint: Color.cyan,
+                            framedIcon: true)
                             .onTapGesture {
                                 activeSheet = .appIcons
                             }
@@ -449,12 +475,20 @@ struct SettingsView: View {
                                 .frame(maxWidth:.infinity, alignment:.leading)
                                 .padding(.top,24)
                             
-                            RowItem(icon: "info.circle", label: "Version") {
+                            RowItem(
+                                icon: "info.circle",
+                                label: "Version",
+                                tint: Color.gray,
+                                framedIcon: true) {
                                 Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
                                     .textBody()
                             }
                             
-                            RowItem(icon: "cloud.circle", label: "Synced") {
+                            RowItem(
+                                icon: "cloud.circle",
+                                label: "Synced",
+                                tint: Color.gray,
+                                framedIcon: true) {
                                 if let lastSynced = lastSynced {
                                     Text("\(lastSynced.formatted(date: .abbreviated, time: .shortened))")
                                         .textBody()
@@ -471,7 +505,11 @@ struct SettingsView: View {
                                     showMailErrorAlert = true
                                 }
                             } label: {
-                                RowItem(icon: "paperplane.circle", label: "Send Feedback")
+                                RowItem(
+                                    icon: "paperplane.circle",
+                                    label: "Send Feedback",
+                                    tint: Color.gray,
+                                    framedIcon: true)
                             }
                             .alert("Mail not configured", isPresented: $showMailErrorAlert) {
                                 Button("OK", role: .cancel) { }

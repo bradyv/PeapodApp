@@ -23,6 +23,24 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         Messaging.messaging().delegate = self
     }
     
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        // Enable remote control events when app becomes active
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+        
+        // Make AppDelegate the first responder
+        self.becomeFirstResponder()
+    }
+
+    // Now these overrides will work
+    override func remoteControlReceived(with event: UIEvent?) {
+        print("🎛️ AppDelegate received remote control event")
+        AudioPlayerManager.shared.remoteControlReceived(with: event)
+    }
+
+    override var canBecomeFirstResponder: Bool {
+        return true
+    }
+    
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         

@@ -112,6 +112,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private init() {
         primePlayer()
         configureRemoteTransportControls()
+        setupRemoteControlEvents()
         setupNotifications()
     }
     
@@ -837,31 +838,151 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    // MARK: - Remote Controls
+    var canBecomeFirstResponder: Bool {
+        return true
+    }
+    
+    func remoteControlReceived(with event: UIEvent?) {
+        guard let event = event, event.type == .remoteControl else { return }
+        
+        print("🎛️ Remote control event received: \(event.subtype.rawValue)")
+        
+        switch event.subtype {
+        case .remoteControlPlay:
+            handleRemotePlay()
+        case .remoteControlPause:
+            handleRemotePause()
+        case .remoteControlTogglePlayPause:
+            handleRemoteTogglePlayPause()
+        case .remoteControlNextTrack:
+            handleRemoteNext()
+        case .remoteControlPreviousTrack:
+            handleRemotePrevious()
+        default:
+            print("🎛️ Unhandled remote control event: \(event.subtype.rawValue)")
+            break
+        }
+    }
+
+    // MARK: - Remote Control Handlers
+    private func handleRemotePlay() {
+        guard let episode = currentEpisode else {
+            // If no current episode, try to play the first queued episode
+            let queuedEpisodes = fetchQueuedEpisodes()
+            if let firstEpisode = queuedEpisodes.first {
+                Task {
+                    await play(episode: firstEpisode)
+                }
+            }
+            return
+        }
+        
+        switch state {
+        case .paused:
+            player?.playImmediately(atRate: playbackSpeed)
+        case .idle:
+            Task {
+                await play(episode: episode)
+            }
+        default:
+            break
+        }
+    }
+
+    private func handleRemotePause() {
+        if case .playing = state {
+            pause()
+        }
+    }
+
+    private func handleRemoteTogglePlayPause() {
+        guard let episode = currentEpisode else {
+            // If no current episode, try to play the first queued episode
+            let queuedEpisodes = fetchQueuedEpisodes()
+            if let firstEpisode = queuedEpisodes.first {
+                Task {
+                    await play(episode: firstEpisode)
+                }
+            }
+            return
+        }
+        
+        switch state {
+        case .playing:
+            pause()
+        case .paused, .idle:
+            Task {
+                await play(episode: episode)
+            }
+        default:
+            break
+        }
+    }
+
+    private func handleRemoteNext() {
+        // Skip forward by the configured interval
+        skipForward(seconds: forwardInterval)
+    }
+
+    private func handleRemotePrevious() {
+        // Skip backward by the configured interval
+        skipBackward(seconds: backwardInterval)
+    }
+
+    // MARK: - Updated initialization
+    // Modify your existing init() method to include this:
+    private func setupRemoteControlEvents() {
+        // Enable remote control events
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+    }
+    
     // MARK: - Remote Controls & Artwork
     private func configureRemoteTransportControls() {
         let commandCenter = MPRemoteCommandCenter.shared()
         
         commandCenter.playCommand.addTarget { [weak self] _ in
-            self?.resume()
+            self?.handleRemotePlay()
             return .success
         }
         
         commandCenter.pauseCommand.addTarget { [weak self] _ in
-            self?.pause()
+            self?.handleRemotePause()
+            return .success
+        }
+
+        // Toggle play/pause command (important for steering wheel buttons)
+        commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+            self?.handleRemoteTogglePlayPause()
+            return .success
+        }
+
+        // Next/Previous track commands (mapped to skip forward/backward)
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+            self?.handleRemoteNext()
             return .success
         }
         
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+            self?.handleRemotePrevious()
+            return .success
+        }
+
+        // Keep your existing skip commands
         commandCenter.skipForwardCommand.isEnabled = true
-        commandCenter.skipForwardCommand.preferredIntervals = [30]
+        commandCenter.skipForwardCommand.preferredIntervals = [NSNumber(value: forwardInterval)]
         commandCenter.skipForwardCommand.addTarget { [weak self] _ in
-            self?.skipForward(seconds: 30)
+            guard let self = self else { return .commandFailed }
+            self.skipForward(seconds: self.forwardInterval)
             return .success
         }
-        
         commandCenter.skipBackwardCommand.isEnabled = true
-        commandCenter.skipBackwardCommand.preferredIntervals = [15]
+        commandCenter.skipBackwardCommand.preferredIntervals = [NSNumber(value: backwardInterval)]
         commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
-            self?.skipBackward(seconds: 15)
+            guard let self = self else { return .commandFailed }
+            self.skipBackward(seconds: self.backwardInterval)
             return .success
         }
         

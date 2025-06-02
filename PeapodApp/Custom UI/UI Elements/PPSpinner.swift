@@ -10,6 +10,7 @@ import SwiftUI
 struct PPSpinner: View {
     var color: Color = .accentColor
     var disabled: Bool = false
+    var size: CGFloat? = 20
     @State private var isAnimating = false
 
     var body: some View {
@@ -20,7 +21,7 @@ struct PPSpinner: View {
                 .foregroundColor(color.opacity(disabled ? 0.5 : 1))
                 .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
                 .animation(.linear(duration: 0.8).repeatForever(autoreverses: false), value: isAnimating)
-                .frame(width: 14, height: 14)
+                .frame(width: size, height: size)
                 .onAppear { self.isAnimating = true }
         }
         .frame(width: 20, height: 20)

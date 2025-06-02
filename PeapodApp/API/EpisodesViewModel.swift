@@ -19,6 +19,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
 
     private var queueController: NSFetchedResultsController<Episode>?
     private var savedController: NSFetchedResultsController<Episode>?
+    private var favsController: NSFetchedResultsController<Episode>?
     var context: NSManagedObjectContext?
 
     override init() {
@@ -33,6 +34,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         self.context = context
         setupQueueController()
         setupSavedController()
+        setupFavsController()
         fetchAll()
     }
 
@@ -83,6 +85,30 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         }
 
         self.savedController = controller
+    }
+
+    private func setupFavsController() {
+        guard let context else { return }
+
+        let request = Episode.favEpisodesRequest()
+        
+        let controller = NSFetchedResultsController(
+            fetchRequest: request,
+            managedObjectContext: context,
+            sectionNameKeyPath: nil,
+            cacheName: nil
+        )
+
+        controller.delegate = self
+
+        do {
+            try controller.performFetch()
+            self.favs = controller.fetchedObjects ?? []
+        } catch {
+            print("Failed to fetch fav episodes: \(error)")
+        }
+
+        self.favsController = controller
     }
 
     func fetchLatest() {
@@ -147,6 +173,9 @@ extension EpisodesViewModel: @preconcurrency NSFetchedResultsControllerDelegate 
         } else if controller == savedController {
             guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
             self.saved = updatedEpisodes
+        } else if controller == favsController { // Add this block
+            guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
+            self.favs = updatedEpisodes
         }
     }
 }

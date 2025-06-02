@@ -19,7 +19,7 @@ enum MemberType: String, Codable {
         switch self {
         case .listener: return "Listener"
         case .betaTester: return "Beta Tester"
-        case .subscriber: return "Subscriber"
+        case .subscriber: return "Supporter"
         }
     }
 }

@@ -139,7 +139,7 @@ struct WelcomeView: View {
                 
                 VStack {
                     FadeInView(delay: 0.8) {
-                        Image("Peapod.logo.new")
+                        Image("peapod-mark-adaptive")
                             .onTapGesture {
                                 #if DEBUG
                                 showSubscriptions = false

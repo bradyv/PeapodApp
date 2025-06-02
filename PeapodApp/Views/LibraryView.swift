@@ -25,7 +25,7 @@ struct LibraryView: View {
                 VStack(spacing: 8) {
                     NavigationLink {
                         PPPopover(showBg: true) {
-                            LatestEpisodes(namespace: namespace)
+                            LatestEpisodesView(namespace: namespace)
                         }
                     } label: {
                         RowItem(icon: "calendar", label: "Most Recent")
@@ -33,7 +33,7 @@ struct LibraryView: View {
                     
                     NavigationLink {
                         PPPopover(showBg: true) {
-                            SavedEpisodes(namespace: namespace)
+                            SavedEpisodesView(namespace: namespace)
                         }
                     } label: {
                         RowItem(icon: "arrowshape.bounce.right", label: "Play Later")
@@ -41,7 +41,7 @@ struct LibraryView: View {
                     
                     NavigationLink {
                         PPPopover(showBg: true) {
-                            FavEpisodes(namespace: namespace)
+                            FavEpisodesView(namespace: namespace)
                         }
                     } label: {
                         RowItem(icon: "heart", label: "Favorites")

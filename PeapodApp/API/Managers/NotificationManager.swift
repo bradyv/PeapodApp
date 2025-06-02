@@ -9,7 +9,16 @@ import UserNotifications
 import UIKit
 import Kingfisher
 
+func shouldSendNotifications() -> Bool {
+    return UserDefaults.standard.bool(forKey: "appNotificationsEnabled")
+}
+
 func sendNewEpisodeNotification(for episode: Episode) {
+    guard shouldSendNotifications() else {
+        print("📵 Notifications disabled in app settings")
+        return
+    }
+    
     guard let title = episode.podcast?.title else { return }
     guard let subtitle = episode.title else { return }
 

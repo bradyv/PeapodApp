@@ -9,8 +9,8 @@ import SwiftUI
 import Kingfisher
 
 struct QueueView: View {
-    @Binding var currentEpisodeID: String?
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @ObservedObject private var player = AudioPlayerManager.shared
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
@@ -26,20 +26,20 @@ struct QueueView: View {
                 .padding(.leading)
                 .padding(.bottom, 4)
 
-            VStack(spacing:0) {
+            VStack(spacing: 0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        LazyHStack(alignment: .top, spacing:8) {
+                        LazyHStack(alignment: .top, spacing: 8) {
                             if episodesViewModel.queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
-                                        HStack(spacing:16) {
+                                        HStack(spacing: 16) {
                                             ForEach(0..<2, id: \.self) { _ in
                                                 EmptyQueueItem()
                                                     .opacity(0.15)
                                             }
                                         }
-                                        .frame(width: geometry.size.width, alignment:.leading)
+                                        .frame(width: geometry.size.width, alignment: .leading)
                                         .mask(
                                             LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                                            startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
@@ -62,7 +62,7 @@ struct QueueView: View {
                                                     }
                                                 }
                                             }) {
-                                                HStack(spacing:episodesViewModel.saved.count > 2 ? 12 : 8) {
+                                                HStack(spacing: episodesViewModel.saved.count > 2 ? 12 : 8) {
                                                     let customOffsets: [(x: CGFloat, y: CGFloat)] = [
                                                         (x: 2, y: -5),   // back
                                                         (x: 8, y: 0),  // middle
@@ -73,9 +73,9 @@ struct QueueView: View {
                                                         ZStack {
                                                             ForEach(0..<3, id: \.self) { index in
                                                                 let offset = customOffsets[index]
-                                                                RoundedRectangle(cornerRadius:3)
+                                                                RoundedRectangle(cornerRadius: 3)
                                                                     .fill(Color.background.opacity(0.15))
-                                                                    .frame(width:14,height:14)
+                                                                    .frame(width: 14, height: 14)
                                                                     .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
                                                                     .offset(x: offset.x, y: offset.y)
                                                             }
@@ -94,11 +94,10 @@ struct QueueView: View {
                                                     Text("Add from Play Later")
                                                 }
                                             }
-                                            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
-                                            
+                                            .buttonStyle(PPButton(type: .filled, colorStyle: .monochrome))
                                         }
                                     }
-                                    .offset(x:-16)
+                                    .offset(x: -16)
                                     .frame(maxWidth: .infinity)
                                     .zIndex(1)
                                 }
@@ -116,9 +115,17 @@ struct QueueView: View {
                     .scrollTargetBehavior(.viewAligned)
                     .onPreferenceChange(ScrollOffsetKey.self) { values in
                         if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
-                            scrollOffset = CGFloat(nearest.key)
-                            if episodesViewModel.queue.indices.contains(Int(scrollOffset)) {
-                                currentEpisodeID = episodesViewModel.queue[Int(scrollOffset)].id
+                            let newScrollOffset = CGFloat(nearest.key)
+                            
+                            // Only update if the scroll position actually changed
+                            if scrollOffset != newScrollOffset {
+                                scrollOffset = newScrollOffset
+                                
+                                // Post notification for MainBackground
+                                NotificationCenter.default.post(
+                                    name: .queueScrollPositionChanged,
+                                    object: Int(scrollOffset)
+                                )
                             }
                         }
                     }
@@ -131,12 +138,23 @@ struct QueueView: View {
                     }
                     .scrollDisabled(episodesViewModel.queue.isEmpty)
                     .scrollIndicators(.hidden)
-                    .contentMargins(.horizontal,16, for: .scrollContent)
+                    .contentMargins(.horizontal, 16, for: .scrollContent)
                     .onChange(of: episodesViewModel.queue.first?.id) { oldID, newID in
                         if let id = newID {
                             DispatchQueue.main.async {
                                 withAnimation {
                                     proxy.scrollTo(id, anchor: .leading)
+                                }
+                            }
+                        }
+                    }
+                    // Auto-scroll to currently playing episode when it changes
+                    .onChange(of: player.currentEpisode?.id) { _, newEpisodeID in
+                        if let episodeID = newEpisodeID,
+                           episodesViewModel.queue.contains(where: { $0.id == episodeID }) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    proxy.scrollTo(episodeID, anchor: .leading)
                                 }
                             }
                         }
@@ -158,7 +176,7 @@ struct QueueView: View {
                                         .transition(.opacity)
                                         .animation(.easeOut(duration: 0.3), value: isCurrent)
                                 }
-                                .frame(height:44)
+                                .frame(height: 44)
                                 .fixedSize()
                                 .onTapGesture {
                                     if let id = episodesViewModel.queue[index].id {
@@ -170,7 +188,7 @@ struct QueueView: View {
                             }
                             Spacer()
                         }
-                        .frame(maxWidth: geo.size.width, alignment:.leading)
+                        .frame(maxWidth: geo.size.width, alignment: .leading)
                         .clipped()
                         .padding(.horizontal)
                         .contentShape(Rectangle())
@@ -179,7 +197,7 @@ struct QueueView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.top,24)
+        .padding(.top, 24)
     }
 }
 
@@ -192,14 +210,12 @@ private struct ScrollOffsetKey: PreferenceKey {
 
 struct QueueItemView: View {
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
+    @ObservedObject private var player = AudioPlayerManager.shared
     let episode: Episode
     let index: Int
     var namespace: Namespace.ID
     var onSelect: () -> Void
-
-    // Add local state tracking to reduce redraw frequency
-    @State private var playbackPosition: Double = 0
-    @ObservedObject private var player = AudioPlayerManager.shared
+    @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
         QueueItem(episode: episode, namespace: namespace)
@@ -218,21 +234,12 @@ struct QueueItemView: View {
                     .opacity(phase.isIdentity ? 1 : 0.5)
                     .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
             }
-            .onAppear {
-                // Cache the playback position to avoid frequent reads
-                playbackPosition = player.getProgress(for: episode)
-            }
             .onTapGesture {
-                // Ensure we don't animate during tap
-                withAnimation(.none) {
-                    episodeSelectionManager.selectEpisode(episode)
-                }
+                selectedEpisode = episode
             }
-            // Only update when progress actually changes significantly
-            .onChange(of: player.progress) { _, newProgress in
-                if abs(playbackPosition - player.getProgress(for: episode)) > 1.0 {
-                    playbackPosition = player.getProgress(for: episode)
-                }
+            .sheet(item: $selectedEpisode) { episode in
+                EpisodeView(episode: episode, namespace:namespace)
+                    .modifier(PPSheet())
             }
     }
 }

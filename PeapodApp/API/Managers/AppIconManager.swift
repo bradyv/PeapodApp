@@ -12,39 +12,46 @@ class AppIconManager: ObservableObject {
     
     private init() {}
     
-    private let baseIcons = [
-        AppIcons(name: "Peapod", asset: "AppIcon-Green", splash: "Splash-Green"),
-        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint", splash: "Splash-Blueprint"),
-        AppIcons(name: "Pastel", asset: "AppIcon-Pastel", splash: "Splash-Pastel"),
-        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino", splash: "Splash-Cupertino"),
-        AppIcons(name: "Pride", asset: "AppIcon-Pride", splash: "Splash-Pride"),
-        AppIcons(name: "Coachella", asset: "AppIcon-Coachella", splash: "Splash-Coachella"),
-        AppIcons(name: "Rinzler", asset: "AppIcon-Rinzler", splash: "Splash-Rinzler"),
-        AppIcons(name: "Clouds", asset: "AppIcon-Clouds", splash: "Splash-Clouds"),
+    let baseIcons = [
+        AppIcons(name: "Peapod", asset: "AppIcon-Green"),
+        AppIcons(name: "lgbtq", asset: "AppIcon-lgbtq"),
+        AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
+        AppIcons(name: "Starry", asset: "AppIcon-Starry"),
+        AppIcons(name: "Minty", asset: "AppIcon-Minty"),
+        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint"),
+        AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino"),
+        AppIcons(name: "Business", asset: "AppIcon-Business"),
+        AppIcons(name: "Plus", asset: "AppIcon-Plus"),
+        AppIcons(name: "Plus-Pastel", asset: "AppIcon-Plus-Pastel")
     ]
     
-    var availableIcons: [AppIcons] {
-        var icons = baseIcons
-        #if DEBUG
-        icons.append(AppIcons(name: "Maze", asset: "AppIcon-Maze", splash: "Splash-Pastel"))
-        #endif
-        return icons
-    }
+    let legacyIcons = [
+        AppIcons(name: "LegacyPeapod", asset:"AppIcon-Legacy-PP"),
+        AppIcons(name: "LegacyCupertino", asset:"AppIcon-Legacy-Apple"),
+        AppIcons(name: "LegacyPastel", asset:"AppIcon-Legacy-SoftColor"),
+        AppIcons(name: "LegacyPride", asset:"AppIcon-Legacy-Pride"),
+        AppIcons(name: "LegacyRinzler", asset:"AppIcon-Legacy-Rinzler"),
+        AppIcons(name: "LegacyCoachella", asset:"AppIcon-Legacy-Coachella"),
+        AppIcons(name: "LegacyClouds", asset:"AppIcon-Legacy-Clouds"),
+    ]
     
-    func splashImage(for iconAsset: String) -> String {
-        return availableIcons.first(where: { $0.asset == iconAsset })?.splash ?? "Splash-Green"
-    }
+    let mkiIcons = [
+        AppIcons(name:"MkI", asset:"AppIcon-MkI-Peapod"),
+    ]
+    
+//    var availableIcons: [AppIcons] {
+//        var icons = baseIcons + legacyIcons + mkiIcons
+//        return icons
+//    }
 }
 
 struct AppIcons {
     var name: String
     var asset: String
-    var splash: String
     
-    init(name: String, asset: String, splash: String) {
+    init(name: String, asset: String) {
         self.name = name
         self.asset = asset
-        self.splash = splash
     }
 }
 

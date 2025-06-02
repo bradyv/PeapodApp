@@ -450,8 +450,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             MPNowPlayingInfoPropertyMediaType: 1
         ]
         
-//        print("🎵 Updated Now Playing: pos=\(String(format: "%.1f", playbackState.position)), playing=\(playbackState.isPlaying)")
-        
         if let cachedArtwork = cachedArtwork {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = cachedArtwork
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo

@@ -46,8 +46,10 @@ struct PodcastDetailView: View {
     }
 
     var body: some View {
-        VStack {
+        ZStack {
             if let podcast {
+                SplashImage(image: podcast.image ?? "")
+                
                 if showSearch {
                     VStack(alignment:.leading) {
                         PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode, namespace: namespace)
@@ -60,8 +62,6 @@ struct PodcastDetailView: View {
                     )
                 } else {
                     ZStack {
-                        SplashImage(image: podcast.image ?? "")
-                        
                         ScrollView {
                             Color.clear
                                 .frame(height: 1)
@@ -69,7 +69,7 @@ struct PodcastDetailView: View {
                                     scrollOffset = value
                                 }
                             
-                            Spacer().frame(height:156)
+                            Spacer().frame(height:128)
                             
                             FadeInView(delay: 0.2) {
                                 VStack(alignment:.leading) {
@@ -153,11 +153,6 @@ struct PodcastDetailView: View {
                                 }
                             }
                         }
-                        .refreshable {
-                            EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
-                                toastManager.show(message: "Updated \(podcast.title ?? "")", icon: "sparkles")
-                            }
-                        }
                         .coordinateSpace(name: "scroll")
                         .contentMargins(16, for: .scrollContent)
                         .maskEdge(.top)
@@ -173,39 +168,26 @@ struct PodcastDetailView: View {
                         
                         FadeInView(delay: 0.2) {
                             VStack(alignment:.leading) {
+                                Spacer().frame(height:16)
                                 let minSize: CGFloat = 64
                                 let maxSize: CGFloat = 172
                                 let threshold: CGFloat = 72
                                 let shrink = max(minSize, min(maxSize, maxSize + min(0, scrollOffset - threshold)))
                                 
-                                Spacer().frame(height:44)
-                                
                                 ArtworkView(url:podcast.image ?? "", size: shrink, cornerRadius:16)
-                                    .shadow(color:Color.tint(for:podcast),
-                                            radius: 128
-                                    )
                                     .animation(.easeOut(duration: 0.1), value: shrink)
                                     .onTapGesture(count: 5) {
                                         withAnimation {
                                             showDebugTools.toggle()
                                         }
                                     }
-                                
-//                                KFImage(URL(string: podcast.image ?? ""))
-//                                    .resizable()
-//                                    .frame(width: shrink, height: shrink)
-//                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-//                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(colorScheme == .dark ? Color.white.opacity(0.25) : Color.black.opacity(0.25), lineWidth: 1))
-//                                    .shadow(color:Color.tint(for:podcast),
-//                                            radius: 128
-//                                    )
-//                                    .animation(.easeOut(duration: 0.1), value: shrink)
                                 Spacer()
                             }
                             .frame(maxWidth:.infinity, alignment:.leading)
                             .padding(.horizontal)
                             
                             VStack {
+                                Spacer().frame(height:16)
                                 HStack(alignment:.top) {
                                     Spacer()
                                     

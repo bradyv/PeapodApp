@@ -14,6 +14,7 @@ class AppIconManager: ObservableObject {
     
     let baseIcons = [
         AppIcons(name: "Peapod", asset: "AppIcon-Green"),
+        AppIcons(name: "lgbtq", asset: "AppIcon-lgbtq"),
         AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
         AppIcons(name: "Starry", asset: "AppIcon-Starry"),
         AppIcons(name: "Minty", asset: "AppIcon-Minty"),

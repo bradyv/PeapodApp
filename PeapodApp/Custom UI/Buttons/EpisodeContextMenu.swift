@@ -12,6 +12,8 @@ struct EpisodeContextMenu: View {
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
+    @State private var selectedEpisode: Episode? = nil
+    @State private var selectedPodcast: Podcast? = nil
     var displayedFullscreen: Bool = false
     var displayedInQueue: Bool = false
     var namespace: Namespace.ID
@@ -37,7 +39,8 @@ struct EpisodeContextMenu: View {
         Menu {
             if !displayedFullscreen {
                 Button(action: {
-                    episodeSelectionManager.selectEpisode(episode)
+                    selectedEpisode = episode
+//                    episodeSelectionManager.selectEpisode(episode)
                 }) {
                     Label("Go to Episode", systemImage: "info.square")
                 }
@@ -96,23 +99,24 @@ struct EpisodeContextMenu: View {
                       systemImage: episode.isFav ? "heart.slash" : "heart")
             }
             
-            if !displayedFullscreen {
+//            if !displayedFullscreen {
                 Divider()
                 
-                NavigationLink {
-                    if episode.podcast?.isSubscribed != false {
-                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                        }
-                    } else {
-                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                        }
-                    }
+                Button {
+                    selectedPodcast = episode.podcast
+//                    if episode.podcast?.isSubscribed != false {
+//                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
+//                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+//                        }
+//                    } else {
+//                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
+//                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+//                        }
+//                    }
                 } label: {
                     Label("Go to Show", systemImage: "widget.large")
                 }
-            }
+//            }
         } label: {
             Label("More", systemImage: "ellipsis")
                 .frame(width: 24, height: 24)
@@ -127,5 +131,18 @@ struct EpisodeContextMenu: View {
             )
         )
         .menuOrder(.fixed)
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
+        }
+        .sheet(item: $selectedPodcast) { podcast in
+            if podcast.isSubscribed {
+                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                    .modifier(PPSheet())
+            } else {
+                PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
+                    .modifier(PPSheet())
+            }
+        }
     }
 }

@@ -198,7 +198,7 @@ extension Podcast {
         let rounded = (hours * 10).rounded() / 10  // round to 1 decimal place
 
         if rounded < 0.1 {
-            return "Less than 1 hour"
+            return "Under 1 hour"
         }
 
         if rounded == floor(rounded) {

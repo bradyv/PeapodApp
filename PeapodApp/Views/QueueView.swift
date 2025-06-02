@@ -215,6 +215,7 @@ struct QueueItemView: View {
     let index: Int
     var namespace: Namespace.ID
     var onSelect: () -> Void
+    @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
         QueueItem(episode: episode, namespace: namespace)
@@ -234,10 +235,11 @@ struct QueueItemView: View {
                     .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
             }
             .onTapGesture {
-                // Ensure we don't animate during tap
-                withAnimation(.none) {
-                    episodeSelectionManager.selectEpisode(episode)
-                }
+                selectedEpisode = episode
+            }
+            .sheet(item: $selectedEpisode) { episode in
+                EpisodeView(episode: episode, namespace:namespace)
+                    .modifier(PPSheet())
             }
     }
 }

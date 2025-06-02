@@ -13,6 +13,7 @@ struct EpisodeItem: View {
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var selectedPodcast: Podcast? = nil
+    @State private var selectedEpisode: Episode? = nil
     var showActions: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
@@ -36,41 +37,41 @@ struct EpisodeItem: View {
         VStack(alignment: .leading) {
             // Podcast Info Row
             HStack {
-                NavigationLink {
-                    if episode.podcast?.isSubscribed != false {
-                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                        }
-                    } else {
-                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                HStack {
+                    ZStack(alignment:.bottomTrailing) {
+                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                        
+                        if episode.isPlayed && !displayedInQueue {
+                            ZStack {
+                                Image(systemName:"checkmark.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                    .textDetail()
+                            }
+                            .background(Color.background)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.background, lineWidth: 1)
+                            )
+                            .offset(x:5,y:5)
                         }
                     }
-                } label: {
-                    HStack {
-                        ZStack(alignment:.bottomTrailing) {
-                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
-                            
-                            if episode.isPlayed && !displayedInQueue {
-                                ZStack {
-                                    Image(systemName:"checkmark.circle.fill")
-                                        .foregroundStyle(Color.accentColor)
-                                        .textDetail()
-                                }
-                                .background(Color.background)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.background, lineWidth: 1)
-                                )
-                                .offset(x:5,y:5)
-                            }
-                        }
-                        
-                        Text(episode.podcast?.title ?? "Podcast title")
-                            .lineLimit(1)
-                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                            .textDetailEmphasis()
+                    
+                    Text(episode.podcast?.title ?? "Podcast title")
+                        .lineLimit(1)
+                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                        .textDetailEmphasis()
+                }
+                .onTapGesture {
+                    selectedPodcast = episode.podcast
+                }
+                .sheet(item: $selectedPodcast) { podcast in
+                    if podcast.isSubscribed {
+                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                            .modifier(PPSheet())
+                    } else {
+                        PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
+                            .modifier(PPSheet())
                     }
                 }
                 
@@ -223,7 +224,11 @@ struct EpisodeItem: View {
             }
         }
         .onTapGesture {
-            episodeSelectionManager.selectEpisode(episode)
+            selectedEpisode = episode
+        }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
         }
     }
 }

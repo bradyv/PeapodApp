@@ -12,6 +12,7 @@ struct SubscriptionsView: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    @State private var selectedPodcast: Podcast? = nil
     var namespace: Namespace.ID
     
     var body: some View {
@@ -49,17 +50,14 @@ struct SubscriptionsView: View {
                     // Real podcasts
                     if !subscriptions.isEmpty {
                         ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" })) { podcast in
-                            NavigationLink {
-                                PPPopover(hex: podcast.podcastTint ?? "#FFFFFF") {
-                                    PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace: namespace)
+                            KFImage(URL(string: podcast.image ?? ""))
+                                .resizable()
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .aspectRatio(1, contentMode: .fit)
+                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                                .onTapGesture {
+                                    selectedPodcast = podcast
                                 }
-                            } label: {
-                                KFImage(URL(string: podcast.image ?? ""))
-                                    .resizable()
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
-                            }
                         }
                     }
                 }
@@ -91,5 +89,9 @@ struct SubscriptionsView: View {
         }
         .frame(maxWidth:.infinity)
         .padding()
+        .sheet(item: $selectedPodcast) { podcast in
+            PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace:namespace)
+                .modifier(PPSheet())
+        }
     }
 }

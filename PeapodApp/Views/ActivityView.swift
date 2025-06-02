@@ -71,6 +71,10 @@ struct ActivityView: View {
                     guard index < topPodcasts.count else { return nil }
                     return (index, topPodcasts[index])
                 }
+                let hours = Int(statistics.totalPlayedSeconds) / 3600
+                let hourString = hours > 1 ? "Hours" : "Hour"
+                let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
+                let podcastString = statistics.podcastCount > 1 ? "podcasts" : "podcast"
                 
                 FadeInView(delay: 0.5) {
                     VStack(alignment:.leading) {
@@ -89,7 +93,6 @@ struct ActivityView: View {
                         HStack {
                             FadeInView(delay:0.6) {
                                 VStack(alignment:.leading, spacing: 8) {
-                                    let hours = Int(statistics.totalPlayedSeconds) / 3600
                                     Image(systemName:"airpods.max")
                                         .foregroundStyle(Color.white)
                                     
@@ -100,7 +103,7 @@ struct ActivityView: View {
                                             .monospaced()
                                             .contentTransition(.numericText())
                                         
-                                        Text("Hours listened")
+                                        Text("\(hourString) listened")
                                             .foregroundStyle(Color.white)
                                             .textDetail()
                                     }
@@ -131,7 +134,7 @@ struct ActivityView: View {
                                             .monospaced()
                                             .contentTransition(.numericText())
                                         
-                                        Text("Episodes played")
+                                        Text("\(episodeString) played")
                                             .foregroundStyle(Color.white)
                                             .textDetail()
                                     }
@@ -164,7 +167,7 @@ struct ActivityView: View {
                                             .monospaced()
                                             .contentTransition(.numericText())
                                         
-                                        Text("Unique podcasts")
+                                        Text("Unique \(podcastString)")
                                             .foregroundStyle(Color.white)
                                             .textDetail()
                                     }
@@ -304,7 +307,7 @@ struct ActivityView: View {
                                 FadeInView(delay: 0.8) {
                                     Text("\(formatDuration(seconds: duration))")
                                         .foregroundStyle(Color.black)
-                                        .textDetail()
+                                        .textDetailEmphasis()
                                         .padding(.vertical, 3)
                                         .padding(.horizontal, 8)
                                         .background(Color.white)

@@ -67,6 +67,10 @@ struct SettingsView: View {
                 Spacer().frame(height:32)
                 
                 VStack {
+                    let hours = Int(statistics.totalPlayedSeconds) / 3600
+                    let hourString = hours > 1 ? "Hours" : "Hour"
+                    let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
+                    
                     HStack(alignment:.top) {
                         Image(userManager.isSubscriber ? "peapod-plus-mark" : "peapod-mark-adaptive")
                         
@@ -95,15 +99,13 @@ struct SettingsView: View {
                         
                         if !userManager.isSubscriber {
                             HStack {
-                                let hours = Int(statistics.totalPlayedSeconds) / 3600
-                                
                                 VStack(alignment: .leading) {
                                     Text("\(hours)")
                                         .titleCondensed()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
-                                    Text("Hours listened")
+                                    Text("\(hourString) listened")
                                         .textDetail()
                                 }
                                 
@@ -113,7 +115,7 @@ struct SettingsView: View {
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
-                                    Text("Episodes played")
+                                    Text("\(episodeString) played")
                                         .textDetail()
                                 }
                             }
@@ -125,7 +127,6 @@ struct SettingsView: View {
                         HStack {
                             FadeInView(delay:0.5) {
                                 VStack(alignment:.leading, spacing: 8) {
-                                    let hours = Int(statistics.totalPlayedSeconds) / 3600
                                     Image(systemName:"airpods.max")
                                         .foregroundStyle(Color.white)
                                     
@@ -136,7 +137,7 @@ struct SettingsView: View {
                                             .monospaced()
                                             .contentTransition(.numericText())
                                         
-                                        Text("Hours listened")
+                                        Text("\(hourString) listened")
                                             .foregroundStyle(Color.white)
                                             .textDetail()
                                     }

@@ -17,9 +17,10 @@ struct ContentView: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
-    @StateObject private var episodeSelectionManager = EpisodeSelectionManager()
     @State private var showSettings = false
     @State private var lastRefreshDate = Date.distantPast
+    @State private var selectedEpisode: Episode? = nil
+    
     var namespace: Namespace.ID
 
     var body: some View {
@@ -40,6 +41,7 @@ struct ContentView: View {
                     if newPhase == .active {
                         // Clear badge when app becomes active
                         UIApplication.shared.applicationIconBadgeNumber = 0
+                        forceRefreshPodcasts()
                     }
                 }
                 .scrollDisabled(subscriptions.isEmpty)
@@ -76,7 +78,6 @@ struct ContentView: View {
             )
         }
         .environmentObject(episodesViewModel)
-        .environmentObject(episodeSelectionManager)
         // Track subscription changes for backend sync
         .onChange(of: subscriptions.count) { oldCount, newCount in
             if oldCount != newCount {
@@ -86,17 +87,14 @@ struct ContentView: View {
                 }
             }
         }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
+        }
         .overlay {
             if nowPlayingManager.isVisible {
-                NowPlaying(namespace: namespace) { episode in
-                    episodeSelectionManager.selectEpisode(episode)
-                }
-                .environmentObject(episodeSelectionManager)
+                NowPlaying(namespace: namespace)
             }
-        }
-        .sheet(item: $episodeSelectionManager.selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace: namespace)
-                .modifier(PPSheet())
         }
         .onAppear {
             UIApplication.shared.applicationIconBadgeNumber = 0
@@ -111,9 +109,6 @@ struct ContentView: View {
             if oldState != .main && newState == .main {
                 // Sync subscriptions when app enters main state
                 SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
-                
-                // Also force refresh to get latest episodes
-                forceRefreshPodcasts()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
@@ -124,7 +119,7 @@ struct ContentView: View {
                 
                 if let foundEpisode = try? context.fetch(fetchRequest).first {
                     print("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
-                    episodeSelectionManager.selectEpisode(foundEpisode)
+                    selectedEpisode = foundEpisode
                 } else {
                     print("❌ Could not find episode for id \(id)")
                 }
@@ -137,7 +132,10 @@ struct ContentView: View {
     private func forceRefreshPodcasts() {
         toastManager.show(message: "Refreshing", icon: "arrow.trianglehead.2.clockwise")
         print("🔄 Force refreshing all subscribed podcasts")
-        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
+        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+            toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+            print("✨ Auto refreshed feeds at \(Date())")
+        }
     }
     
     private func checkPendingNotification() {
@@ -186,7 +184,7 @@ struct ContentView: View {
         do {
             if let foundEpisode = try context.fetch(fetchRequest).first {
                 print("✅ Found episode from notification: \(foundEpisode.title ?? "Unknown")")
-                episodeSelectionManager.selectEpisode(foundEpisode)
+                selectedEpisode = foundEpisode
             } else {
                 print("❌ Could not find episode with GUID: \(guid) in feed: \(feedUrl)")
                 // Try fallback search by GUID only
@@ -196,7 +194,7 @@ struct ContentView: View {
                 
                 if let fallbackEpisode = try context.fetch(fallbackRequest).first {
                     print("✅ Found episode via fallback search: \(fallbackEpisode.title ?? "Unknown")")
-                    episodeSelectionManager.selectEpisode(fallbackEpisode)
+                    selectedEpisode = fallbackEpisode
                 } else {
                     print("❌ Episode not found even with fallback search")
                 }

@@ -5,6 +5,7 @@
 //  Created by Brady Valentino on 2025-05-22.
 //
 
+
 import SwiftUI
 
 struct AppIconView: View {
@@ -21,6 +22,12 @@ struct AppIconView: View {
     }
     
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
+    
+    // Add this computed property to determine if an icon is available
+    private func isIconAvailable(_ icon: AppIcons) -> Bool {
+        let freeIcons = ["Peapod", "lgbtq", "LegacyPride"]
+        return userManager.isSubscriber || freeIcons.contains(icon.name)
+    }
     
     var body: some View {
         ScrollView {
@@ -79,7 +86,7 @@ struct AppIconView: View {
                         IconButton(
                             icon: icon,
                             isSelected: selectedIconName == icon.asset,
-                            isSubscriber: userManager.isSubscriber,
+                            isAvailable: isIconAvailable(icon),
                             onTap: { handleIconTap(icon) }
                         )
                     }
@@ -100,7 +107,7 @@ struct AppIconView: View {
     }
     
     private func handleIconTap(_ icon: AppIcons) {
-        if userManager.isSubscriber {
+        if isIconAvailable(icon) {
             UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon-Green" ? nil : icon.asset) { error in
                 if let error = error {
                     print("❌ Failed to switch icon: \(error)")
@@ -118,10 +125,9 @@ struct AppIconView: View {
 }
 
 struct IconButton: View {
-    @ObservedObject private var userManager = UserManager.shared
     let icon: AppIcons
     let isSelected: Bool
-    let isSubscriber: Bool
+    let isAvailable: Bool
     let onTap: () -> Void
     
     var body: some View {
@@ -130,24 +136,29 @@ struct IconButton: View {
                 ZStack(alignment:.bottomTrailing) {
                     Image(icon.name)
                         .resizable()
-                        .aspectRatio(1,contentMode: .fit)
-                        .frame(width:64,height:64)
-                    
-                    if isSelected {
-                        VStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Color.heading)
+                        .aspectRatio(1, contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .opacity(isAvailable ? 1 : 0.5)
+                        .background {
+                            if isSelected {
+                                // Create gap effect with background
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.heading)
+                                    .frame(width: 72, height: 72) // 4pt larger on each side
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 18)
+                                            .fill(Color.background)
+                                            .frame(width: 68, height: 68) // 2pt gap
+                                    )
+                            }
                         }
-                        .padding(2)
-                        .background(Color.background)
-                        .clipShape(Circle())
-                        .offset(x:4,y:4)
-                    } else if !userManager.isSubscriber {
+                    if !isAvailable {
                         VStack {
                             Image(systemName: "lock.circle.fill")
                                 .foregroundStyle(Color.heading)
                         }
-                        .padding(2)
+                        .padding(1)
                         .background(Color.background)
                         .clipShape(Circle())
                         .offset(x:4,y:4)

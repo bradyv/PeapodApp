@@ -77,6 +77,7 @@ struct EpisodeView: View {
                         
                         FadeInView(delay: 0.3) {
                             Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
+                                .lineLimit(nil)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal)
                                 .multilineTextAlignment(.leading)

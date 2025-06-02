@@ -14,6 +14,7 @@ struct NowPlaying: View {
     @ObservedObject var player = AudioPlayerManager.shared
     @State private var spacing: CGFloat = -38
     @State private var infoMaxWidth: CGFloat = 100
+    @State private var selectedEpisode: Episode? = nil
     var displayedInQueue: Bool = false
     var namespace: Namespace.ID
     var onTap: ((Episode) -> Void)?
@@ -25,7 +26,7 @@ struct NowPlaying: View {
                 
                 HStack {
                     Button {
-                        episodeSelectionManager.selectEpisode(episode)
+                        selectedEpisode = episode
                     } label: {
                         HStack {
                             KFImage(URL(string: episode.episodeImage ?? episode.podcast?.image ?? ""))
@@ -129,6 +130,10 @@ struct NowPlaying: View {
                 .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 3)
             }
             .frame(maxWidth: .infinity)
+            .sheet(item: $selectedEpisode) { episode in
+                EpisodeView(episode: episode, namespace:namespace)
+                    .modifier(PPSheet())
+            }
         }
     }
     

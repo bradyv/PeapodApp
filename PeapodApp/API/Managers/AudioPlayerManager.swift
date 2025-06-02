@@ -821,11 +821,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func appWillEnterForeground() {
         print("📱 App foregrounding")
         
-        // Check if we need to resume
-        if wasPlayingBeforeBackground && !playbackState.isPlaying && playbackState.episode != nil {
-            resume()
-        }
-        
         wasPlayingBeforeBackground = false
     }
     

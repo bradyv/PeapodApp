@@ -12,12 +12,21 @@ import FeedKit
 class EpisodeRefresher {
     private static let podcastRefreshLocks = NSMapTable<NSString, NSLock>.strongToStrongObjects()
     
+    private static let feedCacheKey = "FeedHeaderCache"
+        
+    struct FeedCacheEntry: Codable {
+        let lastModified: String?
+        let etag: String?
+        let lastChecked: Date
+        let feedUrl: String
+    }
+    
     // 🚀 Batch size to control memory usage and reduce saves
     private static let BATCH_SIZE = 50
     
     static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
-        print("🔄 Starting refresh for: \(podcast.title ?? "Unknown")")
-            
+        print("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown")")
+        
         guard let feedUrl = podcast.feedUrl, let url = URL(string: feedUrl) else {
             print("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
             completion?()
@@ -44,12 +53,128 @@ class EpisodeRefresher {
         
         defer { lock.unlock() }
         
+        // 🚀 Step 1: Check headers first
+        checkFeedHeaders(url: url, podcast: podcast) { shouldRefresh, cachedEntry in
+            if !shouldRefresh {
+                print("⚡ \(podcast.title ?? "Podcast"): No changes detected via headers, skipping")
+                completion?()
+                return
+            }
+            
+            print("🔄 \(podcast.title ?? "Podcast"): Changes detected, downloading feed...")
+            
+            // 🚀 Step 2: Only download and parse if headers indicate changes
+            downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: cachedEntry, completion: completion)
+        }
+    }
+    
+    private static func checkFeedHeaders(url: URL, podcast: Podcast, completion: @escaping (Bool, FeedCacheEntry?) -> Void) {
+        
+        // Get cached data for this feed
+        let cachedEntry = getCachedEntry(for: podcast.feedUrl)
+        
+        // Create HEAD request
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.setValue("Peapod/2.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/rss+xml", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 10
+        
+        // Add conditional headers if we have cache data
+        if let etag = cachedEntry?.etag {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
+        if let lastModified = cachedEntry?.lastModified {
+            request.setValue(lastModified, forHTTPHeaderField: "If-Modified-Since")
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { _, response, error in
+            DispatchQueue.main.async {
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    // If HEAD request fails, assume we should refresh
+                    print("⚠️ HEAD request failed for \(podcast.title ?? "podcast"), will refresh anyway")
+                    completion(true, cachedEntry)
+                    return
+                }
+                
+                let statusCode = httpResponse.statusCode
+                
+                // 304 Not Modified = no changes
+                if statusCode == 304 {
+                    print("⚡ \(podcast.title ?? "Podcast"): 304 Not Modified")
+                    updateCacheEntry(for: podcast.feedUrl, lastModified: cachedEntry?.lastModified, etag: cachedEntry?.etag)
+                    completion(false, cachedEntry)
+                    return
+                }
+                
+                // Extract new headers
+                let newLastModified = httpResponse.value(forHTTPHeaderField: "Last-Modified")
+                let newEtag = httpResponse.value(forHTTPHeaderField: "ETag")
+                
+                // Check if anything actually changed
+                let hasChanges = hasHeadersChanged(
+                    oldLastModified: cachedEntry?.lastModified,
+                    newLastModified: newLastModified,
+                    oldEtag: cachedEntry?.etag,
+                    newEtag: newEtag
+                )
+                
+                if hasChanges {
+                    print("🔄 \(podcast.title ?? "Podcast"): Headers indicate changes")
+                    let updatedEntry = FeedCacheEntry(
+                        lastModified: newLastModified,
+                        etag: newEtag,
+                        lastChecked: Date(),
+                        feedUrl: podcast.feedUrl ?? ""
+                    )
+                    completion(true, updatedEntry)
+                } else {
+                    print("⚡ \(podcast.title ?? "Podcast"): Headers unchanged")
+                    updateCacheEntry(for: podcast.feedUrl, lastModified: newLastModified, etag: newEtag)
+                    completion(false, cachedEntry)
+                }
+            }
+        }
+        
+        task.resume()
+    }
+    
+    // 🚀 Helper to check if headers changed
+    private static func hasHeadersChanged(oldLastModified: String?, newLastModified: String?, oldEtag: String?, newEtag: String?) -> Bool {
+        
+        // If we have etags, compare them
+        if let oldEtag = oldEtag, let newEtag = newEtag {
+            return oldEtag != newEtag
+        }
+        
+        // If we have last-modified dates, compare them
+        if let oldLastModified = oldLastModified, let newLastModified = newLastModified {
+            return oldLastModified != newLastModified
+        }
+        
+        // If we only have new headers (first time), consider it changed
+        if newLastModified != nil || newEtag != nil {
+            return true
+        }
+        
+        // No useful headers = assume changed (safer)
+        return true
+    }
+    
+    // 🚀 Download and parse feed (only called when headers indicate changes)
+    private static func downloadAndParseFeed(url: URL, podcast: Podcast, context: NSManagedObjectContext, cacheEntry: FeedCacheEntry?, completion: (() -> Void)?) {
+        
         FeedParser(URL: url).parseAsync { result in
             switch result {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     context.perform {
-                        // 🚀 Process episodes in batches to reduce memory pressure
+                        // Update cache after successful parsing
+                        if let cacheEntry = cacheEntry {
+                            saveCacheEntry(cacheEntry)
+                        }
+                        
+                        // Process episodes in batches
                         processEpisodesInBatches(
                             rss: rss,
                             podcast: podcast,
@@ -63,10 +188,42 @@ class EpisodeRefresher {
                 } else {
                     completion?()
                 }
-            case .failure:
+            case .failure(let error):
+                print("❌ Failed to parse feed for \(podcast.title ?? "podcast"): \(error)")
                 completion?()
             }
         }
+    }
+    
+    // 🚀 Cache management
+    private static func getCachedEntry(for feedUrl: String?) -> FeedCacheEntry? {
+        guard let feedUrl = feedUrl else { return nil }
+        
+        guard let data = UserDefaults.standard.data(forKey: "\(feedCacheKey)_\(feedUrl.hashValue)"),
+              let entry = try? JSONDecoder().decode(FeedCacheEntry.self, from: data) else {
+            return nil
+        }
+        
+        // Return cached entry if it's less than 5 minutes old for optimization
+        let fiveMinutesAgo = Date().addingTimeInterval(-5 * 60)
+        return entry.lastChecked > fiveMinutesAgo ? entry : nil
+    }
+    
+    private static func saveCacheEntry(_ entry: FeedCacheEntry) {
+        guard let data = try? JSONEncoder().encode(entry) else { return }
+        UserDefaults.standard.set(data, forKey: "\(feedCacheKey)_\(entry.feedUrl.hashValue)")
+    }
+    
+    private static func updateCacheEntry(for feedUrl: String?, lastModified: String?, etag: String?) {
+        guard let feedUrl = feedUrl else { return }
+        
+        let entry = FeedCacheEntry(
+            lastModified: lastModified,
+            etag: etag,
+            lastChecked: Date(),
+            feedUrl: feedUrl
+        )
+        saveCacheEntry(entry)
     }
     
     // 🚀 NEW: Process episodes in batches to reduce memory usage and saves
@@ -358,11 +515,14 @@ class EpisodeRefresher {
                 return
             }
             
-            print("🔄 Refreshing \(podcasts.count) subscribed podcasts")
+            print("🔄 Smart refreshing \(podcasts.count) subscribed podcasts")
             
-            // 🚀 Limit concurrent operations to prevent overwhelming the system
-            let semaphore = DispatchSemaphore(value: 2) // Reduced from 3 to 2
+            let semaphore = DispatchSemaphore(value: 3) // Slightly higher since HEAD requests are faster
             let group = DispatchGroup()
+            var refreshedCount = 0
+            var skippedCount = 0
+            
+            let startTime = Date()
             
             for podcast in podcasts {
                 group.enter()
@@ -371,6 +531,8 @@ class EpisodeRefresher {
                     semaphore.wait()
                     
                     refreshPodcastEpisodes(for: podcast, context: backgroundContext) {
+                        // Track if we actually refreshed or skipped
+                        // This would need to be passed back from refreshPodcastEpisodes if you want exact counts
                         semaphore.signal()
                         group.leave()
                     }
@@ -378,19 +540,20 @@ class EpisodeRefresher {
             }
             
             group.notify(queue: .global(qos: .utility)) {
-                print("🎯 All podcast refreshes completed")
+                let duration = Date().timeIntervalSince(startTime)
+                print("🎯 Smart refresh completed in \(String(format: "%.2f", duration))s")
                 
                 // Final save and cleanup
                 do {
                     if backgroundContext.hasChanges {
                         try backgroundContext.save()
-                        print("✅ Background context saved after podcast refresh")
+                        print("✅ Background context saved after smart refresh")
                     } else {
-                        print("ℹ️ No background context changes to save (all episodes up-to-date)")
+                        print("ℹ️ No background context changes to save")
                     }
                     
-                    // Run deduplication even less frequently
-                    if Int.random(in: 1...10) == 1 { // Only 10% of the time
+                    // Run deduplication less frequently
+                    if Int.random(in: 1...10) == 1 {
                         mergeDuplicateEpisodes(context: backgroundContext)
                     }
                     
@@ -420,8 +583,26 @@ class EpisodeRefresher {
         
         UserDefaults.standard.set(now, forKey: lastNotificationRefreshKey)
         
-        print("🔔 Force refreshing for notification")
+        print("🔔 Force smart refreshing for notification")
         let context = PersistenceController.shared.container.newBackgroundContext()
         refreshAllSubscribedPodcasts(context: context, completion: completion)
+    }
+}
+
+extension EpisodeRefresher {
+    static func cleanupOldCacheEntries() {
+        let userDefaults = UserDefaults.standard
+        let allKeys = userDefaults.dictionaryRepresentation().keys
+        
+        let cacheKeys = allKeys.filter { $0.hasPrefix(feedCacheKey) }
+        let oneWeekAgo = Date().addingTimeInterval(-7 * 24 * 60 * 60)
+        
+        for key in cacheKeys {
+            if let data = userDefaults.data(forKey: key),
+               let entry = try? JSONDecoder().decode(FeedCacheEntry.self, from: data),
+               entry.lastChecked < oneWeekAgo {
+                userDefaults.removeObject(forKey: key)
+            }
+        }
     }
 }

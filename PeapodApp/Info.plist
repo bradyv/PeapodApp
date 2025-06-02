@@ -125,6 +125,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
+        <string>background-app-refresh</string>
 		<string>remote-notification</string>
         <string>fetch</string>
         <string>processing</string>
@@ -133,5 +134,7 @@
     <array>
         <string>com.bradyv.Peapod.Dev.deleteOldEpisodes.v1</string>
     </array>
+    <key>FirebaseAppDelegateProxyEnabled</key>
+    <false/>
 </dict>
 </plist>

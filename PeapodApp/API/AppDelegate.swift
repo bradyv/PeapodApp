@@ -11,6 +11,7 @@ import CoreData
 import UserNotifications
 import FirebaseMessaging
 import FirebaseFunctions
+import CryptoKit
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     static var pendingNotificationEpisodeID: String?
@@ -94,19 +95,56 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         print("❌ Failed to register for remote notifications: \(error)")
     }
     
-    // 🆕 Handle background push notifications
+    // ENHANCED: Handle background push notifications with better logging
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        print("📱 Received remote notification in background")
+        print("📱 Received remote notification - app state: \(application.applicationState.rawValue)")
+        print("📱 Notification payload: \(userInfo)")
+        
+        // Check if this is a Firebase message
+        if let messageID = userInfo["gcm.message_id"] as? String {
+            print("🔥 Firebase message ID: \(messageID)")
+        }
+        
+        // Track the refresh start
+        let refreshStartTime = Date()
+        print("🔔 Starting force refresh for notification at \(refreshStartTime)")
+        
+        // 🚀 NEW: Use a flag to ensure completion handler is only called once
+        var hasCompleted = false
+        let completionLock = NSLock()
+        
+        func safeComplete(_ result: UIBackgroundFetchResult) {
+            completionLock.lock()
+            defer { completionLock.unlock() }
+            
+            if !hasCompleted {
+                hasCompleted = true
+                completionHandler(result)
+            }
+        }
         
         // Force refresh feeds when receiving push notification
         EpisodeRefresher.forceRefreshForNotification {
-            completionHandler(.newData)
+            let refreshDuration = Date().timeIntervalSince(refreshStartTime)
+            print("✅ Background refresh completed in \(String(format: "%.2f", refreshDuration))s")
+            safeComplete(.newData)
+        }
+        
+        // Timeout protection - only call if refresh hasn't completed yet
+        DispatchQueue.main.asyncAfter(deadline: .now() + 25) {
+            completionLock.lock()
+            if !hasCompleted {
+                print("⏰ Background refresh timeout after 25 seconds")
+                hasCompleted = true
+                completionHandler(.noData)
+            }
+            completionLock.unlock()
         }
     }
     
     // MARK: - Notification Handling
     
-    // When user taps a notification
+    // ENHANCED: When user taps a notification with better flow control
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                didReceive response: UNNotificationResponse,
                                withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -121,14 +159,24 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         if let episodeID = userInfo["episodeID"] as? String {
             print("🔍 Looking for episode with ID: \(episodeID)")
             
-            // Store the episode ID for cold start scenarios
+            // Store the episode ID for ContentView to handle
             AppDelegate.pendingNotificationEpisodeID = episodeID
             
-            // Force refresh to ensure we have the latest episodes
+            // Immediately try to find the episode first
+            if findAndOpenEpisode(episodeID: episodeID) {
+                print("✅ Episode found immediately, no refresh needed")
+                completionHandler()
+                return
+            }
+            
+            // If not found, do a refresh and try again
+            print("🔄 Episode not found, forcing refresh...")
             EpisodeRefresher.forceRefreshForNotification {
                 // After refresh, try to find and open the episode
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    self.findAndOpenEpisode(episodeID: episodeID)
+                    if !self.findAndOpenEpisode(episodeID: episodeID) {
+                        print("❌ Episode still not found after refresh")
+                    }
                 }
             }
         }
@@ -150,59 +198,61 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         completionHandler([.alert, .sound, .badge])
     }
     
-    // 🆕 Helper to find episode by Firebase episode ID format
-    private func findAndOpenEpisode(episodeID: String) {
+    // ENHANCED: Helper to find episode by Firebase episode ID format with return value
+    @discardableResult
+    private func findAndOpenEpisode(episodeID: String) -> Bool {
         let context = PersistenceController.shared.container.viewContext
         
-        // Firebase episode IDs are in format: encodedFeedUrl_guid
-        // We need to decode the feed URL and find the episode by GUID
-        let components = episodeID.components(separatedBy: "_")
-        guard components.count >= 2 else {
-            print("❌ Invalid episode ID format: \(episodeID)")
-            return
-        }
+        print("🔍 Searching for episode with Firebase ID: '\(episodeID)'")
         
-        let encodedFeedUrl = components[0]
-        let guid = components.dropFirst().joined(separator: "_") // Rejoin in case GUID contains underscores
+        // Firebase now sends MD5 hashes, so we need to reverse-engineer
+        // Since we can't reverse MD5, we'll search all episodes and match against generated hashes
         
-        // Decode the feed URL
-        guard let feedUrl = encodedFeedUrl.removingPercentEncoding else {
-            print("❌ Could not decode feed URL: \(encodedFeedUrl)")
-            return
-        }
-        
-        print("🔍 Searching for episode with GUID: \(guid) in feed: \(feedUrl)")
-        
-        // Find episode by GUID and feed URL
-        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcast.feedUrl == %@", guid, feedUrl)
-        fetchRequest.fetchLimit = 1
+        // Strategy 1: Direct search by reconstructing possible episode IDs
+        // We'll check all episodes in subscribed podcasts and see if any match the hash
+        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        podcastRequest.predicate = NSPredicate(format: "isSubscribed == YES")
         
         do {
-            if let foundEpisode = try context.fetch(fetchRequest).first {
-                print("✅ Found episode: \(foundEpisode.title ?? "Unknown")")
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .didTapEpisodeNotification, object: foundEpisode.id)
-                }
-            } else {
-                print("❌ Could not find episode with GUID: \(guid) in feed: \(feedUrl)")
-                // Try a broader search by GUID only as fallback
-                let fallbackRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                fallbackRequest.predicate = NSPredicate(format: "guid == %@", guid)
-                fallbackRequest.fetchLimit = 1
+            let subscribedPodcasts = try context.fetch(podcastRequest)
+            
+            for podcast in subscribedPodcasts {
+                guard let feedUrl = podcast.feedUrl else { continue }
                 
-                if let fallbackEpisode = try context.fetch(fallbackRequest).first {
-                    print("✅ Found episode via fallback search: \(fallbackEpisode.title ?? "Unknown")")
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .didTapEpisodeNotification, object: fallbackEpisode.id)
+                // Get episodes from this podcast
+                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                episodeRequest.predicate = NSPredicate(format: "podcast == %@", podcast)
+                
+                do {
+                    let episodes = try context.fetch(episodeRequest)
+                    
+                    for episode in episodes {
+                        guard let guid = episode.guid else { continue }
+                        
+                        // Recreate the hash that Firebase would have generated
+                        let combined = "\(feedUrl)_\(guid)"
+                        let hash = combined.md5Hash()
+                        
+                        if hash == episodeID {
+                            print("✅ Found episode by hash match: \(episode.title ?? "Unknown")")
+                            print("   📍 Matched: \(feedUrl) + \(guid) = \(hash)")
+                            DispatchQueue.main.async {
+                                NotificationCenter.default.post(name: .didTapEpisodeNotification, object: episode.id)
+                            }
+                            return true
+                        }
                     }
-                } else {
-                    print("❌ Episode not found even with fallback search")
+                } catch {
+                    print("❌ Error fetching episodes for podcast \(podcast.title ?? "Unknown"): \(error)")
                 }
             }
+            
         } catch {
-            print("❌ Error searching for episode: \(error)")
+            print("❌ Error fetching subscribed podcasts: \(error)")
         }
+        
+        print("❌ Episode not found with Firebase ID: \(episodeID)")
+        return false
     }
     
     // MARK: - Helper Methods
@@ -309,5 +359,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         } catch {
             print("Could not schedule episode cleanup task: \(error)")
         }
+    }
+}
+
+extension String {
+    func md5Hash() -> String {
+        let data = Data(self.utf8)
+        let hash = Insecure.MD5.hash(data: data)
+        return hash.map { String(format: "%02hhx", $0) }.joined()
     }
 }

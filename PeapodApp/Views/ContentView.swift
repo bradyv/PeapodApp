@@ -41,16 +41,21 @@ struct ContentView: View {
                     if newPhase == .active {
                         // Clear badge when app becomes active
                         UIApplication.shared.applicationIconBadgeNumber = 0
-                        forceRefreshPodcasts()
+                        
+                        // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
+                        let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+                        if timeSinceLastRefresh > 30 {
+                            print("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                            forceRefreshPodcasts()
+                        } else {
+                            print("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                        }
                     }
                 }
                 .scrollDisabled(subscriptions.isEmpty)
                 .refreshable {
-                    // Manual pull to refresh - full refresh
-                    EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                        toastManager.show(message: "Peapod is up to date", icon: "sparkles")
-                        print("✨ Pulled to refresh feeds at \(Date())")
-                    }
+                    // Manual pull to refresh - always allow
+                    refreshPodcasts(source: "pull-to-refresh")
                 }
                 
                 VStack(alignment: .trailing) {
@@ -103,6 +108,15 @@ struct ContentView: View {
                 episodesViewModel.setup(context: context)
             }
             
+            // 🚀 NEW: Only refresh on first appear or after significant time gap
+            let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+            if timeSinceLastRefresh > 30 {
+                print("📱 ContentView appeared - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                forceRefreshPodcasts()
+            } else {
+                print("📱 ContentView appeared - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+            }
+            
             checkPendingNotification()
         }
         .onChange(of: appStateManager.currentState) { oldState, newState in
@@ -128,13 +142,21 @@ struct ContentView: View {
         .toast()
     }
     
-    // 🆕 Force refresh to actually fetch new episodes (not just light refresh)
+    // 🚀 UPDATED: Unified refresh method with source tracking and debouncing
     private func forceRefreshPodcasts() {
+        refreshPodcasts(source: "auto")
+    }
+    
+    private func refreshPodcasts(source: String) {
+        // Update last refresh time immediately to prevent concurrent calls
+        lastRefreshDate = Date()
+        
         toastManager.show(message: "Refreshing", icon: "arrow.trianglehead.2.clockwise")
-        print("🔄 Force refreshing all subscribed podcasts")
+        print("🔄 Force refreshing all subscribed podcasts (\(source))")
+        
         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
             toastManager.show(message: "Peapod is up to date", icon: "sparkles")
-            print("✨ Auto refreshed feeds at \(Date())")
+            print("✨ \(source.capitalized) refreshed feeds at \(Date())")
         }
     }
     

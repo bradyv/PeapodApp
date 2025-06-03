@@ -377,19 +377,80 @@ struct ActivityView: View {
                             }
                             
                             FadeInView(delay: 0.7) {
-                                LazyVGrid(columns: columns, spacing: 16) {
-                                    ForEach(topPlayedEpisodes, id: \.self) { episode in
-                                        Text("\(episode.title ?? "")")
+                                VStack {
+                                    if let topReplayed = topPlayedEpisodes.first {
+                                        HStack {
+                                            ArtworkView(url:topReplayed.episodeImage ?? topReplayed.podcast?.image ?? "", size: 44, cornerRadius: 8)
+                                                .background(
+                                                    Image("rays")
+                                                        .resizable()
+                                                        .frame(width:114,height:114)
+                                                        .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
+                                                        .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
+                                                )
+                                            
+                                            VStack(alignment:.leading) {
+                                                Text(topReplayed.podcast?.title ?? "Unknown Podcast")
+                                                    .foregroundStyle(Color.white)
+                                                    .textDetailEmphasis()
+                                                    .lineLimit(1)
+                                                
+                                                Text(topReplayed.title ?? "Untitled")
+                                                    .foregroundStyle(Color.white)
+                                                    .titleCondensed()
+                                                    .lineLimit(1)
+                                            }
+                                            .frame(maxWidth:.infinity,alignment:.leading)
+                                            
+                                            Text("\(topReplayed.playCount) Listens")
+                                                .foregroundStyle(Color.black)
+                                                .textDetailEmphasis()
+                                                .padding(.vertical, 3)
+                                                .padding(.horizontal, 8)
+                                                .background(Color.white)
+                                                .clipShape(Capsule())
+                                        }
+                                    }
+                                    
+                                    Divider()
+                                    
+                                    let remainingEpisodes = Array(topPlayedEpisodes.dropFirst())
+                                    
+                                    ForEach(remainingEpisodes, id: \.self) { episode in
+                                        HStack {
+                                            ArtworkView(url:episode.episodeImage ?? episode.podcast?.image ?? "", size: 36, cornerRadius: 8)
+                                            
+                                            VStack(alignment:.leading) {
+                                                Text(episode.podcast?.title ?? "Unknown Podcast")
+                                                    .foregroundStyle(Color.white)
+                                                    .textDetailEmphasis()
+                                                    .lineLimit(1)
+                                                
+                                                Text(episode.title ?? "Untitled")
+                                                    .foregroundStyle(Color.white)
+                                                    .textBody()
+                                                    .lineLimit(1)
+                                            }
+                                            .frame(maxWidth:.infinity,alignment:.leading)
+                                            
+                                            Text("\(episode.playCount) Listens")
+                                                .foregroundStyle(Color.black)
+                                                .textDetailEmphasis()
+                                                .padding(.vertical, 3)
+                                                .padding(.horizontal, 8)
+                                                .background(Color.white)
+                                                .clipShape(Circle())
+                                        }
                                     }
                                 }
                             }
                         }
                         .frame(maxWidth:.infinity,alignment:.leading)
                         .foregroundStyle(Color.white)
-                        .padding([.horizontal,.top]).padding(.bottom,44)
+                        .padding()
                         .background {
-                            if let winner = reordered.first(where: { $0.0 == 0 }) {
-                                ArtworkView(url: winner.1.image ?? "", size: 500, cornerRadius: 0)
+                            if let topEp = topPlayedEpisodes.first {
+                                ArtworkView(url: topEp.episodeImage ?? topEp.podcast?.image ?? "", size: 500, cornerRadius: 0)
                                     .blur(radius: 128)
                             }
                             Image("Noise")

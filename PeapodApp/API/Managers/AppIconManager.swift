@@ -14,7 +14,6 @@ class AppIconManager: ObservableObject {
     
     let baseIcons = [
         AppIcons(name: "Peapod", asset: "AppIcon-Green"),
-        AppIcons(name: "lgbtq", asset: "AppIcon-lgbtq"),
         AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
         AppIcons(name: "Starry", asset: "AppIcon-Starry"),
         AppIcons(name: "Minty", asset: "AppIcon-Minty"),
@@ -23,6 +22,14 @@ class AppIconManager: ObservableObject {
         AppIcons(name: "Business", asset: "AppIcon-Business"),
         AppIcons(name: "Plus", asset: "AppIcon-Plus"),
         AppIcons(name: "Plus-Pastel", asset: "AppIcon-Plus-Pastel")
+    ]
+    
+    let prideIcons = [
+        AppIcons(name: "lgbtq", asset: "AppIcon-lgbtq"),
+        AppIcons(name: "Trans", asset: "AppIcon-Trans"),
+        AppIcons(name: "Lesbian", asset: "AppIcon-Lesbian"),
+        AppIcons(name: "NonBinary", asset: "AppIcon-NonBinary"),
+        AppIcons(name: "Bi", asset: "AppIcon-Bi"),
     ]
     
     let legacyIcons = [

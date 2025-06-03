@@ -16,6 +16,7 @@ struct AppIconView: View {
     private var iconCategories: [(String, [AppIcons])] {
         return [
             ("Peapod", AppIconManager.shared.baseIcons),
+            ("Pride", AppIconManager.shared.prideIcons),
             ("Legacy", AppIconManager.shared.legacyIcons),
             ("MKI", AppIconManager.shared.mkiIcons)
         ]
@@ -25,7 +26,7 @@ struct AppIconView: View {
     
     // Add this computed property to determine if an icon is available
     private func isIconAvailable(_ icon: AppIcons) -> Bool {
-        let freeIcons = ["Peapod", "lgbtq", "LegacyPride"]
+        let freeIcons = ["Peapod", "lgbtq", "Trans", "Lesbian", "Bi", "NonBinary", "LegacyPride"]
         return userManager.isSubscriber || freeIcons.contains(icon.name)
     }
     

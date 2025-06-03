@@ -21,7 +21,7 @@
         <attribute name="playbackPosition" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="playCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="playedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="playedDates" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer" customClassName="[Date]"/>
+        <attribute name="playedDates" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer"/>
         <attribute name="queuePosition" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="savedDate" optional="YES" attributeType="Date" defaultDateTimeInterval="763509900" usesScalarValueType="NO"/>
         <attribute name="title" optional="YES" attributeType="String"/>

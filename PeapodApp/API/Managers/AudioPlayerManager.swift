@@ -634,8 +634,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         } else {
             episode.isPlayed = true
             episode.playedDate = Date.now
-            episode.playedDates = (episode.playedDates ?? []) + [Date.now]
-            episode.playCount = Int64(episode.playedDates?.count ?? 0)
+            episode.addPlayedDate(Date.now)
             
             let actualDuration = getActualDuration(for: episode)
             let playedTime = manually ? progressBeforeStop : actualDuration

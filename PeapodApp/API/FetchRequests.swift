@@ -157,6 +157,15 @@ extension Episode {
         request.resultType = .countResultType
         return try context.count(for: request)
     }
+    
+    // NEW: Repeat listens
+    static func topPlayedEpisodesRequest(limit: Int = 3) -> NSFetchRequest<Episode> {
+        let request = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "playCount > 1")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.playCount, ascending: false)]
+        request.fetchLimit = limit
+        return request
+    }
 }
 
 extension Podcast {

@@ -26,6 +26,9 @@ struct ActivityView: View {
     )
     var longestEpisodes: FetchedResults<Episode>
     
+    @FetchRequest(fetchRequest: Episode.topPlayedEpisodesRequest(), animation: .default)
+    var topPlayedEpisodes: FetchedResults<Episode>
+    
     @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default
@@ -355,6 +358,48 @@ struct ActivityView: View {
                     }
                     .clipShape(RoundedRectangle(cornerRadius:16))
                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                }
+                
+                if topPlayedEpisodes.count > 1 {
+                    FadeInView(delay: 0.5) {
+                        VStack(alignment:.leading) {
+                            Image("peapod-plus-mark")
+                            
+                            FadeInView(delay: 0.6) {
+                                Text("Repeat Listener")
+                                    .foregroundStyle(Color.white)
+                                    .titleCondensed()
+                                    .multilineTextAlignment(.center)
+                                
+                                Text("You've come back to these episodes.")
+                                    .foregroundStyle(Color.white)
+                                    .textDetail()
+                            }
+                            
+                            FadeInView(delay: 0.7) {
+                                LazyVGrid(columns: columns, spacing: 16) {
+                                    ForEach(topPlayedEpisodes, id: \.self) { episode in
+                                        Text("\(episode.title ?? "")")
+                                    }
+                                }
+                            }
+                        }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                        .foregroundStyle(Color.white)
+                        .padding([.horizontal,.top]).padding(.bottom,44)
+                        .background {
+                            if let winner = reordered.first(where: { $0.0 == 0 }) {
+                                ArtworkView(url: winner.1.image ?? "", size: 500, cornerRadius: 0)
+                                    .blur(radius: 128)
+                            }
+                            Image("Noise")
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .opacity(0.5)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius:16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                    }
                 }
                 
                 if let longestEpisode = longestEpisodes.first {

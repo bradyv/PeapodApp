@@ -21,6 +21,7 @@ struct Peapod: App {
     @AppStorage("didFlushTints") private var didFlushTints: Bool = false
     @AppStorage("hasRunOneTimeSplashMark") private var hasRunOneTimeSplashMark = false
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @AppStorage("hasSeenReturningUserFlow") private var hasSeenReturningUserFlow = false
     
     var appTheme: AppTheme {
        AppTheme(rawValue: appThemeRawValue) ?? .system
@@ -50,7 +51,11 @@ struct Peapod: App {
                     runOneTimeSetupIfNeeded()
                     
                     // Start splash sequence
-                    appStateManager.startSplashSequence()
+                    if !hasSeenReturningUserFlow {
+                        appStateManager.startSplashSequence(withCloudKitCheck: true)
+                    } else {
+                        appStateManager.startSplashSequence()
+                    }
                 }
         }
     }

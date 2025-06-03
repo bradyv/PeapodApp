@@ -43,6 +43,19 @@ struct MainContainerView: View {
                 .transition(.opacity)
             }
             
+            // Layer 3.5: Returning User (conditionally visible)
+            if appStateManager.currentState == .returningUser {
+                ReturningUserView(
+                    onContinue: {
+                        // Set the flag so this flow doesn't show again
+                        UserDefaults.standard.set(true, forKey: "hasSeenReturningUserFlow")
+                        appStateManager.currentState = .main
+                    },
+                    namespace: namespace
+                )
+                .transition(.opacity)
+            }
+            
             // Layer 4: Splash (conditionally visible on top)
             if appStateManager.currentState == .splash {
                 SplashView()

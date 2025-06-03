@@ -12,6 +12,7 @@ import UserNotifications
 import FirebaseMessaging
 import FirebaseFunctions
 import CryptoKit
+import CloudKit
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     static var pendingNotificationEpisodeID: String?
@@ -40,6 +41,31 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         checkAndRegisterForNotificationsIfGranted()
         
         return true
+    }
+    
+    // MARK: - Check for returning users
+    
+    func checkCloudKitAccountStatus(completion: @escaping (Bool) -> Void) {
+        let container = CKContainer.default()
+        
+        container.accountStatus { status, error in
+            DispatchQueue.main.async {
+                switch status {
+                case .available:
+                    print("🔵 CloudKit account available")
+                    completion(true)
+                case .noAccount, .restricted, .couldNotDetermine:
+                    print("🔴 CloudKit account not available: \(status)")
+                    completion(false)
+                case .temporarilyUnavailable:
+                    print("🔴 CloudKit account temporarily unavailable: \(status)")
+                    completion(false)
+                @unknown default:
+                    print("🟡 Unknown CloudKit status")
+                    completion(false)
+                }
+            }
+        }
     }
 
     // MARK: - Firebase Messaging Delegate

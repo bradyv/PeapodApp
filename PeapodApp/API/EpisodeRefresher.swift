@@ -24,11 +24,26 @@ class EpisodeRefresher {
     // 🚀 Batch size to control memory usage and reduce saves
     private static let BATCH_SIZE = 50
     
+    // Helper function to convert HTTP URLs to HTTPS
+    private static func forceHTTPS(_ urlString: String?) -> String? {
+        guard let urlString = urlString else { return nil }
+        return urlString.replacingOccurrences(of: "http://", with: "https://")
+    }
+    
     static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
         print("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown")")
         
-        guard let feedUrl = podcast.feedUrl, let url = URL(string: feedUrl) else {
+        guard let feedUrl = podcast.feedUrl else {
             print("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
+            completion?()
+            return
+        }
+        
+        // Convert HTTP to HTTPS for the feed URL
+        let httpsUrl = forceHTTPS(feedUrl) ?? feedUrl
+        
+        guard let url = URL(string: httpsUrl) else {
+            print("❌ Invalid feed URL for: \(podcast.title ?? "Unknown")")
             completion?()
             return
         }
@@ -329,7 +344,7 @@ class EpisodeRefresher {
         
         let title = item.title
         let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let audioUrl = item.enclosure?.attributes?.url
+        let audioUrl = forceHTTPS(item.enclosure?.attributes?.url) // Convert to HTTPS for matching
         let airDate = item.pubDate
         
         // Strategy 1: Match by audio URL (most reliable)
@@ -442,11 +457,11 @@ class EpisodeRefresher {
     private static func hasEpisodeChanged(episode: Episode, item: RSSFeedItem, podcast: Podcast) -> Bool {
         let newGuid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
         let newTitle = item.title
-        let newAudio = item.enclosure?.attributes?.url
+        let newAudio = forceHTTPS(item.enclosure?.attributes?.url) // Convert to HTTPS
         let newDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
         let newAirDate = item.pubDate
         let newDuration = item.iTunes?.iTunesDuration ?? 0
-        let newEpisodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
+        let newEpisodeImage = forceHTTPS(item.iTunes?.iTunesImage?.attributes?.href) ?? podcast.image // Convert to HTTPS
         
         // Compare each field - only return true if something actually changed
         return episode.guid != newGuid ||
@@ -462,7 +477,7 @@ class EpisodeRefresher {
     private static func updateEpisodeAttributes(episode: Episode, item: RSSFeedItem, podcast: Podcast) {
         episode.guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
         episode.title = item.title
-        episode.audio = item.enclosure?.attributes?.url
+        episode.audio = forceHTTPS(item.enclosure?.attributes?.url) // Convert to HTTPS
         episode.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
         episode.airDate = item.pubDate
         
@@ -470,15 +485,15 @@ class EpisodeRefresher {
             episode.duration = duration
         }
         
-        episode.episodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
+        episode.episodeImage = forceHTTPS(item.iTunes?.iTunesImage?.attributes?.href) ?? podcast.image // Convert to HTTPS
     }
     
     // 🚀 Update podcast metadata separately
     private static func updatePodcastMetadata(rss: RSSFeed, podcast: Podcast) {
         if podcast.image == nil {
-            podcast.image = rss.image?.url ??
-            rss.iTunes?.iTunesImage?.attributes?.href ??
-            rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
+            podcast.image = forceHTTPS(rss.image?.url) ??
+                           forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
+                           forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
         }
         
         if podcast.podcastDescription == nil {

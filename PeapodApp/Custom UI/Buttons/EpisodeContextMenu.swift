@@ -12,8 +12,10 @@ struct EpisodeContextMenu: View {
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
     @ObservedObject var player = AudioPlayerManager.shared
+    @ObservedObject var userManager = UserManager.shared
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
+    @State private var showingUpgrade = false
     var displayedFullscreen: Bool = false
     var displayedInQueue: Bool = false
     var namespace: Namespace.ID
@@ -45,19 +47,28 @@ struct EpisodeContextMenu: View {
                     Label("Go to Episode", systemImage: "info.square")
                 }
             } else {
-                Menu {
-                    let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
-                    ForEach(speeds, id: \.self) { speed in
-                        speedButton(for: speed)
+                if userManager.isSubscriber {
+                    Menu {
+                        let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
+                        ForEach(speeds, id: \.self) { speed in
+                            speedButton(for: speed)
+                        }
+                    } label: {
+                        Label("Playback Speed", systemImage:
+                                player.playbackSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
+                                player.playbackSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
+                                player.playbackSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
+                                player.playbackSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
+                                "gauge.with.dots.needle.50percent"
+                        )
                     }
-                } label: {
-                    Label("Playback Speed", systemImage:
-                        player.playbackSpeed < 0.5 ? "gauge.with.dots.needle.0percent" :
-                        player.playbackSpeed < 0.9 ? "gauge.with.dots.needle.33percent" :
-                        player.playbackSpeed > 1.2 ? "gauge.with.dots.needle.100percent" :
-                        player.playbackSpeed > 1.0 ? "gauge.with.dots.needle.67percent" :
-                        "gauge.with.dots.needle.50percent"
-                    )
+                } else {
+                    Button(action: {
+                        showingUpgrade = true
+                    }) {
+                        Label("Playback Speed",
+                              systemImage: "gauge.with.dots.needle.50percent")
+                    }
                 }
             }
             
@@ -143,6 +154,10 @@ struct EpisodeContextMenu: View {
                 PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
                     .modifier(PPSheet())
             }
+        }
+        .sheet(isPresented: $showingUpgrade) {
+            UpgradeView()
+                .modifier(PPSheet())
         }
     }
 }

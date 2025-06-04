@@ -568,9 +568,7 @@ class EpisodeRefresher {
                     }
                     
                     // Run deduplication less frequently
-                    if Int.random(in: 1...10) == 1 {
-                        mergeDuplicateEpisodes(context: backgroundContext)
-                    }
+                    mergeDuplicateEpisodes(context: backgroundContext)
                     
                 } catch {
                     print("❌ Failed to save background context: \(error)")

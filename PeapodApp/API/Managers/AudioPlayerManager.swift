@@ -524,20 +524,37 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         print("🏁 Episode finished")
         
-        // Mark as played
+        let context = episode.managedObjectContext ?? viewContext
+        let wasPlayed = episode.isPlayed
+        
+        // Mark as played (same pattern as markAsPlayed)
         episode.isPlayed = true
         episode.nowPlaying = false
         episode.playedDate = Date()
         episode.playbackPosition = 0
+        episode.addPlayedDate(Date.now)
         
         if let podcast = episode.podcast {
             podcast.playCount += 1
             podcast.playedSeconds += playbackState.duration
         }
         
-        // Use the global removeFromQueue function
-        removeFromQueue(episode)
-        try? episode.managedObjectContext?.save()
+        // Cancel any pending position saves
+        positionSaveTimer?.invalidate()
+        positionSaveTimer = nil
+        
+        // Remove from queue in same transaction
+        if !wasPlayed {
+            removeFromQueue(episode)
+        }
+        
+        // Single save for all changes
+        try? context.save()
+        
+        // Clear player state AFTER saving
+        clearState()
+        cleanupPlayer()
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         
         // Check for autoplay
         if autoplayNext {
@@ -549,8 +566,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
         
-        // No autoplay or no next episode - stop and check queue status
-        stop()
+        // Final queue status check
         checkQueueStatusAfterRemoval()
     }
     

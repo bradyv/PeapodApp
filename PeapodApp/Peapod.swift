@@ -30,10 +30,8 @@ struct Peapod: App {
         // Configure Firebase based on environment
         FirebaseConfig.configure()
         
-        #if !DEBUG
         LogManager.shared.setupAppLifecycleLogging()
         LogManager.shared.startLogging()
-        #endif
     }
 
     var body: some Scene {

@@ -74,14 +74,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if granted {
-                print("✅ Push notifications authorized")
+                LogManager.shared.info("✅ Push notifications authorized")
                 DispatchQueue.main.async {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
             } else if let error = error {
-                print("❌ Notification permission error: \(error.localizedDescription)")
+                LogManager.shared.error("❌ Notification permission error: \(error.localizedDescription)")
             } else {
-                print("❌ Notification permission denied")
+                LogManager.shared.error("❌ Notification permission denied")
             }
         }
     }
@@ -92,22 +92,22 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("❌ Failed to register for remote notifications: \(error)")
+        LogManager.shared.error("❌ Failed to register for remote notifications: \(error)")
     }
     
     // ENHANCED: Handle background push notifications with better logging
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        print("📱 Received remote notification - app state: \(application.applicationState.rawValue)")
-        print("📱 Notification payload: \(userInfo)")
+        LogManager.shared.info("📱 Received remote notification - app state: \(application.applicationState.rawValue)")
+        LogManager.shared.info("📱 Notification payload: \(userInfo)")
         
         // Check if this is a Firebase message
         if let messageID = userInfo["gcm.message_id"] as? String {
-            print("🔥 Firebase message ID: \(messageID)")
+            LogManager.shared.info("🔥 Firebase message ID: \(messageID)")
         }
         
         // Track the refresh start
         let refreshStartTime = Date()
-        print("🔔 Starting force refresh for notification at \(refreshStartTime)")
+        LogManager.shared.info("🔔 Starting force refresh for notification at \(refreshStartTime)")
         
         // 🚀 NEW: Use a flag to ensure completion handler is only called once
         var hasCompleted = false
@@ -126,7 +126,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Force refresh feeds when receiving push notification
         EpisodeRefresher.forceRefreshForNotification {
             let refreshDuration = Date().timeIntervalSince(refreshStartTime)
-            print("✅ Background refresh completed in \(String(format: "%.2f", refreshDuration))s")
+            LogManager.shared.info("✅ Background refresh completed in \(String(format: "%.2f", refreshDuration))s")
             safeComplete(.newData)
         }
         
@@ -150,7 +150,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         
-        print("🔔 User tapped notification: \(userInfo)")
+        LogManager.shared.info("🔔 User tapped notification: \(userInfo)")
         
         // Clear badge immediately
         UIApplication.shared.applicationIconBadgeNumber = 0
@@ -164,18 +164,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             
             // Immediately try to find the episode first
             if findAndOpenEpisode(episodeID: episodeID) {
-                print("✅ Episode found immediately, no refresh needed")
+                LogManager.shared.info("✅ Episode found immediately, no refresh needed")
                 completionHandler()
                 return
             }
             
             // If not found, do a refresh and try again
-            print("🔄 Episode not found, forcing refresh...")
+            LogManager.shared.info("🔄 Episode not found, forcing refresh...")
             EpisodeRefresher.forceRefreshForNotification {
                 // After refresh, try to find and open the episode
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     if !self.findAndOpenEpisode(episodeID: episodeID) {
-                        print("❌ Episode still not found after refresh")
+                        LogManager.shared.error("❌ Episode still not found after refresh")
                     }
                 }
             }
@@ -189,7 +189,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                willPresent notification: UNNotification,
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let userInfo = notification.request.content.userInfo
-        print("🔔 Received notification while app in foreground: \(userInfo)")
+        LogManager.shared.info("🔔 Received notification while app in foreground: \(userInfo)")
         
         // Force refresh when notification received in foreground
         EpisodeRefresher.forceRefreshForNotification()
@@ -234,7 +234,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                         let hash = combined.md5Hash()
                         
                         if hash == episodeID {
-                            print("✅ Found episode by hash match: \(episode.title ?? "Unknown")")
+                            LogManager.shared.info("✅ Found episode by hash match: \(episode.title ?? "Unknown")")
                             print("   📍 Matched: \(feedUrl) + \(guid) = \(hash)")
                             DispatchQueue.main.async {
                                 NotificationCenter.default.post(name: .didTapEpisodeNotification, object: episode.id)
@@ -243,22 +243,22 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                         }
                     }
                 } catch {
-                    print("❌ Error fetching episodes for podcast \(podcast.title ?? "Unknown"): \(error)")
+                    LogManager.shared.error("❌ Error fetching episodes for podcast \(podcast.title ?? "Unknown"): \(error)")
                 }
             }
             
         } catch {
-            print("❌ Error fetching subscribed podcasts: \(error)")
+            LogManager.shared.error("❌ Error fetching subscribed podcasts: \(error)")
         }
         
-        print("❌ Episode not found with Firebase ID: \(episodeID)")
+        LogManager.shared.error("❌ Episode not found with Firebase ID: \(episodeID)")
         return false
     }
     
     // MARK: - Helper Methods
     private func sendTokenToBackend(token: String) {
         guard UserManager.shared.currentUser != nil else {
-            print("❌ No current user found")
+            LogManager.shared.error("❌ No current user found")
             return
         }
         
@@ -272,7 +272,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             let feedUrls = subscribedPodcasts.compactMap { $0.feedUrl }
             
             let cleanUserID = UserManager.shared.cleanUserID
-            print("✅ Using UUID user ID for Firebase: \(cleanUserID)")
+            LogManager.shared.info("✅ Using UUID user ID for Firebase: \(cleanUserID)")
             
             // Send to Firebase Functions using Firebase SDK
             let functions = Functions.functions()
@@ -287,14 +287,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             
             registerUser.call(data) { result, error in
                 if let error = error {
-                    print("❌ Failed to register user with Firebase Functions: \(error)")
+                    LogManager.shared.error("❌ Failed to register user with Firebase Functions: \(error)")
                 } else {
-                    print("✅ User registered successfully with Firebase Functions")
+                    LogManager.shared.info("✅ User registered successfully with Firebase Functions")
                 }
             }
             
         } catch {
-            print("❌ Failed to fetch subscribed podcasts: \(error)")
+            LogManager.shared.error("❌ Failed to fetch subscribed podcasts: \(error)")
         }
     }
     
@@ -321,9 +321,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 }
 
                 try context.save()
-                print("✅ DEBUG: Deleted \(episodes.count) episode(s)")
+                LogManager.shared.info("✅ DEBUG: Deleted \(episodes.count) episode(s)")
             } catch {
-                print("❌ DEBUG purge failed: \(error)")
+                LogManager.shared.error("❌ DEBUG purge failed: \(error)")
             }
         }
     }

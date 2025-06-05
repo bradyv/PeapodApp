@@ -15,7 +15,7 @@ func shouldSendNotifications() -> Bool {
 
 func sendNewEpisodeNotification(for episode: Episode) {
     guard shouldSendNotifications() else {
-        print("📵 Notifications disabled in app settings")
+        LogManager.shared.warning("📵 Notifications disabled in app settings")
         return
     }
     
@@ -42,7 +42,7 @@ func sendNewEpisodeNotification(for episode: Episode) {
                     sendNotificationWithoutImage(content: content, title: title)
                 }
             case .failure(let error):
-                print("❌ Failed to retrieve cached image: \(error.localizedDescription)")
+                LogManager.shared.error("❌ Failed to retrieve cached image: \(error.localizedDescription)")
                 sendNotificationWithoutImage(content: content, title: title)
             }
         }
@@ -53,7 +53,7 @@ func sendNewEpisodeNotification(for episode: Episode) {
 
 private func sendNotificationWithCachedImage(image: UIImage, content: UNMutableNotificationContent, title: String) {
     guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-        print("❌ Failed to convert image to JPEG data")
+        LogManager.shared.error("❌ Failed to convert image to JPEG data")
         sendNotificationWithoutImage(content: content, title: title)
         return
     }
@@ -73,13 +73,13 @@ private func sendNotificationWithCachedImage(image: UIImage, content: UNMutableN
             try? FileManager.default.removeItem(at: tempURL)
             
             if let error = error {
-                print("❌ Failed to schedule notification: \(error.localizedDescription)")
+                LogManager.shared.error("❌ Failed to schedule notification: \(error.localizedDescription)")
             } else {
-                print("✅ Notification sent for \(title) with cached image")
+                LogManager.shared.info("✅ Notification sent for \(title) with cached image")
             }
         }
     } catch {
-        print("❌ Failed to create image attachment: \(error.localizedDescription)")
+        LogManager.shared.error("❌ Failed to create image attachment: \(error.localizedDescription)")
         // Clean up temp file on error
         try? FileManager.default.removeItem(at: tempURL)
         sendNotificationWithoutImage(content: content, title: title)
@@ -95,9 +95,9 @@ private func sendNotificationWithoutImage(content: UNMutableNotificationContent,
     
     UNUserNotificationCenter.current().add(request) { error in
         if let error = error {
-            print("❌ Failed to schedule notification: \(error.localizedDescription)")
+            LogManager.shared.error("❌ Failed to schedule notification: \(error.localizedDescription)")
         } else {
-            print("✅ Notification sent for \(title)")
+            LogManager.shared.info("✅ Notification sent for \(title)")
         }
     }
 }

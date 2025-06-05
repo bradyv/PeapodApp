@@ -9,9 +9,7 @@ import SwiftUI
 import CoreData
 
 struct ContentView: View {
-    @EnvironmentObject var appStateManager: AppStateManager
     @Environment(\.managedObjectContext) private var context
-    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var toastManager: ToastManager
     @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
@@ -37,24 +35,8 @@ struct ContentView: View {
                 }
                 .maskEdge(.top)
                 .maskEdge(.bottom)
-                .onChange(of: scenePhase) { oldPhase, newPhase in
-                    if newPhase == .active {
-                        // Clear badge when app becomes active
-                        UIApplication.shared.applicationIconBadgeNumber = 0
-                        
-                        // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
-                        let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
-                        if timeSinceLastRefresh > 30 {
-                            print("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-                            forceRefreshPodcasts()
-                        } else {
-                            print("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-                        }
-                    }
-                }
                 .scrollDisabled(subscriptions.isEmpty)
                 .refreshable {
-                    // Manual pull to refresh - always allow
                     refreshPodcasts(source: "pull-to-refresh")
                 }
                 
@@ -108,22 +90,7 @@ struct ContentView: View {
                 episodesViewModel.setup(context: context)
             }
             
-            // 🚀 NEW: Only refresh on first appear or after significant time gap
-            let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
-            if timeSinceLastRefresh > 30 {
-                print("📱 ContentView appeared - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-                forceRefreshPodcasts()
-            } else {
-                print("📱 ContentView appeared - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-            }
-            
             checkPendingNotification()
-        }
-        .onChange(of: appStateManager.currentState) { oldState, newState in
-            if oldState != .main && newState == .main {
-                // Sync subscriptions when app enters main state
-                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
             if let id = notification.object as? String {
@@ -132,10 +99,10 @@ struct ContentView: View {
                 fetchRequest.fetchLimit = 1
                 
                 if let foundEpisode = try? context.fetch(fetchRequest).first {
-                    print("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
+                    LogManager.shared.info("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
                     selectedEpisode = foundEpisode
                 } else {
-                    print("❌ Could not find episode for id \(id)")
+                    LogManager.shared.error("❌ Could not find episode for id \(id)")
                 }
             }
         }
@@ -152,18 +119,18 @@ struct ContentView: View {
         lastRefreshDate = Date()
         
         toastManager.show(message: "Refreshing", icon: "arrow.trianglehead.2.clockwise")
-        print("🔄 Force refreshing all subscribed podcasts (\(source))")
+        LogManager.shared.info("🔄 Force refreshing all subscribed podcasts (\(source))")
         
         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
             toastManager.show(message: "Peapod is up to date", icon: "sparkles")
-            print("✨ \(source.capitalized) refreshed feeds at \(Date())")
+            LogManager.shared.info("✨ \(source.capitalized) refreshed feeds at \(Date())")
         }
     }
     
     private func checkPendingNotification() {
         // Check if we have a pending notification episode ID
         if let pendingID = AppDelegate.pendingNotificationEpisodeID {
-            print("🔔 Processing pending notification for episode: \(pendingID)")
+            LogManager.shared.info("🔔 Processing pending notification for episode: \(pendingID)")
             // Clear it immediately to prevent duplicate handling
             AppDelegate.pendingNotificationEpisodeID = nil
             
@@ -171,7 +138,7 @@ struct ContentView: View {
             forceRefreshPodcasts()
             
             // Delay opening the episode to allow refresh to complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 // Try to find the episode by the Firebase episode ID format
                 self.findEpisodeByFirebaseId(pendingID)
             }
@@ -183,7 +150,7 @@ struct ContentView: View {
         // Firebase episode IDs are in format: encodedFeedUrl_guid
         let components = episodeID.components(separatedBy: "_")
         guard components.count >= 2 else {
-            print("❌ Invalid episode ID format: \(episodeID)")
+            LogManager.shared.error("❌ Invalid episode ID format: \(episodeID)")
             return
         }
         
@@ -192,7 +159,7 @@ struct ContentView: View {
         
         // Decode the feed URL
         guard let feedUrl = encodedFeedUrl.removingPercentEncoding else {
-            print("❌ Could not decode feed URL: \(encodedFeedUrl)")
+            LogManager.shared.error("❌ Could not decode feed URL: \(encodedFeedUrl)")
             return
         }
         
@@ -205,24 +172,24 @@ struct ContentView: View {
         
         do {
             if let foundEpisode = try context.fetch(fetchRequest).first {
-                print("✅ Found episode from notification: \(foundEpisode.title ?? "Unknown")")
+                LogManager.shared.info("✅ Found episode from notification: \(foundEpisode.title ?? "Unknown")")
                 selectedEpisode = foundEpisode
             } else {
-                print("❌ Could not find episode with GUID: \(guid) in feed: \(feedUrl)")
+                LogManager.shared.error("❌ Could not find episode with GUID: \(guid) in feed: \(feedUrl)")
                 // Try fallback search by GUID only
                 let fallbackRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
                 fallbackRequest.predicate = NSPredicate(format: "guid == %@", guid)
                 fallbackRequest.fetchLimit = 1
                 
                 if let fallbackEpisode = try context.fetch(fallbackRequest).first {
-                    print("✅ Found episode via fallback search: \(fallbackEpisode.title ?? "Unknown")")
+                    LogManager.shared.info("✅ Found episode via fallback search: \(fallbackEpisode.title ?? "Unknown")")
                     selectedEpisode = fallbackEpisode
                 } else {
-                    print("❌ Episode not found even with fallback search")
+                    LogManager.shared.error("❌ Episode not found even with fallback search")
                 }
             }
         } catch {
-            print("❌ Error searching for episode: \(error)")
+            LogManager.shared.error("❌ Error searching for episode: \(error)")
         }
     }
 }

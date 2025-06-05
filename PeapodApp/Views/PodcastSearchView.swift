@@ -24,6 +24,7 @@ struct PodcastSearchView: View {
     @State private var isLoadingUrlFeed = false
     @State private var urlFeedError: String?
     @State private var debounceWorkItem: DispatchWorkItem?
+    @State private var selectedPodcast: PodcastResult? = nil
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     var namespace: Namespace.ID
 
@@ -61,10 +62,11 @@ struct PodcastSearchView: View {
                     
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
-                            NavigationLink {
-                                PPPopover {
-                                    PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
-                                }
+                            Button {
+                                selectedPodcast = podcast
+//                                PPPopover {
+//                                    PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
+//                                }
                             } label: {
                                 VStack {
                                     FadeInView(delay: Double(index) * 0.05) {
@@ -93,10 +95,11 @@ struct PodcastSearchView: View {
                     
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(Array(topPodcasts.enumerated()), id: \.1.id) { index, podcast in
-                            NavigationLink {
-                                PPPopover {
-                                    PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
-                                }
+                            Button {
+                                selectedPodcast = podcast
+//                                PPPopover {
+//                                    PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
+//                                }
                             } label: {
                                 VStack {
                                     FadeInView(delay: Double(index) * 0.05) {
@@ -154,10 +157,18 @@ struct PodcastSearchView: View {
                         
                         VStack(spacing: 8) {
                             FadeInView(delay: 0.3) {
-                                NavigationLink {
-                                    PPPopover {
-                                        PodcastDetailLoaderView(feedUrl: urlPodcast.feedUrl ?? "", namespace: namespace)
-                                    }
+                                Button {
+                                    let podcastResult = PodcastResult(
+                                        feedUrl: urlPodcast.feedUrl ?? "",
+                                        trackName: urlPodcast.title ?? "Unknown Podcast",
+                                        artistName: urlPodcast.author ?? "Unknown Author",
+                                        artworkUrl600: urlPodcast.image ?? "",
+                                        trackId: urlPodcast.id?.hashValue ?? 0
+                                    )
+                                    selectedPodcast = podcastResult
+//                                    PPPopover {
+//                                        PodcastDetailLoaderView(feedUrl: urlPodcast.feedUrl ?? "", namespace: namespace)
+//                                    }
                                 } label: {
                                     HStack {
                                         KFImage(URL(string: urlPodcast.image ?? ""))
@@ -206,10 +217,11 @@ struct PodcastSearchView: View {
                         VStack(spacing: 8) {
                             ForEach(results, id: \.id) { podcast in
                                 FadeInView(delay: 0.3) {
-                                    NavigationLink {
-                                        PPPopover {
-                                            PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
-                                        }
+                                    Button {
+                                        selectedPodcast = podcast
+//                                        PPPopover {
+//                                            PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
+//                                        }
                                     } label: {
                                         HStack {
                                             KFImage(URL(string:podcast.artworkUrl600))
@@ -281,6 +293,10 @@ struct PodcastSearchView: View {
         .onDisappear {
             nowPlayingManager.isVisible = true
         }
+        .sheet(item: $selectedPodcast) { podcastResult in
+            PodcastDetailLoaderView(feedUrl: podcastResult.feedUrl, namespace: namespace)
+                .modifier(PPSheet())
+        }
     }
 
     func search() {
@@ -316,10 +332,10 @@ struct PodcastSearchView: View {
                 
                 if let podcast = loadedPodcast {
                     urlFeedPodcast = podcast
-                    print("✅ Successfully loaded podcast feed: \(podcast.title ?? "Unknown")")
+                    LogManager.shared.info("✅ Successfully loaded podcast feed: \(podcast.title ?? "Unknown")")
                 } else {
                     urlFeedError = "Unable to load podcast feed from this URL. Please check that it's a valid RSS feed."
-                    print("❌ Failed to load podcast from URL: \(urlString)")
+                    LogManager.shared.error("❌ Failed to load podcast from URL: \(urlString)")
                 }
             }
         }

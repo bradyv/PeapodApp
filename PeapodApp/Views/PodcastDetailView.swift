@@ -239,7 +239,7 @@ struct PodcastDetailView: View {
                                                 SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
                                                 
                                             } catch {
-                                                print("❌ Failed to save subscription change: \(error)")
+                                                LogManager.shared.error("❌ Failed to save subscription change: \(error)")
                                             }
                                         }) {
                                             Text(podcast.isSubscribed ? "Unfollow" : "Follow")
@@ -259,9 +259,6 @@ struct PodcastDetailView: View {
         .animation(.interactiveSpring(duration: 0.25), value: showSearch)
         .onAppear {
             checkNotificationStatus()
-            print("PodcastDetailView feedUrl: \(podcast?.feedUrl ?? "none")")
-            print("PodcastDetailView objectID: \(podcast?.objectID.uriRepresentation().absoluteString ?? "")")
-            print("isSubscribed: \(podcast?.isSubscribed ?? false ? "YES" : "NO")")
         }
         .fullScreenCover(isPresented: $showNotificationRequest) {
             RequestNotificationsView(

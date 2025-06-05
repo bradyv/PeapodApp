@@ -48,7 +48,7 @@ enum PodcastAPI {
                 let ids = decoded.feed.entry.map { $0.id.attributes.imID }
                 fetchPodcastResults(for: ids, completion: completion)
             } catch {
-                print("❌ Failed to decode curated podcasts: \(error)")
+                LogManager.shared.error("❌ Failed to decode curated podcasts: \(error)")
                 completion([])
             }
         }.resume()
@@ -88,7 +88,7 @@ enum PodcastAPI {
                 let ids = decoded.feed.entry.map { $0.id.attributes.imID }
                 fetchPodcastResults(for: ids, completion: completion)
             } catch {
-                print("❌ Failed to decode top podcasts: \(error)")
+                LogManager.shared.error("❌ Failed to decode top podcasts: \(error)")
                 completion([])
             }
         }.resume()
@@ -138,7 +138,10 @@ struct PodcastResult: Codable, Identifiable {
 enum PodcastLoader {
     
     static func loadFeed(from feedUrl: String, context: NSManagedObjectContext, completion: @escaping (Podcast?) -> Void) {
-        guard let url = URL(string: feedUrl) else {
+        // Convert HTTP to HTTPS for the feed URL itself
+        let httpsUrl = forceHTTPS(feedUrl) ?? feedUrl
+        
+        guard let url = URL(string: httpsUrl) else {
             completion(nil)
             return
         }
@@ -155,18 +158,28 @@ enum PodcastLoader {
                     completion(nil)
                 }
             case .failure(let error):
-                print("FeedKit error:", error)
+                LogManager.shared.error("FeedKit error: \(error)")
                 completion(nil)
             }
         }
     }
     
+    // Helper function to convert HTTP URLs to HTTPS
+    private static func forceHTTPS(_ urlString: String?) -> String? {
+        guard let urlString = urlString else { return nil }
+        return urlString.replacingOccurrences(of: "http://", with: "https://")
+    }
+    
+
+    
     static func createOrUpdatePodcast(from rss: RSSFeed, feedUrl: String, context: NSManagedObjectContext) -> Podcast {
         let podcast = fetchOrCreatePodcast(feedUrl: feedUrl, context: context, title: rss.title, author: rss.iTunes?.iTunesAuthor)
 
-        podcast.image = podcast.image ?? rss.image?.url ??
-                        rss.iTunes?.iTunesImage?.attributes?.href ??
-                        rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
+        // Convert HTTP to HTTPS for podcast images
+        podcast.image = podcast.image ??
+                        forceHTTPS(rss.image?.url) ??
+                        forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
+                        forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
 
         podcast.podcastDescription = podcast.podcastDescription ?? rss.description ??
                                       rss.iTunes?.iTunesSummary ??
@@ -211,13 +224,19 @@ enum PodcastLoader {
 
             episode.guid = item.guid?.value
             episode.title = title
-            episode.audio = item.enclosure?.attributes?.url
+            
+            // Convert HTTP to HTTPS for audio URLs
+            episode.audio = forceHTTPS(item.enclosure?.attributes?.url)
+            
             episode.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
             episode.airDate = item.pubDate
+            
             if let durationString = item.iTunes?.iTunesDuration {
                 episode.duration = Double(durationString)
             }
-            episode.episodeImage = item.iTunes?.iTunesImage?.attributes?.href ?? podcast.image
+            
+            // Convert HTTP to HTTPS for episode images
+            episode.episodeImage = forceHTTPS(item.iTunes?.iTunesImage?.attributes?.href) ?? podcast.image
         }
 
         try? context.save()

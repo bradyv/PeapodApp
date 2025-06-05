@@ -65,9 +65,9 @@ struct RequestNotificationsView: View {
                     // Enable notifications in app when system permission granted
                     UserDefaults.standard.set(true, forKey: "appNotificationsEnabled")
                     UIApplication.shared.registerForRemoteNotifications()
-                    print("✅ Notifications enabled")
+                    LogManager.shared.info("✅ Notifications enabled")
                 } else {
-                    print("❌ Notifications denied")
+                    LogManager.shared.error("❌ Notifications denied")
                 }
                 onComplete()
             }

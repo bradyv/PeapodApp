@@ -559,7 +559,7 @@ struct ActivityView: View {
                 }
             }
         } catch {
-            print("Error loading statistics: \(error)")
+            LogManager.shared.error("Error loading statistics: \(error)")
             // Keep default zero values on error
         }
     }
@@ -589,7 +589,7 @@ struct ActivityView: View {
                 }
             }
         } catch {
-            print("Error loading favorite day: \(error)")
+            LogManager.shared.error("Error loading favorite day: \(error)")
             DispatchQueue.main.async {
                 self.favoriteDayName = "Unable to load"
             }

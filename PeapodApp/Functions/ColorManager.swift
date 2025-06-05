@@ -214,10 +214,10 @@ func resetAllTints(in context: NSManagedObjectContext) {
             }
 
             try context.save()
-            print("✅ Successfully reset all tint values.")
+            LogManager.shared.info("✅ Successfully reset all tint values.")
 
         } catch {
-            print("❌ Failed to reset tints: \(error.localizedDescription)")
+            LogManager.shared.error("❌ Failed to reset tints: \(error.localizedDescription)")
         }
     }
 }

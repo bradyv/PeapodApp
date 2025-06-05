@@ -34,9 +34,9 @@ func deduplicatePodcasts(context: NSManagedObjectContext) {
         }
 
         try context.save()
-        print("✅ Podcast deduplication complete.")
+        LogManager.shared.info("✅ Podcast deduplication complete.")
     } catch {
-        print("❌ Failed to deduplicate podcasts: \(error)")
+        LogManager.shared.error("❌ Failed to deduplicate podcasts: \(error)")
     }
 }
 
@@ -112,9 +112,9 @@ func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
             }
 
             try context.save()
-            print("✅ Merged and deleted \(duplicatesFound) duplicate episode(s)")
+            LogManager.shared.info("✅ Merged and deleted \(duplicatesFound) duplicate episode(s)")
         } catch {
-            print("❌ Failed merging duplicates: \(error)")
+            LogManager.shared.error("❌ Failed merging duplicates: \(error)")
         }
     }
 }
@@ -142,9 +142,9 @@ func migrateMissingEpisodeGUIDs(context: NSManagedObjectContext) {
             }
 
             try context.save()
-            print("✅ Migration completed: GUIDs populated")
+            LogManager.shared.info("✅ Migration completed: GUIDs populated")
         } catch {
-            print("❌ Migration failed: \(error)")
+            LogManager.shared.error("❌ Migration failed: \(error)")
         }
     }
 }
@@ -167,7 +167,7 @@ func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
         let playlist = Playlist(context: context)
         playlist.name = "Queue"
         try? context.save()
-        print("✅ Created 'Queue' playlist")
+        LogManager.shared.info("✅ Created 'Queue' playlist")
     }
 }
 
@@ -196,8 +196,8 @@ func migrateOldQueueToPlaylist(context: NSManagedObjectContext) {
             episode.isQueued = true // optional: ensure legacy flag is aligned
         }
         try context.save()
-        print("✅ Migrated \(oldQueuedEpisodes.count) episodes to the playlist queue.")
+        LogManager.shared.info("✅ Migrated \(oldQueuedEpisodes.count) episodes to the playlist queue.")
     } catch {
-        print("❌ Failed to migrate queue episodes: \(error.localizedDescription)")
+        LogManager.shared.error("❌ Failed to migrate queue episodes: \(error.localizedDescription)")
     }
 }

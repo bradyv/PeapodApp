@@ -31,7 +31,7 @@ final class PersistenceController {
             if let error = error as NSError? {
                 fatalError("❌ Unresolved error loading store: \(error), \(error.userInfo)")
             } else {
-                print("✅ Successfully loaded store: \(storeDescription)")
+                LogManager.shared.info("✅ Successfully loaded store: \(storeDescription)")
             }
         }
 

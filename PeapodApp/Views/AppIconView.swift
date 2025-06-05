@@ -111,9 +111,9 @@ struct AppIconView: View {
         if isIconAvailable(icon) {
             UIApplication.shared.setAlternateIconName(icon.asset == "AppIcon-Green" ? nil : icon.asset) { error in
                 if let error = error {
-                    print("❌ Failed to switch icon: \(error)")
+                    LogManager.shared.error("❌ Failed to switch icon: \(error)")
                 } else {
-                    print("✅ Icon switched to \(icon.name)")
+                    LogManager.shared.info("✅ Icon switched to \(icon.name)")
                     withAnimation(.easeInOut(duration: 0.5)) {
                         selectedIconName = icon.asset
                     }

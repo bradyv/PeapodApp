@@ -70,7 +70,7 @@ class UserManager: ObservableObject {
             let user = try context.fetch(request).first
             self.currentUser = user
         } catch {
-            print("❌ UserManager: Failed to fetch current user: \(error)")
+            LogManager.shared.error("❌ UserManager: Failed to fetch current user: \(error)")
             self.currentUser = nil
         }
     }
@@ -92,7 +92,7 @@ class UserManager: ObservableObject {
     
     private func markSetupComplete() {
         hasCompletedInitialSetup = true
-        print("✅ UserManager: Marked initial setup as complete")
+        LogManager.shared.info("✅ UserManager: Marked initial setup as complete")
     }
     
     // MARK: - User Management
@@ -118,7 +118,7 @@ class UserManager: ObservableObject {
             if existingUser.userSince == nil {
                 existingUser.userSince = Date()
                 needsSave = true
-                print("✅ UserManager: Set userSince for existing user")
+                LogManager.shared.info("✅ UserManager: Set userSince for existing user")
             }
             
             if needsSave {
@@ -153,7 +153,7 @@ class UserManager: ObservableObject {
         saveContextSynchronously()
         loadCurrentUser() // Refresh the cached user
         
-        print("✅ UserManager: Created new user with type: listener")
+        LogManager.shared.info("✅ UserManager: Created new user with type: listener")
         return newUser
     }
     
@@ -238,7 +238,7 @@ class UserManager: ObservableObject {
             do {
                 try context.save()
             } catch {
-                print("❌ UserManager: Failed to save context: \(error)")
+                LogManager.shared.error("❌ UserManager: Failed to save context: \(error)")
             }
         }
     }

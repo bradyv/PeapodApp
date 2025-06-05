@@ -14,7 +14,7 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
     
     // Validate URL first
     guard let url = URL(string: feedUrl) else {
-        print("❌ Invalid URL: \(feedUrl)")
+        LogManager.shared.error("❌ Invalid URL: \(feedUrl)")
         completion?(false)
         return
     }
@@ -26,7 +26,7 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
         
         do {
             if let existingSubscribed = try context.fetch(fetchRequest).first {
-                print("⚠️ Already subscribed to: \(existingSubscribed.title ?? feedUrl)")
+                LogManager.shared.warning("⚠️ Already subscribed to: \(existingSubscribed.title ?? feedUrl)")
                 DispatchQueue.main.async {
                     completion?(true) // Return true since they're already subscribed
                 }
@@ -39,10 +39,10 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
             
             if let existing = try context.fetch(allExistingRequest).first {
                 context.delete(existing)
-                print("🗑️ Deleted existing unsubscribed podcast for URL: \(feedUrl)")
+                LogManager.shared.info("🗑️ Deleted existing unsubscribed podcast for URL: \(feedUrl)")
             }
         } catch {
-            print("❌ Error checking for existing podcast: \(error)")
+            LogManager.shared.error("❌ Error checking for existing podcast: \(error)")
             DispatchQueue.main.async {
                 completion?(false)
             }
@@ -59,12 +59,6 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
                         let podcast = PodcastLoader.createOrUpdatePodcast(from: rss, feedUrl: feedUrl, context: context)
                         podcast.isSubscribed = true
 
-                        // 📢 DIAGNOSTIC PRINTS
-                        print("RSS Title:", rss.title ?? "nil")
-                        print("RSS iTunes Image:", rss.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-                        print("RSS Channel Image:", rss.image?.url ?? "nil")
-                        print("RSS First Item Image:", rss.items?.first?.iTunes?.iTunesImage?.attributes?.href ?? "nil")
-
                         // 📢 MANUAL ASSIGN
                         let artworkUrl = rss.iTunes?.iTunesImage?.attributes?.href
                                       ?? rss.image?.url
@@ -78,7 +72,7 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
                         do {
                             try context.save()
                         } catch {
-                            print("❌ Error saving podcast: \(error)")
+                            LogManager.shared.error("❌ Error saving podcast: \(error)")
                             DispatchQueue.main.async {
                                 completion?(false)
                             }
@@ -92,20 +86,20 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
                                 .first {
                                 toggleQueued(latest)
                             }
-                            print("✅ Subscribed to: \(rss.title ?? feedUrl)")
+                            LogManager.shared.info("✅ Subscribed to: \(rss.title ?? feedUrl)")
                             DispatchQueue.main.async {
                                 completion?(true)
                             }
                         }
                     }
                 } else {
-                    print("❌ Failed to parse RSS feed from: \(feedUrl)")
+                    LogManager.shared.error("❌ Failed to parse RSS feed from: \(feedUrl)")
                     DispatchQueue.main.async {
                         completion?(false)
                     }
                 }
             case .failure(let error):
-                print("❌ Feed parsing failed for \(feedUrl): \(error)")
+                LogManager.shared.error("❌ Feed parsing failed for \(feedUrl): \(error)")
                 DispatchQueue.main.async {
                     completion?(false)
                 }
@@ -123,9 +117,9 @@ struct SubscribeTest: View {
             subscribeViaURL(feedUrl: "https://feeds.simplecast.com/3jYwX") { success in
                 isLoading = false
                 if success {
-                    print("✅ Successfully subscribed!")
+                    LogManager.shared.info("✅ Successfully subscribed!")
                 } else {
-                    print("❌ Failed to subscribe")
+                    LogManager.shared.error("❌ Failed to subscribe")
                 }
             }
         }) {

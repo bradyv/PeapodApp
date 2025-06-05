@@ -57,7 +57,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             try controller.performFetch()
             self.queue = controller.fetchedObjects ?? []
         } catch {
-            print("Failed to fetch queue episodes: \(error)")
+            LogManager.shared.error("Failed to fetch queue episodes: \(error)")
         }
 
         self.queueController = controller
@@ -81,7 +81,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             try controller.performFetch()
             self.saved = controller.fetchedObjects ?? []
         } catch {
-            print("Failed to fetch saved episodes: \(error)")
+            LogManager.shared.error("Failed to fetch saved episodes: \(error)")
         }
 
         self.savedController = controller
@@ -105,7 +105,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             try controller.performFetch()
             self.favs = controller.fetchedObjects ?? []
         } catch {
-            print("Failed to fetch fav episodes: \(error)")
+            LogManager.shared.error("Failed to fetch fav episodes: \(error)")
         }
 
         self.favsController = controller
@@ -160,7 +160,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             try queueController?.performFetch()
             self.queue = queueController?.fetchedObjects ?? []
         } catch {
-            print("Failed to update queue: \(error)")
+            LogManager.shared.error("Failed to update queue: \(error)")
         }
     }
 }

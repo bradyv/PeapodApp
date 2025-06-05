@@ -48,7 +48,7 @@ enum PodcastAPI {
                 let ids = decoded.feed.entry.map { $0.id.attributes.imID }
                 fetchPodcastResults(for: ids, completion: completion)
             } catch {
-                print("❌ Failed to decode curated podcasts: \(error)")
+                LogManager.shared.error("❌ Failed to decode curated podcasts: \(error)")
                 completion([])
             }
         }.resume()
@@ -88,7 +88,7 @@ enum PodcastAPI {
                 let ids = decoded.feed.entry.map { $0.id.attributes.imID }
                 fetchPodcastResults(for: ids, completion: completion)
             } catch {
-                print("❌ Failed to decode top podcasts: \(error)")
+                LogManager.shared.error("❌ Failed to decode top podcasts: \(error)")
                 completion([])
             }
         }.resume()
@@ -158,7 +158,7 @@ enum PodcastLoader {
                     completion(nil)
                 }
             case .failure(let error):
-                print("FeedKit error:", error)
+                LogManager.shared.error("FeedKit error: \(error)")
                 completion(nil)
             }
         }

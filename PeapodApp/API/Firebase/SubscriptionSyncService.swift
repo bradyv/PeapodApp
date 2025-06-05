@@ -17,7 +17,7 @@ class SubscriptionSyncService {
     
     func syncSubscriptionsWithBackend() {
         guard let fcmToken = Messaging.messaging().fcmToken else {
-            print("❌ No FCM token available")
+            LogManager.shared.error("❌ No FCM token available")
             return
         }
         
@@ -44,14 +44,14 @@ class SubscriptionSyncService {
             
             updateSubscriptions.call(data) { result, error in
                 if let error = error {
-                    print("❌ Failed to sync subscriptions with Firebase Functions: \(error)")
+                    LogManager.shared.error("❌ Failed to sync subscriptions with Firebase Functions: \(error)")
                 } else {
-                    print("✅ Subscriptions synced successfully with Firebase Functions")
+                    LogManager.shared.info("✅ Subscriptions synced successfully with Firebase Functions")
                 }
             }
             
         } catch {
-            print("❌ Failed to fetch subscribed podcasts: \(error)")
+            LogManager.shared.error("❌ Failed to fetch subscribed podcasts: \(error)")
         }
     }
     

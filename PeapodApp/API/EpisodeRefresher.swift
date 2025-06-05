@@ -31,10 +31,10 @@ class EpisodeRefresher {
     }
     
     static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
-        print("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown")")
+        LogManager.shared.info("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown")")
         
         guard let feedUrl = podcast.feedUrl else {
-            print("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
+            LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
             completion?()
             return
         }
@@ -43,7 +43,7 @@ class EpisodeRefresher {
         let httpsUrl = forceHTTPS(feedUrl) ?? feedUrl
         
         guard let url = URL(string: httpsUrl) else {
-            print("❌ Invalid feed URL for: \(podcast.title ?? "Unknown")")
+            LogManager.shared.error("❌ Invalid feed URL for: \(podcast.title ?? "Unknown")")
             completion?()
             return
         }
@@ -71,12 +71,12 @@ class EpisodeRefresher {
         // 🚀 Step 1: Check headers first
         checkFeedHeaders(url: url, podcast: podcast) { shouldRefresh, cachedEntry in
             if !shouldRefresh {
-                print("⚡ \(podcast.title ?? "Podcast"): No changes detected via headers, skipping")
+                LogManager.shared.info("⚡ \(podcast.title ?? "Podcast"): No changes detected via headers, skipping")
                 completion?()
                 return
             }
             
-            print("🔄 \(podcast.title ?? "Podcast"): Changes detected, downloading feed...")
+            LogManager.shared.info("🔄 \(podcast.title ?? "Podcast"): Changes detected, downloading feed...")
             
             // 🚀 Step 2: Only download and parse if headers indicate changes
             downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: cachedEntry, completion: completion)
@@ -107,7 +107,7 @@ class EpisodeRefresher {
             DispatchQueue.main.async {
                 guard let httpResponse = response as? HTTPURLResponse else {
                     // If HEAD request fails, assume we should refresh
-                    print("⚠️ HEAD request failed for \(podcast.title ?? "podcast"), will refresh anyway")
+                    LogManager.shared.warning("⚠️ HEAD request failed for \(podcast.title ?? "podcast"), will refresh anyway")
                     completion(true, cachedEntry)
                     return
                 }
@@ -195,7 +195,7 @@ class EpisodeRefresher {
                             podcast: podcast,
                             context: context,
                             completion: {
-                                print("✅ Completed refresh for: \(podcast.title ?? "Unknown")")
+                                LogManager.shared.info("✅ Completed refresh for: \(podcast.title ?? "Unknown")")
                                 completion?()
                             }
                         )
@@ -204,7 +204,7 @@ class EpisodeRefresher {
                     completion?()
                 }
             case .failure(let error):
-                print("❌ Failed to parse feed for \(podcast.title ?? "podcast"): \(error)")
+                LogManager.shared.error("❌ Failed to parse feed for \(podcast.title ?? "podcast"): \(error)")
                 completion?()
             }
         }
@@ -290,10 +290,10 @@ class EpisodeRefresher {
             do {
                 try context.save()
                 if totalNewEpisodes > 0 {
-                    print("✅ \(podcast.title ?? "Podcast"): \(totalNewEpisodes) new episodes saved")
+                    LogManager.shared.info("✅ \(podcast.title ?? "Podcast"): \(totalNewEpisodes) new episodes saved")
                 }
             } catch {
-                print("❌ Error saving podcast refresh: \(error)")
+                LogManager.shared.error("❌ Error saving podcast refresh: \(error)")
             }
         } else {
             // Add this logging to see when no changes are made
@@ -329,7 +329,7 @@ class EpisodeRefresher {
                 }
             }
         } catch {
-            print("❌ Error fetching existing episodes: \(error)")
+            LogManager.shared.error("❌ Error fetching existing episodes: \(error)")
         }
         
         return episodeMap
@@ -511,7 +511,7 @@ class EpisodeRefresher {
         do {
             try context.save()
         } catch {
-            print("❌ Error saving context during batch processing: \(error)")
+            LogManager.shared.error("❌ Error saving context during batch processing: \(error)")
         }
     }
     
@@ -562,7 +562,7 @@ class EpisodeRefresher {
                 do {
                     if backgroundContext.hasChanges {
                         try backgroundContext.save()
-                        print("✅ Background context saved after smart refresh")
+                        LogManager.shared.info("✅ Background context saved after smart refresh")
                     } else {
                         print("ℹ️ No background context changes to save")
                     }
@@ -571,7 +571,7 @@ class EpisodeRefresher {
                     mergeDuplicateEpisodes(context: backgroundContext)
                     
                 } catch {
-                    print("❌ Failed to save background context: \(error)")
+                    LogManager.shared.error("❌ Failed to save background context: \(error)")
                 }
                 
                 DispatchQueue.main.async {
@@ -596,7 +596,7 @@ class EpisodeRefresher {
         
         UserDefaults.standard.set(now, forKey: lastNotificationRefreshKey)
         
-        print("🔔 Force smart refreshing for notification")
+        LogManager.shared.info("🔔 Force smart refreshing for notification")
         let context = PersistenceController.shared.container.newBackgroundContext()
         refreshAllSubscribedPodcasts(context: context, completion: completion)
     }

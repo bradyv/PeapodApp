@@ -332,10 +332,10 @@ struct PodcastSearchView: View {
                 
                 if let podcast = loadedPodcast {
                     urlFeedPodcast = podcast
-                    print("✅ Successfully loaded podcast feed: \(podcast.title ?? "Unknown")")
+                    LogManager.shared.info("✅ Successfully loaded podcast feed: \(podcast.title ?? "Unknown")")
                 } else {
                     urlFeedError = "Unable to load podcast feed from this URL. Please check that it's a valid RSS feed."
-                    print("❌ Failed to load podcast from URL: \(urlString)")
+                    LogManager.shared.error("❌ Failed to load podcast from URL: \(urlString)")
                 }
             }
         }

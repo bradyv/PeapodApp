@@ -197,12 +197,12 @@ class SubscriptionManager: ObservableObject {
         case .autoRenewable:
             isSubscriberLocal = true
             subscriptionPurchaseDate = Date()
-            print("✅ Subscription purchase completed")
+            LogManager.shared.info("✅ Subscription purchase completed")
             
         case .nonConsumable:
             hasLifetimeAccessLocal = true
             lifetimePurchaseDate = Date()
-            print("✅ Lifetime purchase completed")
+            LogManager.shared.info("✅ Lifetime purchase completed")
             
         default:
             break
@@ -271,7 +271,7 @@ class SubscriptionManager: ObservableObject {
                 subscriptionPurchaseDate = Date()
             }
             statusChanged = true
-            print("✅ Subscription restored from entitlements")
+            LogManager.shared.info("✅ Subscription restored from entitlements")
         } else if !hasSubscriptions && isSubscriberLocal {
             isSubscriberLocal = false
             subscriptionPurchaseDate = nil
@@ -289,7 +289,7 @@ class SubscriptionManager: ObservableObject {
                 lifetimePurchaseDate = Date()
             }
             statusChanged = true
-            print("✅ Lifetime access restored from entitlements")
+            LogManager.shared.info("✅ Lifetime access restored from entitlements")
         }
         
         if statusChanged {

@@ -279,7 +279,7 @@ struct WelcomeView: View {
             .interactiveDismissDisabled()
         }
         .onAppear {
-            checkIfReturningUser()
+//            checkIfReturningUser()
             PodcastAPI.fetchTopPodcasts(limit: 30) { podcasts in
                 self.topPodcasts = podcasts
             }
@@ -291,27 +291,27 @@ struct WelcomeView: View {
         }
     }
     
-    private func checkIfReturningUser() {
-        let container = CKContainer(identifier: "iCloud.com.bradyv.PeapodApp")
-        
-        container.accountStatus { accountStatus, error in
-            DispatchQueue.main.async {
-                switch accountStatus {
-                case .available:
-                    // User is signed into iCloud - they're a returning user
-                    isReturningUser = true
-                    print("✅ iCloud available - returning user")
-                case .noAccount, .restricted, .couldNotDetermine:
-                    // No iCloud account - new user
-                    isReturningUser = false
-                    print("📱 No iCloud - new user")
-                @unknown default:
-                    isReturningUser = false
-                    print("📱 Unknown iCloud status - new user")
-                }
-            }
-        }
-    }
+//    private func checkIfReturningUser() {
+//        let container = CKContainer(identifier: "iCloud.com.bradyv.PeapodApp")
+//        
+//        container.accountStatus { accountStatus, error in
+//            DispatchQueue.main.async {
+//                switch accountStatus {
+//                case .available:
+//                    // User is signed into iCloud - they're a returning user
+//                    isReturningUser = true
+//                    print("✅ iCloud available - returning user")
+//                case .noAccount, .restricted, .couldNotDetermine:
+//                    // No iCloud account - new user
+//                    isReturningUser = false
+//                    print("📱 No iCloud - new user")
+//                @unknown default:
+//                    isReturningUser = false
+//                    print("📱 Unknown iCloud status - new user")
+//                }
+//            }
+//        }
+//    }
     
     private func startDataSyncCheck() {
         isLoadingUserData = true

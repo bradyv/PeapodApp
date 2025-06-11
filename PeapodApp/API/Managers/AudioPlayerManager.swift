@@ -850,7 +850,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .defaultToSpeaker])
             try session.setActive(true)
         } catch {
             LogManager.shared.error("❌ Failed to configure audio session: \(error)")
@@ -870,20 +870,46 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
         
-        if type == .began {
+        switch type {
+        case .began:
+            LogManager.shared.info("🔇 Audio interruption began")
+            // Save position immediately when interrupted
             if let episode = playbackState.episode {
                 savePositionImmediately(for: episode, position: playbackState.position)
             }
-            pause()
-        } else if type == .ended {
-            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt,
-               AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    if !self.playbackState.isPlaying && self.playbackState.episode != nil {
+            // Let the system handle pausing - don't manually pause here
+            
+        case .ended:
+            LogManager.shared.info("🔊 Audio interruption ended")
+            
+            // Check if we should resume
+            let shouldResume: Bool
+            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                shouldResume = options.contains(.shouldResume)
+            } else {
+                shouldResume = false
+            }
+            
+            LogManager.shared.info("🎵 Should auto-resume: \(shouldResume)")
+            
+            // CRITICAL: Only auto-resume for specific interruption types (like phone calls)
+            // NOT for device lock, app backgrounding, or route changes
+            if shouldResume && playbackState.episode != nil && !playbackState.isPlaying {
+                // Add a small delay and double-check the app state
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    // Only resume if the app is in foreground and we're not manually paused
+                    if UIApplication.shared.applicationState == .active {
+                        LogManager.shared.info("🎵 Auto-resuming after interruption")
                         self.resume()
+                    } else {
+                        LogManager.shared.info("🚫 App not active - skipping auto-resume")
                     }
                 }
             }
+            
+        @unknown default:
+            break
         }
     }
     
@@ -894,26 +920,62 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         switch reason {
         case .oldDeviceUnavailable:
+            // This handles AirPods removal, headphones unplugged, etc.
             LogManager.shared.info("🔌 Audio device disconnected")
-            pause()
+            
+            // Check if we were playing before the disconnect
+            let wasPlaying = playbackState.isPlaying
+            
+            if wasPlaying {
+                // Save position before pausing
+                if let episode = playbackState.episode {
+                    savePositionImmediately(for: episode, position: playbackState.position)
+                }
+                pause()
+            }
+            
+        case .newDeviceAvailable:
+            // This handles AirPods reconnection, headphones plugged in, etc.
+            LogManager.shared.info("🔌 Audio device connected")
+            
+            // For AirPods specifically, we want to auto-resume
+            let currentRoute = AVAudioSession.sharedInstance().currentRoute
+            let isAirPodsConnected = currentRoute.outputs.contains { output in
+                output.portType == .bluetoothA2DP || output.portType == .bluetoothHFP
+            }
+            
+            if isAirPodsConnected && playbackState.episode != nil && !playbackState.isPlaying {
+                // Small delay to ensure the route change is complete
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    LogManager.shared.info("🎧 AirPods reconnected - auto-resuming")
+                    self.resume()
+                }
+            }
+            
+        case .categoryChange, .override:
+            // Don't auto-resume for these - they're usually system-initiated
+            LogManager.shared.info("🔄 Audio route changed: \(reason)")
+            
         default:
+            LogManager.shared.info("🔄 Audio route changed: \(reason)")
             break
         }
     }
     
     @objc private func appDidEnterBackground() {
-        wasPlayingBeforeBackground = playbackState.isPlaying
-        
+        // Don't pause automatically - let the system handle it
+        // Just save the current state
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
         }
         
-        LogManager.shared.info("📱 App backgrounded - was playing: \(wasPlayingBeforeBackground)")
+        LogManager.shared.info("📱 App backgrounded - was playing: \(playbackState.isPlaying)")
     }
-    
+
     @objc private func appWillEnterForeground() {
         LogManager.shared.info("📱 App foregrounding")
         
+        // Reset any tracking variables
         wasPlayingBeforeBackground = false
     }
     

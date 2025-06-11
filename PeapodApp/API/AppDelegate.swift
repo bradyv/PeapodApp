@@ -27,6 +27,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
         UserManager.shared.setupCurrentUser()
+        
+        performStartupCleanup()
 
         // Keep cleanup task for old episodes
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1", using: nil) { task in
@@ -328,25 +330,103 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
     }
 
-    private func handleOldEpisodeCleanup(task: BGAppRefreshTask) {
-        scheduleEpisodeCleanup() // Reschedule for next week
+    // MARK: - Cleanup Functions
 
+    /// Performs comprehensive cleanup of unsubscribed podcasts and episodes on app startup
+    private func performStartupCleanup() {
+        LogManager.shared.info("🧹 Starting app startup cleanup")
+        
         let context = PersistenceController.shared.container.newBackgroundContext()
         context.perform {
-            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "(podcast = nil OR podcast.isSubscribed != YES) AND isSaved == NO AND isPlayed == NO")
-
             do {
-                let results = try context.fetch(fetchRequest)
-                for episode in results {
-                    context.delete(episode)
+                let (deletedEpisodes, deletedPodcasts) = try self.cleanupUnsubscribedContent(in: context)
+                
+                LogManager.shared.info("✅ Startup cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts deleted")
+                
+                // Optional: Post notification for UI updates if needed
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .didCompleteStartupCleanup, object: nil)
                 }
-                try context.save()
+                
             } catch {
-                print("Background cleanup failed: \(error)")
+                LogManager.shared.error("❌ Startup cleanup failed: \(error)")
             }
+        }
+    }
 
-            task.setTaskCompleted(success: true)
+    /// Core cleanup logic that can be reused by both startup and background tasks
+    private func cleanupUnsubscribedContent(in context: NSManagedObjectContext) throws -> (episodesDeleted: Int, podcastsDeleted: Int) {
+        var deletedEpisodes = 0
+        var deletedPodcasts = 0
+        
+        // Step 1: Clean up episodes from unsubscribed podcasts (but preserve saved/played/queued ones)
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.predicate = NSPredicate(format:
+            "podcast.isSubscribed == NO AND isSaved == NO AND isPlayed == NO AND isQueued == NO"
+        )
+        
+        let episodesToDelete = try context.fetch(episodeRequest)
+        LogManager.shared.info("🗑️ Found \(episodesToDelete.count) episodes to delete from unsubscribed podcasts")
+        
+        for episode in episodesToDelete {
+            let title = episode.title ?? "Untitled"
+            let podcastTitle = episode.podcast?.title ?? "Unknown Podcast"
+            LogManager.shared.debug("   - Deleting episode: \(title) from \(podcastTitle)")
+            context.delete(episode)
+            deletedEpisodes += 1
+        }
+        
+        // Step 2: Clean up podcasts that are unsubscribed and have no remaining episodes
+        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        podcastRequest.predicate = NSPredicate(format: "isSubscribed == NO")
+        
+        let unsubscribedPodcasts = try context.fetch(podcastRequest)
+        LogManager.shared.info("🔍 Found \(unsubscribedPodcasts.count) unsubscribed podcasts to evaluate")
+        
+        for podcast in unsubscribedPodcasts {
+            // Check if podcast has any remaining episodes (saved, played, or queued)
+            let remainingEpisodesRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+            remainingEpisodesRequest.predicate = NSPredicate(format:
+                "podcast == %@ AND (isSaved == YES OR isPlayed == YES OR isQueued == YES)",
+                podcast
+            )
+            remainingEpisodesRequest.fetchLimit = 1 // We only need to know if any exist
+            
+            let remainingEpisodes = try context.fetch(remainingEpisodesRequest)
+            
+            if remainingEpisodes.isEmpty {
+                // Safe to delete this podcast as it has no saved/played/queued episodes
+                let title = podcast.title ?? "Unknown Podcast"
+                LogManager.shared.debug("   - Deleting podcast: \(title)")
+                context.delete(podcast) // This will cascade delete any remaining episodes
+                deletedPodcasts += 1
+            } else {
+                LogManager.shared.debug("   - Keeping podcast: \(podcast.title ?? "Unknown") (has \(remainingEpisodes.count) preserved episodes)")
+            }
+        }
+        
+        // Save all changes
+        if context.hasChanges {
+            try context.save()
+        }
+        
+        return (deletedEpisodes, deletedPodcasts)
+    }
+
+    /// Updated background task handler to use the same cleanup logic
+    private func handleOldEpisodeCleanup(task: BGAppRefreshTask) {
+        scheduleEpisodeCleanup() // Reschedule for next week
+        
+        let context = PersistenceController.shared.container.newBackgroundContext()
+        context.perform {
+            do {
+                let (deletedEpisodes, deletedPodcasts) = try self.cleanupUnsubscribedContent(in: context)
+                LogManager.shared.info("✅ Background cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts deleted")
+                task.setTaskCompleted(success: true)
+            } catch {
+                LogManager.shared.error("❌ Background cleanup failed: \(error)")
+                task.setTaskCompleted(success: false)
+            }
         }
     }
 
@@ -368,4 +448,9 @@ extension String {
         let hash = Insecure.MD5.hash(data: data)
         return hash.map { String(format: "%02hhx", $0) }.joined()
     }
+}
+
+
+extension Notification.Name {
+    static let didCompleteStartupCleanup = Notification.Name("didCompleteStartupCleanup")
 }

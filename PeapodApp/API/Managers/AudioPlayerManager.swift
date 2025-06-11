@@ -324,7 +324,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         playerObservations.append(rateObserver)
         
-        // Time observer (for position updates)
+        // Time observer (for position updates) - FIXED
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.5, preferredTimescale: 10),
             queue: .main
@@ -336,9 +336,24 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                   !self.isSeekingManually else { return }
             
             let newPosition = time.seconds
+            guard newPosition.isFinite && newPosition >= 0 else { return }
             
-            // Check for end of episode
-            if newPosition >= self.playbackState.duration - 0.5 && self.playbackState.duration > 0 {
+            // Check if player actually stopped (rate = 0) but we're still near the end
+            let playerRate = self.player?.rate ?? 0
+            let duration = self.playbackState.duration
+            let isNearEnd = duration > 0 && newPosition >= (duration - 3.0) // 3 second buffer
+            let hasValidDuration = duration > 10 // At least 10 seconds long
+            
+            // CRITICAL: Detect if player stopped playing near the end (background completion)
+            if isNearEnd && hasValidDuration && playerRate == 0 && self.playbackState.isPlaying {
+                LogManager.shared.info("🏁 Background episode completion detected: pos=\(newPosition), duration=\(duration), rate=\(playerRate)")
+                self.handleEpisodeEnd()
+                return
+            }
+            
+            // Normal end detection for foreground
+            if isNearEnd && hasValidDuration && playerRate > 0 {
+                LogManager.shared.info("🏁 Foreground episode ending detected: pos=\(newPosition), duration=\(duration)")
                 self.handleEpisodeEnd()
                 return
             }
@@ -379,9 +394,52 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 }
             }
             playerObservations.append(statusObserver)
+            
+            // ADD: Player item ended notification observer
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: currentItem,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self = self else { return }
+                guard self.playbackState.episodeID == episodeID else { return }
+                
+                LogManager.shared.info("🏁 AVPlayerItemDidPlayToEndTime notification received")
+                // Small delay to ensure any final time updates are processed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.handleEpisodeEnd()
+                }
+            }
+            
+            // ADD: Player stalled notification (backup detection)
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemPlaybackStalled,
+                object: currentItem,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self = self else { return }
+                guard self.playbackState.episodeID == episodeID else { return }
+                
+                // Check if we stalled near the end (might be completion)
+                let currentTime = self.player?.currentTime().seconds ?? 0
+                let duration = self.playbackState.duration
+                
+                if duration > 0 && currentTime >= (duration - 10.0) && duration > 10 {
+                    LogManager.shared.info("🏁 Player stalled near end - checking for completion: pos=\(currentTime), duration=\(duration)")
+                    
+                    // Wait a moment and check if we're actually at the end
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        let finalTime = self.player?.currentTime().seconds ?? 0
+                        if finalTime >= (duration - 5.0) {
+                            LogManager.shared.info("🏁 Confirmed episode completion via stall detection")
+                            self.handleEpisodeEnd()
+                        }
+                    }
+                }
+            }
         }
     }
-    
+
     // MARK: - Position Management
     private func savePositionIfNeeded() {
         guard let episode = playbackState.episode else { return }
@@ -522,10 +580,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func handleEpisodeEnd() {
         guard let episode = playbackState.episode else { return }
         
-        LogManager.shared.info("🏁 Episode finished")
+        LogManager.shared.info("🏁 Episode finished: \(episode.title?.prefix(30) ?? "Episode")")
         
         let context = episode.managedObjectContext ?? viewContext
         let wasPlayed = episode.isPlayed
+        
+        // Cancel any pending position saves FIRST
+        positionSaveTimer?.invalidate()
+        positionSaveTimer = nil
         
         // Mark as played (same pattern as markAsPlayed)
         episode.isPlayed = true
@@ -539,29 +601,38 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             podcast.playedSeconds += playbackState.duration
         }
         
-        // Cancel any pending position saves
-        positionSaveTimer?.invalidate()
-        positionSaveTimer = nil
-        
         // Remove from queue in same transaction
         if !wasPlayed {
+            LogManager.shared.info("🗑️ Removing finished episode from queue")
             removeFromQueue(episode)
         }
         
         // Single save for all changes
-        try? context.save()
+        do {
+            try context.save()
+            LogManager.shared.info("✅ Episode marked as played and saved")
+        } catch {
+            LogManager.shared.error("❌ Failed to save episode completion: \(error)")
+        }
         
-        // Clear player state AFTER saving
-        clearState()
-        cleanupPlayer()
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        // Clear player state AFTER saving (only if not already cleared by removeFromQueue)
+        if playbackState.episode != nil {
+            LogManager.shared.info("🔄 Clearing player state after episode completion")
+            clearState()
+            cleanupPlayer()
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        } else {
+            LogManager.shared.info("🔄 Player state already cleared by queue removal")
+        }
         
-        // Check for autoplay
+        // Check for autoplay AFTER clearing state
         if autoplayNext {
             let queuedEpisodes = fetchQueuedEpisodes()
             if let nextEpisode = queuedEpisodes.first {
-                LogManager.shared.info("🔄 Auto-playing next episode")
-                startPlayback(for: nextEpisode)
+                LogManager.shared.info("🔄 Auto-playing next episode: \(nextEpisode.title?.prefix(30) ?? "Next")")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.startPlayback(for: nextEpisode)
+                }
                 return
             }
         }
@@ -569,7 +640,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Final queue status check
         checkQueueStatusAfterRemoval()
     }
-    
+
     private func handlePlayerError() {
         // Try to recover once
         if let episode = playbackState.episode {
@@ -672,28 +743,33 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             positionSaveTimer = nil
             
             // Clear state immediately without saving current position
+            LogManager.shared.info("🛑 Stopping player for manual mark as played")
             clearState()
             cleanupPlayer()
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-            LogManager.shared.info("🛑 Player stopped for mark as played")
         }
         
         // Remove from queue if episode was just marked as played (not unmarked)
         if !wasPlayed && episode.isPlayed {
-            // Use the global removeFromQueue function
+            LogManager.shared.info("🗑️ Removing manually marked episode from queue")
             removeFromQueue(episode)
             
             // Check if we need to clear player state after queue removal
             checkQueueStatusAfterRemoval()
         }
         
-        try? context.save()
+        do {
+            try context.save()
+            LogManager.shared.info("✅ Manual mark as played completed")
+        } catch {
+            LogManager.shared.error("❌ Failed to save manual mark as played: \(error)")
+        }
         
         DispatchQueue.main.async {
             self.objectWillChange.send()
         }
     }
-    
+
     func writeActualDuration(for episode: Episode) {
         guard episode.actualDuration <= 0,
               let urlString = episode.audio,

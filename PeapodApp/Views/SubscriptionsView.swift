@@ -47,17 +47,12 @@ struct SubscriptionsView: View {
                         .matchedTransitionSource(id: "ppsearch", in: namespace)
                     }
 
-                    // Real podcasts
+                    // Real podcasts - optimized for scroll performance
                     if !subscriptions.isEmpty {
-                        ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" })) { podcast in
-                            KFImage(URL(string: podcast.image ?? ""))
-                                .resizable()
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .aspectRatio(1, contentMode: .fit)
-                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
-                                .onTapGesture {
-                                    selectedPodcast = podcast
-                                }
+                        ForEach(subscriptions, id: \.objectID) { podcast in
+                            PodcastGridItem(podcast: podcast) {
+                                selectedPodcast = podcast
+                            }
                         }
                     }
                 }
@@ -93,5 +88,27 @@ struct SubscriptionsView: View {
             PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace:namespace)
                 .modifier(PPSheet())
         }
+    }
+}
+
+// MARK: - Optimized Podcast Grid Item for Scroll Performance
+struct PodcastGridItem: View {
+    let podcast: Podcast
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            KFImage(URL(string: podcast.image ?? ""))
+                .placeholder {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.surface)
+                }
+                .resizable()
+                .aspectRatio(1, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+        }
+        .buttonStyle(PlainButtonStyle())
+        .drawingGroup() // Render as single composited layer
     }
 }

@@ -172,8 +172,14 @@ extension Podcast {
     static func subscriptionsFetchRequest() -> NSFetchRequest<Podcast> {
         let request = Podcast.fetchRequest()
         request.predicate = NSPredicate(format: "isSubscribed == YES")
+        // Sort at database level, not in SwiftUI
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Podcast.title, ascending: true)]
         request.fetchBatchSize = 20
+        
+        // Scroll performance optimizations
+        request.returnsObjectsAsFaults = false // Avoid faulting during scroll
+        request.includesPropertyValues = true
+        
         return request
     }
     

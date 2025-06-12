@@ -123,7 +123,7 @@ struct ContentView: View {
         
         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
             toastManager.show(message: "Peapod is up to date", icon: "sparkles")
-            LogManager.shared.info("✨ \(source.capitalized) refreshed feeds at \(Date())")
+            LogManager.shared.info("✨ \(source.capitalized) refreshed feeds")
         }
     }
     

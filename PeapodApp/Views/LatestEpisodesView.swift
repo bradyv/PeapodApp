@@ -148,10 +148,11 @@ struct LatestEpisodesView: View {
         .toast()
         .maskEdge(.top)
         .maskEdge(.bottom)
-//        .refreshable {
-//            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-////                toastManager.show(message: "Refreshed all episodes", icon: "sparkles")
-//            }
-//        }
+        .refreshable {
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+                LogManager.shared.info("✨ Refreshed latest episodes")
+            }
+        }
     }
 }

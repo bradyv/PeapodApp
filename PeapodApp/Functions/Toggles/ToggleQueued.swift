@@ -130,35 +130,70 @@ func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? =
     
     let queuePlaylist = getQueuePlaylist(context: context)
     
-    // Only proceed if episode is actually in the queue
-    if let episodes = queuePlaylist.items as? Set<Episode>, episodes.contains(episode) {
-        queuePlaylist.removeFromItems(episode)
-        episode.isQueued = false
-        episode.queuePosition = -1
-        
-        // Reindex remaining episodes
-        let remainingEpisodes = (queuePlaylist.items as? Set<Episode> ?? [])
-            .sorted { $0.queuePosition < $1.queuePosition }
-        
-        for (index, ep) in remainingEpisodes.enumerated() {
-            ep.queuePosition = Int64(index)
-        }
-        
-        do {
-            try context.save()
-            print("Episode removed from queue: \(episode.title ?? "Episode")")
-        } catch {
-            print("Error removing from queue: \(error.localizedDescription)")
-            context.rollback()
-        }
-        
-        Task { @MainActor in
-            episodesViewModel?.updateQueue()
-        }
-        
-        // NEW: Check if audio player state should be cleared
-        AudioPlayerManager.shared.handleQueueRemoval()
+    // ENHANCED: More robust checking
+    guard let episodes = queuePlaylist.items as? Set<Episode> else {
+        print("❌ No episodes found in queue playlist")
+        return
     }
+    
+    // CRITICAL: Check if episode is actually in the queue using multiple criteria
+    let episodeInQueue = episodes.first { ep in
+        // Check by object identity first
+        if ep == episode {
+            return true
+        }
+        // Fallback: check by ID if available
+        if let epID = ep.id, let episodeID = episode.id, epID == episodeID {
+            return true
+        }
+        // Fallback: check by title as last resort
+        if let epTitle = ep.title, let episodeTitle = episode.title,
+           epTitle == episodeTitle && ep.podcast?.title == episode.podcast?.title {
+            return true
+        }
+        return false
+    }
+    
+    guard let foundEpisode = episodeInQueue else {
+        print("⚠️ Episode not found in queue: \(episode.title ?? "Unknown")")
+        print("📊 Queue contains \(episodes.count) episodes:")
+        for (index, ep) in episodes.enumerated() {
+            print("   \(index): \(ep.title?.prefix(30) ?? "No title") - isQueued: \(ep.isQueued) - position: \(ep.queuePosition)")
+        }
+        return
+    }
+    
+    // Remove the found episode
+    queuePlaylist.removeFromItems(foundEpisode)
+    foundEpisode.isQueued = false
+    foundEpisode.queuePosition = -1
+    
+    print("✅ Removing episode from queue: \(foundEpisode.title ?? "Episode")")
+    
+    // Reindex remaining episodes
+    let remainingEpisodes = (queuePlaylist.items as? Set<Episode> ?? [])
+        .sorted { $0.queuePosition < $1.queuePosition }
+    
+    for (index, ep) in remainingEpisodes.enumerated() {
+        ep.queuePosition = Int64(index)
+    }
+    
+    do {
+        try context.save()
+        print("✅ Episode removed from queue successfully: \(foundEpisode.title ?? "Episode")")
+        print("📊 Queue now contains \(remainingEpisodes.count) episodes")
+    } catch {
+        print("❌ Error removing from queue: \(error.localizedDescription)")
+        context.rollback()
+        return
+    }
+    
+    Task { @MainActor in
+        episodesViewModel?.updateQueue()
+    }
+    
+    // Check if audio player state should be cleared
+    AudioPlayerManager.shared.handleQueueRemoval()
 }
 
 /// Move an episode to a specific position in the queue

@@ -585,6 +585,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         let context = episode.managedObjectContext ?? viewContext
         let wasPlayed = episode.isPlayed
         
+        // DEBUG: Check episode queue status before removal
+        LogManager.shared.info("🔍 Episode queue status before completion: isQueued=\(episode.isQueued), position=\(episode.queuePosition)")
+        
         // Cancel any pending position saves FIRST
         positionSaveTimer?.invalidate()
         positionSaveTimer = nil
@@ -604,7 +607,24 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Remove from queue in same transaction
         if !wasPlayed {
             LogManager.shared.info("🗑️ Removing finished episode from queue")
+            
+            // DEBUG: Check queue before removal
+            let queueBefore = fetchQueuedEpisodes()
+            LogManager.shared.info("📊 Queue before removal: \(queueBefore.count) episodes")
+            for (index, ep) in queueBefore.enumerated() {
+                LogManager.shared.info("   \(index): \(ep.title?.prefix(20) ?? "No title") - \(ep.id?.prefix(8) ?? "no-id")")
+            }
+            
             removeFromQueue(episode)
+            
+            // DEBUG: Check queue after removal
+            let queueAfter = fetchQueuedEpisodes()
+            LogManager.shared.info("📊 Queue after removal: \(queueAfter.count) episodes")
+            for (index, ep) in queueAfter.enumerated() {
+                LogManager.shared.info("   \(index): \(ep.title?.prefix(20) ?? "No title") - \(ep.id?.prefix(8) ?? "no-id")")
+            }
+        } else {
+            LogManager.shared.info("⏭️ Episode was already played - not removing from queue")
         }
         
         // Single save for all changes

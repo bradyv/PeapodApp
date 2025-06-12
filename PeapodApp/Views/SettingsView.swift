@@ -461,7 +461,7 @@ struct SettingsView: View {
                         }
                         
                         RowItem(
-                            icon: "app.badge",
+                            icon: "app.gift",
                             label: "App Icon",
                             tint: Color.cyan,
                             framedIcon: true)
@@ -580,7 +580,7 @@ struct SettingsView: View {
                                 
                                 NavigationLink {
                                     PPPopover(showBg: true) {
-                                        OldEpisodes(namespace:namespace)
+                                        OldEpisodesView(namespace:namespace)
                                     }
                                 } label: {
                                     RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)

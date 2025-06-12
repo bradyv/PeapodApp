@@ -54,8 +54,8 @@ struct QueueItem: View {
                 .opacity(0.5)
         )
         .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
+        .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.border, lineWidth: 1))
     }
 }
 
@@ -102,7 +102,7 @@ struct EmptyQueueItem: View {
         }
         .frame(width: frame, height: 250, alignment: .bottomLeading)
         .background(Color.heading.opacity(0.35))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.heading.opacity(0.5), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
+        .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.heading.opacity(0.5), lineWidth: 1))
     }
 }

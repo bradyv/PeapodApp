@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct OldEpisodes: View {
+struct OldEpisodesView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedEpisode: Episode? = nil

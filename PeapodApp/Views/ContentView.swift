@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var toastManager: ToastManager
     @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
+    @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
@@ -84,13 +85,26 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            UIApplication.shared.applicationIconBadgeNumber = 0
-            
             if episodesViewModel.context == nil { // not yet initialized properly
                 episodesViewModel.setup(context: context)
             }
             
             checkPendingNotification()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                // Clear badge when app becomes active
+                UIApplication.shared.applicationIconBadgeNumber = 0
+                
+                // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
+                let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+                if timeSinceLastRefresh > 30 {
+                    LogManager.shared.info("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                    forceRefreshPodcasts()
+                } else {
+                    LogManager.shared.info("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
             if let id = notification.object as? String {
@@ -118,11 +132,15 @@ struct ContentView: View {
         // Update last refresh time immediately to prevent concurrent calls
         lastRefreshDate = Date()
         
-        toastManager.show(message: "Refreshing", icon: "arrow.trianglehead.2.clockwise")
+        if source != "auto" {
+            toastManager.show(message: "Refreshing", icon: "arrow.trianglehead.2.clockwise")
+        }
         LogManager.shared.info("🔄 Force refreshing all subscribed podcasts (\(source))")
         
         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-            toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+            if source != "auto" {
+                toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+            }
             LogManager.shared.info("✨ \(source.capitalized) refreshed feeds")
         }
     }

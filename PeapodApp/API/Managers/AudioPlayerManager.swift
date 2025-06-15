@@ -588,15 +588,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // DEBUG: Check episode queue status before removal
         LogManager.shared.info("🔍 Episode queue status before completion: isQueued=\(episode.isQueued), position=\(episode.queuePosition)")
         
-        // Cancel any pending position saves FIRST
+        // CRITICAL: Cancel any pending position saves FIRST and reset position immediately
         positionSaveTimer?.invalidate()
         positionSaveTimer = nil
+        
+        // CRITICAL: Reset position to 0 BEFORE any other operations
+        episode.playbackPosition = 0
         
         // Mark as played (same pattern as markAsPlayed)
         episode.isPlayed = true
         episode.nowPlaying = false
         episode.playedDate = Date()
-        episode.playbackPosition = 0
         episode.addPlayedDate(Date.now)
         
         if let podcast = episode.podcast {
@@ -630,7 +632,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Single save for all changes
         do {
             try context.save()
-            LogManager.shared.info("✅ Episode marked as played and saved")
+            LogManager.shared.info("✅ Episode marked as played and saved with position reset to 0")
         } catch {
             LogManager.shared.error("❌ Failed to save episode completion: \(error)")
         }
@@ -660,7 +662,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Final queue status check
         checkQueueStatusAfterRemoval()
     }
-
+    
     private func handlePlayerError() {
         // Try to recover once
         if let episode = playbackState.episode {

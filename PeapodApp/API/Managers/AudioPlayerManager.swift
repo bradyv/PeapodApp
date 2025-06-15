@@ -893,40 +893,15 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         switch type {
         case .began:
             LogManager.shared.info("🔇 Audio interruption began")
-            // Save position immediately when interrupted
+            // Just save position - let AVPlayer handle the pause automatically
             if let episode = playbackState.episode {
                 savePositionImmediately(for: episode, position: playbackState.position)
             }
-            // Let the system handle pausing - don't manually pause here
             
         case .ended:
             LogManager.shared.info("🔊 Audio interruption ended")
-            
-            // Check if we should resume
-            let shouldResume: Bool
-            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
-                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                shouldResume = options.contains(.shouldResume)
-            } else {
-                shouldResume = false
-            }
-            
-            LogManager.shared.info("🎵 Should auto-resume: \(shouldResume)")
-            
-            // CRITICAL: Only auto-resume for specific interruption types (like phone calls)
-            // NOT for device lock, app backgrounding, or route changes
-            if shouldResume && playbackState.episode != nil && !playbackState.isPlaying {
-                // Add a small delay and double-check the app state
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    // Only resume if the app is in foreground and we're not manually paused
-                    if UIApplication.shared.applicationState == .active {
-                        LogManager.shared.info("🎵 Auto-resuming after interruption")
-                        self.resume()
-                    } else {
-                        LogManager.shared.info("🚫 App not active - skipping auto-resume")
-                    }
-                }
-            }
+            // Don't auto-resume anything - let the user decide
+            // The system/user will resume if they want to
             
         @unknown default:
             break
@@ -940,41 +915,15 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         switch reason {
         case .oldDeviceUnavailable:
-            // This handles AirPods removal, headphones unplugged, etc.
             LogManager.shared.info("🔌 Audio device disconnected")
-            
-            // Check if we were playing before the disconnect
-            let wasPlaying = playbackState.isPlaying
-            
-            if wasPlaying {
-                // Save position before pausing
-                if let episode = playbackState.episode {
-                    savePositionImmediately(for: episode, position: playbackState.position)
-                }
-                pause()
+            // Save position but let the system handle pausing
+            if let episode = playbackState.episode {
+                savePositionImmediately(for: episode, position: playbackState.position)
             }
             
         case .newDeviceAvailable:
-            // This handles AirPods reconnection, headphones plugged in, etc.
             LogManager.shared.info("🔌 Audio device connected")
-            
-            // For AirPods specifically, we want to auto-resume
-            let currentRoute = AVAudioSession.sharedInstance().currentRoute
-            let isAirPodsConnected = currentRoute.outputs.contains { output in
-                output.portType == .bluetoothA2DP || output.portType == .bluetoothHFP
-            }
-            
-            if isAirPodsConnected && playbackState.episode != nil && !playbackState.isPlaying {
-                // Small delay to ensure the route change is complete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    LogManager.shared.info("🎧 AirPods reconnected - auto-resuming")
-                    self.resume()
-                }
-            }
-            
-        case .categoryChange, .override:
-            // Don't auto-resume for these - they're usually system-initiated
-            LogManager.shared.info("🔄 Audio route changed: \(reason)")
+            // Just log - no auto-resume behavior
             
         default:
             LogManager.shared.info("🔄 Audio route changed: \(reason)")

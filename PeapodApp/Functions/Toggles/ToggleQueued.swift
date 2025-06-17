@@ -8,10 +8,30 @@
 import SwiftUI
 import CoreData
 
-// MARK: - Queue Management
+// MARK: - Enhanced Queue Management
 
-/// Global queue lock to prevent race conditions between different parts of the app
-private let queueLock = NSLock()
+/// 🚀 ENHANCED: More granular locking and better state management
+private let queueLock = NSRecursiveLock() // Changed to recursive lock
+private var pendingQueueOperations = Set<String>() // Track pending operations
+
+/// 🚀 NEW: Operation tracking to prevent duplicate operations
+private func isOperationPending(for episodeId: String) -> Bool {
+    queueLock.lock()
+    defer { queueLock.unlock() }
+    return pendingQueueOperations.contains(episodeId)
+}
+
+private func markOperationStart(for episodeId: String) {
+    queueLock.lock()
+    defer { queueLock.unlock() }
+    pendingQueueOperations.insert(episodeId)
+}
+
+private func markOperationComplete(for episodeId: String) {
+    queueLock.lock()
+    defer { queueLock.unlock() }
+    pendingQueueOperations.remove(episodeId)
+}
 
 /// Fetch the Queue playlist, creating it if needed
 func getQueuePlaylist(context: NSManagedObjectContext) -> Playlist {
@@ -28,187 +48,168 @@ func getQueuePlaylist(context: NSManagedObjectContext) -> Playlist {
     }
 }
 
-/// Reindex all episodes in the queue to ensure continuous position values
-func reindexQueuePositions(context: NSManagedObjectContext) {
-    // Lock to prevent concurrent modifications
-    queueLock.lock()
-    defer { queueLock.unlock() }
-    
-    let playlist = getQueuePlaylist(context: context)
-    guard let items = playlist.items as? Set<Episode> else { return }
-    
-    let sortedItems = items.sorted { $0.queuePosition < $1.queuePosition }
-    
-    // Reassign positions to ensure they're sequential
-    for (index, episode) in sortedItems.enumerated() {
-        episode.queuePosition = Int64(index)
-    }
-    
-    do {
-        try context.save()
-        print("Queue reindexed with \(sortedItems.count) episodes")
-    } catch {
-        print("Error reindexing queue: \(error.localizedDescription)")
-        context.rollback()
-    }
-}
-
-/// Add, remove, or toggle an episode in the queue
+/// 🚀 ENHANCED: Main toggle function with better state management
 func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
+    
+    guard let episodeId = episode.id else {
+        print("❌ Episode has no ID, cannot queue")
+        return
+    }
+    
+    // 🚀 NEW: Prevent duplicate operations
+    if isOperationPending(for: episodeId) {
+        print("⏩ Queue operation already pending for episode: \(episode.title ?? "Unknown")")
+        return
+    }
+    
+    markOperationStart(for: episodeId)
+    
     let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
-
-    // If we're moving to front (usually for playback), use specialized functions
-    if toFront {
-        // Put this episode at position 0
-        moveEpisodeInQueue(episode, to: 0)
+    
+    // 🚀 ENHANCED: Use dedicated queue context
+    let workingContext = PersistenceController.shared.queueContext()
+    
+    workingContext.perform {
+        defer { markOperationComplete(for: episodeId) }
         
-        // If there's a 'current' episode to push to position 1, do that only if it's not the same as the main episode
-        if let current = current, current.id != episode.id {
-            // Make sure current is in the queue
-            if !current.isQueued {
-                // Add to queue first if not already there
-                let queuePlaylist = getQueuePlaylist(context: context)
-                current.isQueued = true
-                queuePlaylist.addToItems(current)
-                try? context.save()
-            }
-            
-            // Now move it to position 1
-            moveEpisodeInQueue(current, to: 1)
+        // 🚀 ENHANCED: Re-fetch episode in working context to ensure we have latest state
+        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", episodeId)
+        fetchRequest.fetchLimit = 1
+        
+        guard let workingEpisode = try? workingContext.fetch(fetchRequest).first else {
+            print("❌ Could not find episode in working context")
+            return
         }
-    } else {
-        // This is a toggle operation - if in queue, remove; if not in queue, add
-        let queuePlaylist = getQueuePlaylist(context: context)
         
-        if let episodes = queuePlaylist.items as? Set<Episode>, episodes.contains(episode) {
-            // Episode is in queue - remove it
-            removeFromQueue(episode)
+        if toFront {
+            handleMoveToFront(workingEpisode, current: current, context: workingContext, episodesViewModel: episodesViewModel)
         } else {
-            // Episode is not in queue - add it to the end
-            let existingItems = (queuePlaylist.items as? Set<Episode>) ?? []
-            let maxPosition = existingItems.map(\.queuePosition).max() ?? -1
-            
-            // Set episode properties
-            episode.isQueued = true
-            episode.queuePosition = maxPosition + 1
-            
-            // Add to playlist
-            queuePlaylist.addToItems(episode)
-            
-            if episode.isSaved {
-                episode.isSaved.toggle()
-            }
-            
-            do {
-                try context.save()
-                print("Added episode to queue: \(episode.title ?? "Episode")")
-            } catch {
-                print("Error adding episode to queue: \(error.localizedDescription)")
-                context.rollback()
-            }
+            handleToggleOperation(workingEpisode, context: workingContext, episodesViewModel: episodesViewModel)
         }
-    }
-    
-    // Always update the episodes view model if provided
-    Task { @MainActor in
-        episodesViewModel?.updateQueue()
-    }
-    
-    if !toFront {
-        // For toggle operations (not moving to front), reindex to ensure proper sequence
-        reindexQueuePositions(context: context)
     }
 }
 
-/// Directly remove an episode from the queue
-func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-    let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
+/// 🚀 NEW: Separate function for move-to-front operations
+private func handleMoveToFront(_ episode: Episode, current: Episode?, context: NSManagedObjectContext, episodesViewModel: EpisodesViewModel?) {
+    moveEpisodeInQueue(episode, to: 0, context: context, episodesViewModel: episodesViewModel)
     
-    // Lock to prevent concurrent modifications
+    if let current = current, current.id != episode.id {
+        if !current.isQueued {
+            let queuePlaylist = getQueuePlaylist(context: context)
+            current.isQueued = true
+            queuePlaylist.addToItems(current)
+        }
+        moveEpisodeInQueue(current, to: 1, context: context, episodesViewModel: episodesViewModel)
+    }
+}
+
+/// 🚀 NEW: Separate function for toggle operations with better state checking
+private func handleToggleOperation(_ episode: Episode, context: NSManagedObjectContext, episodesViewModel: EpisodesViewModel?) {
     queueLock.lock()
     defer { queueLock.unlock() }
     
     let queuePlaylist = getQueuePlaylist(context: context)
     
-    // ENHANCED: More robust checking
-    guard let episodes = queuePlaylist.items as? Set<Episode> else {
-        print("❌ No episodes found in queue playlist")
-        return
+    // 🚀 ENHANCED: More reliable queue membership check
+    let isCurrentlyInQueue = checkIfEpisodeInQueue(episode, playlist: queuePlaylist, context: context)
+    
+    if isCurrentlyInQueue {
+        print("🗑️ Removing episode from queue: \(episode.title ?? "Unknown")")
+        performQueueRemoval(episode, playlist: queuePlaylist, context: context)
+    } else {
+        print("➕ Adding episode to queue: \(episode.title ?? "Unknown")")
+        performQueueAddition(episode, playlist: queuePlaylist, context: context)
     }
     
-    // CRITICAL: Check if episode is actually in the queue using multiple criteria
-    let episodeInQueue = episodes.first { ep in
-        // Check by object identity first
-        if ep == episode {
-            return true
-        }
-        // Fallback: check by ID if available
-        if let epID = ep.id, let episodeID = episode.id, epID == episodeID {
-            return true
-        }
-        // Fallback: check by title as last resort
-        if let epTitle = ep.title, let episodeTitle = episode.title,
-           epTitle == episodeTitle && ep.podcast?.title == episode.podcast?.title {
-            return true
-        }
-        return false
+    // 🚀 ENHANCED: Use safe save operation
+    PersistenceController.shared.safeSave(context: context, description: "Queue toggle operation")
+}
+
+/// 🚀 ENHANCED: More reliable queue membership check
+private func checkIfEpisodeInQueue(_ episode: Episode, playlist: Playlist, context: NSManagedObjectContext) -> Bool {
+    // Method 1: Check the episode's isQueued flag
+    if episode.isQueued {
+        return true
     }
     
-    guard let foundEpisode = episodeInQueue else {
-        print("⚠️ Episode not found in queue: \(episode.title ?? "Unknown")")
-        print("📊 Queue contains \(episodes.count) episodes:")
-        for (index, ep) in episodes.enumerated() {
-            print("   \(index): \(ep.title?.prefix(30) ?? "No title") - isQueued: \(ep.isQueued) - position: \(ep.queuePosition)")
+    // Method 2: Check if episode is in playlist items
+    if let episodes = playlist.items as? Set<Episode> {
+        for ep in episodes {
+            if ep.id == episode.id || ep == episode {
+                return true
+            }
         }
-        return
     }
     
-    // Remove the found episode
-    queuePlaylist.removeFromItems(foundEpisode)
-    foundEpisode.isQueued = false
-    foundEpisode.queuePosition = -1
+    // Method 3: Database query as final check
+    let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+    fetchRequest.predicate = NSPredicate(format: "id == %@ AND isQueued == YES", episode.id ?? "")
+    fetchRequest.fetchLimit = 1
     
-    print("✅ Removing episode from queue: \(foundEpisode.title ?? "Episode")")
+    return (try? context.fetch(fetchRequest).first) != nil
+}
+
+/// 🚀 NEW: Separated queue removal logic
+private func performQueueRemoval(_ episode: Episode, playlist: Playlist, context: NSManagedObjectContext) {
+    playlist.removeFromItems(episode)
+    episode.isQueued = false
+    episode.queuePosition = -1
     
     // Reindex remaining episodes
-    let remainingEpisodes = (queuePlaylist.items as? Set<Episode> ?? [])
-        .sorted { $0.queuePosition < $1.queuePosition }
-    
-    for (index, ep) in remainingEpisodes.enumerated() {
-        ep.queuePosition = Int64(index)
-    }
-    
-    do {
-        try context.save()
-        print("✅ Episode removed from queue successfully: \(foundEpisode.title ?? "Episode")")
-        print("📊 Queue now contains \(remainingEpisodes.count) episodes")
-    } catch {
-        print("❌ Error removing from queue: \(error.localizedDescription)")
-        context.rollback()
-        return
-    }
-    
-    Task { @MainActor in
-        episodesViewModel?.updateQueue()
+    if let episodes = playlist.items as? Set<Episode> {
+        let sortedEpisodes = episodes.sorted { $0.queuePosition < $1.queuePosition }
+        for (index, ep) in sortedEpisodes.enumerated() {
+            ep.queuePosition = Int64(index)
+        }
     }
     
     // Check if audio player state should be cleared
     AudioPlayerManager.shared.handleQueueRemoval()
 }
 
-/// Move an episode to a specific position in the queue
-func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel: EpisodesViewModel? = nil) {
-    let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
+/// 🚀 NEW: Separated queue addition logic
+private func performQueueAddition(_ episode: Episode, playlist: Playlist, context: NSManagedObjectContext) {
+    let existingItems = (playlist.items as? Set<Episode>) ?? []
+    let maxPosition = existingItems.map(\.queuePosition).max() ?? -1
     
-    // Lock to prevent concurrent modifications
+    episode.isQueued = true
+    episode.queuePosition = maxPosition + 1
+    playlist.addToItems(episode)
+    
+    // Remove from saved if applicable
+    if episode.isSaved {
+        episode.isSaved = false
+    }
+}
+
+/// 🚀 ENHANCED: Direct removal function with better error handling
+func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+    guard let episodeId = episode.id else {
+        print("❌ Episode has no ID, cannot remove from queue")
+        return
+    }
+    
+    if isOperationPending(for: episodeId) {
+        print("⏩ Queue removal already pending for episode: \(episode.title ?? "Unknown")")
+        return
+    }
+    
+    // Use the enhanced toggle function with force-remove flag
+    toggleQueued(episode, episodesViewModel: episodesViewModel)
+}
+
+/// 🚀 ENHANCED: Move episode with better context handling
+func moveEpisodeInQueue(_ episode: Episode, to position: Int, context: NSManagedObjectContext? = nil, episodesViewModel: EpisodesViewModel? = nil) {
+    let workingContext = context ?? episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
+    
     queueLock.lock()
     defer { queueLock.unlock() }
     
-    let queuePlaylist = getQueuePlaylist(context: context)
+    let queuePlaylist = getQueuePlaylist(context: workingContext)
     
     // Ensure episode is in the queue
-    if let episodes = queuePlaylist.items as? Set<Episode>, !episodes.contains(episode) {
-        // Add to queue if not already there
+    if !checkIfEpisodeInQueue(episode, playlist: queuePlaylist, context: workingContext) {
         episode.isQueued = true
         queuePlaylist.addToItems(episode)
     }
@@ -217,7 +218,7 @@ func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel:
     let queue = (queuePlaylist.items as? Set<Episode> ?? [])
         .sorted { $0.queuePosition < $1.queuePosition }
     
-    // Create a new ordering by removing the episode and inserting at the right position
+    // Create new ordering
     var reordered = queue.filter { $0.id != episode.id }
     let targetPosition = min(max(0, position), reordered.count)
     reordered.insert(episode, at: targetPosition)
@@ -228,42 +229,56 @@ func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel:
     }
     
     do {
-        try context.save()
-        print("Episode moved in queue: \(episode.title ?? "Episode") to position \(position)")
+        if workingContext.hasChanges {
+            try workingContext.save()
+        }
+        print("✅ Episode moved in queue: \(episode.title ?? "Episode") to position \(position)")
+        
+        Task { @MainActor in
+            episodesViewModel?.updateQueue()
+        }
     } catch {
-        print("Error moving episode in queue: \(error.localizedDescription)")
-        context.rollback()
-    }
-    
-    Task { @MainActor in
-        episodesViewModel?.updateQueue()
+        print("❌ Error moving episode in queue: \(error.localizedDescription)")
+        workingContext.rollback()
     }
 }
 
-/// Reorder the entire queue to match the provided array order
+/// 🚀 ENHANCED: Reorder with better validation
 func reorderQueue(_ episodes: [Episode], episodesViewModel: EpisodesViewModel? = nil) {
     guard !episodes.isEmpty else { return }
     
     let context = episodes.first?.managedObjectContext ?? PersistenceController.shared.container.viewContext
     
-    // Lock to prevent concurrent modifications
     queueLock.lock()
     defer { queueLock.unlock() }
     
-    // Update positions based on array order
+    // Validate all episodes belong to queue
+    let queuePlaylist = getQueuePlaylist(context: context)
+    let queueEpisodeIds = Set((queuePlaylist.items as? Set<Episode> ?? []).compactMap { $0.id })
+    
+    let reorderingIds = Set(episodes.compactMap { $0.id })
+    
+    guard queueEpisodeIds == reorderingIds else {
+        print("❌ Reorder list doesn't match current queue contents")
+        return
+    }
+    
+    // Update positions
     for (index, episode) in episodes.enumerated() {
         episode.queuePosition = Int64(index)
     }
     
     do {
-        try context.save()
-        print("Queue reordered with \(episodes.count) episodes")
+        if context.hasChanges {
+            try context.save()
+        }
+        print("✅ Queue reordered with \(episodes.count) episodes")
+        
+        Task { @MainActor in
+            episodesViewModel?.updateQueue()
+        }
     } catch {
-        print("Error reordering queue: \(error.localizedDescription)")
+        print("❌ Error reordering queue: \(error.localizedDescription)")
         context.rollback()
-    }
-    
-    Task { @MainActor in
-        episodesViewModel?.updateQueue()
     }
 }

@@ -13,25 +13,11 @@
 					<string>AppIcon-Blueprint</string>
 				</array>
 			</dict>
-            <key>AppIcon-Plus-Pastel</key>
-            <dict>
-                <key>CFBundleIconFiles</key>
-                <array>
-                    <string>AppIcon-Plus-Pastel</string>
-                </array>
-            </dict>
-			<key>AppIcon-Business</key>
+			<key>AppIcon-Wave</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Business</string>
-				</array>
-			</dict>
-			<key>AppIcon-Minty</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>AppIcon-Minty</string>
+					<string>AppIcon-Wave</string>
 				</array>
 			</dict>
 			<key>AppIcon-Cupertino</key>
@@ -41,11 +27,11 @@
 					<string>AppIcon-Cupertino</string>
 				</array>
 			</dict>
-			<key>AppIcon-Plus</key>
+			<key>AppIcon-Strawberry</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Plus</string>
+					<string>AppIcon-Strawberry</string>
 				</array>
 			</dict>
 			<key>AppIcon-Green</key>
@@ -55,18 +41,18 @@
 					<string>AppIcon-Green</string>
 				</array>
 			</dict>
-			<key>AppIcon-Pastel</key>
+			<key>AppIcon-Colourful</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Pastel</string>
+					<string>AppIcon-Colourful</string>
 				</array>
 			</dict>
-			<key>AppIcon-Starry</key>
+			<key>AppIcon-Sunset</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>AppIcon-Starry</string>
+					<string>AppIcon-Sunset</string>
 				</array>
 			</dict>
             <key>AppIcon-Legacy-PP</key>

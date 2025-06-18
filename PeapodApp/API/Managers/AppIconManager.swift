@@ -14,14 +14,12 @@ class AppIconManager: ObservableObject {
     
     let baseIcons = [
         AppIcons(name: "Peapod", asset: "AppIcon-Green"),
-        AppIcons(name: "Pastel", asset: "AppIcon-Pastel"),
-        AppIcons(name: "Starry", asset: "AppIcon-Starry"),
-        AppIcons(name: "Minty", asset: "AppIcon-Minty"),
-        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint"),
+        AppIcons(name: "Colourful", asset: "AppIcon-Colourful"),
+        AppIcons(name: "Wave", asset: "AppIcon-Wave"),
         AppIcons(name: "Cupertino", asset: "AppIcon-Cupertino"),
-        AppIcons(name: "Business", asset: "AppIcon-Business"),
-        AppIcons(name: "Plus", asset: "AppIcon-Plus"),
-        AppIcons(name: "Plus-Pastel", asset: "AppIcon-Plus-Pastel")
+        AppIcons(name: "Sunset", asset: "AppIcon-Sunset"),
+        AppIcons(name: "Strawberry", asset: "AppIcon-Strawberry"),
+        AppIcons(name: "Blueprint", asset: "AppIcon-Blueprint")
     ]
     
     let prideIcons = [

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import RiveRuntime
+import Lottie
 
 struct SplashView: View {
     @Environment(\.managedObjectContext) private var context
@@ -19,8 +20,10 @@ struct SplashView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
             
-            RiveViewModel(fileName: "peapod").view()
-                .frame(width:128,height:111)
+            LottieView(animation: .named("PPMaze"))
+                .playing()
+                .frame(width:128,height:113)
+            
         }
         .ignoresSafeArea()
     }

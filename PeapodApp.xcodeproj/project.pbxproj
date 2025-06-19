@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		233607BB2E047BA300C405CE /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 233607BA2E047BA300C405CE /* Lottie */; };
 		2351F7442DC184B1007BE99C /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 2351F7432DC184B1007BE99C /* RiveRuntime */; };
 		2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD2F2DA88952007348BC /* ColorThiefSwift */; };
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
@@ -127,6 +128,7 @@
 			files = (
 				239EFB8D2DE2607A0036D6F3 /* FirebaseMessaging in Frameworks */,
 				239EFB942DE26AE20036D6F3 /* FirebaseFunctions in Frameworks */,
+				233607BB2E047BA300C405CE /* Lottie in Frameworks */,
 				2354DD362DA88968007348BC /* Kingfisher in Frameworks */,
 				2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */,
 				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
@@ -221,6 +223,7 @@
 				239EFB8C2DE2607A0036D6F3 /* FirebaseMessaging */,
 				239EFB932DE26AE20036D6F3 /* FirebaseFunctions */,
 				2390AC002DE8C7C100487751 /* SmoothGradient */,
+				233607BA2E047BA300C405CE /* Lottie */,
 			);
 			productName = PeapodApp;
 			productReference = 23599E2B2D9B895C00F2DE3B /* PeapodApp.app */;
@@ -338,6 +341,7 @@
 				2351F7422DC184B1007BE99C /* XCRemoteSwiftPackageReference "rive-ios" */,
 				239EFB8B2DE2607A0036D6F3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				2390ABFF2DE8C7C100487751 /* XCRemoteSwiftPackageReference "SmoothGradient" */,
+				233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 23599E2C2D9B895C00F2DE3B /* Products */;
@@ -799,6 +803,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.2;
+			};
+		};
 		2351F7422DC184B1007BE99C /* XCRemoteSwiftPackageReference "rive-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/rive-app/rive-ios";
@@ -858,6 +870,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		233607BA2E047BA300C405CE /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */;
+			productName = Lottie;
+		};
 		2351F7432DC184B1007BE99C /* RiveRuntime */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2351F7422DC184B1007BE99C /* XCRemoteSwiftPackageReference "rive-ios" */;

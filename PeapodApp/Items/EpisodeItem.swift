@@ -181,7 +181,11 @@ struct EpisodeItem: View {
                         } else {
                             Button(action: {
                                 withAnimation {
-                                    toggleQueued(episode)
+                                    if episode.isQueued {
+                                        removeFromQueue(episode)
+                                    } else {
+                                        toggleQueued(episode)
+                                    }
                                 }
                             }) {
                                 Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")

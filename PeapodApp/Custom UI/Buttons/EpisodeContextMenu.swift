@@ -85,7 +85,11 @@ struct EpisodeContextMenu: View {
             
             Button(action: {
                 withAnimation {
-                    toggleQueued(episode)
+                    if episode.isQueued {
+                        removeFromQueue(episode)
+                    } else {
+                        toggleQueued(episode)
+                    }
                 }
             }) {
                 Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next",

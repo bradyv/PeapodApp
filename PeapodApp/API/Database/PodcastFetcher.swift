@@ -108,8 +108,12 @@ enum PodcastAPI {
             }
 
             if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
+                let validPodcasts = decoded.results.filter {
+                    !$0.feedUrl.isEmpty
+                }
+                
                 DispatchQueue.main.async {
-                    completion(decoded.results)
+                    completion(validPodcasts)
                 }
             } else {
                 completion([])
@@ -132,8 +136,34 @@ struct PodcastResult: Codable, Identifiable {
     var id: String { "\(trackId)" }
     var title: String { trackName }
     var author: String { artistName }
+    
+    // Regular initializer for manual creation
+    init(feedUrl: String, trackName: String, artistName: String, artworkUrl600: String, trackId: Int) {
+        self.feedUrl = feedUrl
+        self.trackName = trackName
+        self.artistName = artistName
+        self.artworkUrl600 = artworkUrl600
+        self.trackId = trackId
+    }
+    
+    // Custom decoder that provides default empty string for missing feedUrl
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Decode required fields normally
+        trackName = try container.decode(String.self, forKey: .trackName)
+        artistName = try container.decode(String.self, forKey: .artistName)
+        artworkUrl600 = try container.decode(String.self, forKey: .artworkUrl600)
+        trackId = try container.decode(Int.self, forKey: .trackId)
+        
+        // Decode feedUrl with default empty string if missing
+        feedUrl = try container.decodeIfPresent(String.self, forKey: .feedUrl) ?? ""
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case feedUrl, trackName, artistName, artworkUrl600, trackId
+    }
 }
-
 
 enum PodcastLoader {
     

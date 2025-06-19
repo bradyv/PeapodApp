@@ -280,7 +280,7 @@ struct WelcomeView: View {
         }
         .onAppear {
 //            checkIfReturningUser()
-            PodcastAPI.fetchTopPodcasts(limit: 29) { podcasts in
+            PodcastAPI.fetchTopPodcasts(limit: 31) { podcasts in
                 self.topPodcasts = podcasts
             }
         }

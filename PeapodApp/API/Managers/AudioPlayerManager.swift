@@ -1049,6 +1049,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func setBackwardInterval(_ interval: Double) {
         backwardInterval = interval
     }
+    
     private func moveEpisodeToFrontOfQueue(_ episode: Episode) {
         guard let context = episode.managedObjectContext else { return }
         
@@ -1057,26 +1058,49 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         let queuePlaylist = getQueuePlaylist(context: context)
         
-        if !episode.isQueued {
+        // CRITICAL FIX: Always check if episode is actually IN the playlist,
+        // regardless of isQueued boolean value
+        let playlistItems = queuePlaylist.items as? Set<Episode> ?? []
+        let isActuallyInPlaylist = playlistItems.contains(episode)
+        
+        if !isActuallyInPlaylist {
+            // Episode not in playlist - add it regardless of isQueued value
+            LogManager.shared.info("🔧 Adding episode to playlist: \(episode.title?.prefix(30) ?? "Episode")")
             episode.isQueued = true
             queuePlaylist.addToItems(episode)
+        } else if !episode.isQueued {
+            // Episode in playlist but boolean is wrong - fix it
+            LogManager.shared.info("🔧 Fixing isQueued boolean for: \(episode.title?.prefix(30) ?? "Episode")")
+            episode.isQueued = true
         }
         
-        guard let items = queuePlaylist.items as? Set<Episode> else { return }
-        let queue = items.sorted { $0.queuePosition < $1.queuePosition }
+        // Get current queue order (now guaranteed to include our episode)
+        let queue = playlistItems.union([episode]).sorted { $0.queuePosition < $1.queuePosition }
         
-        if queue.first?.id == episode.id { return }
+        if queue.first?.id == episode.id {
+            // Already at front, just save to ensure consistency
+            try? context.save()
+            return
+        }
         
+        // Move to front: remove from current position and insert at 0
         var reordered = queue.filter { $0.id != episode.id }
         reordered.insert(episode, at: 0)
         
+        // Update all positions
         for (index, ep) in reordered.enumerated() {
             ep.queuePosition = Int64(index)
         }
         
-        try? context.save()
+        do {
+            try context.save()
+            LogManager.shared.info("✅ Moved episode to front of queue: \(episode.title?.prefix(30) ?? "Episode")")
+        } catch {
+            LogManager.shared.error("❌ Failed to move episode to front: \(error)")
+            context.rollback()
+        }
     }
-    
+
     private func checkQueueStatusAfterRemoval() {
         // Check if queue is now empty and current episode should be cleared
         let queuedEpisodes = fetchQueuedEpisodes()

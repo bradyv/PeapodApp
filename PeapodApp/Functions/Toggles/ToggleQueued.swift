@@ -124,51 +124,35 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
 func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
     
-    // Lock to prevent concurrent modifications
     queueLock.lock()
     defer { queueLock.unlock() }
     
     let queuePlaylist = getQueuePlaylist(context: context)
+    let episodes = queuePlaylist.items as? Set<Episode> ?? []
     
-    // ENHANCED: More robust checking
-    guard let episodes = queuePlaylist.items as? Set<Episode> else {
-        print("❌ No episodes found in queue playlist")
+    // ENHANCED: Check both playlist membership AND isQueued boolean
+    let episodeInPlaylist = episodes.first { ep in
+        ep == episode ||
+        (ep.id == episode.id && ep.id != nil) ||
+        (ep.title == episode.title && ep.podcast?.title == episode.podcast?.title &&
+         ep.title != nil && episode.title != nil)
+    }
+    
+    // Remove from playlist if found
+    if let foundEpisode = episodeInPlaylist {
+        LogManager.shared.info("✅ Removing episode from playlist: \(foundEpisode.title?.prefix(30) ?? "Episode")")
+        queuePlaylist.removeFromItems(foundEpisode)
+        foundEpisode.isQueued = false
+        foundEpisode.queuePosition = -1
+    } else if episode.isQueued {
+        // Episode has isQueued=true but not in playlist - fix the boolean
+        LogManager.shared.warning("🔧 Episode had isQueued=true but wasn't in playlist - fixing: \(episode.title?.prefix(30) ?? "Episode")")
+        episode.isQueued = false
+        episode.queuePosition = -1
+    } else {
+        LogManager.shared.warning("⚠️ Episode not found in queue: \(episode.title?.prefix(30) ?? "Episode")")
         return
     }
-    
-    // CRITICAL: Check if episode is actually in the queue using multiple criteria
-    let episodeInQueue = episodes.first { ep in
-        // Check by object identity first
-        if ep == episode {
-            return true
-        }
-        // Fallback: check by ID if available
-        if let epID = ep.id, let episodeID = episode.id, epID == episodeID {
-            return true
-        }
-        // Fallback: check by title as last resort
-        if let epTitle = ep.title, let episodeTitle = episode.title,
-           epTitle == episodeTitle && ep.podcast?.title == episode.podcast?.title {
-            return true
-        }
-        return false
-    }
-    
-    guard let foundEpisode = episodeInQueue else {
-        print("⚠️ Episode not found in queue: \(episode.title ?? "Unknown")")
-        print("📊 Queue contains \(episodes.count) episodes:")
-        for (index, ep) in episodes.enumerated() {
-            print("   \(index): \(ep.title?.prefix(30) ?? "No title") - isQueued: \(ep.isQueued) - position: \(ep.queuePosition)")
-        }
-        return
-    }
-    
-    // Remove the found episode
-    queuePlaylist.removeFromItems(foundEpisode)
-    foundEpisode.isQueued = false
-    foundEpisode.queuePosition = -1
-    
-    print("✅ Removing episode from queue: \(foundEpisode.title ?? "Episode")")
     
     // Reindex remaining episodes
     let remainingEpisodes = (queuePlaylist.items as? Set<Episode> ?? [])
@@ -180,10 +164,9 @@ func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? =
     
     do {
         try context.save()
-        print("✅ Episode removed from queue successfully: \(foundEpisode.title ?? "Episode")")
-        print("📊 Queue now contains \(remainingEpisodes.count) episodes")
+        LogManager.shared.info("✅ Episode removed from queue successfully")
     } catch {
-        print("❌ Error removing from queue: \(error.localizedDescription)")
+        LogManager.shared.error("❌ Error removing from queue: \(error)")
         context.rollback()
         return
     }
@@ -192,7 +175,6 @@ func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? =
         episodesViewModel?.updateQueue()
     }
     
-    // Check if audio player state should be cleared
     AudioPlayerManager.shared.handleQueueRemoval()
 }
 

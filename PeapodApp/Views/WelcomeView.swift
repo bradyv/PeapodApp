@@ -349,3 +349,15 @@ struct WelcomeView: View {
         }
     }
 }
+
+#Preview {
+    @EnvironmentObject var appStateManager: AppStateManager
+    @Namespace var namespace
+    
+    WelcomeView(
+        completeOnboarding: {
+            appStateManager.completeOnboarding()
+        },
+        namespace: namespace
+    )
+}

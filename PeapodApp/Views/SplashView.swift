@@ -21,9 +21,9 @@ struct SplashView: View {
                 .aspectRatio(contentMode: .fill)
             
             LottieView(animation: .named("PPMaze2"))
-                .playing(loopMode:.autoReverse)
+                .playing()
 //                .looping()
-                .frame(width:128,height:113)
+                .frame(width:100,height:113)
             
         }
         .ignoresSafeArea()

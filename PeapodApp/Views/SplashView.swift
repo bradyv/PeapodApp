@@ -20,8 +20,9 @@ struct SplashView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
             
-            LottieView(animation: .named("PPMaze"))
-                .playing()
+            LottieView(animation: .named("PPMaze2"))
+                .playing(loopMode:.autoReverse)
+//                .looping()
                 .frame(width:128,height:113)
             
         }

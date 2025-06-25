@@ -362,7 +362,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Step 1: Clean up episodes from unsubscribed podcasts (but preserve saved/played/queued ones)
         let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
         episodeRequest.predicate = NSPredicate(format:
-            "podcast.isSubscribed == NO AND isSaved == NO AND isPlayed == NO AND isQueued == NO"
+            "podcast.isSubscribed == NO AND isSaved == NO AND isPlayed == NO AND isQueued == NO AND playlist == nil"
         )
         
         let episodesToDelete = try context.fetch(episodeRequest)

@@ -27,7 +27,7 @@ class SubscriptionSyncService {
         
         do {
             let subscribedPodcasts = try context.fetch(request)
-            let feedUrls = subscribedPodcasts.compactMap { $0.feedUrl }
+            let feedUrls = subscribedPodcasts.compactMap { $0.feedUrl?.normalizeURL() }
             
             let cleanUserID = getUserID()
             

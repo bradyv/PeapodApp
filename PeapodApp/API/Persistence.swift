@@ -10,10 +10,10 @@ import CoreData
 final class PersistenceController {
     static let shared = PersistenceController()
 
-    let container: NSPersistentCloudKitContainer
+    let container: NSPersistentContainer
 
     private init(inMemory: Bool = false) {
-        container = NSPersistentCloudKitContainer(name: "PeapodApp")
+        container = NSPersistentContainer(name: "PeapodApp")
 
         if inMemory {
             container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
@@ -24,8 +24,8 @@ final class PersistenceController {
         }
 
         // Enable CloudKit syncing
-        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-        description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.bradyv.PeapodApp")
+//        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+//        description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.bradyv.PeapodApp")
 
         container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {
@@ -39,8 +39,8 @@ final class PersistenceController {
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         
-        NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
-            UserDefaults.standard.set(Date(), forKey: "lastCloudSyncDate")
-        }
+//        NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
+//            UserDefaults.standard.set(Date(), forKey: "lastCloudSyncDate")
+//        }
     }
 }

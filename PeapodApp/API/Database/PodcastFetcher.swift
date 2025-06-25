@@ -274,19 +274,22 @@ enum PodcastLoader {
     }
     
     private static func fetchOrCreatePodcast(feedUrl: String, context: NSManagedObjectContext, title: String?, author: String?) -> Podcast {
+        let normalizedUrl = feedUrl.normalizeURL()
+        
         let request = Podcast.fetchRequest()
-        request.predicate = NSPredicate(format: "feedUrl == %@", feedUrl)
+        request.predicate = NSPredicate(format: "feedUrl == %@", normalizedUrl)
         request.fetchLimit = 1
 
-        if let existing = (try? context.fetch(request))?.first {
+        if let existing = try? context.fetch(request).first {
             return existing
         } else {
-            let newPodcast = Podcast(context: context)
-            newPodcast.id = UUID().uuidString
-            newPodcast.feedUrl = feedUrl
-            newPodcast.title = title
-            newPodcast.author = author
-            return newPodcast
+            let podcast = Podcast(context: context)
+            podcast.feedUrl = normalizedUrl
+            podcast.id = UUID().uuidString
+            podcast.title = title
+            podcast.author = author
+            return podcast
         }
     }
+
 }

@@ -13,16 +13,30 @@ func deduplicatePodcasts(context: NSManagedObjectContext) {
 
     do {
         let podcasts = try context.fetch(request)
-        let groupedByFeedUrl = Dictionary(grouping: podcasts, by: { $0.feedUrl ?? UUID().uuidString })
+        
+        // Group by normalized URL instead of exact match
+        let groupedByNormalizedUrl = Dictionary(grouping: podcasts) { podcast in
+            podcast.feedUrl?.normalizeURL() ?? UUID().uuidString
+        }
 
-        for (feedUrl, group) in groupedByFeedUrl {
+        for (normalizedUrl, group) in groupedByNormalizedUrl {
             guard group.count > 1 else { continue }
 
-            // Prefer the one that is subscribed
-            let primary = group.first(where: { $0.isSubscribed }) ?? group.first!
+            // Prefer the one that is subscribed, then newest
+            let primary = group.first(where: { $0.isSubscribed }) ??
+                         group.max(by: { ($0.objectID.description) < ($1.objectID.description) })!
+
+            // Update primary with normalized URL
+            primary.feedUrl = normalizedUrl
 
             for duplicate in group {
                 if duplicate == primary { continue }
+
+                // Merge metadata (prefer non-nil values)
+                if primary.title == nil { primary.title = duplicate.title }
+                if primary.author == nil { primary.author = duplicate.author }
+                if primary.image == nil { primary.image = duplicate.image }
+                if primary.podcastDescription == nil { primary.podcastDescription = duplicate.podcastDescription }
 
                 // Reassign episodes
                 for episode in duplicate.episode ?? [] {
@@ -34,7 +48,7 @@ func deduplicatePodcasts(context: NSManagedObjectContext) {
         }
 
         try context.save()
-        LogManager.shared.info("✅ Podcast deduplication complete.")
+        LogManager.shared.info("✅ Enhanced podcast deduplication complete.")
     } catch {
         LogManager.shared.error("❌ Failed to deduplicate podcasts: \(error)")
     }

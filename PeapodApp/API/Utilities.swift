@@ -134,6 +134,11 @@ func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
 }
 
 func migrateMissingEpisodeGUIDs(context: NSManagedObjectContext) {
+    let migrateGUIDKey = "com.bradyv.Peapod.Dev.migrateMissingGUIDs.v1"
+    if UserDefaults.standard.bool(forKey: migrateGUIDKey) {
+        return
+    }
+    
     context.perform {
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
         request.predicate = NSPredicate(format: "guid == nil")

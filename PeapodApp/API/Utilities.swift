@@ -162,6 +162,7 @@ func migrateMissingEpisodeGUIDs(context: NSManagedObjectContext) {
 
             try context.save()
             LogManager.shared.info("✅ Migration completed: GUIDs populated")
+            UserDefaults.standard.set(true, forKey: migrateGUIDKey)
         } catch {
             LogManager.shared.error("❌ Migration failed: \(error)")
         }
@@ -191,6 +192,7 @@ func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
 }
 
 func migrateOldQueueToPlaylist(context: NSManagedObjectContext) {
+    
     // Fetch or create the "Queue" playlist
     let playlistRequest = Playlist.fetchRequest()
     playlistRequest.predicate = NSPredicate(format: "name == %@", "Queue")

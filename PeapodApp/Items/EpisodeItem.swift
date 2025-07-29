@@ -163,6 +163,24 @@ struct EpisodeItem: View {
                         if displayedInQueue {
                             Button(action: {
                                 withAnimation {
+                                    removeFromQueue(episode)
+                                }
+                            }) {
+                                Label("Archive", systemImage: "archivebox")
+                            }
+                            .buttonStyle(
+                                PPButton(
+                                    type: .transparent,
+                                    colorStyle: .monochrome,
+                                    customColors: ButtonCustomColors(
+                                        foreground: .white,
+                                        background: .white.opacity(0.15)
+                                    )
+                                )
+                            )
+                            
+                            Button(action: {
+                                withAnimation {
                                     toggleSaved(episode)
                                 }
                             }) {
@@ -172,6 +190,7 @@ struct EpisodeItem: View {
                                 PPButton(
                                     type: .transparent,
                                     colorStyle: .monochrome,
+                                    iconOnly: true,
                                     customColors: ButtonCustomColors(
                                         foreground: .white,
                                         background: .white.opacity(0.15)

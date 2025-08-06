@@ -19,52 +19,103 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
+    @State private var query = ""
     
     var namespace: Namespace.ID
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .topTrailing) {
-                MainBackground()
-                
-                ScrollView {
-                    QueueView(namespace: namespace)
-                    LibraryView(namespace: namespace)
-                    SubscriptionsView(namespace: namespace)
-                    
-                    Spacer().frame(height: 96)
-                }
-                .maskEdge(.top)
-                .maskEdge(.bottom)
-                .scrollDisabled(subscriptions.isEmpty)
-                .refreshable {
-                    refreshPodcasts(source: "pull-to-refresh")
-                }
-                
-                VStack(alignment: .trailing) {
-                    NavigationLink {
-                        PPPopover(showBg: true) {
-                            SettingsView(namespace: namespace)
+        TabView {
+            Tab("Listen", systemImage: "play.square.stack") {
+                NavigationStack {
+                    ZStack {
+                        MainBackground()
+                        
+                        ScrollView {
+                            QueueView(namespace: namespace)
+                            LatestEpisodesMini(namespace: namespace)
                         }
-                    } label: {
-                        Label("Settings", systemImage: "person.crop.circle")
+                        .background(Color.background)
                     }
-                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                    Spacer()
+                    .scrollEdgeEffectStyle(.soft, for: .all)
+                    .navigationTitle("Listen")
+                    .toolbar {
+                        ToolbarItem(placement: .largeTitle) {
+                            Text("Listen")
+                                .titleSerif()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                        }
+                        
+                        ToolbarItem(placement: .primaryAction) {
+                            NavigationLink {
+                                SettingsView(namespace: namespace)
+                            } label: {
+                                Label("Settings", systemImage: "person.crop.circle")
+                            }
+                            .labelStyle(.iconOnly)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal)
             }
-            .background(
-                EllipticalGradient(
-                    stops: [
-                        Gradient.Stop(color: Color.surface, location: 0.00),
-                        Gradient.Stop(color: Color.background, location: 1.00),
-                    ],
-                    center: UnitPoint(x: 0, y: 0)
-                )
-            )
+            
+            Tab("Library", systemImage: "circle.grid.3x3") {
+                NavigationStack {
+                    ScrollView {
+                        SubscriptionsView(namespace: namespace)
+                        FavEpisodesMini(namespace: namespace)
+                    }
+                    .background(Color.background)
+                    .scrollEdgeEffectStyle(.soft, for: .all)
+                    .navigationTitle("Library")
+                    .toolbar {
+                        ToolbarItem(placement: .largeTitle) {
+                            Text("Library")
+                                .titleSerif()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                       }
+                        
+                        ToolbarItem(placement: .primaryAction) {
+                            NavigationLink {
+                               SettingsView(namespace: namespace)
+                           } label: {
+                               Label("Settings", systemImage: "person.crop.circle")
+                           }
+                           .labelStyle(.iconOnly)
+                        }
+                    }
+                }
+            }
+            
+            Tab("Search", systemImage: "plus.magnifyingglass", role: .search) {
+                NavigationStack {
+                    PodcastSearchView(searchQuery: $query, namespace:namespace)
+                        .background(Color.background)
+                        .searchable(text: $query, prompt: "Find a Podcast")
+                        .navigationTitle("Find a Podcast")
+                        .toolbar {
+                            ToolbarItem(placement: .largeTitle) {
+                                Text("Find a Podcast")
+                                    .titleSerif()
+                                    .frame(maxWidth:.infinity, alignment:.leading)
+                           }
+                            
+                            ToolbarItem(placement: .primaryAction) {
+                                NavigationLink {
+                                   SettingsView(namespace: namespace)
+                               } label: {
+                                   Label("Settings", systemImage: "person.crop.circle")
+                               }
+                               .labelStyle(.iconOnly)
+                            }
+                        }
+                }
+                .scrollEdgeEffectStyle(.soft, for: .all)
+            }
         }
+        .tabViewBottomAccessory {
+            NowPlaying(namespace:namespace)
+                .containerRelativeFrame(.horizontal)
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
         .environmentObject(episodesViewModel)
         // Track subscription changes for backend sync
         .onChange(of: subscriptions.count) { oldCount, newCount in
@@ -78,11 +129,6 @@ struct ContentView: View {
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode, namespace:namespace)
                 .modifier(PPSheet())
-        }
-        .overlay {
-            if nowPlayingManager.isVisible {
-                NowPlaying(namespace: namespace)
-            }
         }
         .onAppear {
             if episodesViewModel.context == nil { // not yet initialized properly
@@ -121,6 +167,8 @@ struct ContentView: View {
             }
         }
         .toast()
+        
+        
     }
     
     // 🚀 UPDATED: Unified refresh method with source tracking and debouncing

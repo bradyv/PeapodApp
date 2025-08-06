@@ -14,7 +14,7 @@ import UserNotifications
 struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject private var userManager = UserManager.shared
-    @ObservedObject var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @AppStorage("appNotificationsEnabled") private var appNotificationsEnabled: Bool = false
     @State private var systemNotificationsGranted: Bool = false
@@ -644,6 +644,8 @@ struct SettingsView: View {
                 )
             }
         }
+        .background(Color.background)
+//        .preferredColorScheme(appTheme.colorScheme)
     }
     
     private var statsButtonGradient: LinearGradient {

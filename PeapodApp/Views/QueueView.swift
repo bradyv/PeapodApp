@@ -20,13 +20,12 @@ struct QueueView: View {
     var namespace: Namespace.ID
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading) {
             Text("Up Next")
-                .titleSerif()
-                .padding(.leading)
-                .padding(.bottom, 4)
-
-            VStack(spacing: 0) {
+                .titleSerifMini()
+                .padding(.leading).padding(.top)
+            
+            VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         LazyHStack(alignment: .top, spacing: 8) {
@@ -50,7 +49,7 @@ struct QueueView: View {
                                         Text("Nothing up next")
                                             .titleCondensed()
                                         
-                                        Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes are automatically added.")
+                                        Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New episodes are automatically added.")
                                             .textBody()
                                         
                                         if !episodesViewModel.saved.isEmpty {
@@ -104,7 +103,16 @@ struct QueueView: View {
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
                                 ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
-                                    QueueItemView(episode: episode, index: index, namespace: namespace) {
+//                                    NavigationLink {
+//                                        EpisodeView(episode:episode,namespace:namespace)
+//                                            .navigationTransition(.zoom(sourceID: episode.guid, in: namespace))
+//                                    } label: {
+                                        QueueItemView(episode: episode, index: index, namespace: namespace) {
+                                            selectedEpisode = episode
+                                        }
+//                                        .matchedTransitionSource(id: episode.guid, in: namespace)
+//                                    }
+                                    .onTapGesture {
                                         selectedEpisode = episode
                                     }
                                 }
@@ -161,43 +169,45 @@ struct QueueView: View {
                     }
                 }
                 
-                if episodesViewModel.queue.count > 1 {
-                    GeometryReader { geo in
-                        HStack(spacing: 8) {
-                            Spacer()
-                            ForEach(episodesViewModel.queue.indices, id: \.self) { index in
-                                let isCurrent = index == Int(scrollOffset)
-                                
-                                VStack {
-                                    Capsule()
-                                        .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
-                                        .frame(width: isCurrent ? 18 : 6, height: 6)
-                                        .contentShape(Circle())
-                                        .transition(.opacity)
-                                        .animation(.easeOut(duration: 0.3), value: isCurrent)
-                                }
-                                .frame(height: 44)
-                                .fixedSize()
-                                .onTapGesture {
-                                    if let id = episodesViewModel.queue[index].id {
-                                        withAnimation {
-                                            scrollTarget = id
-                                        }
+                GeometryReader { geo in
+                    HStack(spacing: 8) {
+                        Spacer()
+                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
+                            let isCurrent = index == Int(scrollOffset)
+                            
+                            VStack {
+                                Capsule()
+                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
+                                    .frame(width: isCurrent ? 18 : 6, height: 6)
+                                    .contentShape(Circle())
+                                    .transition(.opacity)
+                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
+                            }
+                            .frame(height: 44)
+                            .fixedSize()
+                            .onTapGesture {
+                                if let id = episodesViewModel.queue[index].id {
+                                    withAnimation {
+                                        scrollTarget = id
                                     }
                                 }
                             }
-                            Spacer()
                         }
-                        .frame(maxWidth: geo.size.width, alignment: .leading)
-                        .clipped()
-                        .padding(.horizontal)
-                        .contentShape(Rectangle())
+                        Spacer()
                     }
+                    .frame(maxWidth: geo.size.width, alignment: .leading)
+                    .clipped()
+                    .padding(.horizontal)
+                    .contentShape(Rectangle())
+                    .opacity(episodesViewModel.queue.count > 1 ? 1 : 0)
                 }
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 24)
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
+        }
     }
 }
 
@@ -234,12 +244,12 @@ struct QueueItemView: View {
                     .opacity(phase.isIdentity ? 1 : 0.5)
                     .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
             }
-            .onTapGesture {
-                selectedEpisode = episode
-            }
-            .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode, namespace:namespace)
-                    .modifier(PPSheet())
-            }
+//            .onTapGesture {
+//                selectedEpisode = episode
+//            }
+//            .sheet(item: $selectedEpisode) { episode in
+//                EpisodeView(episode: episode, namespace:namespace)
+//                    .modifier(PPSheet())
+//            }
     }
 }

@@ -59,20 +59,20 @@ struct ShadowButton: ButtonStyle {
             transform: {
             $0.shadow(color: filled ? Color.accentColor.opacity(0.25) : .black.opacity(0.05), radius: 3, x: 0, y: 2)
         })
-        .if(!borderless && !iconOnly,
-            transform: {
-            $0.overlay(
-                Capsule()
-                .stroke(.black.opacity(0.1), lineWidth: 1)
-            )
-        })
-        .if(!borderless && iconOnly,
-            transform: {
-            $0.overlay(
-                Circle()
-                .stroke(.black.opacity(0.1), lineWidth: 1)
-            )
-        })
+//        .if(!borderless && !iconOnly,
+//            transform: {
+//            $0.overlay(
+//                Capsule()
+//                .stroke(.black.opacity(0.1), lineWidth: 1)
+//            )
+//        })
+//        .if(!borderless && iconOnly,
+//            transform: {
+//            $0.overlay(
+//                Circle()
+//                .stroke(.black.opacity(0.1), lineWidth: 1)
+//            )
+//        })
         .scaleEffect(isPressed ? 0.95 : 1)
         .animation(.easeOut(duration: 0.2), value: isPressed)
     }
@@ -135,13 +135,6 @@ struct PPButton: ButtonStyle {
         .foregroundColor(peapodPlus ? Color.white : effectiveForeground)
         .textBodyEmphasis()
         .clipShape(Capsule())
-        .overlay {
-            if iconOnly {
-                Circle().stroke(Color.heading.opacity(0.15), lineWidth: 1)
-            } else {
-                Capsule().stroke(Color.heading.opacity(0.15), lineWidth: 1)
-            }
-        }
         .scaleEffect(isPressed ? 0.95 : 1)
         .animation(.easeOut(duration: 0.2), value: isPressed)
     }
@@ -185,6 +178,53 @@ struct PPButton: ButtonStyle {
     }
 }
 
+extension View {
+    @ViewBuilder
+    func glassButton(prominent: Bool = false, iconOnly: Bool = false, tint: Color? = nil, label: Color = Color.heading) -> some View {
+        let styled = self
+            .typography(size: 17, weight: .medium, color: label)
+            .fontWidth(.condensed)
+            .ifLet(tint) { view, tint in
+                view.tint(tint)
+            }
+            .if(iconOnly, transform: { $0.labelStyle(.iconOnly) })
+
+        if prominent {
+            styled.buttonStyle(.glassProminent)
+        } else {
+            styled.buttonStyle(.glass)
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func ifLet<T, Content: View>(_ value: T?, transform: (Self, T) -> Content) -> some View {
+        if let value = value {
+            transform(self, value)
+        } else {
+            self
+        }
+    }
+}
+
+struct PPGlassButton: ButtonStyle {
+    var iconOnly: Bool = false
+    
+    func makeBody(configuration: Configuration) -> some View {
+        return HStack(spacing: 4) {
+            configuration.label
+        }
+        .if(iconOnly, transform: { $0.labelStyle(.iconOnly) })
+        .padding(.vertical, iconOnly ? 12 : 10)
+        .padding(.horizontal, 12)
+        .textBodyEmphasis()
+        .glassEffect()
+//        .scaleEffect(isPressed ? 0.95 : 1)
+//        .animation(.easeOut(duration: 0.2), value: isPressed)
+    }
+}
+
 struct NoHighlight: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
       let isPressed = configuration.isPressed
@@ -204,50 +244,143 @@ struct PPButtonTest: View {
     
     var body: some View {
         VStack {
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(ShadowButton(iconOnly: true, filled: false))
             
-            Button("Dismiss", systemImage: "chevron.down") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
             }
-            .buttonStyle(ShadowButton(iconOnly: true, filled: true))
             
-            Button("Close", systemImage: "xmark") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .foregroundStyle(.white)
+                    .textDetail()
             }
-            .buttonStyle(ShadowButton(filled: true))
-            
-            
-            Button("Dismiss", systemImage: "chevron.down") {
+            .buttonStyle(.glassProminent)
+
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .foregroundStyle(.white)
+                    .textDetail()
             }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))
+            .buttonStyle(.glassProminent)
+            .buttonBorderShape(.circle)
+            .labelStyle(.iconOnly)
             
-            Button("Dismiss", systemImage: "chevron.down") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .textDetail()
             }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+            .buttonStyle(.glass)
             
-            Button("Dismiss", systemImage: "chevron.down") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .textDetail()
             }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            .labelStyle(.iconOnly)
             
-            Button("Dismiss", systemImage: "chevron.down") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .foregroundStyle(.white)
+                    .textDetail()
             }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+            .buttonStyle(.borderedProminent)
             
-            Button("Dismiss", systemImage: "chevron.down") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .foregroundStyle(.white)
+                    .textDetail()
             }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.circle)
+            .labelStyle(.iconOnly)
             
-            Button("Dismiss", systemImage: "chevron.down") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .textDetail()
             }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, iconOnly: true))
+            .buttonStyle(.bordered)
             
-            Button("Dismiss", systemImage: "chevron.down") {
+            Button(action: {
+                
+            }) {
+                Label("Dismiss", systemImage: "chevron.down")
+                    .padding(6)
+                    .textDetail()
             }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .labelStyle(.iconOnly)
             
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+            ///
+            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(ShadowButton(iconOnly: true, filled: false))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(ShadowButton(iconOnly: true, filled: true))
+//            
+//            Button("Close", systemImage: "xmark") {
+//            }
+//            .buttonStyle(ShadowButton(filled: true))
+//            
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, iconOnly: true))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
+//            
+//            Button("Dismiss", systemImage: "chevron.down") {
+//            }
+//            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
         }
     }
 }

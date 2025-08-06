@@ -9,6 +9,7 @@ import SwiftUI
 import BackgroundTasks
 import FirebaseCore
 import FirebaseMessaging
+import Kingfisher
 
 @main
 struct Peapod: App {
@@ -17,13 +18,15 @@ struct Peapod: App {
     @StateObject private var nowPlayingManager = NowPlayingVisibilityManager()
     @StateObject private var appStateManager = AppStateManager()
     @StateObject private var userManager = UserManager.shared
+    @StateObject private var audioPlayer = AudioPlayerManager.shared
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @AppStorage("didFlushTints") private var didFlushTints: Bool = false
     @AppStorage("hasRunOneTimeSplashMark") private var hasRunOneTimeSplashMark = false
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var appTheme: AppTheme {
-       AppTheme(rawValue: appThemeRawValue) ?? .system
+//       AppTheme(rawValue: appThemeRawValue) ?? .system
+        .dark
     }
     
     init() {
@@ -41,8 +44,9 @@ struct Peapod: App {
                 .environmentObject(nowPlayingManager)
                 .environmentObject(toastManager)
                 .environmentObject(userManager)
+                .environmentObject(audioPlayer)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .preferredColorScheme(preferredColorScheme(for: appTheme))
+                .preferredColorScheme(appTheme.colorScheme)
                 .onAppear {
                     // Perform one-time setup
                     runOneTimeSetupIfNeeded()

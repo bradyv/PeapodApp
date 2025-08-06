@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 class AppIconManager: ObservableObject {
     static let shared = AppIconManager()
@@ -80,6 +81,14 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .system: return "circle.righthalf.filled.inverse"
         case .dark: return "moon.stars.fill"
         case .light: return "sun.max"
+        }
+    }
+    
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .dark: return .dark
+        case .light: return .light
         }
     }
 }

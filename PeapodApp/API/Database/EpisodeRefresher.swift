@@ -490,10 +490,14 @@ class EpisodeRefresher {
     
     // 🚀 Update podcast metadata separately
     private static func updatePodcastMetadata(rss: RSSFeed, podcast: Podcast) {
-        if podcast.image == nil {
-            podcast.image = forceHTTPS(rss.image?.url) ??
+        // Always check for updated artwork
+        let newArtworkUrl = forceHTTPS(rss.image?.url) ??
                            forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
                            forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
+        
+        if let newUrl = newArtworkUrl, newUrl != podcast.image {
+            LogManager.shared.info("🎨 Updated artwork for \(podcast.title ?? "podcast"): \(newUrl)")
+            podcast.image = newUrl
         }
         
         if podcast.podcastDescription == nil {

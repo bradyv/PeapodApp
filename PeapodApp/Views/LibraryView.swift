@@ -18,8 +18,6 @@ struct LibraryView: View {
             Text("Library")
                 .titleSerif()
                 .frame(maxWidth:.infinity, alignment:.leading)
-        
-            Spacer()
             
             if !subscriptions.isEmpty {
                 VStack(spacing: 8) {
@@ -49,7 +47,7 @@ struct LibraryView: View {
                 }
             }
         }
-        .padding(.horizontal).padding(.top,24)
+        .padding(.horizontal)
         .frame(maxWidth:.infinity)
     }
 }

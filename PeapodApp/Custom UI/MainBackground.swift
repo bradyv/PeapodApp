@@ -10,32 +10,30 @@ import Kingfisher
 
 struct MainBackground: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @ObservedObject var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     @State private var displayedEpisode: Episode?
     @State private var currentScrollIndex: Int = 0
     
     var body: some View {
-        FadeInView(delay: 0.2) {
-            ZStack {
-                if let episode = displayedEpisode {
-                    SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
-                        .transition(.opacity)
-                        .id(episode.id)
-                        .animation(.easeInOut(duration: 0.3), value: episode.id)
-                }
+        ZStack {
+            if let episode = displayedEpisode {
+                SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
+                    .transition(.opacity)
+                    .id(episode.id)
+                    .animation(.easeInOut(duration: 0.3), value: episode.id)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .queueScrollPositionChanged)) { notification in
-                if let scrollIndex = notification.object as? Int {
-                    currentScrollIndex = scrollIndex
-                    updateDisplayedEpisode()
-                }
-            }
-            .onChange(of: episodesViewModel.queue) { _, _ in
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .queueScrollPositionChanged)) { notification in
+            if let scrollIndex = notification.object as? Int {
+                currentScrollIndex = scrollIndex
                 updateDisplayedEpisode()
             }
-            .onAppear {
-                updateDisplayedEpisode()
-            }
+        }
+        .onChange(of: episodesViewModel.queue) { _, _ in
+            updateDisplayedEpisode()
+        }
+        .onAppear {
+            updateDisplayedEpisode()
         }
     }
     
@@ -56,6 +54,19 @@ struct MainBackground: View {
                 }
             }
         }
+    }
+}
+
+struct GradientBackground: View {
+    var body: some View {
+        EllipticalGradient(
+            stops: [
+                Gradient.Stop(color: Color.surface, location: 0.00),
+                Gradient.Stop(color: Color.background, location: 1.00),
+            ],
+            center: UnitPoint(x: 0, y: 0)
+        )
+        .ignoresSafeArea()
     }
 }
 

@@ -11,44 +11,35 @@ import Kingfisher
 struct NowPlaying: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
-    @ObservedObject var player = AudioPlayerManager.shared
-    @State private var spacing: CGFloat = -38
-    @State private var infoMaxWidth: CGFloat = 100
+    @EnvironmentObject var player: AudioPlayerManager
     @State private var selectedEpisode: Episode? = nil
     var displayedInQueue: Bool = false
     var namespace: Namespace.ID
     var onTap: ((Episode) -> Void)?
 
     var body: some View {
-        if let episode = player.currentEpisode {
-            VStack(alignment: .center) {
-                Spacer()
-                
+        
+        Group {
+            if let episode = player.currentEpisode {
+                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
-                    Button {
+                    ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
+                    
+                    VStack(alignment:.leading) {
+                        Text(episode.podcast?.title ?? "Podcast title")
+                            .textDetail()
+                            .lineLimit(1)
+                        
+                        Text(episode.title ?? "Episode title")
+                            .textBody()
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                    .onTapGesture {
                         selectedEpisode = episode
-                    } label: {
-                        HStack {
-                            KFImage(URL(string: episode.episodeImage ?? episode.podcast?.image ?? ""))
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .clipShape(Circle())
-                            
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(episode.podcast?.title ?? "Podcast title")
-                                    .textDetail()
-                                    .lineLimit(1)
-                                
-                                Text(episode.title ?? "Episode title")
-                                    .textBody()
-                                    .lineLimit(1)
-                            }
-                            .frame(maxWidth: infoMaxWidth, alignment: .leading)
-                            .maskEdge(.trailing)
-                        }
                     }
                     
-                    HStack(spacing: spacing) {
+                    HStack {
                         Button(action: {
                             player.skipBackward(seconds: player.backwardInterval)
                             print("Seeking back")
@@ -56,38 +47,19 @@ struct NowPlaying: View {
                             Label("Go back", systemImage: "\(String(format: "%.0f", player.backwardInterval)).arrow.trianglehead.counterclockwise")
                         }
                         .disabled(!player.isPlaying)
-                        .buttonStyle(PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            iconOnly: true,
-                            customColors: ButtonCustomColors(
-                                foreground: player.isPlaying ? .heading : .heading.opacity(0),
-                                background: .surface
-                            )
-                        ))
-                        .zIndex(-1)
                         
                         Button(action: {
                             player.togglePlayback(for: episode)
                             print("Playing episode")
                         }) {
                             if player.isLoading {
-                                PPSpinner(color: Color.background)
+                                PPSpinner(color: Color.heading)
                             } else if player.isPlaying {
                                 Image(systemName: "pause")
                             } else {
                                 Image(systemName: "play.fill")
                             }
                         }
-                        .buttonStyle(PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            iconOnly: true,
-                            customColors: ButtonCustomColors(
-                                foreground: .background,
-                                background: .heading
-                            )
-                        ))
                         
                         Button(action: {
                             player.skipForward(seconds: player.forwardInterval)
@@ -96,52 +68,45 @@ struct NowPlaying: View {
                             Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
                         }
                         .disabled(!player.isPlaying)
-                        .buttonStyle(PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            iconOnly: true,
-                            customColors: ButtonCustomColors(
-                                foreground: player.isPlaying ? .heading : .heading.opacity(0),
-                                background: .surface
-                            )
-                        ))
-                        .zIndex(-1)
-                    }
-                    .onAppear {
-                        updateNowPlayingState()
-                    }
-                    .onChange(of: player.isPlaying) { _, isPlaying in
-                        updateNowPlayingState()
                     }
                 }
-                .padding(8)
-                .background(.thinMaterial)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule()
-                        .inset(by: 1)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-                .overlay(
-                    Capsule()
-                        .inset(by: 0.5)
-                        .stroke(Color.black.opacity(0.15), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 3)
+                .padding(.leading,4)
+                .padding(.trailing, 8)
+                .frame(maxWidth:.infinity, alignment:.leading)
             }
-            .frame(maxWidth: .infinity)
-            .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode, namespace:namespace)
-                    .modifier(PPSheet())
-            }
+//            } else {
+//                HStack {
+//                    Text("Nothing playing")
+//                        .textBody()
+//                        .frame(maxWidth:.infinity, alignment: .leading)
+//
+//                    HStack {
+//                        Button(action: {
+//                        }) {
+//                            Label("Go back", systemImage: "\(String(format: "%.0f", player.backwardInterval)).arrow.trianglehead.counterclockwise")
+//                        }
+//                        .disabled(!player.isPlaying)
+//
+//                        Button(action: {
+//                        }) {
+//                            Image(systemName: "play.fill")
+//                        }
+//                        .disabled(!player.isPlaying)
+//
+//                        Button(action: {
+//                        }) {
+//                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+//                        }
+//                        .disabled(!player.isPlaying)
+//                    }
+//                }
+//                .padding(.leading,16).padding(.trailing, 8)
+//                .frame(maxWidth:.infinity, alignment:.leading)
+//            }
         }
-    }
-    
-    private func updateNowPlayingState() {
-        let isPlaying = player.isPlaying
-        withAnimation(.easeInOut(duration: 0.3)) {
-            spacing = isPlaying ? -4 : -38
-            infoMaxWidth = isPlaying ? 180 : 75
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
         }
     }
 }

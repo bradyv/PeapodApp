@@ -56,9 +56,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published private(set) var playbackState = PlaybackState.idle {
         didSet {
             if playbackState != oldValue {
-                updateDerivedState()
+//                updateDerivedState()
                 updateNowPlayingInfo()
-                savePositionIfNeeded()
+//                savePositionIfNeeded()
                 
 //                LogManager.shared.info("🎯 State: episode=\(playbackState.episode?.title?.prefix(20) ?? "nil"), pos=\(String(format: "%.1f", playbackState.position)), playing=\(playbackState.isPlaying), loading=\(playbackState.isLoading)")
             }
@@ -80,6 +80,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private let queueLock = NSLock()
     private var wasPlayingBeforeBackground = false
     private var cachedArtwork: MPMediaItemArtwork?
+    private var positionUpdateWorkItem: DispatchWorkItem?
     
     @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0) {
         didSet {
@@ -338,28 +339,38 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             let newPosition = time.seconds
             guard newPosition.isFinite && newPosition >= 0 else { return }
             
-            // Check if player actually stopped (rate = 0) but we're still near the end
-            let playerRate = self.player?.rate ?? 0
-            let duration = self.playbackState.duration
-            let isNearEnd = duration > 0 && newPosition >= (duration - 3.0) // 3 second buffer
-            let hasValidDuration = duration > 10 // At least 10 seconds long
-            
-            // CRITICAL: Detect if player stopped playing near the end (background completion)
-            if isNearEnd && hasValidDuration && playerRate == 0 && self.playbackState.isPlaying {
-                LogManager.shared.info("🏁 Background episode completion detected: pos=\(newPosition), duration=\(duration), rate=\(playerRate)")
-                self.handleEpisodeEnd()
-                return
+            // DEBOUNCE: Cancel previous update and schedule new one
+            self.positionUpdateWorkItem?.cancel()
+            self.positionUpdateWorkItem = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                
+                // Check if player actually stopped (rate = 0) but we're still near the end
+                let playerRate = self.player?.rate ?? 0
+                let duration = self.playbackState.duration
+                let isNearEnd = duration > 0 && newPosition >= (duration - 3.0)
+                let hasValidDuration = duration > 10
+                
+                // Episode completion detection
+                if isNearEnd && hasValidDuration && playerRate == 0 && self.playbackState.isPlaying {
+                    LogManager.shared.info("🏁 Background episode completion detected")
+                    self.handleEpisodeEnd()
+                    return
+                }
+                
+                if isNearEnd && hasValidDuration && playerRate > 0 {
+                    LogManager.shared.info("🏁 Foreground episode ending detected")
+                    self.handleEpisodeEnd()
+                    return
+                }
+                
+                // Only update if position actually changed significantly
+                if abs(newPosition - self.playbackState.position) > 0.5 {
+                    self.updateState(position: newPosition)
+                }
             }
             
-            // Normal end detection for foreground
-            if isNearEnd && hasValidDuration && playerRate > 0 {
-                LogManager.shared.info("🏁 Foreground episode ending detected: pos=\(newPosition), duration=\(duration)")
-                self.handleEpisodeEnd()
-                return
-            }
-            
-            // Update position
-            self.updateState(position: newPosition)
+            // Execute after a small delay to debounce rapid updates
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: self.positionUpdateWorkItem!)
         }
         
         // Status observer (for errors/ready state)

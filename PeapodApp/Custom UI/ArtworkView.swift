@@ -12,12 +12,15 @@ struct ArtworkView: View {
     let url: String
     let size: CGFloat
     let cornerRadius: CGFloat
+    var tilt: Bool = false
     
     var body: some View {
         KFImage(URL(string:url))
             .resizable()
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius:cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.border, lineWidth: 1))
+            .if(tilt, transform: { $0.overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5)) })
+            .if(!tilt, transform: { $0.glassEffect(in: .rect(cornerRadius: cornerRadius)) })
+            .rotationEffect(.degrees(tilt ? 2 : 0))
     }
 }

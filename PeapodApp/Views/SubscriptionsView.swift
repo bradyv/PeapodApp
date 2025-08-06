@@ -17,39 +17,44 @@ struct SubscriptionsView: View {
     
     var body: some View {
         VStack(alignment:.leading) {
-            if !subscriptions.isEmpty {
-                Text("My Shows")
-                    .headerSection()
-            }
+            Text("Following")
+                .titleSerifMini()
             
             ZStack(alignment: .topLeading) {
                 // Actual grid with Add button + (possibly empty) real subscriptions
                 LazyVGrid(columns: columns, spacing: 16) {
                     // Always-visible Add button
-                    NavigationLink {
-                        PPPopover(showDismiss: false, pushView: false) {
-                            PodcastSearchView(namespace:namespace)
-                        }
-                        .navigationTransition(.zoom(sourceID: "ppsearch", in: namespace))
-                    } label: {
-                        VStack {
-                            Image(systemName: "plus.magnifyingglass")
-                                .symbolRenderingMode(.hierarchical)
-                            Text("Add a podcast")
-                                .textDetailEmphasis()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .aspectRatio(1, contentMode: .fit)
-                        .background(Color.surface)
-                        .foregroundStyle(Color.heading)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.surface, lineWidth: 1))
-                        .matchedTransitionSource(id: "ppsearch", in: namespace)
-                    }
+//                    NavigationLink {
+//                        PPPopover(showDismiss: false, pushView: false) {
+//                            PodcastSearchView(namespace:namespace)
+//                        }
+//                        .navigationTransition(.zoom(sourceID: "ppsearch", in: namespace))
+//                    } label: {
+//                        VStack {
+//                            Image(systemName: "plus.magnifyingglass")
+//                                .symbolRenderingMode(.hierarchical)
+//                            Text("Add a podcast")
+//                                .textDetailEmphasis()
+//                        }
+//                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+//                        .aspectRatio(1, contentMode: .fit)
+//                        .background(Color.surface)
+//                        .foregroundStyle(Color.heading)
+//                        .clipShape(RoundedRectangle(cornerRadius: 16))
+//                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.surface, lineWidth: 1))
+//                        .matchedTransitionSource(id: "ppsearch", in: namespace)
+//                    }
 
                     // Real podcasts - optimized for scroll performance
                     if !subscriptions.isEmpty {
                         ForEach(subscriptions, id: \.objectID) { podcast in
+//                            NavigationLink {
+//                                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "", namespace:namespace)
+//                                    .navigationTransition(.zoom(sourceID: podcast.id, in: namespace))
+//                            } label: {
+//                                PodcastGridItem(podcast: podcast)
+//                                    .matchedTransitionSource(id: podcast.id, in: namespace)
+//                            }
                             PodcastGridItem(podcast: podcast) {
                                 selectedPodcast = podcast
                             }
@@ -106,7 +111,7 @@ struct PodcastGridItem: View {
                 .resizable()
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5))
         }
         .buttonStyle(PlainButtonStyle())
         .drawingGroup() // Render as single composited layer

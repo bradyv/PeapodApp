@@ -13,14 +13,6 @@ struct FavEpisodesView: View {
     
     var body: some View {
         ScrollView {
-            Spacer().frame(height:24)
-            FadeInView(delay: 0.2) {
-                Text("Favorites")
-                    .titleSerif()
-                    .frame(maxWidth:.infinity, alignment: .leading)
-                    .padding(.leading).padding(.top,24)
-            }
-            
             if episodesViewModel.favs.isEmpty {
                 ZStack {
                     VStack {
@@ -53,12 +45,59 @@ struct FavEpisodesView: View {
                 }
             }
         }
+        .background(Color.background)
+        .toolbar {
+            ToolbarItem(placement: .largeTitle) {
+                Text("Favorites")
+                    .titleSerif()
+                    .frame(maxWidth:.infinity, alignment:.leading)
+           }
+        }
         .onAppear {
             episodesViewModel.fetchFavs()
         }
-        .maskEdge(.top)
-        .maskEdge(.bottom)
         .scrollDisabled(episodesViewModel.favs.isEmpty)
     }
 }
 
+struct FavEpisodesMini: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @Environment(\.managedObjectContext) private var context
+    @State private var selectedEpisode: Episode? = nil
+    @State private var selectedPodcast: Podcast? = nil
+    var namespace: Namespace.ID
+    
+    var body: some View {
+        VStack {
+            if !episodesViewModel.favs.isEmpty {
+                Spacer().frame(height:24)
+                NavigationLink {
+                    FavEpisodesView(namespace: namespace)
+                        .navigationTitle("Favorites")
+                } label: {
+                    HStack(alignment:.center) {
+                        Text("Favorites")
+                            .titleSerifMini()
+                            .padding(.leading)
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
+                    }
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                }
+            
+                LazyVStack(alignment: .leading) {
+                    ForEach(episodesViewModel.favs.prefix(3), id: \.id) { episode in
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            episodesViewModel.fetchFavs()
+        }
+    }
+}

@@ -11,7 +11,7 @@ struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
-    @ObservedObject var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     @State private var selectedPodcast: Podcast? = nil
     @State private var selectedEpisode: Episode? = nil
     var showActions: Bool = false
@@ -37,31 +37,37 @@ struct EpisodeItem: View {
         VStack(alignment: .leading) {
             // Podcast Info Row
             HStack {
-                HStack {
-                    ZStack(alignment:.bottomTrailing) {
-                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
-                        
-                        if episode.isPlayed && !displayedInQueue {
-                            ZStack {
-                                Image(systemName:"checkmark.circle.fill")
-                                    .foregroundStyle(Color.accentColor)
-                                    .textDetail()
+//                NavigationLink {
+//                    PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
+//                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
+//                } label: {
+                    HStack {
+                        ZStack(alignment:.bottomTrailing) {
+                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                            
+                            if episode.isPlayed && !displayedInQueue {
+                                ZStack {
+                                    Image(systemName:"checkmark.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                        .textMini()
+                                }
+                                .background(Color.background)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.background, lineWidth: 1)
+                                )
+                                .offset(x:5)
                             }
-                            .background(Color.background)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.background, lineWidth: 1)
-                            )
-                            .offset(x:5,y:5)
                         }
+                        
+                        Text(episode.podcast?.title ?? "Podcast title")
+                            .lineLimit(1)
+                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                            .textDetailEmphasis()
                     }
-                    
-                    Text(episode.podcast?.title ?? "Podcast title")
-                        .lineLimit(1)
-                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                        .textDetailEmphasis()
-                }
+                    .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
+//                }
                 .onTapGesture {
                     selectedPodcast = episode.podcast
                 }
@@ -147,9 +153,13 @@ struct EpisodeItem: View {
                                 .contentTransition(.numericText())
                         }
                     }
+//                    .glassButton(prominent: displayedInQueue ? true : false, tint: displayedInQueue ? .white : .heading, label: displayedInQueue ? .black : .heading)
+//                    .typography(size: 17, weight: .medium, color: .text).fontWidth(.condensed)
                     .buttonStyle(
+//                        .glassProminent
+//                        PPGlassButton()
                         PPButton(
-                            type: .filled,
+                            type: displayedInQueue ? .filled : .transparent,
                             colorStyle: .monochrome,
                             hierarchical: false,
                             customColors: displayedInQueue ?
@@ -168,35 +178,9 @@ struct EpisodeItem: View {
                             }) {
                                 Label("Archive", systemImage: "archivebox")
                             }
-                            .buttonStyle(
-                                PPButton(
-                                    type: .transparent,
-                                    colorStyle: .monochrome,
-                                    customColors: ButtonCustomColors(
-                                        foreground: .white,
-                                        background: .white.opacity(0.15)
-                                    )
-                                )
-                            )
+                            .glassButton()
+//                            .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome))
                             
-                            Button(action: {
-                                withAnimation {
-                                    toggleSaved(episode)
-                                }
-                            }) {
-                                Label("Play Later", systemImage: "arrowshape.bounce.right")
-                            }
-                            .buttonStyle(
-                                PPButton(
-                                    type: .transparent,
-                                    colorStyle: .monochrome,
-                                    iconOnly: true,
-                                    customColors: ButtonCustomColors(
-                                        foreground: .white,
-                                        background: .white.opacity(0.15)
-                                    )
-                                )
-                            )
                         } else {
                             Button(action: {
                                 withAnimation {
@@ -207,8 +191,10 @@ struct EpisodeItem: View {
                                     }
                                 }
                             }) {
-                                Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
+                                Label("Up Next", systemImage: episode.isQueued ? "checkmark" : "text.append")
                             }
+//                            .glassButton()
+//                            .buttonStyle(PPGlassButton())
                             .buttonStyle(PPButton(type: .transparent, colorStyle: episode.isQueued ? .tinted : .monochrome))
                         }
                     } else {
@@ -220,20 +206,20 @@ struct EpisodeItem: View {
                         }) {
                             Label("Mark as Played", systemImage: "checkmark.circle")
                         }
-                        .buttonStyle(
-                            PPButton(
-                                type: .transparent,
-                                colorStyle: .monochrome,
-                                customColors: displayedInQueue ?
-                                ButtonCustomColors(foreground: .white, background: .white.opacity(0.15)) :
-                                    nil
-                            )
-                        )
+//                        .glassButton()
+                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome))
                     }
                     
                     Spacer()
                     
-                    EpisodeContextMenu(episode: episode, displayedInQueue: displayedInQueue, namespace: namespace)
+                    Button(action: {
+                        withAnimation {
+                            toggleFav(episode)
+                        }
+                    }) {
+                        Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                    }
+                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                 }
             }
         }

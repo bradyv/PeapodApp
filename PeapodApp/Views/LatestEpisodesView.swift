@@ -36,17 +36,6 @@ struct LatestEpisodesView: View {
     
     var body: some View {
         ScrollView {
-            Spacer().frame(height:24)
-            FadeInView(delay: 0.1) {
-                HStack {
-                    Text("Most Recent")
-                        .titleSerif()
-                    
-                    Spacer()
-                }
-                .padding(.horizontal).padding(.top,24)
-            }
-            
             FadeInView(delay: 0.2) {
                 ZStack {
                     VStack {
@@ -133,26 +122,99 @@ struct LatestEpisodesView: View {
             } else {
                 LazyVStack(alignment: .leading) {
                     ForEach(filteredEpisodes, id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .animation(.easeOut(duration: 0.2), value: showAll)
+                        NavigationLink {
+                            EpisodeView(episode:episode,namespace:namespace)
+                                .navigationTransition(.zoom(sourceID: episode.guid, in: namespace))
+                        } label: {
+                            EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .padding(.horizontal)
+                                .animation(.easeOut(duration: 0.2), value: showAll)
+                        }
+                        .matchedTransitionSource(id: episode.guid, in: namespace)
+                    }
+                }
+            }
+        }
+        .background(Color.background)
+        .toolbar {
+            ToolbarItem(placement: .largeTitle) {
+                Text(showAll ? "Recent Releases" : "Unplayed")
+                    .titleSerif()
+                    .frame(maxWidth:.infinity, alignment:.leading)
+                    .animation(.easeOut(duration: 0.2), value: showAll)
+                    .contentTransition(.interpolate)
+           }
+            
+            ToolbarItem {
+                Button(action: {
+                    showAll.toggle()
+                }) {
+                    Label("Filter", systemImage:"line.3.horizontal.decrease")
+                }
+                .if(!showAll, transform: { $0.buttonStyle(.glassProminent)})
+            }
+        }
+        .scrollEdgeEffectStyle(.soft, for: .all)
+        .onAppear {
+            episodesViewModel.fetchLatest()
+        }
+        .toast()
+        .refreshable {
+            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+                LogManager.shared.info("✨ Refreshed latest episodes")
+            }
+        }
+    }
+}
+
+struct LatestEpisodesMini: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @Environment(\.managedObjectContext) private var context
+    @State private var selectedEpisode: Episode? = nil
+    @State private var selectedPodcast: Podcast? = nil
+    var namespace: Namespace.ID
+    
+    var body: some View {
+        VStack {
+            Spacer().frame(height:44)
+            
+            NavigationLink {
+                LatestEpisodesView(namespace: namespace)
+                    .navigationTitle("Recent Releases")
+            } label: {
+                HStack(alignment:.center) {
+                    Text("Recent Releases")
+                        .titleSerifMini()
+                        .padding(.leading)
+                    
+                    Image(systemName: "chevron.right")
+                        .textDetailEmphasis()
+                }
+                .frame(maxWidth:.infinity, alignment: .leading)
+            }
+            
+            if !episodesViewModel.latest.isEmpty {
+                LazyVStack(alignment: .leading) {
+                    ForEach(episodesViewModel.latest.prefix(3), id: \.id) { episode in
+//                        NavigationLink {
+//                            EpisodeView(episode:episode,namespace:namespace)
+//                                .navigationTransition(.zoom(sourceID: episode.guid, in: namespace))
+//                        } label: {
+                            EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                                .lineLimit(3)
+                                .padding(.bottom, 24)
+                                .padding(.horizontal)
+//                        }
+//                        .matchedTransitionSource(id: episode.guid, in: namespace)
                     }
                 }
             }
         }
         .onAppear {
             episodesViewModel.fetchLatest()
-        }
-        .toast()
-        .maskEdge(.top)
-        .maskEdge(.bottom)
-        .refreshable {
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                toastManager.show(message: "Peapod is up to date", icon: "sparkles")
-                LogManager.shared.info("✨ Refreshed latest episodes")
-            }
         }
     }
 }

@@ -50,9 +50,9 @@ struct PPPopover<Content: View>: View {
                             Button {
                                 withAnimation { animateBg = false; dismiss() }
                             } label: {
-                                Label("Dismiss", systemImage: "chevron.left")
+                                Label("Dismiss", systemImage: "xmark")
                             }
-                            .buttonStyle(ShadowButton(iconOnly: true))
+                            .glassButton(iconOnly:true)
                         }
                     }
                     .padding(.horizontal, 8)

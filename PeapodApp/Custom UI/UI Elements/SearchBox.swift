@@ -46,20 +46,22 @@ struct SearchBox: View {
             .background(Color.surface)
             .clipShape(Capsule())
 
-            Button(action: {
-                isTextFieldFocused = false
-                showSearch.toggle()
-                query = ""
-                onCancel?()
-            }) {
-                Text("Cancel")
-            }
-            .textBody()
-        }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isTextFieldFocused = true
+            if isTextFieldFocused {
+                Button(action: {
+                    isTextFieldFocused = false
+                    showSearch.toggle()
+                    query = ""
+                    onCancel?()
+                }) {
+                    Text("Cancel")
+                }
+                .textBody()
             }
         }
+//        .onAppear {
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+//                isTextFieldFocused = true
+//            }
+//        }
     }
 }

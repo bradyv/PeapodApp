@@ -11,7 +11,7 @@ struct EpisodeContextMenu: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
-    @ObservedObject var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     @ObservedObject var userManager = UserManager.shared
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
@@ -38,6 +38,11 @@ struct EpisodeContextMenu: View {
     }
     
     var body: some View {
+        episodeMenu()
+    }
+    
+    @ViewBuilder
+    func episodeMenu() -> some View {
         Menu {
             if !displayedFullscreen {
                 Button(action: {
@@ -133,18 +138,22 @@ struct EpisodeContextMenu: View {
                 }
 //            }
         } label: {
-            Label("More", systemImage: "ellipsis")
-                .frame(width: 24, height: 24)
+            Label("More", systemImage: "ellipsis.circle")
+                .foregroundStyle(Color.heading)
         }
-        .buttonStyle(PPButton(
-            type: .transparent,
-            colorStyle: .monochrome,
-            iconOnly: true,
-            customColors: displayedInQueue ?
-            ButtonCustomColors(foreground: .white, background: .white.opacity(0.15)) :
-                nil
-            )
-        )
+        .labelStyle(.iconOnly)
+//        .buttonStyle(
+//            .glass
+//            PPGlassButton(iconOnly: true)
+//            PPButton(
+//                type: .transparent,
+//                colorStyle: .monochrome,
+//                iconOnly: true,
+//                customColors: displayedInQueue ?
+//                ButtonCustomColors(foreground: .white, background: .white.opacity(0.15)) :
+//                    nil
+//            )
+//        )
         .menuOrder(.fixed)
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode, namespace:namespace)

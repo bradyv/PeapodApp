@@ -54,8 +54,9 @@ struct QueueItem: View {
                 .opacity(0.5)
         )
         .background(Color.black)
+        .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.white, lineWidth: 1).blendMode(.overlay))
+//        .glassEffect(in: .rect(cornerRadius: 32))
         .clipShape(RoundedRectangle(cornerRadius: 32))
-        .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.border, lineWidth: 1))
     }
 }
 

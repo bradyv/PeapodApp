@@ -13,36 +13,15 @@ struct SavedEpisodesView: View {
     
     var body: some View {
         ScrollView {
-            Spacer().frame(height:24)
-            FadeInView(delay: 0.2) {
-                Text("Play Later")
-                    .titleSerif()
-                    .frame(maxWidth:.infinity, alignment: .leading)
-                    .padding(.leading).padding(.top,24)
-            }
-            
-            if episodesViewModel.saved.isEmpty {
-                ZStack {
-                    VStack {
-                        ForEach(0..<2, id: \.self) { _ in
-                            EmptyEpisodeItem()
-                                .opacity(0.03)
-                        }
-                    }
-                    .mask(
-                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
-                    )
-                    
-                    VStack {
-                        Text("No saved episodes")
-                            .titleCondensed()
-                        
-                        Text("Tap \(Image(systemName:"arrowshape.bounce.right")) on any episode you'd like to save for later.")
-                            .textBody()
-                    }
+            if !episodesViewModel.saved.isEmpty {
+                Spacer().frame(height:24)
+                FadeInView(delay: 0.2) {
+                    Text("Play Later")
+                        .titleSerif()
+                        .frame(maxWidth:.infinity, alignment: .leading)
+                        .padding(.leading).padding(.top,24)
                 }
-            } else {
+                
                 ForEach(episodesViewModel.saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
                         EpisodeItem(episode: episode, showActions: true, namespace: namespace)
@@ -59,5 +38,47 @@ struct SavedEpisodesView: View {
         .maskEdge(.top)
         .maskEdge(.bottom)
         .scrollDisabled(episodesViewModel.saved.isEmpty)
+    }
+}
+
+struct SavedEpisodesMini: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    var namespace: Namespace.ID
+    
+    var body: some View {
+        VStack {
+            if !episodesViewModel.saved.isEmpty {
+                Spacer().frame(height:24)
+                FadeInView(delay: 0.2) {
+                    NavigationLink {
+                        PPPopover(showBg: true) {
+                            SavedEpisodesView(namespace: namespace)
+                        }
+                    } label: {
+                        HStack(alignment:.bottom) {
+                            Text("Play Later")
+                                .titleSerifSm()
+                                .padding(.leading).padding(.top,24)
+                            
+                            Image(systemName: "chevron.right")
+                                .titleCondensed()
+                        }
+                        .frame(maxWidth:.infinity, alignment: .leading)
+                    }
+                }
+                
+                ForEach(episodesViewModel.saved.prefix(3), id: \.id) { episode in
+                    FadeInView(delay: 0.3) {
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            episodesViewModel.fetchSaved()
+        }
     }
 }

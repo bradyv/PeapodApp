@@ -667,6 +667,139 @@ class EpisodeRefresher {
         }
     }
     
+    static func loadNextBatchOfEpisodes(
+        for podcast: Podcast,
+        context: NSManagedObjectContext,
+        completion: @escaping (Int, Bool) -> Void // (newEpisodesAdded, hasMoreToLoad)
+    ) {
+        LogManager.shared.info("📦 Loading next batch for: \(podcast.title ?? "Unknown")")
+        
+        guard let feedUrl = podcast.feedUrl else {
+            LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
+            completion(0, false)
+            return
+        }
+        
+        let httpsUrl = forceHTTPS(feedUrl) ?? feedUrl
+        
+        guard let url = URL(string: httpsUrl) else {
+            LogManager.shared.error("❌ Invalid feed URL for: \(podcast.title ?? "Unknown")")
+            completion(0, false)
+            return
+        }
+        
+        let podcastId = podcast.id as NSString? ?? "unknown" as NSString
+        var lock: NSLock
+        
+        objc_sync_enter(podcastRefreshLocks)
+        if let existingLock = podcastRefreshLocks.object(forKey: podcastId) {
+            lock = existingLock
+        } else {
+            lock = NSLock()
+            podcastRefreshLocks.setObject(lock, forKey: podcastId)
+        }
+        objc_sync_exit(podcastRefreshLocks)
+        
+        guard lock.try() else {
+            print("⏩ Skipping batch load for \(podcast.title ?? "podcast"), already in progress")
+            completion(0, false)
+            return
+        }
+        
+        defer { lock.unlock() }
+        
+        FeedParser(URL: url).parseAsync { result in
+            switch result {
+            case .success(let feed):
+                if let rss = feed.rssFeed {
+                    context.perform {
+                        processNextBatchByGUID(
+                            rss: rss,
+                            podcast: podcast,
+                            context: context,
+                            completion: completion
+                        )
+                    }
+                } else {
+                    completion(0, false)
+                }
+            case .failure(let error):
+                LogManager.shared.error("❌ Failed to parse feed for batch load \(podcast.title ?? "podcast"): \(error)")
+                completion(0, false)
+            }
+        }
+    }
+
+    // 🆕 Process next batch by excluding already-loaded GUIDs
+    private static func processNextBatchByGUID(
+        rss: RSSFeed,
+        podcast: Podcast,
+        context: NSManagedObjectContext,
+        completion: @escaping (Int, Bool) -> Void
+    ) {
+        guard let items = rss.items, !items.isEmpty else {
+            completion(0, false)
+            return
+        }
+        
+        // Get GUIDs of all currently loaded episodes
+        let existingEpisodes = (podcast.episode as? Set<Episode>) ?? []
+        let loadedGUIDs = Set(existingEpisodes.compactMap { $0.guid?.trimmingCharacters(in: .whitespacesAndNewlines) })
+        let loadedAudioURLs = Set(existingEpisodes.compactMap { $0.audio }) // Fallback for episodes without GUIDs
+        
+        LogManager.shared.info("📊 Current episodes: \(existingEpisodes.count), Total available: \(items.count)")
+        LogManager.shared.info("🔑 Loaded GUIDs: \(loadedGUIDs.count), Loaded audio URLs: \(loadedAudioURLs.count)")
+        
+        // Filter items to only those we haven't loaded yet
+        let unloadedItems = items.filter { item in
+            // Check GUID first (most reliable)
+            if let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                return !loadedGUIDs.contains(guid)
+            }
+            
+            // Fallback: check audio URL if no GUID
+            if let audioURL = forceHTTPS(item.enclosure?.attributes?.url) {
+                return !loadedAudioURLs.contains(audioURL)
+            }
+            
+            // If no GUID or audio URL, consider it unloaded (rare case)
+            return true
+        }
+        
+        // Take the next 50 episodes (items are already in feed order: newest first)
+        let batchItems = Array(unloadedItems.prefix(50))
+        
+        guard !batchItems.isEmpty else {
+            LogManager.shared.info("✅ No more episodes to load for \(podcast.title ?? "podcast")")
+            completion(0, false)
+            return
+        }
+        
+        LogManager.shared.info("📦 Processing next \(batchItems.count) unloaded episodes")
+        
+        // Pre-fetch existing episodes for duplicate checking (uses the comprehensive lookup)
+        let existingEpisodeMap = fetchAllExistingEpisodes(for: podcast, context: context)
+        
+        // Process the batch
+        let newEpisodesCount = processBatch(
+            items: batchItems,
+            podcast: podcast,
+            existingEpisodes: existingEpisodeMap,
+            context: context
+        )
+        
+        // Save changes
+        if context.hasChanges {
+            saveContextIfNeeded(context: context)
+        }
+        
+        // Check if there are more episodes to load
+        let hasMore = unloadedItems.count > batchItems.count
+        
+        LogManager.shared.info("✅ Loaded \(newEpisodesCount) new episodes. Has more: \(hasMore)")
+        completion(newEpisodesCount, hasMore)
+    }
+    
     // 🆕 Force refresh for push notifications - restored method
     static func forceRefreshForNotification(completion: (() -> Void)? = nil) {
         let lastNotificationRefreshKey = "lastNotificationRefresh"

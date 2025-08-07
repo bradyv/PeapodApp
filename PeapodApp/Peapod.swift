@@ -25,8 +25,8 @@ struct Peapod: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var appTheme: AppTheme {
-//       AppTheme(rawValue: appThemeRawValue) ?? .system
-        .dark
+       AppTheme(rawValue: appThemeRawValue) ?? .system
+//        .dark
     }
     
     init() {

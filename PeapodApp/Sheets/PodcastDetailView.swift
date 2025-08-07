@@ -22,14 +22,15 @@ struct PodcastDetailView: View {
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
-    @FocusState var showSearch: Bool
     @State private var scrollOffset: CGFloat = 0
     @State private var showDebugTools = false
     @State private var showConfirm = false
     @State private var showNotificationRequest = false
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var query = ""
-    @FocusState private var isTextFieldFocused: Bool
+    @State private var showSearch = false
+//    @FocusState private var showSearch: Bool
+    
     var podcast: Podcast? { podcastResults.first }
     var namespace: Namespace.ID
     var episodes: [Episode] {
@@ -59,17 +60,15 @@ struct PodcastDetailView: View {
     }
 
     var body: some View {
-        ZStack {
-            if let podcast {
-                SplashImage(image: podcast.image ?? "")
+        if let podcast {
+            ScrollView {
+                Color.clear
+                    .frame(height: 1)
+                    .trackScrollOffset("scroll") { value in
+                        scrollOffset = value
+                    }
                 
-                ScrollView {
-                    Color.clear
-                        .frame(height: 1)
-                        .trackScrollOffset("scroll") { value in
-                            scrollOffset = value
-                        }
-                    
+//                    if !showSearch {
                     ArtworkView(url: podcast.image ?? "", size: 128, cornerRadius: 24, tilt: true)
                         .onTapGesture(count: 5) {
                             withAnimation {
@@ -79,96 +78,160 @@ struct PodcastDetailView: View {
                     
                     Text(podcast.title ?? "Podcast title")
                         .titleSerif()
+                        .multilineTextAlignment(.center)
                     
-                    Spacer().frame(height:8)
-                    
-                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
-                        .textBody()
-                        .lineLimit(showFullDescription ? nil :  3)
-                        .frame(maxWidth:.infinity)
-                        .onTapGesture {
-                            withAnimation {
-                                showFullDescription.toggle()
-                            }
-                        }
-                        .transition(.opacity)
-                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
-                    
-                    Spacer().frame(height:32)
-                    
-                    if showDebugTools {
-                        Button(action: {
-                            showConfirm = true
-                        }) {
-                            Label("Delete Podcast", systemImage: "trash")
-                        }
-                        .buttonStyle(ShadowButton())
-                        .alert(
-                            "Delete Podcast",
-                            isPresented: $showConfirm,
-                            presenting: podcast // Optional if you want access to the object inside the alert
-                        ) { podcast in
-                            Button("Delete", role: .destructive) {
-                                context.delete(podcast)
-                                try? context.save()
-                                
-                                // 🔥 Sync subscription changes with Firebase after deletion
-                                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
-                            }
-                            Button("Cancel", role: .cancel) { }
-                        } message: { podcast in
-                            Text("Are you sure you want to delete this podcast from Core Data? This action cannot be undone.")
-                        }
+//                    Spacer().frame(height:8)
+//                    
+//                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
+//                        .textBody()
+//                        .multilineTextAlignment(showFullDescription ? .leading : .center)
+//                        .lineLimit(showFullDescription ? nil :  3)
+//                        .frame(maxWidth:.infinity)
+//                        .onTapGesture {
+//                            withAnimation {
+//                                showFullDescription.toggle()
+//                            }
+//                        }
+//                        .transition(.opacity)
+//                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
+                        
+                        Spacer().frame(height:32)
+                
+//                        Button {
+//                            withAnimation {
+//                                showSearch = true
+//                                isSearching = true
+//                            }
+//                        } label: {
+//                            Label("Find an episode of \(podcast.title ?? "this podcast")", systemImage: "magnifyingglass")
+//                                .textBody()
+//                                .padding(.vertical,4)
+//                                .frame(maxWidth:.infinity)
+//                                .lineLimit(1)
+//                        }
+//                        .buttonStyle(.glass)
+//
+//                        Spacer().frame(height:32)
+//                    }
+                
+                if showDebugTools {
+                    Button(action: {
+                        showConfirm = true
+                    }) {
+                        Label("Delete Podcast", systemImage: "trash")
                     }
-                    
-                    Text(query.isEmpty ? "Episodes" : "Results for \(query)")
+                    .buttonStyle(ShadowButton())
+                    .alert(
+                        "Delete Podcast",
+                        isPresented: $showConfirm,
+                        presenting: podcast // Optional if you want access to the object inside the alert
+                    ) { podcast in
+                        Button("Delete", role: .destructive) {
+                            context.delete(podcast)
+                            try? context.save()
+                            
+                            // 🔥 Sync subscription changes with Firebase after deletion
+                            SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    } message: { podcast in
+                        Text("Are you sure you want to delete this podcast from Core Data? This action cannot be undone.")
+                    }
+                }
+                
+//                Text(query.isEmpty ? "Episodes" : "Results for \"\(query)\"")
+//                    .titleSerifMini()
+//                    .frame(maxWidth:.infinity, alignment:.leading)
+                
+                Text("Latest Episode")
+                    .titleSerifMini()
+                    .frame(maxWidth:.infinity, alignment:.leading)
+                
+                LazyVStack(alignment: .leading) {
+                    ForEach(filteredEpisodes.prefix(1), id: \.id) { episode in
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
+                    }
+                }
+                
+                Spacer().frame(height:24)
+                
+                NavigationLink {
+                    PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode, namespace: namespace)
+                } label: {
+                    HStack(alignment:.center) {
+                        Text("Episodes")
+                            .titleSerifMini()
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
+                    }
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                }
+                
+                LazyVStack(alignment: .leading) {
+                    ForEach(filteredEpisodes.prefix(4).dropFirst(), id: \.id) { episode in
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
+                    }
+                }
+                
+                VStack(spacing:8) {
+                    Text("About")
                         .titleSerifMini()
                         .frame(maxWidth:.infinity, alignment:.leading)
                     
-                    LazyVStack(alignment: .leading) {
-                        ForEach(filteredEpisodes, id: \.id) { episode in
-                            NavigationLink {
-                                EpisodeView(episode:episode,namespace:namespace)
-                                    .navigationTransition(.zoom(sourceID: episode.guid, in: namespace))
-                            } label: {
-                                EpisodeItem(episode: episode, showActions: true, namespace: namespace)
-                                    .lineLimit(3)
-                                    .padding(.bottom, 24)
-                            }
-                            .matchedTransitionSource(id: episode.guid, in: namespace)
-                        }
-                    }
-                }
-                .scrollEdgeEffectStyle(.soft, for: .all)
-                .coordinateSpace(name: "scroll")
-                .contentMargins(16, for: .scrollContent)
-                .frame(maxWidth:.infinity)
-                .searchable(text: $query, prompt: "Find an episode of \(podcast.title ?? "this podcast")")
-                .searchFocused($showSearch)
-                .onAppear {
-                    Task.detached(priority: .background) {
-                        await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
-                        await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context)
-                    }
+                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
+                        .textBody()
+                        .lineLimit(nil)
+//                        .multilineTextAlignment(showFullDescription ? .leading : .center)
+                    //                    .lineLimit(showFullDescription ? nil :  3)
+                        .frame(maxWidth:.infinity)
+                    //                    .onTapGesture {
+                    //                        withAnimation {
+                    //                            showFullDescription.toggle()
+                    //                        }
+                    //                    }
+                        .transition(.opacity)
+                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
                 }
             }
-        }
-        .toolbar {
-            ToolbarItem {
-                subscribeButton()
+            .background {
+                SplashImage(image: podcast.image ?? "")
             }
-        }
-        .animation(.interactiveSpring(duration: 0.25), value: showSearch)
-        .onAppear {
-            checkNotificationStatus()
-        }
-        .fullScreenCover(isPresented: $showNotificationRequest) {
-            RequestNotificationsView(
-                onComplete: {
-                    showNotificationRequest = false
-                },
-                namespace: namespace
-            )
+            .scrollEdgeEffectStyle(.soft, for: .all)
+            .coordinateSpace(name: "scroll")
+            .contentMargins(16, for: .scrollContent)
+            .frame(maxWidth:.infinity)
+//            .searchable(text: $query, prompt: "Find an episode of \(podcast.title ?? "this podcast")")
+//                .if(showSearch, transform: { $0.searchable(text: $query, isPresented: $showSearch, prompt: "Find an episode of \(podcast.title ?? "this podcast")") })
+            .onAppear {
+                checkNotificationStatus()
+                
+                Task.detached(priority: .background) {
+//                    await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
+                    await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context)
+                }
+            }
+            .sheet(item: $selectedEpisode) { episode in
+                EpisodeView(episode: episode, namespace:namespace)
+                    .modifier(PPSheet())
+            }
+            .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem {
+                    subscribeButton()
+                }
+            }
         }
     }
     

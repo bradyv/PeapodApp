@@ -48,13 +48,6 @@ struct SubscriptionsView: View {
                     // Real podcasts - optimized for scroll performance
                     if !subscriptions.isEmpty {
                         ForEach(subscriptions, id: \.objectID) { podcast in
-//                            NavigationLink {
-//                                PodcastDetailLoaderView(feedUrl: podcast.feedUrl ?? "", namespace:namespace)
-//                                    .navigationTransition(.zoom(sourceID: podcast.id, in: namespace))
-//                            } label: {
-//                                PodcastGridItem(podcast: podcast)
-//                                    .matchedTransitionSource(id: podcast.id, in: namespace)
-//                            }
                             PodcastGridItem(podcast: podcast) {
                                 selectedPodcast = podcast
                             }
@@ -66,24 +59,33 @@ struct SubscriptionsView: View {
                 if subscriptions.isEmpty {
                     LazyVGrid(columns: columns, spacing: 16) {
                         // Add empty placeholder to maintain grid offset (position 0)
-                        Color.clear
-                            .aspectRatio(1, contentMode: .fit)
-
-                        ForEach(0..<5, id: \.self) { _ in
+                        ForEach(0..<6, id: \.self) { _ in
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color.surface)
                                 .aspectRatio(1, contentMode: .fit)
                                 .opacity(0.5)
+                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.surface.opacity(0.5), lineWidth: 1))
                         }
                     }
                     .mask(
                         LinearGradient(
                             gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
                     )
                     .allowsHitTesting(false) // So the overlay doesn't block taps on the real button
+                    
+                    VStack {
+                        Spacer()
+                        Text("Library is empty")
+                            .titleCondensed()
+                        
+                        Text("Follow some podcasts to get started.")
+                            .textBody()
+                        Spacer()
+                    }
+                    .frame(maxWidth:.infinity)
                 }
             }
         }

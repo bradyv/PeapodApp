@@ -13,20 +13,53 @@ struct MainContainerView: View {
     @EnvironmentObject var toastManager: ToastManager
     @Environment(\.managedObjectContext) private var context
     @Namespace var namespace
-    
-    let backgroundGradient = LinearGradient(
-        colors: [Color.red, Color.blue],
-        startPoint: .top, endPoint: .bottom)
-
+    @State private var runTest: Bool = true
     
     var body: some View {
-        ContentView(namespace: namespace)
+//        if runTest {
+//            Button(action: {
+//                runTest.toggle()
+//            }) {
+//                Label("Show content", systemImage: "chevron.right")
+//            }
+//            .buttonStyle(.glassProminent)
+//        } else {
+//            ContentView(namespace:namespace)
+//        }
+        
+        ContentView(namespace:namespace)
+//            .fullScreenCover(isPresented: $runTest) {
+//                VStack {
+//                    Button(action: {
+//                           runTest.toggle()
+//                       }) {
+//                           Label("Show content", systemImage: "chevron.right")
+//                       }
+//                       .buttonStyle(.glassProminent)
+//                }
+//                .foregroundColor(.white)
+//                            .frame(maxWidth: .infinity,
+//                                   maxHeight: .infinity)
+//                            .background(Color.blue)
+//                            .ignoresSafeArea(edges: .all)
+//            }
+        
+//        ContentView(namespace: namespace)
+//            .fullScreenCover(isPresented: $runTest) {
+//                WelcomeView(
+//                    completeOnboarding: {
+//                        runTest.toggle()
+//                    },
+//                    namespace: namespace
+//                )
+//            }
         
 //        ZStack {
 //            // Layer 1: Main content (always initialized but conditionally visible)
-//            ContentView(namespace: namespace)
-//                .opacity(appStateManager.currentState == .main ? 1 : 0)
-//                .animation(.easeInOut(duration: 0.6), value: appStateManager.currentState)
+//            if appStateManager.currentState == .main {
+//                ContentView(namespace: namespace)
+//                    .transition(.opacity)
+//            }
 //            
 //            // Layer 2: Onboarding (conditionally visible)
 //            if appStateManager.currentState == .onboarding {
@@ -48,12 +81,6 @@ struct MainContainerView: View {
 //                    namespace: namespace
 //                )
 //                .transition(.opacity)
-//            }
-//            
-//            // Layer 4: Splash (conditionally visible on top)
-//            if appStateManager.currentState == .splash {
-//                SplashView()
-//                    .transition(.opacity)
 //            }
 //        }
     }

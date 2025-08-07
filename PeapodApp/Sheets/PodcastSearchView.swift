@@ -189,9 +189,6 @@ struct PodcastSearchView: View {
                             FadeInView(delay: 0.3) {
                                 Button {
                                     selectedPodcast = podcast
-                                    //                                        PPPopover {
-                                    //                                            PodcastDetailLoaderView(feedUrl: podcast.feedUrl, namespace: namespace)
-                                    //                                        }
                                 } label: {
                                     HStack {
                                         ArtworkView(url: podcast.artworkUrl600, size: 44, cornerRadius: 8, tilt: false)
@@ -217,10 +214,9 @@ struct PodcastSearchView: View {
                         }
                     }
                 }
-                
-                Spacer().frame(height:64)
             }
         }
+        .frame(maxWidth:.infinity, alignment:.leading)
         .contentMargins(16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {

@@ -94,16 +94,16 @@ struct EpisodeView: View {
                                 Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                             }
                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
-                        } else {
-                            Button(action: {
-                                withAnimation {
-                                    player.markAsPlayed(for: episode, manually: true)
-                                }
-                            }) {
-                                Label("Mark as Played", systemImage: "checkmark.circle")
-                            }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         }
+                        
+                        Button(action: {
+                            withAnimation {
+                                player.markAsPlayed(for: episode, manually: true)
+                            }
+                        }) {
+                            Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
+                        }
+                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         
                         Button(action: {
                             withAnimation {
@@ -132,6 +132,7 @@ struct EpisodeView: View {
                             isDraggable: true,
                             isQQ: false
                         )
+                        .disabled(!player.isPlayingEpisode(episode))
                         
                         Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
                             .fontDesign(.monospaced)
@@ -170,62 +171,12 @@ struct EpisodeView: View {
                         return .systemAction
                     })
             }
-            
-            Spacer().frame(height: 32)
         }
         .background {
             SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
         }
         .coordinateSpace(name: "scroll")
         .scrollIndicators(.hidden)
-//        .overlay {
-//            VStack {
-//                Spacer()
-//                HStack(spacing: 8) {
-//                    Button(action: {
-//                        player.skipBackward(seconds: player.backwardInterval)
-//                    }) {
-//                        Label("Go back", systemImage: "\(String(format: "%.0f", player.backwardInterval)).arrow.trianglehead.counterclockwise")
-//                    }
-//                    .disabled(!isPlaying)
-//                    .buttonStyle(PPButton(type:.transparent, colorStyle: .monochrome))
-//                    .labelStyle(.iconOnly)
-//                    .buttonBorderShape(.circle)
-//                    
-//                    VStack {
-//                        Button(action: {
-//                            withAnimation {
-//                                player.togglePlayback(for: episode)
-//                            }
-//                        }) {
-//                            if isLoading {
-//                                PPSpinner(color: Color.white)
-//                            } else {
-//                                Label(isPlaying ? "Pause" : "Play", systemImage: isPlaying ? "pause.fill" : "play.fill")
-//                                    .foregroundStyle(.white)
-//                                    .padding(8)
-//                            }
-//                        }
-//                        .buttonStyle(PPButton(type:.filled, colorStyle: .tinted))
-//                        .labelStyle(.iconOnly)
-//                        .buttonBorderShape(.circle)
-//                    }
-//                    .zIndex(1)
-//                    
-//                    Button(action: {
-//                        player.skipForward(seconds: player.forwardInterval)
-//                    }) {
-//                        Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-//                    }
-//                    .disabled(!isPlaying)
-//                    .buttonStyle(PPButton(type:.transparent, colorStyle: .monochrome))
-//                    .labelStyle(.iconOnly)
-//                    .buttonBorderShape(.circle)
-//                }
-//                .padding(4)
-//                .glassEffect()
-//            }
-//        }
         .frame(maxWidth: .infinity)
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
@@ -237,20 +188,11 @@ struct EpisodeView: View {
                 .disabled(!isPlaying)
                 
                 Button(action: {
-                    player.skipForward(seconds: player.forwardInterval)
-                }) {
-                    Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-                }
-                .disabled(!isPlaying)
-            }
-            
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         player.togglePlayback(for: episode)
                     }
                 }) {
-                    HStack {
+                    Group {
                         if isLoading {
                             PPSpinner(color: Color.white)
                                 .transition(.scale.combined(with: .opacity))
@@ -260,22 +202,22 @@ struct EpisodeView: View {
                                 .textBody()
                                 .transition(.scale.combined(with: .opacity))
                         } else {
-                            HStack {
-                                Image(systemName: "play.fill")
-                                    .foregroundStyle(.white)
-                                    .textBody()
-                                
-                                Text("Listen now")
-                                    .foregroundStyle(.white)
-                                    .textBody()
-                            }
+                            Image(systemName: "play.fill")
+                                .foregroundStyle(.white)
+                                .textBody()
                             .transition(.scale.combined(with: .opacity))
                         }
                     }
                     .animation(.easeInOut(duration: 0.2), value: isLoading)
                     .animation(.easeInOut(duration: 0.2), value: isPlaying)
                 }
-                .buttonStyle(.glassProminent)
+                
+                Button(action: {
+                    player.skipForward(seconds: player.forwardInterval)
+                }) {
+                    Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                }
+                .disabled(!isPlaying)
             }
         }
     }

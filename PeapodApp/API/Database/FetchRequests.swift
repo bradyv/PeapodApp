@@ -250,9 +250,9 @@ extension Podcast {
         let hours = playedSeconds / 3600
         let rounded = (hours * 10).rounded() / 10  // round to 1 decimal place
 
-        if rounded < 0.1 {
-            return "Under 1 hour"
-        }
+//        if rounded < 0.1 {
+//            return "1 hour"
+//        }
 
         if rounded == floor(rounded) {
             let whole = Int(rounded)

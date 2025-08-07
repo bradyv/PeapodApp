@@ -34,18 +34,6 @@ struct PodcastEpisodeSearchView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Spacer().frame(height:24)
-            SearchBox(
-                query: $query,
-                label: "Find an episode of \(podcast.title ?? "Podcast title")",
-                onCancel: {
-                    isTextFieldFocused = false
-                    query = ""
-                    showSearch.toggle()
-                }
-            )
-            .padding(.horizontal)
-
             ScrollView {
                 if filteredEpisodes.isEmpty && !query.isEmpty {
                     FadeInView(delay: 0.2) {
@@ -56,32 +44,36 @@ struct PodcastEpisodeSearchView: View {
                         .padding(.top,32)
                     }
                 } else {
-                    Text(query.isEmpty ? "Episodes" : "Results for \(query)")
-                        .headerSection()
-                        .frame(maxWidth:.infinity, alignment:.leading)
-                    
                     LazyVStack(alignment: .leading) {
                         ForEach(filteredEpisodes, id: \.id) { episode in
-                            EpisodeItem(episode: episode, namespace: namespace)
+                            EpisodeItem(episode: episode, showActions: true, namespace: namespace)
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
+                                .onTapGesture {
+                                    selectedEpisode = episode
+                                }
                         }
                     }
-                    .padding(.top, 8)
                 }
             }
             .contentMargins(16, for: .scrollContent)
-            .maskEdge(.bottom)
-            .ignoresSafeArea(edges:.bottom)
         }
-        .onAppear {
-            nowPlayingManager.isVisible = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                isTextFieldFocused = true
-            }
-        }
-        .onDisappear {
-            nowPlayingManager.isVisible = true
+        .background(Color.background)
+        .searchable(text: $query, isPresented: $showSearch, placement: .navigationBarDrawer(displayMode: .always), prompt: "Find an episode of \(podcast.title ?? "this podcast")")
+//        .toolbar {
+//            ToolbarItem(placement:.topBarLeading) {
+//                Button(action: {
+//                    dismiss()
+//                }) {
+//                    Label("Cancel", systemImage: "chevron.down")
+//                }
+//            }
+//        }
+        .navigationTitle(podcast.title ?? "Episodes")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
         }
     }
 

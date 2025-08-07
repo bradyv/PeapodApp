@@ -103,15 +103,9 @@ struct QueueView: View {
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
                                 ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
-//                                    NavigationLink {
-//                                        EpisodeView(episode:episode,namespace:namespace)
-//                                            .navigationTransition(.zoom(sourceID: episode.guid, in: namespace))
-//                                    } label: {
-                                        QueueItemView(episode: episode, index: index, namespace: namespace) {
-                                            selectedEpisode = episode
-                                        }
-//                                        .matchedTransitionSource(id: episode.guid, in: namespace)
-//                                    }
+                                    QueueItemView(episode: episode, index: index, namespace: namespace) {
+                                        selectedEpisode = episode
+                                    }
                                     .onTapGesture {
                                         selectedEpisode = episode
                                     }

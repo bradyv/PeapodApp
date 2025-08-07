@@ -25,6 +25,7 @@ struct SplashImage: View {
                 .opacity(colorScheme == .dark ? 0.65 : 0.8)
             Spacer()
         }
+        .frame(maxWidth:.infinity)
         .ignoresSafeArea(.all)
     }
 }

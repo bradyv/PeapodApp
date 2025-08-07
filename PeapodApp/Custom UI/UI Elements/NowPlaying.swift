@@ -10,18 +10,21 @@ import Kingfisher
 
 struct NowPlaying: View {
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @EnvironmentObject var player: AudioPlayerManager
+    @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @State private var selectedEpisode: Episode? = nil
-    var displayedInQueue: Bool = false
+    @State private var episodeID = UUID()
     var namespace: Namespace.ID
     var onTap: ((Episode) -> Void)?
 
     var body: some View {
-        
         Group {
-            if let episode = player.currentEpisode {
-                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
+//            if let episode = player.currentEpisode {
+            if episodesViewModel.queue.count > 0 {
+                let episode = episodesViewModel.queue[0]
+                var artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
                     ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
                     
@@ -40,14 +43,6 @@ struct NowPlaying: View {
                     }
                     
                     HStack {
-                        Button(action: {
-                            player.skipBackward(seconds: player.backwardInterval)
-                            print("Seeking back")
-                        }) {
-                            Label("Go back", systemImage: "\(String(format: "%.0f", player.backwardInterval)).arrow.trianglehead.counterclockwise")
-                        }
-                        .disabled(!player.isPlaying)
-                        
                         Button(action: {
                             player.togglePlayback(for: episode)
                             print("Playing episode")
@@ -73,40 +68,37 @@ struct NowPlaying: View {
                 .padding(.leading,4)
                 .padding(.trailing, 8)
                 .frame(maxWidth:.infinity, alignment:.leading)
+            } else {
+                HStack {
+                    Text("Nothing playing")
+                        .textBody()
+                        .frame(maxWidth:.infinity, alignment: .leading)
+
+                    HStack {
+                        Button(action: {
+                        }) {
+                            Image(systemName: "play.fill")
+                        }
+                        .disabled(player.isPlaying)
+                        
+                        Button(action: {
+                        }) {
+                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                        }
+                        .disabled(!player.isPlaying)
+                    }
+                }
+                .padding(.leading,16).padding(.trailing, 8)
+                .frame(maxWidth:.infinity, alignment:.leading)
             }
-//            } else {
-//                HStack {
-//                    Text("Nothing playing")
-//                        .textBody()
-//                        .frame(maxWidth:.infinity, alignment: .leading)
-//
-//                    HStack {
-//                        Button(action: {
-//                        }) {
-//                            Label("Go back", systemImage: "\(String(format: "%.0f", player.backwardInterval)).arrow.trianglehead.counterclockwise")
-//                        }
-//                        .disabled(!player.isPlaying)
-//
-//                        Button(action: {
-//                        }) {
-//                            Image(systemName: "play.fill")
-//                        }
-//                        .disabled(!player.isPlaying)
-//
-//                        Button(action: {
-//                        }) {
-//                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-//                        }
-//                        .disabled(!player.isPlaying)
-//                    }
-//                }
-//                .padding(.leading,16).padding(.trailing, 8)
-//                .frame(maxWidth:.infinity, alignment:.leading)
-//            }
         }
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode, namespace:namespace)
                 .modifier(PPSheet())
+        }
+        .id(episodeID)
+        .onChange(of: episodesViewModel.queue.first?.id) { _ in
+            episodeID = UUID()
         }
     }
 }

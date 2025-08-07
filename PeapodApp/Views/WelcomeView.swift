@@ -26,243 +26,226 @@ struct WelcomeView: View {
     var namespace: Namespace.ID
     
     var body: some View {
-        ZStack(alignment:.top) {
-            // Background podcast grid (only show for new users or subscription selection)
-            if !showSubscriptions {
-                VStack {
-                    HStack(alignment: .top, spacing: 16) {
-                        ForEach(0..<5) { column in
-                            VStack(spacing: 16) {
-                                ForEach(Array(topPodcasts.enumerated())
-                                    .filter { $0.offset % 5 == column }, id: \.1.id) { index, podcast in
-                                        FadeInView(delay: Double(index) * 0.02) {
-                                            KFImage(URL(string: podcast.artworkUrl600))
-                                                .resizable()
-                                                .aspectRatio(1, contentMode: .fit)
-                                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                                .transition(.move(edge: .top).combined(with: .opacity))
-                                                .animation(.easeOut(duration: 0.15).delay(Double(index) * 0.01), value: showSubscriptions)
-                                        }
-                                    }
-                            }
-                            .offset(y: {
-                                switch column {
-                                case 1, 3: return -20
-                                case 2: return -40
-                                default: return 0
-                                }
-                            }())
-                        }
-                    }
-                    .maskEdge(.top)
-                    .mask(
-                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                       startPoint: .top, endPoint: .bottom)
-                    )
-                    .scaleEffect(1.3)
-                    
-                    Spacer()
-                }
-                .frame(maxHeight:.infinity)
-                .background(Color.background)
-                .opacity(showReturningUser ? 0.15 : 1)
-            }
-            
-            // Subscription selection grid
-            if showSubscriptions {
-                ScrollView {
-                    Spacer().frame(height:150)
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(Array(topPodcasts.enumerated()), id: \.1.id) { index, podcast in
-                            ZStack(alignment:.topTrailing) {
-                                FadeInView(delay: 0 + Double(index) * 0.05) {
-                                    KFImage(URL(string: podcast.artworkUrl600))
-                                        .resizable()
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
-                                    
-                                    ZStack {
-                                        Circle()
-                                            .fill(subscribedPodcasts.contains(podcast.id) ? Color.accentColor : Color.gray)
-                                        
-                                        Image(systemName: subscribedPodcasts.contains(podcast.id) ? "checkmark" : "plus")
-                                            .font(.system(size: 12, weight: .bold))
-                                            .foregroundStyle(subscribedPodcasts.contains(podcast.id) ? Color.background : Color.heading)
-                                            .transition(.opacity)
-                                    }
-                                    .frame(width: 24, height: 24)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.background, lineWidth: 2)
-                                    )
-                                }
-                            }
-                            .scaleEffect(poppedPodcastID == podcast.id ? 1.15 : 1.0)
-                            .animation(.spring(response: 0.35, dampingFraction: 0.6), value: poppedPodcastID)
-                            .onTapGesture {
-                                let url = podcast.feedUrl
-                                poppedPodcastID = podcast.id
-                                
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    poppedPodcastID = nil
-                                }
-                                PodcastLoader.loadFeed(from: url, context: context) { loadedPodcast in
-                                    if let podcastEntity = loadedPodcast {
-                                        podcastEntity.isSubscribed = true
-                                        
-                                        // Now queue the latest episode too
-                                        if let latest = (podcastEntity.episode as? Set<Episode>)?
-                                            .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                            .first {
-                                            toggleQueued(latest)
-                                        }
-                                        
-                                        try? podcastEntity.managedObjectContext?.save()
-                                        
-                                        Task.detached(priority: .background) {
-                                            await ColorTintManager.applyTintIfNeeded(to: podcastEntity, in: context)
-                                        }
-                                        DispatchQueue.main.async {
-                                            subscribedPodcasts.insert(podcast.id)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    Spacer().frame(height:88)
-                }
-                .maskEdge(.top)
-                .maskEdge(.bottom)
-                .scrollDisabled(!showSubscriptions)
-                .contentMargins(16, for:.scrollContent)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.easeOut(duration: 0.15), value: showSubscriptions)
-            }
-            
-            // Main content area
-            VStack {
+        NavigationStack {
+            ZStack(alignment:.top) {
+                // Background podcast grid (only show for new users or subscription selection)
                 if !showSubscriptions {
-                    Spacer()
-                }
-                
-                // Logo and title section
-                VStack {
-                    FadeInView(delay: 0.8) {
-                        Image("peapod-mark-adaptive")
-                            .onTapGesture {
-                                #if DEBUG
-                                showSubscriptions = false
-                                showReturningUser = false
-                                #endif
-                            }
-                    }
-                    
-                    FadeInView(delay: 0.9) {
-                        Text("Peapod")
-                            .titleSerif()
-                    }
-                    
-                    if !showReturningUser {
-                        FadeInView(delay: 1) {
-                            Text("Podcasts. Plain and simple.")
-                                .textBody()
-                        }
-                        
-                        Spacer().frame(height: showSubscriptions || showReturningUser ? 64 : 88)
-                    }
-                }
-                .frame(maxWidth:.infinity)
-                
-                // Returning user content
-                if showReturningUser {
-                    Spacer().frame(height:64)
-                    VStack(spacing: 24) {
-                        VStack(spacing: 16) {
-                            FadeInView(delay: 0.5) {
-                                Text("Welcome back. Your subscriptions will be restored.")
-                                    .titleCondensed()
-                                    .multilineTextAlignment(.center)
-                                
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: Color.accentColor))
-                                    .scaleEffect(1.2)
-                            }
-                        }
-                        .padding(.horizontal, 32)
-                        
-                        if !isLoadingUserData {
-                            
-                            FadeInView(delay: 0.5) {
-                                Text("Data will continue restoring while you use the app.")
-                                    .textDetail()
-                            }
-                            
-                           FadeInView(delay: 0.6) {
-                               Button {
-                                   showNotificationsSheet = true
-                               } label: {
-                                   HStack(spacing: 8) {
-                                       Text("Continue")
-                                       Image(systemName: "chevron.right")
-                                   }
-                               }
-                               .buttonStyle(ShadowButton())
-                           }
-                       }
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .animation(.easeOut(duration: 0.3), value: showReturningUser)
-                    
-                    Spacer()
-                }
-            }
-            
-            // Bottom button section (for new users and subscription selection)
-            if !showReturningUser {
-                FadeInView(delay: 1.1) {
                     VStack {
-                        Spacer()
-                        VStack {
-                            Button {
-                                withAnimation {
-                                    if showSubscriptions {
-                                        completeOnboarding()
-                                    } else {
-                                        if isReturningUser {
-                                            showReturningUser = true
-                                            startDataSyncCheck()
-                                        } else {
-                                            showSubscriptions = true
+                        HStack(alignment: .top, spacing: 16) {
+                            ForEach(0..<5) { column in
+                                VStack(spacing: 16) {
+                                    ForEach(Array(topPodcasts.enumerated())
+                                        .filter { $0.offset % 5 == column }, id: \.1.id) { index, podcast in
+                                            FadeInView(delay: Double(index) * 0.02) {
+                                                KFImage(URL(string: podcast.artworkUrl600))
+                                                    .resizable()
+                                                    .aspectRatio(1, contentMode: .fit)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                                    .animation(.easeOut(duration: 0.15).delay(Double(index) * 0.01), value: showSubscriptions)
+                                            }
                                         }
-                                    }
                                 }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Text(showSubscriptions ? (subscribedPodcasts.count > 0 ? "Start listening" : "Skip") : "Get started")
-                                    if subscribedPodcasts.count > 0 {
-                                        Image(systemName: "chevron.right")
+                                .offset(y: {
+                                    switch column {
+                                    case 1, 3: return -20
+                                    case 2: return -40
+                                    default: return 0
                                     }
-                                }
+                                }())
                             }
-                            .buttonStyle(ShadowButton())
-                            
-                            if showSubscriptions {
-                                Text("Follow some podcasts to get started.")
-                                    .textDetail()
-                            }
-                            
-                            Spacer().frame(height:24)
                         }
-                        .frame(maxWidth:.infinity)
-                        .padding(.top,16)
-                        .background(
-                            LinearGradient(gradient: Gradient(colors: [Color.background.opacity(0), Color.background]),
+                        .maskEdge(.top)
+                        .mask(
+                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                            startPoint: .top, endPoint: .bottom)
                         )
+                        .scaleEffect(1.3)
+                        
+                        Spacer()
                     }
+                    .frame(maxHeight:.infinity)
+                    .background(Color.background)
+                    .opacity(showReturningUser ? 0.15 : 1)
+                }
+                
+                // Subscription selection grid
+                if showSubscriptions {
+                    ScrollView {
+                        Spacer().frame(height:150)
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            ForEach(Array(topPodcasts.enumerated()), id: \.1.id) { index, podcast in
+                                ZStack(alignment:.topTrailing) {
+                                    FadeInView(delay: 0 + Double(index) * 0.05) {
+                                        KFImage(URL(string: podcast.artworkUrl600))
+                                            .resizable()
+                                            .aspectRatio(1, contentMode: .fit)
+                                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.15), lineWidth: 1))
+                                        
+                                        ZStack {
+                                            Circle()
+                                                .fill(subscribedPodcasts.contains(podcast.id) ? Color.accentColor : Color.gray)
+                                            
+                                            Image(systemName: subscribedPodcasts.contains(podcast.id) ? "checkmark" : "plus")
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundStyle(subscribedPodcasts.contains(podcast.id) ? Color.background : Color.heading)
+                                                .transition(.opacity)
+                                        }
+                                        .frame(width: 24, height: 24)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.background, lineWidth: 2)
+                                        )
+                                    }
+                                }
+                                .scaleEffect(poppedPodcastID == podcast.id ? 1.15 : 1.0)
+                                .animation(.spring(response: 0.35, dampingFraction: 0.6), value: poppedPodcastID)
+                                .onTapGesture {
+                                    let url = podcast.feedUrl
+                                    poppedPodcastID = podcast.id
+                                    
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                        poppedPodcastID = nil
+                                    }
+                                    PodcastLoader.loadFeed(from: url, context: context) { loadedPodcast in
+                                        if let podcastEntity = loadedPodcast {
+                                            podcastEntity.isSubscribed = true
+                                            
+                                            // Now queue the latest episode too
+                                            if let latest = (podcastEntity.episode as? Set<Episode>)?
+                                                .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
+                                                .first {
+                                                toggleQueued(latest)
+                                            }
+                                            
+                                            try? podcastEntity.managedObjectContext?.save()
+                                            
+                                            Task.detached(priority: .background) {
+                                                await ColorTintManager.applyTintIfNeeded(to: podcastEntity, in: context)
+                                            }
+                                            DispatchQueue.main.async {
+                                                subscribedPodcasts.insert(podcast.id)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Spacer().frame(height:88)
+                    }
+                    .scrollEdgeEffectStyle(.soft, for: .all)
+                    .scrollDisabled(!showSubscriptions)
+                    .contentMargins(16, for:.scrollContent)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.easeOut(duration: 0.15), value: showSubscriptions)
+                }
+                
+                // Main content area
+                VStack {
+                    if !showSubscriptions {
+                        Spacer()
+                    }
+                    
+                    // Logo and title section
+                    VStack {
+                        FadeInView(delay: 0.8) {
+                            Image("peapod-mark-adaptive")
+                                .onTapGesture {
+                                    #if DEBUG
+                                    showSubscriptions = false
+                                    showReturningUser = false
+                                    #endif
+                                }
+                        }
+                        
+                        FadeInView(delay: 0.9) {
+                            Text("Peapod")
+                                .titleSerif()
+                        }
+                        
+                        if !showReturningUser {
+                            FadeInView(delay: 1) {
+                                Text("Podcasts. Plain and simple.")
+                                    .textBody()
+                            }
+                            
+                            Spacer().frame(height: showSubscriptions || showReturningUser ? 64 : 88)
+                        }
+                    }
+                    .frame(maxWidth:.infinity)
+                    
+                    // Returning user content
+                    if showReturningUser {
+                        Spacer().frame(height:64)
+                        VStack(spacing: 24) {
+                            VStack(spacing: 16) {
+                                FadeInView(delay: 0.5) {
+                                    Text("Welcome back. Your subscriptions will be restored.")
+                                        .titleCondensed()
+                                        .multilineTextAlignment(.center)
+                                    
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: Color.accentColor))
+                                        .scaleEffect(1.2)
+                                }
+                            }
+                            .padding(.horizontal, 32)
+                            
+                            if !isLoadingUserData {
+                                
+                                FadeInView(delay: 0.5) {
+                                    Text("Data will continue restoring while you use the app.")
+                                        .textDetail()
+                                }
+                                
+                               FadeInView(delay: 0.6) {
+                                   Button {
+                                       showNotificationsSheet = true
+                                   } label: {
+                                       HStack(spacing: 8) {
+                                           Text("Continue")
+                                           Image(systemName: "chevron.right")
+                                       }
+                                   }
+                                   .buttonStyle(ShadowButton())
+                               }
+                           }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .animation(.easeOut(duration: 0.3), value: showReturningUser)
+                        
+                        Spacer()
+                    }
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .bottomBar) {
+                    Button {
+                        withAnimation {
+                            if showSubscriptions {
+                                completeOnboarding()
+                            } else {
+                                if isReturningUser {
+                                    showReturningUser = true
+                                    startDataSyncCheck()
+                                } else {
+                                    showSubscriptions = true
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(showSubscriptions ? (subscribedPodcasts.count > 0 ? "Start listening" : "Skip") : "Get started")
+                                .foregroundStyle(.white)
+                                .titleCondensed()
+                            if subscribedPodcasts.count > 0 {
+                                Image(systemName: "chevron.right")
+                            }
+                        }
+                    }
+                    .buttonStyle(.glassProminent)
                 }
             }
         }

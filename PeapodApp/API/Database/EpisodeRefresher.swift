@@ -91,7 +91,7 @@ class EpisodeRefresher {
         // Create HEAD request
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
-        request.setValue("Peapod/2.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Peapod/1.0", forHTTPHeaderField: "User-Agent")
         request.setValue("application/rss+xml", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 10
         

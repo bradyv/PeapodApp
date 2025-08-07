@@ -153,11 +153,7 @@ struct EpisodeItem: View {
                                 .contentTransition(.numericText())
                         }
                     }
-//                    .glassButton(prominent: displayedInQueue ? true : false, tint: displayedInQueue ? .white : .heading, label: displayedInQueue ? .black : .heading)
-//                    .typography(size: 17, weight: .medium, color: .text).fontWidth(.condensed)
                     .buttonStyle(
-//                        .glassProminent
-//                        PPGlassButton()
                         PPButton(
                             type: displayedInQueue ? .filled : .transparent,
                             colorStyle: .monochrome,
@@ -178,8 +174,7 @@ struct EpisodeItem: View {
                             }) {
                                 Label("Archive", systemImage: "archivebox")
                             }
-                            .glassButton()
-//                            .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome))
+                            .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome))
                             
                         } else {
                             Button(action: {
@@ -193,8 +188,6 @@ struct EpisodeItem: View {
                             }) {
                                 Label("Up Next", systemImage: episode.isQueued ? "checkmark" : "text.append")
                             }
-//                            .glassButton()
-//                            .buttonStyle(PPGlassButton())
                             .buttonStyle(PPButton(type: .transparent, colorStyle: episode.isQueued ? .tinted : .monochrome))
                         }
                     } else {
@@ -206,7 +199,6 @@ struct EpisodeItem: View {
                         }) {
                             Label("Mark as Played", systemImage: "checkmark.circle")
                         }
-//                        .glassButton()
                         .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome))
                     }
                     
@@ -229,15 +221,8 @@ struct EpisodeItem: View {
             // Background tasks only
             Task.detached(priority: .background) {
                 await player.writeActualDuration(for: episode)
-                await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+//                await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
             }
-        }
-        .onTapGesture {
-            selectedEpisode = episode
-        }
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
-                .modifier(PPSheet())
         }
     }
 }

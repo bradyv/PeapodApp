@@ -743,8 +743,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
         let context = episode.managedObjectContext ?? viewContext
         
-        let isCurrentlyPlaying = (playbackState.episode?.id == episode.id) && isPlaying
-        let progressBeforeStop = isCurrentlyPlaying ? playbackState.position : episode.playbackPosition
+        // FIXED: Check if this is the current episode (regardless of play/pause state)
+        let isCurrentEpisode = (playbackState.episode?.id == episode.id)
+        let progressBeforeStop = isCurrentEpisode ? playbackState.position : episode.playbackPosition
         
         let wasPlayed = episode.isPlayed // Store original state
         
@@ -769,8 +770,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         episode.playbackPosition = 0
         episode.nowPlaying = false
         
-        // CRITICAL: Stop playback BEFORE queue operations to prevent position save
-        if isCurrentlyPlaying {
+        // CRITICAL: Stop playback if this is the current episode (playing OR paused)
+        if isCurrentEpisode {
             // Cancel any pending position saves
             positionSaveTimer?.invalidate()
             positionSaveTimer = nil

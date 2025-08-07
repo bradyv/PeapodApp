@@ -9,11 +9,13 @@ import SwiftUI
 
 struct SearchBox: View {
     @State private var showSearch = false
-    @FocusState private var isTextFieldFocused: Bool
     @Binding var query: String
     var label: String
     var onSubmit: (() -> Void)?
     var onCancel: (() -> Void)?
+    
+    // Accept FocusState binding
+    var isTextFieldFocused: FocusState<Bool>.Binding
     
     var body: some View {
         HStack {
@@ -24,7 +26,7 @@ struct SearchBox: View {
                     .opacity(0.35)
 
                 TextField(label, text: $query)
-                    .focused($isTextFieldFocused)
+                    .focused(isTextFieldFocused)  // Use the passed binding
                     .textBody()
                     .onSubmit {
                         onSubmit?()
@@ -33,7 +35,6 @@ struct SearchBox: View {
                 if !query.isEmpty {
                     Button(action: {
                         query = ""
-                        isTextFieldFocused = true
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.gray)
@@ -43,25 +44,21 @@ struct SearchBox: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color.surface)
             .clipShape(Capsule())
+            .glassEffect()
 
-            if isTextFieldFocused {
+            if isTextFieldFocused.wrappedValue {
                 Button(action: {
-                    isTextFieldFocused = false
+                    isTextFieldFocused.wrappedValue = false
                     showSearch.toggle()
                     query = ""
                     onCancel?()
                 }) {
-                    Text("Cancel")
+                    Label("Cancel", systemImage: "xmark")
                 }
-                .textBody()
+                .buttonStyle(.glass)
+                .labelStyle(.iconOnly)
             }
         }
-//        .onAppear {
-//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-//                isTextFieldFocused = true
-//            }
-//        }
     }
 }

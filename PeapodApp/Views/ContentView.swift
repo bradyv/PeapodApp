@@ -34,17 +34,12 @@ struct ContentView: View {
                             QueueView(namespace: namespace)
                             LatestEpisodesMini(namespace: namespace)
                         }
-                        .background(Color.background)
+                        .background(Color.clear)
                     }
+                    .background(Color.background)
                     .scrollEdgeEffectStyle(.soft, for: .all)
                     .navigationTitle("Listen")
                     .toolbar {
-                        ToolbarItem(placement: .largeTitle) {
-                            Text("Listen")
-                                .titleSerif()
-                                .frame(maxWidth:.infinity, alignment:.leading)
-                        }
-                        
                         ToolbarItem(placement: .primaryAction) {
                             NavigationLink {
                                 SettingsView(namespace: namespace)
@@ -67,12 +62,6 @@ struct ContentView: View {
                     .scrollEdgeEffectStyle(.soft, for: .all)
                     .navigationTitle("Library")
                     .toolbar {
-                        ToolbarItem(placement: .largeTitle) {
-                            Text("Library")
-                                .titleSerif()
-                                .frame(maxWidth:.infinity, alignment:.leading)
-                       }
-                        
                         ToolbarItem(placement: .primaryAction) {
                             NavigationLink {
                                SettingsView(namespace: namespace)
@@ -92,12 +81,6 @@ struct ContentView: View {
                         .searchable(text: $query, prompt: "Find a Podcast")
                         .navigationTitle("Find a Podcast")
                         .toolbar {
-                            ToolbarItem(placement: .largeTitle) {
-                                Text("Find a Podcast")
-                                    .titleSerif()
-                                    .frame(maxWidth:.infinity, alignment:.leading)
-                           }
-                            
                             ToolbarItem(placement: .primaryAction) {
                                 NavigationLink {
                                    SettingsView(namespace: namespace)
@@ -111,9 +94,12 @@ struct ContentView: View {
                 .scrollEdgeEffectStyle(.soft, for: .all)
             }
         }
+//        NavigationStack {
+//            QueueView(namespace:namespace)
+//        }
+//        .searchable(text: $query, prompt: "Find a podcast")
         .tabViewBottomAccessory {
             NowPlaying(namespace:namespace)
-                .containerRelativeFrame(.horizontal)
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .environmentObject(episodesViewModel)

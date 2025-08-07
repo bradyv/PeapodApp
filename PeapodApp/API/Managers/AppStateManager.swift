@@ -19,11 +19,13 @@ class AppStateManager: ObservableObject {
     @AppStorage("showOnboarding") private var showOnboarding: Bool = true
     
     func startSplashSequence() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            withAnimation(.easeInOut(duration: 0.6)) {
-                self.currentState = self.showOnboarding ? .onboarding : .main
-            }
-        }
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+//            withAnimation(.easeInOut(duration: 0.6)) {
+//                self.currentState = self.showOnboarding ? .onboarding : .main
+//            }
+//        }
+        
+        self.currentState = .main
     }
     
     func completeOnboarding() {

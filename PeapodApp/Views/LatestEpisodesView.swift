@@ -122,31 +122,21 @@ struct LatestEpisodesView: View {
             } else {
                 LazyVStack(alignment: .leading) {
                     ForEach(filteredEpisodes, id: \.id) { episode in
-                        NavigationLink {
-                            EpisodeView(episode:episode,namespace:namespace)
-                                .navigationTransition(.zoom(sourceID: episode.guid, in: namespace))
-                        } label: {
-                            EpisodeItem(episode: episode, showActions: true, namespace: namespace)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .padding(.horizontal)
-                                .animation(.easeOut(duration: 0.2), value: showAll)
-                        }
-                        .matchedTransitionSource(id: episode.guid, in: namespace)
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
+                            .animation(.easeOut(duration: 0.2), value: showAll)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
                     }
                 }
             }
         }
+        .navigationTitle(showAll ? "Recent Releases" : "Unplayed")
         .background(Color.background)
         .toolbar {
-            ToolbarItem(placement: .largeTitle) {
-                Text(showAll ? "Recent Releases" : "Unplayed")
-                    .titleSerif()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-                    .animation(.easeOut(duration: 0.2), value: showAll)
-                    .contentTransition(.interpolate)
-           }
-            
             ToolbarItem {
                 Button(action: {
                     showAll.toggle()
@@ -167,6 +157,10 @@ struct LatestEpisodesView: View {
                 LogManager.shared.info("✨ Refreshed latest episodes")
             }
         }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
+        }
     }
 }
 
@@ -181,40 +175,41 @@ struct LatestEpisodesMini: View {
         VStack {
             Spacer().frame(height:44)
             
-            NavigationLink {
-                LatestEpisodesView(namespace: namespace)
-                    .navigationTitle("Recent Releases")
-            } label: {
-                HStack(alignment:.center) {
-                    Text("Recent Releases")
-                        .titleSerifMini()
-                        .padding(.leading)
-                    
-                    Image(systemName: "chevron.right")
-                        .textDetailEmphasis()
-                }
-                .frame(maxWidth:.infinity, alignment: .leading)
-            }
-            
             if !episodesViewModel.latest.isEmpty {
+                NavigationLink {
+                    LatestEpisodesView(namespace: namespace)
+                        .navigationTitle("Recent Releases")
+                } label: {
+                    HStack(alignment:.center) {
+                        Text("Recent Releases")
+                            .titleSerifMini()
+                            .padding(.leading)
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
+                    }
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                }
+                
                 LazyVStack(alignment: .leading) {
                     ForEach(episodesViewModel.latest.prefix(3), id: \.id) { episode in
-//                        NavigationLink {
-//                            EpisodeView(episode:episode,namespace:namespace)
-//                                .navigationTransition(.zoom(sourceID: episode.guid, in: namespace))
-//                        } label: {
-                            EpisodeItem(episode: episode, showActions: true, namespace: namespace)
-                                .lineLimit(3)
-                                .padding(.bottom, 24)
-                                .padding(.horizontal)
-//                        }
-//                        .matchedTransitionSource(id: episode.guid, in: namespace)
+                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                            .lineLimit(3)
+                            .padding(.bottom, 24)
+                            .padding(.horizontal)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
                     }
                 }
             }
         }
         .onAppear {
             episodesViewModel.fetchLatest()
+        }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
         }
     }
 }

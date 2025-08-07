@@ -10,6 +10,7 @@ import SwiftUI
 struct FavEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     var namespace: Namespace.ID
+    @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
         ScrollView {
@@ -41,22 +42,22 @@ struct FavEpisodesView: View {
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
                     }
                 }
             }
         }
         .background(Color.background)
-        .toolbar {
-            ToolbarItem(placement: .largeTitle) {
-                Text("Favorites")
-                    .titleSerif()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-           }
-        }
         .onAppear {
             episodesViewModel.fetchFavs()
         }
         .scrollDisabled(episodesViewModel.favs.isEmpty)
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
+        }
     }
 }
 
@@ -92,12 +93,19 @@ struct FavEpisodesMini: View {
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
+                            .onTapGesture {
+                                selectedEpisode = episode
+                            }
                     }
                 }
             }
         }
         .onAppear {
             episodesViewModel.fetchFavs()
+        }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode, namespace:namespace)
+                .modifier(PPSheet())
         }
     }
 }

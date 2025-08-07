@@ -30,8 +30,8 @@ class EpisodeRefresher {
         return urlString.replacingOccurrences(of: "http://", with: "https://")
     }
     
-    static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
-        LogManager.shared.info("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown")")
+    static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, limitToRecent: Bool = false, completion: (() -> Void)? = nil) {
+        LogManager.shared.info("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown") \(limitToRecent ? "(limited to recent episodes)" : "(full feed)")")
         
         guard let feedUrl = podcast.feedUrl else {
             LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
@@ -68,18 +68,90 @@ class EpisodeRefresher {
         
         defer { lock.unlock() }
         
-        // 🚀 Step 1: Check headers first
-        checkFeedHeaders(url: url, podcast: podcast) { shouldRefresh, cachedEntry in
-            if !shouldRefresh {
-                LogManager.shared.info("⚡ \(podcast.title ?? "Podcast"): No changes detected via headers, skipping")
-                completion?()
-                return
+        // Skip header check if we're doing a full refresh (limitToRecent = false)
+        // This ensures we always fetch the complete feed when explicitly requested
+        if limitToRecent {
+            // 🚀 Step 1: Check headers first
+            checkFeedHeaders(url: url, podcast: podcast) { shouldRefresh, cachedEntry in
+                if !shouldRefresh {
+                    LogManager.shared.info("⚡ \(podcast.title ?? "Podcast"): No changes detected via headers, skipping")
+                    completion?()
+                    return
+                }
+                
+                LogManager.shared.info("🔄 \(podcast.title ?? "Podcast"): Changes detected, downloading feed...")
+                
+                // 🚀 Step 2: Only download and parse if headers indicate changes
+                downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: cachedEntry, limitToRecent: limitToRecent, completion: completion)
             }
-            
-            LogManager.shared.info("🔄 \(podcast.title ?? "Podcast"): Changes detected, downloading feed...")
-            
-            // 🚀 Step 2: Only download and parse if headers indicate changes
-            downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: cachedEntry, completion: completion)
+        } else {
+            // Force full refresh without header checks
+            downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: nil, limitToRecent: limitToRecent, completion: completion)
+        }
+    }
+    
+    static func loadInitialEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
+        LogManager.shared.info("🆕 Loading initial episodes (limited to 50) for: \(podcast.title ?? "Unknown")")
+        
+        guard let feedUrl = podcast.feedUrl else {
+            LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
+            completion?()
+            return
+        }
+        
+        let httpsUrl = forceHTTPS(feedUrl) ?? feedUrl
+        
+        guard let url = URL(string: httpsUrl) else {
+            LogManager.shared.error("❌ Invalid feed URL for: \(podcast.title ?? "Unknown")")
+            completion?()
+            return
+        }
+        
+        let podcastId = podcast.id as NSString? ?? "unknown" as NSString
+        var lock: NSLock
+        
+        objc_sync_enter(podcastRefreshLocks)
+        if let existingLock = podcastRefreshLocks.object(forKey: podcastId) {
+            lock = existingLock
+        } else {
+            lock = NSLock()
+            podcastRefreshLocks.setObject(lock, forKey: podcastId)
+        }
+        objc_sync_exit(podcastRefreshLocks)
+        
+        guard lock.try() else {
+            print("⏩ Skipping initial load for \(podcast.title ?? "podcast"), already in progress")
+            completion?()
+            return
+        }
+        
+        defer { lock.unlock() }
+        
+        // Force download without header checks, with strict limiting for initial load
+        FeedParser(URL: url).parseAsync { result in
+            switch result {
+            case .success(let feed):
+                if let rss = feed.rssFeed {
+                    context.perform {
+                        // Process episodes with strict limiting for initial load
+                        processEpisodesInBatches(
+                            rss: rss,
+                            podcast: podcast,
+                            context: context,
+                            limitToRecent: true, // FORCE limiting for initial load
+                            completion: {
+                                LogManager.shared.info("✅ Completed initial load for: \(podcast.title ?? "Unknown")")
+                                completion?()
+                            }
+                        )
+                    }
+                } else {
+                    completion?()
+                }
+            case .failure(let error):
+                LogManager.shared.error("❌ Failed to parse feed for initial load \(podcast.title ?? "podcast"): \(error)")
+                completion?()
+            }
         }
     }
     
@@ -91,7 +163,7 @@ class EpisodeRefresher {
         // Create HEAD request
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
-        request.setValue("Peapod/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("Peapod/2.0", forHTTPHeaderField: "User-Agent")
         request.setValue("application/rss+xml", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 10
         
@@ -176,24 +248,25 @@ class EpisodeRefresher {
         return true
     }
     
-    // 🚀 Download and parse feed (only called when headers indicate changes)
-    private static func downloadAndParseFeed(url: URL, podcast: Podcast, context: NSManagedObjectContext, cacheEntry: FeedCacheEntry?, completion: (() -> Void)?) {
+    // 🚀 Download and parse feed (only called when headers indicate changes or forced)
+    private static func downloadAndParseFeed(url: URL, podcast: Podcast, context: NSManagedObjectContext, cacheEntry: FeedCacheEntry?, limitToRecent: Bool, completion: (() -> Void)?) {
         
         FeedParser(URL: url).parseAsync { result in
             switch result {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     context.perform {
-                        // Update cache after successful parsing
+                        // Update cache after successful parsing (only if we have cache entry)
                         if let cacheEntry = cacheEntry {
                             saveCacheEntry(cacheEntry)
                         }
                         
-                        // Process episodes in batches
+                        // Process episodes in batches with limit option
                         processEpisodesInBatches(
                             rss: rss,
                             podcast: podcast,
                             context: context,
+                            limitToRecent: limitToRecent,
                             completion: {
                                 LogManager.shared.info("✅ Completed refresh for: \(podcast.title ?? "Unknown")")
                                 completion?()
@@ -241,11 +314,12 @@ class EpisodeRefresher {
         saveCacheEntry(entry)
     }
     
-    // 🚀 NEW: Process episodes in batches to reduce memory usage and saves
+    // 🚀 MODIFIED: Process episodes in batches with optional limit
     private static func processEpisodesInBatches(
         rss: RSSFeed,
         podcast: Podcast,
         context: NSManagedObjectContext,
+        limitToRecent: Bool = false,
         completion: (() -> Void)?
     ) {
         // Update podcast metadata first
@@ -257,18 +331,25 @@ class EpisodeRefresher {
             return
         }
         
+        // 🆕 Limit episodes to most recent 50 if requested
+        let episodesToProcess = limitToRecent ? Array(items.prefix(50)) : items
+        
+        if limitToRecent {
+            LogManager.shared.info("📦 Processing recent \(episodesToProcess.count) episodes out of \(items.count) total for: \(podcast.title ?? "Unknown")")
+        }
+        
         // 🚀 Pre-fetch all existing episodes to avoid repeated database queries
         let existingEpisodes = fetchAllExistingEpisodes(for: podcast, context: context)
         
         var totalNewEpisodes = 0
-        let totalItems = items.count
+        let totalItems = episodesToProcess.count
         
         // Process items in larger batches to reduce save frequency
         let batchSize = 100 // Increased from 50
         
         for i in stride(from: 0, to: totalItems, by: batchSize) {
             let endIndex = min(i + batchSize, totalItems)
-            let batch = Array(items[i..<endIndex])
+            let batch = Array(episodesToProcess[i..<endIndex])
             
             let batchNewEpisodes = processBatch(
                 items: batch,
@@ -549,7 +630,8 @@ class EpisodeRefresher {
                 DispatchQueue.global(qos: .utility).async {
                     semaphore.wait()
                     
-                    refreshPodcastEpisodes(for: podcast, context: backgroundContext) {
+                    // Use limitToRecent: true for regular background refreshes
+                    refreshPodcastEpisodes(for: podcast, context: backgroundContext, limitToRecent: true) {
                         // Track if we actually refreshed or skipped
                         // This would need to be passed back from refreshPodcastEpisodes if you want exact counts
                         semaphore.signal()
@@ -603,6 +685,14 @@ class EpisodeRefresher {
         LogManager.shared.info("🔔 Force smart refreshing for notification")
         let context = PersistenceController.shared.container.newBackgroundContext()
         refreshAllSubscribedPodcasts(context: context, completion: completion)
+    }
+
+    // 🆕 NEW METHOD: Fetch all remaining episodes for a podcast
+    static func fetchAllRemainingEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
+        LogManager.shared.info("📚 Fetching all remaining episodes for: \(podcast.title ?? "Unknown")")
+        
+        // Force a full refresh without header checks and without limiting episodes
+        refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: false, completion: completion)
     }
 }
 

@@ -218,7 +218,7 @@ struct PodcastDetailView: View {
                 
                 Task.detached(priority: .background) {
 //                    await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
-                    await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context)
+                    await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                 }
             }
             .sheet(item: $selectedEpisode) { episode in
@@ -297,7 +297,7 @@ struct PodcastDetailView: View {
             }
         }) {
             Text(podcast!.isSubscribed ? "Unfollow" : "Follow")
-                .if(!podcast!.isSubscribed, transform: { $0.foregroundStyle(.heading) })
+                .if(!podcast!.isSubscribed, transform: { $0.foregroundStyle(.white) })
                 .titleCondensed()
         }
         .if(!podcast!.isSubscribed, transform: { $0.buttonStyle(.glassProminent) })

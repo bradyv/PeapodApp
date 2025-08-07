@@ -169,7 +169,7 @@ struct PPButton: ButtonStyle {
     private var foregroundColor: Color {
         switch (type, colorStyle) {
         case (.filled, _):
-            return .background
+            return .white
         case (.transparent, .tinted):
             return .accentColor
         case (.transparent, .monochrome):

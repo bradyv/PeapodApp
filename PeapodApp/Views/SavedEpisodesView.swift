@@ -32,9 +32,6 @@ struct SavedEpisodesView: View {
                 }
             }
         }
-        .onAppear {
-            episodesViewModel.fetchSaved()
-        }
         .maskEdge(.top)
         .maskEdge(.bottom)
         .scrollDisabled(episodesViewModel.saved.isEmpty)
@@ -76,9 +73,6 @@ struct SavedEpisodesMini: View {
                     }
                 }
             }
-        }
-        .onAppear {
-            episodesViewModel.fetchSaved()
         }
     }
 }

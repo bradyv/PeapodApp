@@ -18,6 +18,8 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     @Published var old: [Episode] = []
 
     private var queueController: NSFetchedResultsController<Episode>?
+    private var latestController: NSFetchedResultsController<Episode>?  // NEW
+    private var unplayedController: NSFetchedResultsController<Episode>?  // NEW
     private var savedController: NSFetchedResultsController<Episode>?
     private var favsController: NSFetchedResultsController<Episode>?
     var context: NSManagedObjectContext?
@@ -33,9 +35,11 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     func setup(context: NSManagedObjectContext) {
         self.context = context
         setupQueueController()
+        setupLatestController()  // NEW
+        setupUnplayedController()  // NEW
         setupSavedController()
         setupFavsController()
-        fetchAll()
+        fetchOld() // Only old episodes still need manual fetching
     }
 
     private func setupQueueController() {
@@ -61,6 +65,56 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         }
 
         self.queueController = controller
+    }
+    
+    // NEW: Auto-updating latest episodes
+    private func setupLatestController() {
+        guard let context else { return }
+
+        let request = Episode.latestEpisodesRequest()
+        
+        let controller = NSFetchedResultsController(
+            fetchRequest: request,
+            managedObjectContext: context,
+            sectionNameKeyPath: nil,
+            cacheName: nil
+        )
+
+        controller.delegate = self
+
+        do {
+            try controller.performFetch()
+            self.latest = controller.fetchedObjects ?? []
+        } catch {
+            LogManager.shared.error("Failed to fetch latest episodes: \(error)")
+        }
+
+        self.latestController = controller
+    }
+    
+    // NEW: Auto-updating unplayed episodes
+    private func setupUnplayedController() {
+        guard let context else { return }
+
+        let request = Episode.unplayedEpisodesRequest()
+        
+        let controller = NSFetchedResultsController(
+            fetchRequest: request,
+            managedObjectContext: context,
+            sectionNameKeyPath: nil,
+            cacheName: nil
+        )
+
+        controller.delegate = self
+
+        do {
+            try controller.performFetch()
+            self.unplayed = controller.fetchedObjects ?? []
+        } catch {
+            LogManager.shared.error("Failed to fetch unplayed episodes: \(error)")
+        }
+
+        self.unplayedController = controller
     }
     
     private func setupSavedController() {
@@ -111,29 +165,11 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         self.favsController = controller
     }
 
-    func fetchLatest() {
-        guard let context else { return }
-        let request = Episode.latestEpisodesRequest()
-        latest = (try? context.fetch(request)) ?? []
-    }
-
-    func fetchUnplayed() {
-        guard let context else { return }
-        let request = Episode.unplayedEpisodesRequest()
-        unplayed = (try? context.fetch(request)) ?? []
-    }
-
-    func fetchSaved() {
-        guard let context else { return }
-        let request = Episode.savedEpisodesRequest()
-        saved = (try? context.fetch(request)) ?? []
-    }
-    
-    func fetchFavs() {
-        guard let context else { return }
-        let request = Episode.favEpisodesRequest()
-        favs = (try? context.fetch(request)) ?? []
-    }
+    // These can now be removed since they're auto-updating
+    // func fetchLatest() { ... }
+    // func fetchUnplayed() { ... }
+    // func fetchSaved() { ... }
+    // func fetchFavs() { ... }
 
     func fetchOld() {
         guard let context else { return }
@@ -142,16 +178,16 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     }
 
     func fetchAll() {
-        fetchLatest()
-        fetchUnplayed()
-        fetchSaved()
+        // Only old episodes need manual fetching now
         fetchOld()
+        // All others auto-update via NSFetchedResultsController
     }
 
     func refreshEpisodes() {
         guard let context else { return }
         EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-            self.fetchAll()
+            // Only fetch old episodes since others auto-update
+            self.fetchOld()
         }
     }
 
@@ -170,10 +206,18 @@ extension EpisodesViewModel: @preconcurrency NSFetchedResultsControllerDelegate 
         if controller == queueController {
             guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
             self.queue = updatedEpisodes
+        } else if controller == latestController {  // NEW
+            guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
+            self.latest = updatedEpisodes
+            LogManager.shared.info("📱 Latest episodes auto-updated: \(updatedEpisodes.count) episodes")
+        } else if controller == unplayedController {  // NEW
+            guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
+            self.unplayed = updatedEpisodes
+            LogManager.shared.info("📱 Unplayed episodes auto-updated: \(updatedEpisodes.count) episodes")
         } else if controller == savedController {
             guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
             self.saved = updatedEpisodes
-        } else if controller == favsController { // Add this block
+        } else if controller == favsController {
             guard let updatedEpisodes = controller.fetchedObjects as? [Episode] else { return }
             self.favs = updatedEpisodes
         }

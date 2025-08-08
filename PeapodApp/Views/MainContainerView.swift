@@ -29,19 +29,13 @@ struct MainContainerView: View {
         
         ContentView(namespace:namespace)
 //            .fullScreenCover(isPresented: $runTest) {
-//                VStack {
-//                    Button(action: {
-//                           runTest.toggle()
-//                       }) {
-//                           Label("Show content", systemImage: "chevron.right")
-//                       }
-//                       .buttonStyle(.glassProminent)
-//                }
-//                .foregroundColor(.white)
-//                            .frame(maxWidth: .infinity,
-//                                   maxHeight: .infinity)
-//                            .background(Color.blue)
-//                            .ignoresSafeArea(edges: .all)
+//                WelcomeView(
+//                    completeOnboarding: {
+//                        appStateManager.completeOnboarding()
+//                    },
+//                    namespace: namespace
+//                )
+//                .transition(.opacity)
 //            }
         
 //        ContentView(namespace: namespace)

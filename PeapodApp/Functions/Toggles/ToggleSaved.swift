@@ -23,7 +23,7 @@ import SwiftUI
     
     do {
         try context.save()
-        episodesViewModel?.fetchSaved()
+//        episodesViewModel?.fetchSaved()
     } catch {
         print("Failed to remove episode from saved: \(error)")
     }

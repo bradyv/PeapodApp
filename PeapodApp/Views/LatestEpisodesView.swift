@@ -147,9 +147,6 @@ struct LatestEpisodesView: View {
             }
         }
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .onAppear {
-            episodesViewModel.fetchLatest()
-        }
         .toast()
         .refreshable {
             EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
@@ -203,9 +200,6 @@ struct LatestEpisodesMini: View {
                     }
                 }
             }
-        }
-        .onAppear {
-            episodesViewModel.fetchLatest()
         }
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode, namespace:namespace)

@@ -50,9 +50,6 @@ struct FavEpisodesView: View {
             }
         }
         .background(Color.background)
-        .onAppear {
-            episodesViewModel.fetchFavs()
-        }
         .scrollDisabled(episodesViewModel.favs.isEmpty)
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode, namespace:namespace)
@@ -99,9 +96,6 @@ struct FavEpisodesMini: View {
                     }
                 }
             }
-        }
-        .onAppear {
-            episodesViewModel.fetchFavs()
         }
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode, namespace:namespace)

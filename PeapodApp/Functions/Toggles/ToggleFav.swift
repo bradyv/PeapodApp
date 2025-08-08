@@ -20,7 +20,7 @@ import SwiftUI
     
     do {
         try context.save()
-        episodesViewModel?.fetchFavs()
+//        episodesViewModel?.fetchFavs()
     } catch {
         print("Failed to remove episode from favorites: \(error)")
     }

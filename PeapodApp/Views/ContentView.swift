@@ -94,10 +94,6 @@ struct ContentView: View {
                 .scrollEdgeEffectStyle(.soft, for: .all)
             }
         }
-//        NavigationStack {
-//            QueueView(namespace:namespace)
-//        }
-//        .searchable(text: $query, prompt: "Find a podcast")
         .tabViewBottomAccessory {
             NowPlaying(namespace:namespace)
         }
@@ -190,7 +186,7 @@ struct ContentView: View {
             forceRefreshPodcasts()
             
             // Delay opening the episode to allow refresh to complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 // Try to find the episode by the Firebase episode ID format
                 self.findEpisodeByFirebaseId(pendingID)
             }

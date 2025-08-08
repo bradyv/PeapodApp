@@ -14,6 +14,7 @@ struct EpisodeItem: View {
     @EnvironmentObject var player: AudioPlayerManager
     @State private var selectedPodcast: Podcast? = nil
     @State private var selectedEpisode: Episode? = nil
+    @State private var workItem: DispatchWorkItem?
     var showActions: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
@@ -218,12 +219,29 @@ struct EpisodeItem: View {
         .contentShape(Rectangle())
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
-            // Background tasks only
-            Task.detached(priority: .background) {
-                await player.writeActualDuration(for: episode)
-//                await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+            // Cancel any previous work item
+            workItem?.cancel()
+            // Create a new work item
+            let item = DispatchWorkItem {
+                Task.detached(priority: .background) {
+                    await player.writeActualDuration(for: episode)
+                }
             }
+            workItem = item
+            // Schedule after 0.5 seconds (adjust as needed)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: item)
         }
+        .onDisappear {
+            // Cancel if the user scrolls away before debounce interval
+            workItem?.cancel()
+        }
+//        .onAppear {
+//            // Background tasks only
+//            Task.detached(priority: .background) {
+//                await player.writeActualDuration(for: episode)
+////                await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
+//            }
+//        }
     }
 }
 

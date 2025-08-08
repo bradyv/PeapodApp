@@ -15,6 +15,7 @@
 import SwiftUI
 import FeedKit
 import CoreData
+import Kingfisher
 
 struct PodcastDetailView: View {
     @Environment(\.managedObjectContext) private var context
@@ -143,19 +144,34 @@ struct PodcastDetailView: View {
 //                    .titleSerifMini()
 //                    .frame(maxWidth:.infinity, alignment:.leading)
                 
-                Text("Latest Episode")
-                    .titleSerifMini()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-                
-                LazyVStack(alignment: .leading) {
-                    ForEach(filteredEpisodes.prefix(1), id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .onTapGesture {
-                                selectedEpisode = episode
-                            }
+                if let latestEpisode = filteredEpisodes.first {
+                    VStack {
+                        VStack {
+                            Text("Latest Episode")
+                                .titleSerifMini()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                            
+                            EpisodeItem(episode: latestEpisode, showActions: true, namespace: namespace)
+                                .lineLimit(3)
+                                .onTapGesture {
+                                    selectedEpisode = latestEpisode
+                                }
+                        }
+                        .padding()
                     }
+                    .background {
+                        KFImage(URL(string: latestEpisode.episodeImage ?? latestEpisode.podcast?.image ?? ""))
+                            .resizable()
+                            .aspectRatio(contentMode:.fill)
+                            .blur(radius:50)
+                            .mask(
+                                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                               startPoint: .top, endPoint: .bottom)
+                            )
+                            .opacity(0.5)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius:16))
+                    .glassEffect(in: .rect(cornerRadius:16))
                 }
                 
                 Spacer().frame(height:24)

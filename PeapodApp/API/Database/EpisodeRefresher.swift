@@ -486,7 +486,8 @@ class EpisodeRefresher {
         items: [RSSFeedItem],
         podcast: Podcast,
         existingEpisodes: [String: Episode],
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        skipQueueing: Bool = false // 🆕 Add parameter to skip queueing old episodes
     ) -> Int {
         var newEpisodesCount = 0
         var updatedEpisodesCount = 0
@@ -520,8 +521,8 @@ class EpisodeRefresher {
                 
                 print("🆕 Created new episode: \(title)")
                 
-                // Queue new episodes if subscribed
-                if podcast.isSubscribed {
+                // 🆕 Only queue new episodes if subscribed AND not skipping queueing (for incremental loads)
+                if podcast.isSubscribed && !skipQueueing {
                     toggleQueued(episode)
                 }
             }
@@ -534,7 +535,7 @@ class EpisodeRefresher {
         
         return newEpisodesCount
     }
-    
+
     private static func hasEpisodeChanged(episode: Episode, item: RSSFeedItem, podcast: Podcast) -> Bool {
         let newGuid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
         let newTitle = item.title
@@ -785,7 +786,8 @@ class EpisodeRefresher {
             items: batchItems,
             podcast: podcast,
             existingEpisodes: existingEpisodeMap,
-            context: context
+            context: context,
+            skipQueueing: true // 🚨 ADD THIS LINE
         )
         
         // Save changes
@@ -799,7 +801,7 @@ class EpisodeRefresher {
         LogManager.shared.info("✅ Loaded \(newEpisodesCount) new episodes. Has more: \(hasMore)")
         completion(newEpisodesCount, hasMore)
     }
-    
+
     // 🆕 Force refresh for push notifications - restored method
     static func forceRefreshForNotification(completion: (() -> Void)? = nil) {
         let lastNotificationRefreshKey = "lastNotificationRefresh"

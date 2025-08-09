@@ -54,7 +54,7 @@ struct Peapod: App {
                     // Start splash sequence
                     appStateManager.startSplashSequence()
                     
-                    EpisodeMaintenance.performMaintenanceIfNeeded(context: persistenceController.container.viewContext)
+//                    EpisodeMaintenance.performMaintenance(context: viewContext)
                 }
         }
     }

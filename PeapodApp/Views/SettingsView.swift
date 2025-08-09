@@ -452,6 +452,11 @@ struct SettingsView: View {
                                     .padding(.top,24)
                                 
                                 VStack {
+                                    Button {
+                                        EpisodeMaintenance.performMaintenance(context: PersistenceController.shared.container.viewContext, force: true)
+                                    } label: {
+                                        RowItem(icon: "sparkles", label: "Purge database")
+                                    }
                                     RowItem(icon: "doc.text", label: "Log Storage") {
                                         Text(LogManager.shared.getTotalLogSize())
                                             .textBody()
@@ -508,6 +513,9 @@ struct SettingsView: View {
                     Image("peapod-mark-adaptive")
                         .resizable()
                         .frame(width:32, height:32)
+                        .onTapGesture(count: 5) {
+                            showDebugTools.toggle()
+                        }
                     
                     Text("Peapod")
                         .titleSerifMini()

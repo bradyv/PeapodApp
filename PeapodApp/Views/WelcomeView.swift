@@ -165,87 +165,48 @@ struct WelcomeView: View {
                                 .titleSerif()
                         }
                         
-                        if !showReturningUser {
-                            FadeInView(delay: 1) {
-                                Text("Podcasts. Plain and simple.")
-                                    .textBody()
+                        FadeInView(delay: 1) {
+                            Text("Podcasts. Plain and simple.")
+                                .textBody()
+                        }
+                        
+                        Spacer().frame(height: showSubscriptions ? 64 : 88)
+                        
+                        FadeInView(delay: 1.1) {
+                            VStack {
+                                Button {
+                                    withAnimation {
+                                        if showSubscriptions {
+                                            completeOnboarding()
+                                        } else {
+                                            if isReturningUser {
+                                                showReturningUser = true
+                                                startDataSyncCheck()
+                                            } else {
+                                                showSubscriptions = true
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    Label(showSubscriptions ? (subscribedPodcasts.count > 0 ? "Start listening" : "Skip") : "Get started", systemImage: "chevron.right")
+                                        .frame(maxWidth:.infinity)
+                                }
+                                .labelStyle(.titleOnly)
+                                .buttonStyle(.glassProminent)
+                                
+                                Button {
+                                    //
+                                } label: {
+                                    Label("Already have an OPML file?", systemImage: "tray.and.arrow.down")
+                                        .frame(maxWidth:.infinity)
+                                }
+                                .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                                .labelStyle(.titleOnly)
                             }
-                            
-                            Spacer().frame(height: showSubscriptions || showReturningUser ? 64 : 88)
+                            .padding(.horizontal, 32)
                         }
                     }
                     .frame(maxWidth:.infinity)
-                    
-                    // Returning user content
-                    if showReturningUser {
-                        Spacer().frame(height:64)
-                        VStack(spacing: 24) {
-                            VStack(spacing: 16) {
-                                FadeInView(delay: 0.5) {
-                                    Text("Welcome back. Your subscriptions will be restored.")
-                                        .titleCondensed()
-                                        .multilineTextAlignment(.center)
-                                    
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: Color.accentColor))
-                                        .scaleEffect(1.2)
-                                }
-                            }
-                            .padding(.horizontal, 32)
-                            
-                            if !isLoadingUserData {
-                                
-                                FadeInView(delay: 0.5) {
-                                    Text("Data will continue restoring while you use the app.")
-                                        .textDetail()
-                                }
-                                
-                               FadeInView(delay: 0.6) {
-                                   Button {
-                                       showNotificationsSheet = true
-                                   } label: {
-                                       HStack(spacing: 8) {
-                                           Text("Continue")
-                                           Image(systemName: "chevron.right")
-                                       }
-                                   }
-                                   .buttonStyle(ShadowButton())
-                               }
-                           }
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        .animation(.easeOut(duration: 0.3), value: showReturningUser)
-                        
-                        Spacer()
-                    }
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        withAnimation {
-                            if showSubscriptions {
-                                completeOnboarding()
-                            } else {
-                                if isReturningUser {
-                                    showReturningUser = true
-                                    startDataSyncCheck()
-                                } else {
-                                    showSubscriptions = true
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text(showSubscriptions ? (subscribedPodcasts.count > 0 ? "Start listening" : "Skip") : "Get started")
-                                .foregroundStyle(.white)
-                                .titleCondensed()
-                            if subscribedPodcasts.count > 0 {
-                                Image(systemName: "chevron.right")
-                            }
-                        }
-                    }
-                    .buttonStyle(.glassProminent)
                 }
             }
         }

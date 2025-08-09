@@ -91,7 +91,7 @@ class EpisodeRefresher {
     }
     
     static func loadInitialEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
-        LogManager.shared.info("🆕 Loading initial episodes (limited to 50) for: \(podcast.title ?? "Unknown")")
+        LogManager.shared.info("🆕 Loading initial episodes (limited to 25) for: \(podcast.title ?? "Unknown")")
         
         guard let feedUrl = podcast.feedUrl else {
             LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
@@ -332,7 +332,7 @@ class EpisodeRefresher {
         }
         
         // 🆕 Limit episodes to most recent 50 if requested
-        let episodesToProcess = limitToRecent ? Array(items.prefix(50)) : items
+        let episodesToProcess = limitToRecent ? Array(items.prefix(25)) : items
         
         if limitToRecent {
             LogManager.shared.info("📦 Processing recent \(episodesToProcess.count) episodes out of \(items.count) total for: \(podcast.title ?? "Unknown")")

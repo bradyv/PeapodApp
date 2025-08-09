@@ -38,15 +38,26 @@ struct MainContainerView: View {
 //                .transition(.opacity)
 //            }
         
-//        ContentView(namespace: namespace)
-//            .fullScreenCover(isPresented: $runTest) {
-//                WelcomeView(
-//                    completeOnboarding: {
-//                        runTest.toggle()
-//                    },
-//                    namespace: namespace
-//                )
-//            }
+        switch appStateManager.currentState {
+            case .onboarding:
+                WelcomeView(
+                    completeOnboarding: {
+                        appStateManager.completeOnboarding()
+                    },
+                    namespace: namespace
+                )
+            
+            case .requestNotifications:
+                RequestNotificationsView(
+                    onComplete: {
+                        appStateManager.completeNotificationRequest()
+                    },
+                    namespace: namespace
+                )
+            
+            case .main:
+                ContentView(namespace: namespace)
+        }
         
 //        ZStack {
 //            // Layer 1: Main content (always initialized but conditionally visible)
@@ -75,6 +86,12 @@ struct MainContainerView: View {
 //                    namespace: namespace
 //                )
 //                .transition(.opacity)
+//            }
+//            
+//            // Layer 4: Splash (conditionally visible on top)
+//            if appStateManager.currentState == .splash {
+//                SplashView()
+//                    .transition(.opacity)
 //            }
 //        }
     }

@@ -7,38 +7,165 @@
 
 import Foundation
 import CoreData
+import SwiftUI
 
 struct EpisodeMaintenance {
     
     /// Preference key to track if maintenance has been performed
     private static let maintenanceCompletedKey = "PeapodPurgev1"
     
+    /// Completion handler for maintenance operations
+    typealias MaintenanceCompletion = (Result<Int, Error>) -> Void
+    
     /// Performs one-time episode cleanup if not already completed
-    /// - Parameter context: The Core Data managed object context
-    static func performMaintenanceIfNeeded(context: NSManagedObjectContext) {
+    /// - Parameters:
+    ///   - context: The Core Data managed object context
+    ///   - forced: If true, runs even if already completed and shows confirmation alert
+    ///   - completion: Optional completion handler with deletion count or error
+    static func performMaintenanceIfNeeded(
+        context: NSManagedObjectContext,
+        forced: Bool = false,
+        completion: MaintenanceCompletion? = nil
+    ) {
         // Check if maintenance has already been performed
-        let hasCompleted = UserDefaults.standard.bool(forKey: maintenanceCompletedKey)
+        if !forced {
+            let hasCompleted = UserDefaults.standard.bool(forKey: maintenanceCompletedKey)
+            
+            if hasCompleted {
+                LogManager.shared.info("Episode maintenance already completed, skipping")
+                completion?(.success(0))
+                return
+            }
+        }
         
-        if hasCompleted {
-            LogManager.shared.info("Episode maintenance already completed, skipping")
+        // If forced, show confirmation alert first
+        if forced {
+            Task {
+                do {
+                    let countToDelete = try previewDeletionCount(context: context)
+                    
+                    await MainActor.run {
+                        showConfirmationAlert(
+                            countToDelete: countToDelete,
+                            context: context,
+                            completion: completion
+                        )
+                    }
+                } catch {
+                    LogManager.shared.error("Failed to preview deletion count: \(error)")
+                    completion?(.failure(error))
+                }
+            }
             return
         }
         
+        // Normal maintenance execution (not forced)
+        executeMaintenance(context: context, completion: completion)
+    }
+    
+    /// Shows confirmation alert before performing maintenance
+    /// - Parameters:
+    ///   - countToDelete: Number of episodes that would be deleted
+    ///   - context: The Core Data managed object context
+    ///   - completion: Completion handler for the operation
+    @MainActor
+    private static func showConfirmationAlert(
+        countToDelete: Int,
+        context: NSManagedObjectContext,
+        completion: MaintenanceCompletion?
+    ) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            LogManager.shared.warning("Could not find root view controller to show alert")
+            completion?(.failure(MaintenanceError.cannotShowAlert))
+            return
+        }
+        
+        let title = "Confirm Maintenance"
+        let message = countToDelete > 0
+            ? "This will remove \(countToDelete) old episodes from your library. This action cannot be undone."
+            : "No episodes need to be removed."
+        
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        
+        // Cancel action
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
+            LogManager.shared.info("User cancelled maintenance operation")
+            completion?(.success(0))
+        })
+        
+        // Only show confirm button if there are episodes to delete
+        if countToDelete > 0 {
+            alert.addAction(UIAlertAction(title: "Remove Episodes", style: .destructive) { _ in
+                LogManager.shared.info("User confirmed maintenance operation")
+                executeMaintenance(context: context, completion: completion)
+            })
+        }
+        
+        // Present on the topmost view controller
+        var topController = rootViewController
+        while let presentedController = topController.presentedViewController {
+            topController = presentedController
+        }
+        
+        topController.present(alert, animated: true)
+    }
+    
+    /// Executes the actual maintenance operation
+    /// - Parameters:
+    ///   - context: The Core Data managed object context
+    ///   - completion: Optional completion handler
+    private static func executeMaintenance(
+        context: NSManagedObjectContext,
+        completion: MaintenanceCompletion?
+    ) {
         LogManager.shared.info("Starting episode maintenance - purging old unused episodes")
         
         Task {
             do {
                 let deletedCount = try await purgeOldUnusedEpisodes(context: context)
                 
-                // Mark maintenance as completed
-                UserDefaults.standard.set(true, forKey: maintenanceCompletedKey)
-                
                 LogManager.shared.info("Episode maintenance completed successfully. Deleted \(deletedCount) episodes")
+                
+                // Show completion alert for forced runs
+                await MainActor.run {
+                    showCompletionAlert(deletedCount: deletedCount)
+                }
+                
+                completion?(.success(deletedCount))
                 
             } catch {
                 LogManager.shared.error("Episode maintenance failed: \(error)")
+                completion?(.failure(error))
             }
         }
+    }
+    
+    /// Shows completion alert after maintenance
+    /// - Parameter deletedCount: Number of episodes that were deleted
+    @MainActor
+    private static func showCompletionAlert(deletedCount: Int) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first,
+              let rootViewController = window.rootViewController else {
+            LogManager.shared.warning("Could not find root view controller to show alert")
+            return
+        }
+        
+        let title = "Maintenance Complete"
+        let message = "Successfully removed \(deletedCount) episodes from your library."
+        
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        
+        // Present on the topmost view controller
+        var topController = rootViewController
+        while let presentedController = topController.presentedViewController {
+            topController = presentedController
+        }
+        
+        topController.present(alert, animated: true)
     }
     
     /// Purges episodes that meet the criteria for deletion
@@ -96,11 +223,12 @@ struct EpisodeMaintenance {
         
         // Calculate date 1 year ago
         let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
+        let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: Date()) ?? Date()
         
         // Build compound predicate for deletion criteria
         let predicates = [
             // Older than 1 year (using airDate as the age reference)
-            NSPredicate(format: "airDate < %@", oneYearAgo as NSDate),
+            NSPredicate(format: "airDate < %@", sixMonthsAgo as NSDate),
             
             // Not played
             NSPredicate(format: "isPlayed == NO"),
@@ -136,14 +264,15 @@ struct EpisodeMaintenance {
     }
     
     /// Manual trigger for maintenance (for testing or manual execution)
-    /// - Parameter context: The Core Data managed object context
-    /// - Parameter force: If true, runs maintenance even if already completed
+    /// - Parameters:
+    ///   - context: The Core Data managed object context
+    ///   - force: If true, runs maintenance even if already completed (shows confirmation alert)
     static func performMaintenance(context: NSManagedObjectContext, force: Bool = false) {
         if force {
             UserDefaults.standard.removeObject(forKey: maintenanceCompletedKey)
         }
         
-        performMaintenanceIfNeeded(context: context)
+        performMaintenanceIfNeeded(context: context, forced: force)
     }
     
     /// Checks if maintenance has been completed
@@ -167,20 +296,43 @@ struct EpisodeMaintenance {
     }
 }
 
+// MARK: - Error Types
+
+enum MaintenanceError: Error, LocalizedError {
+    case cannotShowAlert
+    
+    var errorDescription: String? {
+        switch self {
+        case .cannotShowAlert:
+            return "Could not find view controller to show alert"
+        }
+    }
+}
+
 // MARK: - Usage Examples
 
 /*
-// In your app initialization (e.g., in App delegate or main app struct):
+// Normal app startup (no alert, runs automatically if needed):
 EpisodeMaintenance.performMaintenanceIfNeeded(context: persistentContainer.viewContext)
 
-// For manual testing:
+// Manual forced maintenance (shows confirmation dialog first):
 EpisodeMaintenance.performMaintenance(context: viewContext, force: true)
 
-// To preview deletion count:
+// With completion handler:
+EpisodeMaintenance.performMaintenanceIfNeeded(context: viewContext, forced: true) { result in
+    switch result {
+    case .success(let count):
+        print("Maintenance completed, deleted \(count) episodes")
+    case .failure(let error):
+        print("Maintenance failed: \(error)")
+    }
+}
+
+// Preview deletion count without running:
 let count = try EpisodeMaintenance.previewDeletionCount(context: viewContext)
 print("Would delete \(count) episodes")
 
-// To check if maintenance was completed:
+// Check if maintenance was completed:
 let completed = EpisodeMaintenance.hasMaintenanceCompleted()
 print("Maintenance completed: \(completed)")
 */

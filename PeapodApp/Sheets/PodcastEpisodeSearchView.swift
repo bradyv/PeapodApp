@@ -20,13 +20,11 @@ struct PodcastEpisodeSearchView: View {
     @State private var hasMoreEpisodes = true // Track if more episodes available
     @State private var isLoadingMoreEpisodes = false // Loading state for incremental loads
     @FocusState private var isTextFieldFocused: Bool
-    var namespace: Namespace.ID
 
-    init(podcast: Podcast, showSearch: Binding<Bool>, selectedEpisode: Binding<Episode?>, namespace: Namespace.ID) {
+    init(podcast: Podcast, showSearch: Binding<Bool>, selectedEpisode: Binding<Episode?>) {
         self.podcast = podcast
         self._showSearch = showSearch
         self._selectedEpisode = selectedEpisode
-        self.namespace = namespace
         _latest = FetchRequest<Episode>(
             sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
             predicate: NSPredicate(format: "podcast == %@", podcast),
@@ -71,7 +69,7 @@ struct PodcastEpisodeSearchView: View {
                 } else {
                     LazyVStack(alignment: .leading) {
                         ForEach(filteredEpisodes, id: \.id) { episode in
-                            EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                            EpisodeItem(episode: episode, showActions: true)
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
                                 .onTapGesture {
@@ -150,7 +148,7 @@ struct PodcastEpisodeSearchView: View {
         .navigationTitle(podcast.title ?? "Episodes")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
         .onAppear {

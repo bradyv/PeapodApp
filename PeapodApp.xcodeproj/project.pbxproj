@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		233607BB2E047BA300C405CE /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 233607BA2E047BA300C405CE /* Lottie */; };
-		2351F7442DC184B1007BE99C /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 2351F7432DC184B1007BE99C /* RiveRuntime */; };
 		2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD2F2DA88952007348BC /* ColorThiefSwift */; };
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
 		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
@@ -134,7 +133,6 @@
 				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
 				2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */,
 				2390AC012DE8C7C100487751 /* SmoothGradient in Frameworks */,
-				2351F7442DC184B1007BE99C /* RiveRuntime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -219,7 +217,6 @@
 				2354DD322DA8895E007348BC /* SwiftSoup */,
 				2354DD352DA88968007348BC /* Kingfisher */,
 				2354DD3B2DA889BA007348BC /* FeedKit */,
-				2351F7432DC184B1007BE99C /* RiveRuntime */,
 				239EFB8C2DE2607A0036D6F3 /* FirebaseMessaging */,
 				239EFB932DE26AE20036D6F3 /* FirebaseFunctions */,
 				2390AC002DE8C7C100487751 /* SmoothGradient */,
@@ -338,7 +335,6 @@
 				2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 				2354DD342DA88968007348BC /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */,
-				2351F7422DC184B1007BE99C /* XCRemoteSwiftPackageReference "rive-ios" */,
 				239EFB8B2DE2607A0036D6F3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				2390ABFF2DE8C7C100487751 /* XCRemoteSwiftPackageReference "SmoothGradient" */,
 				233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */,
@@ -811,14 +807,6 @@
 				minimumVersion = 4.5.2;
 			};
 		};
-		2351F7422DC184B1007BE99C /* XCRemoteSwiftPackageReference "rive-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/rive-app/rive-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 6.8.1;
-			};
-		};
 		2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/yamoridon/ColorThiefSwift";
@@ -874,11 +862,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */;
 			productName = Lottie;
-		};
-		2351F7432DC184B1007BE99C /* RiveRuntime */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2351F7422DC184B1007BE99C /* XCRemoteSwiftPackageReference "rive-ios" */;
-			productName = RiveRuntime;
 		};
 		2354DD2F2DA88952007348BC /* ColorThiefSwift */ = {
 			isa = XCSwiftPackageProductDependency;

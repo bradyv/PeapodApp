@@ -16,7 +16,6 @@ struct EpisodeView: View {
     @EnvironmentObject var player: AudioPlayerManager
     @State private var selectedPodcast: Podcast? = nil
     @State private var scrollOffset: CGFloat = 0
-    var namespace: Namespace.ID
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -61,10 +60,10 @@ struct EpisodeView: View {
                         }
                         .sheet(item: $selectedPodcast) { podcast in
                             if podcast.isSubscribed {
-                                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
                                     .modifier(PPSheet())
                             } else {
-                                PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
+                                PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "")
                                     .modifier(PPSheet())
                             }
                         }

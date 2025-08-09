@@ -12,8 +12,8 @@ struct MainContainerView: View {
     @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @EnvironmentObject var toastManager: ToastManager
     @Environment(\.managedObjectContext) private var context
-    @Namespace var namespace
     @State private var runTest: Bool = true
+    @AppStorage("showOnboarding") private var showOnboarding: Bool = true
     
     var body: some View {
 //        if runTest {
@@ -24,45 +24,52 @@ struct MainContainerView: View {
 //            }
 //            .buttonStyle(.glassProminent)
 //        } else {
-//            ContentView(namespace:namespace)
+//            ContentView()
 //        }
         
-        ContentView(namespace:namespace)
-//            .fullScreenCover(isPresented: $runTest) {
+//        ContentView()
+//            .fullScreenCover(isPresented: $showOnboarding) {
 //                WelcomeView(
 //                    completeOnboarding: {
 //                        appStateManager.completeOnboarding()
-//                    },
-//                    namespace: namespace
+//                    }
 //                )
 //                .transition(.opacity)
 //            }
         
-        switch appStateManager.currentState {
-            case .onboarding:
-                WelcomeView(
-                    completeOnboarding: {
-                        appStateManager.completeOnboarding()
-                    },
-                    namespace: namespace
-                )
-            
-            case .requestNotifications:
-                RequestNotificationsView(
-                    onComplete: {
-                        appStateManager.completeNotificationRequest()
-                    },
-                    namespace: namespace
-                )
-            
-            case .main:
-                ContentView(namespace: namespace)
-        }
+        NewWelcomeView(
+            completeOnboarding: {
+                appStateManager.completeOnboarding()
+            }
+        )
+        .transition(.opacity)
+        
+//        switch appStateManager.currentState {
+//            case .splash:
+//                SplashView()
+//                    
+//            case .onboarding:
+//                WelcomeView(
+//                    completeOnboarding: {
+//                        appStateManager.completeOnboarding()
+//                    }
+//                )
+//            
+//            case .requestNotifications:
+//                RequestNotificationsView(
+//                    onComplete: {
+//                        appStateManager.completeNotificationRequest()
+//                    }
+//                )
+//            
+//            case .main:
+//                ContentView()
+//        }
         
 //        ZStack {
 //            // Layer 1: Main content (always initialized but conditionally visible)
 //            if appStateManager.currentState == .main {
-//                ContentView(namespace: namespace)
+//                ContentView()
 //                    .transition(.opacity)
 //            }
 //            
@@ -71,8 +78,7 @@ struct MainContainerView: View {
 //                WelcomeView(
 //                    completeOnboarding: {
 //                        appStateManager.completeOnboarding()
-//                    },
-//                    namespace: namespace
+//                    }
 //                )
 //                .transition(.opacity)
 //            }
@@ -82,8 +88,7 @@ struct MainContainerView: View {
 //                RequestNotificationsView(
 //                    onComplete: {
 //                        appStateManager.completeNotificationRequest()
-//                    },
-//                    namespace: namespace
+//                    }
 //                )
 //                .transition(.opacity)
 //            }

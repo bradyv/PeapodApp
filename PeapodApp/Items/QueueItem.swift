@@ -11,7 +11,6 @@ import Kingfisher
 struct QueueItem: View {
     @ObservedObject var episode: Episode
     @ObservedObject private var player = AudioPlayerManager.shared
-    var namespace: Namespace.ID
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -39,7 +38,7 @@ struct QueueItem: View {
                 Spacer()
             }
             
-            EpisodeItem(episode: episode, showActions: true, displayedInQueue: true, namespace: namespace)
+            EpisodeItem(episode: episode, showActions: true, displayedInQueue: true)
                 .lineLimit(3)
                 .padding()
                 .frame(maxWidth: .infinity)

@@ -12,7 +12,6 @@ struct OldEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedEpisode: Episode? = nil
     @State private var showDeleteConfirmation = false
-    var namespace: Namespace.ID
     
     private func deleteOldEpisodes() {
         for episode in episodesViewModel.old {
@@ -54,7 +53,7 @@ struct OldEpisodesView: View {
                 
                 LazyVStack {
                     ForEach(episodesViewModel.old, id: \.id) { episode in
-                        EpisodeItem(episode: episode, savedView:true, namespace: namespace)
+                        EpisodeItem(episode: episode, savedView:true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                     }

@@ -13,7 +13,6 @@ struct SubscriptionsView: View {
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     @State private var selectedPodcast: Podcast? = nil
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -23,28 +22,6 @@ struct SubscriptionsView: View {
             ZStack(alignment: .topLeading) {
                 // Actual grid with Add button + (possibly empty) real subscriptions
                 LazyVGrid(columns: columns, spacing: 16) {
-                    // Always-visible Add button
-//                    NavigationLink {
-//                        PPPopover(showDismiss: false, pushView: false) {
-//                            PodcastSearchView(namespace:namespace)
-//                        }
-//                        .navigationTransition(.zoom(sourceID: "ppsearch", in: namespace))
-//                    } label: {
-//                        VStack {
-//                            Image(systemName: "plus.magnifyingglass")
-//                                .symbolRenderingMode(.hierarchical)
-//                            Text("Add a podcast")
-//                                .textDetailEmphasis()
-//                        }
-//                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-//                        .aspectRatio(1, contentMode: .fit)
-//                        .background(Color.surface)
-//                        .foregroundStyle(Color.heading)
-//                        .clipShape(RoundedRectangle(cornerRadius: 16))
-//                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.surface, lineWidth: 1))
-//                        .matchedTransitionSource(id: "ppsearch", in: namespace)
-//                    }
-
                     // Real podcasts - optimized for scroll performance
                     if !subscriptions.isEmpty {
                         ForEach(subscriptions, id: \.objectID) { podcast in
@@ -92,7 +69,7 @@ struct SubscriptionsView: View {
         .frame(maxWidth:.infinity)
         .padding()
         .sheet(item: $selectedPodcast) { podcast in
-            PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace:namespace)
+            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                 .modifier(PPSheet())
         }
     }

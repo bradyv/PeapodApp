@@ -53,8 +53,6 @@ struct SettingsView: View {
         set { appThemeRawValue = newValue.rawValue }
     }
     
-    var namespace: Namespace.ID
-    
     var body: some View {
         
             ScrollView {
@@ -113,7 +111,7 @@ struct SettingsView: View {
                     Spacer().frame(height:16)
                     
                     NavigationLink {
-                        ActivityView(namespace:namespace)
+                        ActivityView()
                     } label: {
                         Text("More Stats")
                             .frame(maxWidth:.infinity)
@@ -492,7 +490,7 @@ struct SettingsView: View {
                                     
                                     NavigationLink {
                                         PPPopover(showBg: true) {
-                                            OldEpisodesView(namespace:namespace)
+                                            OldEpisodesView()
                                         }
                                     } label: {
                                         RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
@@ -543,7 +541,7 @@ struct SettingsView: View {
                     UpgradeView()
                         .modifier(PPSheet())
                 case .stats:
-                    ActivityView(namespace: namespace)
+                    ActivityView()
                         .modifier(PPSheet())
                 case .appIcons:
                     AppIconView(selectedIconName: $selectedIconName)
@@ -574,8 +572,7 @@ struct SettingsView: View {
                         showNotificationRequest = false
                         // Refresh status after permission request
                         checkNotificationStatus()
-                    },
-                    namespace: namespace
+                    }
                 )
             }
     }

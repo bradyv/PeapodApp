@@ -14,7 +14,6 @@ struct LatestEpisodesView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var showAll = true
     @State private var selectedPodcast: Podcast? = nil
-    var namespace: Namespace.ID
     
     // Computed property to get unique podcasts
     private var uniquePodcasts: [Podcast] {
@@ -122,7 +121,7 @@ struct LatestEpisodesView: View {
             } else {
                 LazyVStack(alignment: .leading) {
                     ForEach(filteredEpisodes, id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
@@ -155,7 +154,7 @@ struct LatestEpisodesView: View {
             }
         }
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
     }
@@ -166,7 +165,6 @@ struct LatestEpisodesMini: View {
     @Environment(\.managedObjectContext) private var context
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack {
@@ -174,7 +172,7 @@ struct LatestEpisodesMini: View {
             
             if !episodesViewModel.latest.isEmpty {
                 NavigationLink {
-                    LatestEpisodesView(namespace: namespace)
+                    LatestEpisodesView()
                         .navigationTitle("Recent Releases")
                 } label: {
                     HStack(alignment:.center) {
@@ -190,7 +188,7 @@ struct LatestEpisodesMini: View {
                 
                 LazyVStack(alignment: .leading) {
                     ForEach(episodesViewModel.latest.prefix(3), id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
@@ -202,7 +200,7 @@ struct LatestEpisodesMini: View {
             }
         }
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
     }

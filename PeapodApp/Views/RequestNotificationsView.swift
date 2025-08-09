@@ -10,7 +10,6 @@ import UserNotifications
 
 struct RequestNotificationsView: View {
     let onComplete: () -> Void
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack {

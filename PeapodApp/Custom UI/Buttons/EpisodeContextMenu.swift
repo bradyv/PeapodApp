@@ -18,7 +18,6 @@ struct EpisodeContextMenu: View {
     @State private var showingUpgrade = false
     var displayedFullscreen: Bool = false
     var displayedInQueue: Bool = false
-    var namespace: Namespace.ID
     
     @ViewBuilder
     func speedButton(for speed: Float) -> some View {
@@ -47,7 +46,6 @@ struct EpisodeContextMenu: View {
             if !displayedFullscreen {
                 Button(action: {
                     selectedEpisode = episode
-//                    episodeSelectionManager.selectEpisode(episode)
                 }) {
                     Label("Go to Episode", systemImage: "info.square")
                 }
@@ -119,52 +117,29 @@ struct EpisodeContextMenu: View {
                       systemImage: episode.isFav ? "heart.slash" : "heart")
             }
             
-//            if !displayedFullscreen {
-                Divider()
-                
-                Button {
-                    selectedPodcast = episode.podcast
-//                    if episode.podcast?.isSubscribed != false {
-//                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-//                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-//                        }
-//                    } else {
-//                        PPPopover(hex: episode.podcast?.podcastTint ?? "#FFFFFF") {
-//                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-//                        }
-//                    }
-                } label: {
-                    Label("Go to Show", systemImage: "widget.large")
-                }
-//            }
+            Divider()
+            
+            Button {
+                selectedPodcast = episode.podcast
+            } label: {
+                Label("Go to Show", systemImage: "widget.large")
+            }
         } label: {
             Label("More", systemImage: "ellipsis.circle")
                 .foregroundStyle(Color.heading)
         }
         .labelStyle(.iconOnly)
-//        .buttonStyle(
-//            .glass
-//            PPGlassButton(iconOnly: true)
-//            PPButton(
-//                type: .transparent,
-//                colorStyle: .monochrome,
-//                iconOnly: true,
-//                customColors: displayedInQueue ?
-//                ButtonCustomColors(foreground: .white, background: .white.opacity(0.15)) :
-//                    nil
-//            )
-//        )
         .menuOrder(.fixed)
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
         .sheet(item: $selectedPodcast) { podcast in
             if podcast.isSubscribed {
-                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
                     .modifier(PPSheet())
             } else {
-                PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
+                PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "")
                     .modifier(PPSheet())
             }
         }

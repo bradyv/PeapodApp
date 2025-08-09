@@ -33,20 +33,18 @@ struct PodcastDetailView: View {
 //    @FocusState private var showSearch: Bool
     
     var podcast: Podcast? { podcastResults.first }
-    var namespace: Namespace.ID
     var episodes: [Episode] {
         (podcast?.episode as? Set<Episode>)?
             .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
     }
 
-    init(feedUrl: String, namespace: Namespace.ID) {
+    init(feedUrl: String) {
         _podcastResults = FetchRequest<Podcast>(
             entity: Podcast.entity(),
             sortDescriptors: [],
             predicate: NSPredicate(format: "feedUrl == %@", feedUrl),
             animation: .default
         )
-        self.namespace = namespace
     }
     
     private var filteredEpisodes: [Episode] {
@@ -151,7 +149,7 @@ struct PodcastDetailView: View {
                                 .titleSerifMini()
                                 .frame(maxWidth:.infinity, alignment:.leading)
                             
-                            EpisodeItem(episode: latestEpisode, showActions: true, namespace: namespace)
+                            EpisodeItem(episode: latestEpisode, showActions: true)
                                 .lineLimit(3)
                                 .onTapGesture {
                                     selectedEpisode = latestEpisode
@@ -177,7 +175,7 @@ struct PodcastDetailView: View {
                 Spacer().frame(height:24)
                 
                 NavigationLink {
-                    PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode, namespace: namespace)
+                    PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
                 } label: {
                     HStack(alignment:.center) {
                         Text("Episodes")
@@ -191,7 +189,7 @@ struct PodcastDetailView: View {
                 
                 LazyVStack(alignment: .leading) {
                     ForEach(filteredEpisodes.prefix(4).dropFirst(), id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .onTapGesture {
@@ -233,12 +231,11 @@ struct PodcastDetailView: View {
                 checkNotificationStatus()
                 
                 Task.detached(priority: .background) {
-//                    await ColorTintManager.applyTintIfNeeded(to: podcast, in: context)
                     await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                 }
             }
             .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode, namespace:namespace)
+                EpisodeView(episode: episode)
                     .modifier(PPSheet())
             }
             .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")

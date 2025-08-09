@@ -23,7 +23,6 @@ struct WelcomeView: View {
     @State private var syncCheckTimer: Timer?
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     var completeOnboarding: () -> Void
-    var namespace: Namespace.ID
     
     var body: some View {
         NavigationStack {
@@ -121,9 +120,6 @@ struct WelcomeView: View {
                                             
                                             try? podcastEntity.managedObjectContext?.save()
                                             
-                                            Task.detached(priority: .background) {
-                                                await ColorTintManager.applyTintIfNeeded(to: podcastEntity, in: context)
-                                            }
                                             DispatchQueue.main.async {
                                                 subscribedPodcasts.insert(podcast.id)
                                             }
@@ -177,14 +173,13 @@ struct WelcomeView: View {
                                 Button {
                                     withAnimation {
                                         if showSubscriptions {
-                                            completeOnboarding()
-                                        } else {
-                                            if isReturningUser {
-                                                showReturningUser = true
-                                                startDataSyncCheck()
+                                            if subscribedPodcasts.count > 0 {
+                                                showNotificationsSheet.toggle()
                                             } else {
-                                                showSubscriptions = true
+                                                completeOnboarding()
                                             }
+                                        } else {
+                                            showSubscriptions = true
                                         }
                                     }
                                 } label: {
@@ -217,14 +212,13 @@ struct WelcomeView: View {
                 onComplete: {
                     showNotificationsSheet = false
                     completeOnboarding()
-                },
-                namespace: namespace
+                }
             )
             .interactiveDismissDisabled()
         }
         .onAppear {
 //            checkIfReturningUser()
-            PodcastAPI.fetchTopPodcasts(limit: 31) { podcasts in
+            PodcastAPI.fetchTopPodcasts(limit: 30) { podcasts in
                 self.topPodcasts = podcasts
             }
         }
@@ -292,16 +286,4 @@ struct WelcomeView: View {
             print("❌ Error checking for synced data: \(error)")
         }
     }
-}
-
-#Preview {
-    @EnvironmentObject var appStateManager: AppStateManager
-    @Namespace var namespace
-    
-    WelcomeView(
-        completeOnboarding: {
-            appStateManager.completeOnboarding()
-        },
-        namespace: namespace
-    )
 }

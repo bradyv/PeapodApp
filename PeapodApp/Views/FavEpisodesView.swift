@@ -9,7 +9,6 @@ import SwiftUI
 
 struct FavEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    var namespace: Namespace.ID
     @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
@@ -38,7 +37,7 @@ struct FavEpisodesView: View {
             } else {
                 ForEach(episodesViewModel.favs, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
@@ -52,7 +51,7 @@ struct FavEpisodesView: View {
         .background(Color.background)
         .scrollDisabled(episodesViewModel.favs.isEmpty)
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
     }
@@ -63,14 +62,13 @@ struct FavEpisodesMini: View {
     @Environment(\.managedObjectContext) private var context
     @State private var selectedEpisode: Episode? = nil
     @State private var selectedPodcast: Podcast? = nil
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack {
             if !episodesViewModel.favs.isEmpty {
                 Spacer().frame(height:24)
                 NavigationLink {
-                    FavEpisodesView(namespace: namespace)
+                    FavEpisodesView()
                         .navigationTitle("Favorites")
                 } label: {
                     HStack(alignment:.center) {
@@ -86,7 +84,7 @@ struct FavEpisodesMini: View {
             
                 LazyVStack(alignment: .leading) {
                     ForEach(episodesViewModel.favs.prefix(3), id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
@@ -98,7 +96,7 @@ struct FavEpisodesMini: View {
             }
         }
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
     }

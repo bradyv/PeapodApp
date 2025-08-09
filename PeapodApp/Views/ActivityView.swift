@@ -41,7 +41,6 @@ struct ActivityView: View {
     @State private var favoriteDayName: String = "Loading..."
     @State private var favoriteDayCount: Int = 0
     @State private var weeklyData: [WeeklyListeningData] = []
-    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {

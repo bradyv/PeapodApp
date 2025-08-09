@@ -10,7 +10,6 @@ import SwiftUI
 struct LibraryView: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .interactiveSpring)
     var subscriptions: FetchedResults<Podcast>
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
@@ -23,7 +22,7 @@ struct LibraryView: View {
                 VStack(spacing: 8) {
                     NavigationLink {
                         PPPopover(showBg: true) {
-                            LatestEpisodesView(namespace: namespace)
+                            LatestEpisodesView()
                         }
                     } label: {
                         RowItem(icon: "calendar", label: "Most Recent")
@@ -31,7 +30,7 @@ struct LibraryView: View {
                     
                     NavigationLink {
                         PPPopover(showBg: true) {
-                            SavedEpisodesView(namespace: namespace)
+                            SavedEpisodesView()
                         }
                     } label: {
                         RowItem(icon: "arrowshape.bounce.right", label: "Play Later")
@@ -39,7 +38,7 @@ struct LibraryView: View {
                     
                     NavigationLink {
                         PPPopover(showBg: true) {
-                            FavEpisodesView(namespace: namespace)
+                            FavEpisodesView()
                         }
                     } label: {
                         RowItem(icon: "heart", label: "Favorites")

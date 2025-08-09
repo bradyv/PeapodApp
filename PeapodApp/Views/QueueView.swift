@@ -16,8 +16,6 @@ struct QueueView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
-    
-    var namespace: Namespace.ID
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -103,7 +101,7 @@ struct QueueView: View {
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
                                 ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
-                                    QueueItemView(episode: episode, index: index, namespace: namespace) {
+                                    QueueItemView(episode: episode, index: index) {
                                         selectedEpisode = episode
                                     }
                                     .onTapGesture {
@@ -199,7 +197,7 @@ struct QueueView: View {
         }
         .frame(maxWidth: .infinity)
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
     }
@@ -217,13 +215,11 @@ struct QueueItemView: View {
     @ObservedObject private var player = AudioPlayerManager.shared
     let episode: Episode
     let index: Int
-    var namespace: Namespace.ID
     var onSelect: () -> Void
     @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
-        QueueItem(episode: episode, namespace: namespace)
-            .matchedTransitionSource(id: episode.id, in: namespace)
+        QueueItem(episode: episode)
             .id(episode.id)
             .lineLimit(3)
             .background(
@@ -242,7 +238,7 @@ struct QueueItemView: View {
 //                selectedEpisode = episode
 //            }
 //            .sheet(item: $selectedEpisode) { episode in
-//                EpisodeView(episode: episode, namespace:namespace)
+//                EpisodeView(episode: episode)
 //                    .modifier(PPSheet())
 //            }
     }

@@ -9,7 +9,6 @@ import SwiftUI
 
 struct SavedEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    var namespace: Namespace.ID
     
     var body: some View {
         ScrollView {
@@ -24,7 +23,7 @@ struct SavedEpisodesView: View {
                 
                 ForEach(episodesViewModel.saved, id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)
@@ -40,7 +39,6 @@ struct SavedEpisodesView: View {
 
 struct SavedEpisodesMini: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack {
@@ -49,7 +47,7 @@ struct SavedEpisodesMini: View {
                 FadeInView(delay: 0.2) {
                     NavigationLink {
                         PPPopover(showBg: true) {
-                            SavedEpisodesView(namespace: namespace)
+                            SavedEpisodesView()
                         }
                     } label: {
                         HStack(alignment:.bottom) {
@@ -66,7 +64,7 @@ struct SavedEpisodesMini: View {
                 
                 ForEach(episodesViewModel.saved.prefix(3), id: \.id) { episode in
                     FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
+                        EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                             .padding(.horizontal)

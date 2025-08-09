@@ -20,8 +20,6 @@ struct ContentView: View {
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
-    
-    var namespace: Namespace.ID
 
     var body: some View {
         TabView {
@@ -31,8 +29,8 @@ struct ContentView: View {
                         MainBackground()
                         
                         ScrollView {
-                            QueueView(namespace: namespace)
-                            LatestEpisodesMini(namespace: namespace)
+                            QueueView()
+                            LatestEpisodesMini()
                         }
                         .background(Color.clear)
                     }
@@ -42,7 +40,7 @@ struct ContentView: View {
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             NavigationLink {
-                                SettingsView(namespace: namespace)
+                                SettingsView()
                             } label: {
                                 Label("Settings", systemImage: "person.crop.circle")
                             }
@@ -55,8 +53,8 @@ struct ContentView: View {
             Tab("Library", systemImage: "circle.grid.3x3") {
                 NavigationStack {
                     ScrollView {
-                        SubscriptionsView(namespace: namespace)
-                        FavEpisodesMini(namespace: namespace)
+                        SubscriptionsView()
+                        FavEpisodesMini()
                     }
                     .background(Color.background)
                     .scrollEdgeEffectStyle(.soft, for: .all)
@@ -64,7 +62,7 @@ struct ContentView: View {
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             NavigationLink {
-                               SettingsView(namespace: namespace)
+                               SettingsView()
                            } label: {
                                Label("Settings", systemImage: "person.crop.circle")
                            }
@@ -76,14 +74,14 @@ struct ContentView: View {
             
             Tab("Search", systemImage: "plus.magnifyingglass", role: .search) {
                 NavigationStack {
-                    PodcastSearchView(searchQuery: $query, namespace:namespace)
+                    PodcastSearchView(searchQuery: $query)
                         .background(Color.background)
                         .searchable(text: $query, prompt: "Find a Podcast")
                         .navigationTitle("Find a Podcast")
                         .toolbar {
                             ToolbarItem(placement: .primaryAction) {
                                 NavigationLink {
-                                   SettingsView(namespace: namespace)
+                                   SettingsView()
                                } label: {
                                    Label("Settings", systemImage: "person.crop.circle")
                                }
@@ -95,7 +93,7 @@ struct ContentView: View {
             }
         }
         .tabViewBottomAccessory {
-            NowPlaying(namespace:namespace)
+            NowPlaying()
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .environmentObject(episodesViewModel)
@@ -109,7 +107,7 @@ struct ContentView: View {
             }
         }
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
         .onAppear {
@@ -149,8 +147,6 @@ struct ContentView: View {
             }
         }
         .toast()
-        
-        
     }
     
     // 🚀 UPDATED: Unified refresh method with source tracking and debouncing

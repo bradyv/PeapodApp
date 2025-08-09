@@ -33,7 +33,6 @@ struct PodcastSearchView: View {
     @State private var debounceWorkItem: DispatchWorkItem?
     @State private var selectedPodcast: PodcastResult? = nil
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
-    var namespace: Namespace.ID
 
     var body: some View {
         ScrollView {
@@ -88,7 +87,6 @@ struct PodcastSearchView: View {
                                         .glassEffect(in: .rect(cornerRadius: 16))
                                 }
                             }
-                            .matchedTransitionSource(id: podcast.id, in: namespace)
                         }
                     }
                 }
@@ -140,9 +138,6 @@ struct PodcastSearchView: View {
                                     trackId: urlPodcast.id?.hashValue ?? 0
                                 )
                                 selectedPodcast = podcastResult
-                                //                                    PPPopover {
-                                //                                        PodcastDetailLoaderView(feedUrl: urlPodcast.feedUrl ?? "", namespace: namespace)
-                                //                                    }
                             } label: {
                                 HStack {
                                     ArtworkView(url: urlPodcast.image ?? "", size: 44, cornerRadius: 8, tilt: false)
@@ -253,7 +248,7 @@ struct PodcastSearchView: View {
             nowPlayingManager.isVisible = true
         }
         .sheet(item: $selectedPodcast) { podcastResult in
-            PodcastDetailLoaderView(feedUrl: podcastResult.feedUrl, namespace: namespace)
+            PodcastDetailLoaderView(feedUrl: podcastResult.feedUrl)
                 .modifier(PPSheet())
         }
     }

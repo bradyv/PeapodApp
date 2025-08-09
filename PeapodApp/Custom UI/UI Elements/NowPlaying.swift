@@ -16,7 +16,6 @@ struct NowPlaying: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @State private var selectedEpisode: Episode? = nil
     @State private var episodeID = UUID()
-    var namespace: Namespace.ID
     var onTap: ((Episode) -> Void)?
 
     var body: some View {
@@ -24,20 +23,23 @@ struct NowPlaying: View {
 //            if let episode = player.currentEpisode {
             if episodesViewModel.queue.count > 0 {
                 let episode = episodesViewModel.queue[0]
-                var artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
+                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
-                    ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
-                    
-                    VStack(alignment:.leading) {
-                        Text(episode.podcast?.title ?? "Podcast title")
-                            .textDetail()
-                            .lineLimit(1)
+                    HStack {
+                        ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
                         
-                        Text(episode.title ?? "Episode title")
-                            .textBody()
-                            .lineLimit(1)
+                        VStack(alignment:.leading) {
+                            Text(episode.podcast?.title ?? "Podcast title")
+                                .textDetail()
+                                .lineLimit(1)
+                            
+                            Text(episode.title ?? "Episode title")
+                                .textBody()
+                                .lineLimit(1)
+                        }
                     }
                     .frame(maxWidth:.infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         selectedEpisode = episode
                     }
@@ -93,7 +95,7 @@ struct NowPlaying: View {
             }
         }
         .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
+            EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
         .id(episodeID)

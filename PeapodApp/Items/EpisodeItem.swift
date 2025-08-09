@@ -19,7 +19,6 @@ struct EpisodeItem: View {
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
     var savedView: Bool = false
-    var namespace: Namespace.ID
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -38,46 +37,40 @@ struct EpisodeItem: View {
         VStack(alignment: .leading) {
             // Podcast Info Row
             HStack {
-//                NavigationLink {
-//                    PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
-//                        .navigationTransition(.zoom(sourceID: episode.podcast?.id, in: namespace))
-//                } label: {
-                    HStack {
-                        ZStack(alignment:.bottomTrailing) {
-                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
-                            
-                            if episode.isPlayed && !displayedInQueue {
-                                ZStack {
-                                    Image(systemName:"checkmark.circle.fill")
-                                        .foregroundStyle(Color.accentColor)
-                                        .textMini()
-                                }
-                                .background(Color.background)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.background, lineWidth: 1)
-                                )
-                                .offset(x:5)
-                            }
-                        }
+                HStack {
+                    ZStack(alignment:.bottomTrailing) {
+                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
                         
-                        Text(episode.podcast?.title ?? "Podcast title")
-                            .lineLimit(1)
-                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                            .textDetailEmphasis()
+                        if episode.isPlayed && !displayedInQueue {
+                            ZStack {
+                                Image(systemName:"checkmark.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                    .textMini()
+                            }
+                            .background(Color.background)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.background, lineWidth: 1)
+                            )
+                            .offset(x:5)
+                        }
                     }
-                    .matchedTransitionSource(id: episode.podcast?.id, in: namespace)
-//                }
+                    
+                    Text(episode.podcast?.title ?? "Podcast title")
+                        .lineLimit(1)
+                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                        .textDetailEmphasis()
+                }
                 .onTapGesture {
                     selectedPodcast = episode.podcast
                 }
                 .sheet(item: $selectedPodcast) { podcast in
                     if podcast.isSubscribed {
-                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
+                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
                             .modifier(PPSheet())
                     } else {
-                        PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
+                        PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "")
                             .modifier(PPSheet())
                     }
                 }
@@ -235,13 +228,6 @@ struct EpisodeItem: View {
             // Cancel if the user scrolls away before debounce interval
             workItem?.cancel()
         }
-//        .onAppear {
-//            // Background tasks only
-//            Task.detached(priority: .background) {
-//                await player.writeActualDuration(for: episode)
-////                await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
-//            }
-//        }
     }
 }
 

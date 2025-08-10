@@ -53,7 +53,7 @@ struct OldEpisodesView: View {
                 
                 LazyVStack {
                     ForEach(episodesViewModel.old, id: \.id) { episode in
-                        EpisodeItem(episode: episode, savedView:true)
+                        EpisodeItem(episode: episode)
                             .lineLimit(3)
                             .padding(.bottom, 24)
                     }

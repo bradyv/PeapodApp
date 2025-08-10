@@ -9,10 +9,20 @@ import SwiftUI
 import Kingfisher
 
 struct MainBackground: View {
-    @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @EnvironmentObject var player: AudioPlayerManager
+    @Environment(\.managedObjectContext) private var context
     @State private var displayedEpisode: Episode?
     @State private var currentScrollIndex: Int = 0
+    
+    // Direct fetch instead of using EpisodesViewModel to break the cycle
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Episode.queuePosition, ascending: true)],
+        predicate: NSPredicate(format: "isQueued == YES"),
+        animation: .none
+    ) private var queuedEpisodes: FetchedResults<Episode>
+    
+    private var queue: [Episode] {
+        Array(queuedEpisodes)
+    }
     
     var body: some View {
         ZStack {
@@ -29,7 +39,10 @@ struct MainBackground: View {
                 updateDisplayedEpisode()
             }
         }
-        .onChange(of: episodesViewModel.queue) { _, _ in
+        .onChange(of: queue.count) { _, _ in
+            updateDisplayedEpisode()
+        }
+        .onChange(of: queue.first?.id) { _, _ in
             updateDisplayedEpisode()
         }
         .onAppear {
@@ -38,8 +51,6 @@ struct MainBackground: View {
     }
     
     private func updateDisplayedEpisode() {
-        let queue = episodesViewModel.queue
-        
         if queue.isEmpty {
             withAnimation {
                 displayedEpisode = nil

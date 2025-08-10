@@ -10,7 +10,6 @@ import SwiftUI
 struct PodcastEpisodeSearchView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     var podcast: Podcast
     @Binding var showSearch: Bool
     @Binding var selectedEpisode: Episode?
@@ -104,13 +103,13 @@ struct PodcastEpisodeSearchView: View {
                             .frame(maxWidth:.infinity)
                         }
                         
-                        // Show "Load 50 more" button at the bottom (when not searching)
+                        // Show "Load more" button at the bottom (when not searching)
                         if hasMoreEpisodes && !isLoadingMoreEpisodes && query.isEmpty {
                             VStack(spacing: 8) {
                                 Text("Showing \(latest.count) episodes")
                                     .textDetail()
                                 
-                                Button("Load 50 more episodes") {
+                                Button("Load more episodes") {
                                     loadMoreEpisodes()
                                 }
                                 .buttonStyle(PPButton(type:.transparent, colorStyle: .monochrome))
@@ -172,7 +171,8 @@ struct PodcastEpisodeSearchView: View {
     private func checkIfMoreEpisodesAvailable() {
         // If we have 50 or more episodes, there might be more
         // This is just a heuristic - the actual check happens when loading
-        hasMoreEpisodes = latest.count >= 50
+//        hasMoreEpisodes = latest.count >= 50
+        hasMoreEpisodes = true
     }
     
     // Load next batch of 50 episodes

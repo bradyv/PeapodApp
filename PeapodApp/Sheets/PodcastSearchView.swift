@@ -13,7 +13,6 @@ import CoreData
 struct PodcastSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @FocusState private var isTextFieldFocused: Bool
     // Accept external search query binding
    @Binding var searchQuery: String
@@ -215,7 +214,6 @@ struct PodcastSearchView: View {
         .contentMargins(16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {
-            nowPlayingManager.isVisible = false
             PodcastAPI.fetchCuratedFeeds { podcasts in
                 self.curatedFeeds = podcasts
             }
@@ -243,9 +241,6 @@ struct PodcastSearchView: View {
             
             debounceWorkItem = task
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: task)
-        }
-        .onDisappear {
-            nowPlayingManager.isVisible = true
         }
         .sheet(item: $selectedPodcast) { podcastResult in
             PodcastDetailLoaderView(feedUrl: podcastResult.feedUrl)

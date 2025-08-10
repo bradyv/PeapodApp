@@ -192,6 +192,10 @@ func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
 }
 
 func migrateOldQueueToPlaylist(context: NSManagedObjectContext) {
+    let queueMigrateKey = "com.bradyv.Peapod.Dev.queueMigrateKey.v1"
+    if UserDefaults.standard.bool(forKey: queueMigrateKey) {
+        return
+    }
     
     // Fetch or create the "Queue" playlist
     let playlistRequest = Playlist.fetchRequest()
@@ -218,6 +222,8 @@ func migrateOldQueueToPlaylist(context: NSManagedObjectContext) {
         }
         try context.save()
         LogManager.shared.info("✅ Migrated \(oldQueuedEpisodes.count) episodes to the playlist queue.")
+        UserDefaults.standard.set(true, forKey: queueMigrateKey)
+        UserDefaults.standard.synchronize()
     } catch {
         LogManager.shared.error("❌ Failed to migrate queue episodes: \(error.localizedDescription)")
     }

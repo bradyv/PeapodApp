@@ -15,7 +15,6 @@ import Kingfisher
 struct Peapod: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var toastManager = ToastManager()
-    @StateObject private var nowPlayingManager = NowPlayingVisibilityManager()
     @StateObject private var appStateManager = AppStateManager()
     @StateObject private var userManager = UserManager.shared
     @StateObject private var audioPlayer = AudioPlayerManager.shared
@@ -26,7 +25,6 @@ struct Peapod: App {
     
     var appTheme: AppTheme {
        AppTheme(rawValue: appThemeRawValue) ?? .system
-//        .dark
     }
     
     init() {
@@ -39,9 +37,8 @@ struct Peapod: App {
 
     var body: some Scene {
         WindowGroup {
-            MainContainerView()
+            ContentView()
                 .environmentObject(appStateManager)
-                .environmentObject(nowPlayingManager)
                 .environmentObject(toastManager)
                 .environmentObject(userManager)
                 .environmentObject(audioPlayer)
@@ -50,9 +47,6 @@ struct Peapod: App {
                 .onAppear {
                     // Perform one-time setup
                     runOneTimeSetupIfNeeded()
-                    
-                    // Start splash sequence
-                    appStateManager.startSplashSequence()
                     
 //                    EpisodeMaintenance.performMaintenance(context: viewContext)
                 }
@@ -77,14 +71,6 @@ struct Peapod: App {
         if !didFlushTints {
             resetAllTints(in: context)
             didFlushTints = true
-        }
-    }
-    
-    private func preferredColorScheme(for theme: AppTheme) -> ColorScheme? {
-        switch theme {
-        case .system: return nil
-        case .dark: return .dark
-        case .light: return .light
         }
     }
 }

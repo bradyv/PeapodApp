@@ -10,18 +10,34 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var appStateManager: AppStateManager
     @EnvironmentObject var toastManager: ToastManager
-    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
-    @State private var showSettings = false
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
 
     var body: some View {
+        switch appStateManager.currentState {
+        case .onboarding:
+            WelcomeView(
+                completeOnboarding: {
+                    appStateManager.completeOnboarding()
+                }
+            )
+            .transition(.opacity)
+            
+        case .main:
+            Peapod
+                .transition(.opacity)
+        }
+    }
+    
+    @ViewBuilder
+    var Peapod: some View {
         TabView {
             Tab("Listen", systemImage: "play.square.stack") {
                 NavigationStack {
@@ -32,9 +48,7 @@ struct ContentView: View {
                             QueueView()
                             LatestEpisodesMini()
                         }
-                        .background(Color.clear)
                     }
-                    .background(Color.background)
                     .scrollEdgeEffectStyle(.soft, for: .all)
                     .navigationTitle("Listen")
                     .toolbar {
@@ -56,7 +70,6 @@ struct ContentView: View {
                         SubscriptionsView()
                         FavEpisodesMini()
                     }
-                    .background(Color.background)
                     .scrollEdgeEffectStyle(.soft, for: .all)
                     .navigationTitle("Library")
                     .toolbar {
@@ -75,7 +88,6 @@ struct ContentView: View {
             Tab("Search", systemImage: "plus.magnifyingglass", role: .search) {
                 NavigationStack {
                     PodcastSearchView(searchQuery: $query)
-                        .background(Color.background)
                         .searchable(text: $query, prompt: "Find a Podcast")
                         .navigationTitle("Find a Podcast")
                         .toolbar {

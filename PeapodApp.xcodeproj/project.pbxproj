@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		233607BB2E047BA300C405CE /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 233607BA2E047BA300C405CE /* Lottie */; };
 		2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD2F2DA88952007348BC /* ColorThiefSwift */; };
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
 		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
@@ -127,7 +126,6 @@
 			files = (
 				239EFB8D2DE2607A0036D6F3 /* FirebaseMessaging in Frameworks */,
 				239EFB942DE26AE20036D6F3 /* FirebaseFunctions in Frameworks */,
-				233607BB2E047BA300C405CE /* Lottie in Frameworks */,
 				2354DD362DA88968007348BC /* Kingfisher in Frameworks */,
 				2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */,
 				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
@@ -220,7 +218,6 @@
 				239EFB8C2DE2607A0036D6F3 /* FirebaseMessaging */,
 				239EFB932DE26AE20036D6F3 /* FirebaseFunctions */,
 				2390AC002DE8C7C100487751 /* SmoothGradient */,
-				233607BA2E047BA300C405CE /* Lottie */,
 			);
 			productName = PeapodApp;
 			productReference = 23599E2B2D9B895C00F2DE3B /* PeapodApp.app */;
@@ -337,7 +334,6 @@
 				2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */,
 				239EFB8B2DE2607A0036D6F3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				2390ABFF2DE8C7C100487751 /* XCRemoteSwiftPackageReference "SmoothGradient" */,
-				233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 23599E2C2D9B895C00F2DE3B /* Products */;
@@ -569,11 +565,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Peapod Dev";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
+				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen2.storyboard";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -605,12 +602,13 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Peapod;
+				INFOPLIST_KEY_CFBundleDisplayName = "Peapod Dev";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
+				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen2.storyboard";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -799,14 +797,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/airbnb/lottie-spm.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 4.5.2;
-			};
-		};
 		2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/yamoridon/ColorThiefSwift";
@@ -858,11 +848,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		233607BA2E047BA300C405CE /* Lottie */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 233607B92E047BA300C405CE /* XCRemoteSwiftPackageReference "lottie-spm" */;
-			productName = Lottie;
-		};
 		2354DD2F2DA88952007348BC /* ColorThiefSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */;

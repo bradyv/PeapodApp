@@ -5,13 +5,6 @@
 //  Created by Brady Valentino on 2025-03-31.
 //
 
-//
-//  PodcastDetailView.swift
-//  PeapodApp
-//
-//  Created by Brady Valentino on 2025-03-31.
-//
-
 import SwiftUI
 import FeedKit
 import CoreData
@@ -30,7 +23,6 @@ struct PodcastDetailView: View {
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var query = ""
     @State private var showSearch = false
-//    @FocusState private var showSearch: Bool
     
     var podcast: Podcast? { podcastResults.first }
     var episodes: [Episode] {
@@ -46,17 +38,6 @@ struct PodcastDetailView: View {
             animation: .default
         )
     }
-    
-    private var filteredEpisodes: [Episode] {
-        if query.isEmpty {
-            return Array(episodes)
-        } else {
-            return episodes.filter {
-                $0.title?.localizedCaseInsensitiveContains(query) == true ||
-                $0.episodeDescription?.localizedCaseInsensitiveContains(query) == true
-            }
-        }
-    }
 
     var body: some View {
         if let podcast {
@@ -66,52 +47,19 @@ struct PodcastDetailView: View {
                     .trackScrollOffset("scroll") { value in
                         scrollOffset = value
                     }
-                
-//                    if !showSearch {
-                    ArtworkView(url: podcast.image ?? "", size: 128, cornerRadius: 24, tilt: true)
-                        .onTapGesture(count: 5) {
-                            withAnimation {
-                                showDebugTools.toggle()
-                            }
+            
+                ArtworkView(url: podcast.image ?? "", size: 128, cornerRadius: 24, tilt: true)
+                    .onTapGesture(count: 5) {
+                        withAnimation {
+                            showDebugTools.toggle()
                         }
-                    
-                    Text(podcast.title ?? "Podcast title")
-                        .titleSerif()
-                        .multilineTextAlignment(.center)
-                    
-//                    Spacer().frame(height:8)
-//                    
-//                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
-//                        .textBody()
-//                        .multilineTextAlignment(showFullDescription ? .leading : .center)
-//                        .lineLimit(showFullDescription ? nil :  3)
-//                        .frame(maxWidth:.infinity)
-//                        .onTapGesture {
-//                            withAnimation {
-//                                showFullDescription.toggle()
-//                            }
-//                        }
-//                        .transition(.opacity)
-//                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
-                        
-                        Spacer().frame(height:32)
+                    }
                 
-//                        Button {
-//                            withAnimation {
-//                                showSearch = true
-//                                isSearching = true
-//                            }
-//                        } label: {
-//                            Label("Find an episode of \(podcast.title ?? "this podcast")", systemImage: "magnifyingglass")
-//                                .textBody()
-//                                .padding(.vertical,4)
-//                                .frame(maxWidth:.infinity)
-//                                .lineLimit(1)
-//                        }
-//                        .buttonStyle(.glass)
-//
-//                        Spacer().frame(height:32)
-//                    }
+                Text(podcast.title ?? "Podcast title")
+                    .titleSerif()
+                    .multilineTextAlignment(.center)
+            
+                Spacer().frame(height:32)
                 
                 if showDebugTools {
                     Button(action: {
@@ -138,11 +86,7 @@ struct PodcastDetailView: View {
                     }
                 }
                 
-//                Text(query.isEmpty ? "Episodes" : "Results for \"\(query)\"")
-//                    .titleSerifMini()
-//                    .frame(maxWidth:.infinity, alignment:.leading)
-                
-                if let latestEpisode = filteredEpisodes.first {
+                if let latestEpisode = episodes.first {
                     VStack {
                         VStack {
                             Text("Latest Episode")
@@ -188,7 +132,7 @@ struct PodcastDetailView: View {
                 }
                 
                 LazyVStack(alignment: .leading) {
-                    ForEach(filteredEpisodes.prefix(4).dropFirst(), id: \.id) { episode in
+                    ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
                         EpisodeItem(episode: episode, showActions: true)
                             .lineLimit(3)
                             .padding(.bottom, 24)
@@ -206,14 +150,7 @@ struct PodcastDetailView: View {
                     Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
                         .textBody()
                         .lineLimit(nil)
-//                        .multilineTextAlignment(showFullDescription ? .leading : .center)
-                    //                    .lineLimit(showFullDescription ? nil :  3)
                         .frame(maxWidth:.infinity)
-                    //                    .onTapGesture {
-                    //                        withAnimation {
-                    //                            showFullDescription.toggle()
-                    //                        }
-                    //                    }
                         .transition(.opacity)
                         .animation(.easeOut(duration: 0.15), value: showFullDescription)
                 }
@@ -225,8 +162,6 @@ struct PodcastDetailView: View {
             .coordinateSpace(name: "scroll")
             .contentMargins(16, for: .scrollContent)
             .frame(maxWidth:.infinity)
-//            .searchable(text: $query, prompt: "Find an episode of \(podcast.title ?? "this podcast")")
-//                .if(showSearch, transform: { $0.searchable(text: $query, isPresented: $showSearch, prompt: "Find an episode of \(podcast.title ?? "this podcast")") })
             .onAppear {
                 checkNotificationStatus()
                 
@@ -244,6 +179,13 @@ struct PodcastDetailView: View {
                 ToolbarItem {
                     subscribeButton()
                 }
+            }
+            .fullScreenCover(isPresented: $showNotificationRequest) {
+                RequestNotificationsView(
+                    onComplete: {
+                        showNotificationRequest = false
+                    }
+                )
             }
         }
     }

@@ -10,19 +10,27 @@ import Kingfisher
 
 struct NowPlaying: View {
     @Environment(\.managedObjectContext) private var context
-    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @EnvironmentObject var player: AudioPlayerManager
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @State private var selectedEpisode: Episode? = nil
     @State private var episodeID = UUID()
     var onTap: ((Episode) -> Void)?
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Episode.queuePosition, ascending: true)],
+        predicate: NSPredicate(format: "isQueued == YES"),
+        animation: .none
+    ) private var queuedEpisodes: FetchedResults<Episode>
+    
+    private var firstQueueEpisode: Episode? {
+        queuedEpisodes.first
+    }
 
     var body: some View {
         Group {
 //            if let episode = player.currentEpisode {
-            if episodesViewModel.queue.count > 0 {
-                let episode = episodesViewModel.queue[0]
+            if let episode = firstQueueEpisode {
                 let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
                     HStack {
@@ -99,7 +107,7 @@ struct NowPlaying: View {
                 .modifier(PPSheet())
         }
         .id(episodeID)
-        .onChange(of: episodesViewModel.queue.first?.id) { _ in
+        .onChange(of: firstQueueEpisode) { _ in
             episodeID = UUID()
         }
     }

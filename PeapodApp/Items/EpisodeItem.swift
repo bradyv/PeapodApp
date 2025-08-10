@@ -18,7 +18,6 @@ struct EpisodeItem: View {
     var showActions: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
-    var savedView: Bool = false
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -300,8 +299,4 @@ struct EmptyEpisodeItem: View {
         }
         .padding(.bottom, 24)
     }
-}
-
-#Preview {
-    EmptyEpisodeItem()
 }

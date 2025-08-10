@@ -10,7 +10,7 @@ import Kingfisher
 
 struct QueueView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @ObservedObject private var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
@@ -47,7 +47,7 @@ struct QueueView: View {
                                         Text("Nothing up next")
                                             .titleCondensed()
                                         
-                                        Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New episodes are automatically added.")
+                                        Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New releases are automatically added.")
                                             .textBody()
                                         
                                         if !episodesViewModel.saved.isEmpty {
@@ -212,7 +212,7 @@ private struct ScrollOffsetKey: PreferenceKey {
 
 struct QueueItemView: View {
     @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
-    @ObservedObject private var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     let episode: Episode
     let index: Int
     var onSelect: () -> Void
@@ -234,12 +234,5 @@ struct QueueItemView: View {
                     .opacity(phase.isIdentity ? 1 : 0.5)
                     .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
             }
-//            .onTapGesture {
-//                selectedEpisode = episode
-//            }
-//            .sheet(item: $selectedEpisode) { episode in
-//                EpisodeView(episode: episode)
-//                    .modifier(PPSheet())
-//            }
     }
 }

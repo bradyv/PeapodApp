@@ -11,7 +11,6 @@ import Kingfisher
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.openURL) private var openURL
-    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
     @ObservedObject var episode: Episode
     @EnvironmentObject var player: AudioPlayerManager
     @State private var selectedPodcast: Podcast? = nil

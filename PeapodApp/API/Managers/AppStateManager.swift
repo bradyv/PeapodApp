@@ -9,14 +9,7 @@ import SwiftUI
 
 class AppStateManager: ObservableObject {
     enum AppState {
-        case splash
         case onboarding
-        case requestNotifications
-        case main
-    }
-    
-    enum StateTest {
-        case test
         case main
     }
     
@@ -27,17 +20,15 @@ class AppStateManager: ObservableObject {
         case requestNotifications
     }
     
-    @Published var stateTest: StateTest = .test
-    @Published var currentState: AppState = .splash
-    @Published var currentOnboardingStep: OnboardingStep = .welcome
     @AppStorage("showOnboarding") private var showOnboarding: Bool = true
+    @Published var currentOnboardingStep: OnboardingStep = .welcome
     
-    func startSplashSequence() {
-        DispatchQueue.main.asyncAfter(deadline: .now()) {
-            withAnimation(.easeInOut(duration: 0.6)) {
-                self.currentState = self.showOnboarding ? .onboarding : .main
-            }
-        }
+    // Initialize with the correct state immediately
+    @Published var currentState: AppState
+    
+    init() {
+        let shouldShowOnboarding = UserDefaults.standard.object(forKey: "showOnboarding") as? Bool ?? true
+        currentState = shouldShowOnboarding ? .onboarding : .main
     }
     
     func beginOnboarding() {
@@ -53,28 +44,19 @@ class AppStateManager: ObservableObject {
     }
     
     func completeOnboarding() {
-        showOnboarding = false
-        
         // Check if user has subscribed to any podcasts
         let context = PersistenceController.shared.container.viewContext
         let subscribedCount = (try? Podcast.totalSubscribedCount(in: context)) ?? 0
+        showOnboarding = false
         
         if subscribedCount > 0 {
-            // User has subscriptions, ask about notifications
-            withAnimation(.easeInOut(duration: 0.6)) {
-                currentState = .requestNotifications
-            }
+            currentOnboardingStep = .requestNotifications
         } else {
-            // No subscriptions, go straight to main
-            withAnimation(.easeInOut(duration: 0.6)) {
-                currentState = .main
-            }
+            currentState = .main
         }
     }
     
     func completeNotificationRequest() {
-        withAnimation(.easeInOut(duration: 0.6)) {
-            currentState = .main
-        }
+        currentState = .main
     }
 }

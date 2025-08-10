@@ -10,7 +10,7 @@ import Kingfisher
 
 struct QueueItem: View {
     @ObservedObject var episode: Episode
-    @ObservedObject private var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -54,7 +54,6 @@ struct QueueItem: View {
         )
         .background(Color.black)
         .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.white, lineWidth: 1).blendMode(.overlay))
-//        .glassEffect(in: .rect(cornerRadius: 32))
         .clipShape(RoundedRectangle(cornerRadius: 32))
     }
 }

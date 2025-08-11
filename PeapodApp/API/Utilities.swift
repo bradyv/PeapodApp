@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreData
+import CloudKit
 
 func runDeduplicationOnceIfNeeded(context: NSManagedObjectContext) {
     let versionKey = "com.bradyv.Peapod.Dev.didDeduplicatePodcasts.v1"
@@ -65,48 +66,21 @@ func migrateMissingEpisodeGUIDs(context: NSManagedObjectContext) {
 }
 
 func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
-    let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-    request.predicate = NSPredicate(format: "name == %@", "Queue")
-
-    let existing = (try? context.fetch(request))?.first
-    if existing == nil {
-        let playlist = Playlist(context: context)
-        playlist.name = "Queue"
-        playlist.id = UUID()
-        playlist.episodeIdArray = []
-        try? context.save()
-        LogManager.shared.info("✅ Created 'Queue' playlist")
-    }
+    // This will now use the deterministic UUID from getPlaylist
+    _ = getPlaylist(named: "Queue", context: context)
+    LogManager.shared.info("✅ Ensured 'Queue' playlist exists")
 }
 
 func ensurePlayedPlaylistExists(context: NSManagedObjectContext) {
-    let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-    request.predicate = NSPredicate(format: "name == %@", "Played")
-    
-    let existing = (try? context.fetch(request))?.first
-    if existing == nil {
-        let playlist = Playlist(context: context)
-        playlist.name = "Played"
-        playlist.id = UUID()
-        playlist.episodeIdArray = []
-        try? context.save()
-        LogManager.shared.info("✅ Created 'Played' playlist")
-    }
+    // This will now use the deterministic UUID from getPlaylist
+    _ = getPlaylist(named: "Played", context: context)
+    LogManager.shared.info("✅ Ensured 'Played' playlist exists")
 }
 
 func ensureFavoritesPlaylistExists(context: NSManagedObjectContext) {
-    let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-    request.predicate = NSPredicate(format: "name == %@", "Favorites")
-    
-    let existing = (try? context.fetch(request))?.first
-    if existing == nil {
-        let playlist = Playlist(context: context)
-        playlist.name = "Favorites"
-        playlist.id = UUID()
-        playlist.episodeIdArray = []
-        try? context.save()
-        LogManager.shared.info("✅ Created 'Favorites' playlist")
-    }
+    // This will now use the deterministic UUID from getPlaylist
+    _ = getPlaylist(named: "Favorites", context: context)
+    LogManager.shared.info("✅ Ensured 'Favorites' playlist exists")
 }
 
 func migrateOldQueueToPlaylist(context: NSManagedObjectContext) {
@@ -344,4 +318,125 @@ func deduplicatePodcasts(context: NSManagedObjectContext) {
     } catch {
         LogManager.shared.error("❌ Failed to deduplicate podcasts: \(error)")
     }
+}
+
+// MARK: - CloudKit Sync Store Wiper
+
+// MARK: - Simple & Reliable Sync Store Wiper
+
+func quickWipeSyncData() {
+    print("🧹 Wiping sync data...")
+    
+    let context = PersistenceController.shared.container.viewContext
+    
+    // Delete all synced entities from Core Data
+    let entityNames = ["Playlist", "Podcast", "User", "Playback"]
+    
+    for entityName in entityNames {
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+        
+        do {
+            try context.execute(deleteRequest)
+            print("🗑️ Deleted all \(entityName) records")
+        } catch {
+            print("❌ Error deleting \(entityName): \(error)")
+        }
+    }
+    
+    // Save the context to trigger CloudKit sync
+    do {
+        try context.save()
+        print("✅ Sync data wipe complete!")
+        print("📤 CloudKit will sync the deletions")
+    } catch {
+        print("❌ Error saving context: \(error)")
+    }
+}
+
+// MARK: - Complete Store Reset (Nuclear Option)
+
+func completeStoreReset() {
+    print("💥 COMPLETE STORE RESET - This will restart the app!")
+    
+    let container = PersistenceController.shared.container
+    let coordinator = container.persistentStoreCoordinator
+    
+    // Remove all stores
+    for store in coordinator.persistentStores {
+        do {
+            try coordinator.remove(store)
+            
+            // Delete the store files
+            if let storeURL = store.url {
+                let fileManager = FileManager.default
+                try? fileManager.removeItem(at: storeURL)
+                try? fileManager.removeItem(at: storeURL.appendingPathExtension("wal"))
+                try? fileManager.removeItem(at: storeURL.appendingPathExtension("shm"))
+                print("🗑️ Deleted store: \(storeURL.lastPathComponent)")
+            }
+        } catch {
+            print("❌ Error removing store: \(error)")
+        }
+    }
+    
+    print("💥 Complete reset done - app needs restart!")
+    print("🔄 Force quit and relaunch the app")
+}
+
+// MARK: - CloudKit Dashboard Reset (Manual Instructions)
+
+func printCloudKitResetInstructions() {
+    print("""
+    
+    🌩️ TO MANUALLY RESET CLOUDKIT DATA:
+    
+    1. Go to: https://icloud.developer.apple.com
+    2. Select your app: iCloud.com.bradyv.PeapodApp  
+    3. Click "Development" environment
+    4. Go to "Data" tab
+    5. Delete record types one by one:
+       - CD_Playlist
+       - CD_Podcast  
+       - CD_User
+       - CD_Playback
+    6. Or use "Reset Development Environment" button
+    
+    ⚠️ This will delete ALL CloudKit data!
+    
+    """)
+}
+
+// MARK: - Recommended Testing Workflow
+
+func resetForTesting() {
+    print("🧪 Resetting for fresh testing...")
+    
+    // Option 1: Quick wipe (keeps app running)
+    quickWipeSyncData()
+    
+    // Option 2: If you want complete reset (requires app restart)
+    // completeStoreReset()
+    
+    // Option 3: Manual CloudKit reset instructions
+    // printCloudKitResetInstructions()
+}
+
+// MARK: - Debug Info
+
+func printCurrentSyncData() {
+    let context = PersistenceController.shared.container.viewContext
+    
+    print("\n📊 CURRENT SYNC DATA:")
+    print("====================")
+    
+    let entityNames = ["Playlist", "Podcast", "User", "Playback"]
+    
+    for entityName in entityNames {
+        let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+        let count = (try? context.count(for: request)) ?? 0
+        print("📋 \(entityName): \(count) records")
+    }
+    
+    print("====================\n")
 }

@@ -104,9 +104,9 @@ struct ContentView: View {
                 .scrollEdgeEffectStyle(.soft, for: .all)
             }
         }
-        .tabViewBottomAccessory {
-            NowPlaying()
-        }
+//        .tabViewBottomAccessory {
+//            NowPlaying()
+//        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .environmentObject(episodesViewModel)
         // Track subscription changes for backend sync
@@ -125,6 +125,11 @@ struct ContentView: View {
         .onAppear {
             if episodesViewModel.context == nil { // not yet initialized properly
                 episodesViewModel.setup(context: context)
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                debugSyncAfterReinstall()
+                debugEpisodeIDs()
             }
             
             checkPendingNotification()
@@ -248,4 +253,79 @@ struct ContentView: View {
             LogManager.shared.error("❌ Error searching for episode: \(error)")
         }
     }
+    
+    func debugSyncAfterReinstall() {
+        let context = PersistenceController.shared.container.viewContext
+        
+        print("\n🔍 DEBUGGING SYNC AFTER REINSTALL:")
+        print("=====================================")
+        
+        // Check what playlists exist
+        let playlistRequest: NSFetchRequest<Playlist> = Playlist.fetchRequest()
+        let playlists = (try? context.fetch(playlistRequest)) ?? []
+        print("📝 Playlists found: \(playlists.count)")
+        for playlist in playlists {
+            let name = playlist.name ?? "Unknown"
+            let episodeCount = playlist.episodeIdArray.count
+            print("   - \(name): \(episodeCount) episodes")
+            
+            // Show first few episode IDs
+            let episodeIds = playlist.episodeIdArray
+            if !episodeIds.isEmpty {
+                print("     Episode IDs: \(Array(episodeIds.prefix(3)))")
+            }
+        }
+        
+        // Check what playback states exist
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        let playbacks = (try? context.fetch(playbackRequest)) ?? []
+        print("\n▶️ Playback states found: \(playbacks.count)")
+        for playback in playbacks {
+            let episodeId = playback.episodeId ?? "Unknown"
+            let position = playback.playbackPosition
+            let playCount = playback.playCount
+            let queuePos = playback.queuePosition
+            print("   - Episode: \(episodeId)")
+            print("     Position: \(position)s, PlayCount: \(playCount), Queue: \(queuePos)")
+        }
+        
+        // Check specific playlists
+        print("\n📋 Checking specific playlists:")
+        let queuePlaylist = getPlaylist(named: "Queue", context: context)
+        let favPlaylist = getPlaylist(named: "Favorites", context: context)
+        let playedPlaylist = getPlaylist(named: "Played", context: context)
+        
+        print("   Queue: \(queuePlaylist.episodeIdArray.count) episodes")
+        print("   Favorites: \(favPlaylist.episodeIdArray.count) episodes")
+        print("   Played: \(playedPlaylist.episodeIdArray.count) episodes")
+        
+        // Check if episodes exist locally
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        let episodes = (try? context.fetch(episodeRequest)) ?? []
+        print("\n📺 Episodes in local store: \(episodes.count)")
+        
+        print("=====================================\n")
+    }
+    
+    func debugEpisodeIDs() {
+        let context = PersistenceController.shared.container.viewContext
+        
+        // Get a few episodes and their IDs
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.fetchLimit = 5
+        let episodes = (try? context.fetch(episodeRequest)) ?? []
+        
+        print("🆔 Current Episode IDs:")
+        for episode in episodes {
+            print("   \(episode.title ?? "Unknown"): \(episode.id ?? "No ID")")
+        }
+        
+        // Check what's in queue playlist
+        let queuePlaylist = getPlaylist(named: "Queue", context: context)
+        print("📋 Queue Playlist Episode IDs:")
+        for id in queuePlaylist.episodeIdArray.prefix(5) {
+            print("   \(id)")
+        }
+    }
+
 }

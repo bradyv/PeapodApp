@@ -508,9 +508,9 @@ class EpisodeRefresher {
             } else {
                 // Create new episode
                 let episode = Episode(context: context)
-                episode.id = UUID().uuidString
                 episode.podcastId = podcast.id
                 updateEpisodeAttributes(episode: episode, item: item, podcast: podcast)
+                episode.id = episode.guid?.trimmingCharacters(in: .whitespacesAndNewlines)
                 newEpisodesCount += 1
                 
                 print("🆕 Created new episode: \(title)")

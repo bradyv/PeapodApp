@@ -144,7 +144,6 @@ func getPlaylist(named name: String, context: NSManagedObjectContext) -> Playlis
     } else {
         let newPlaylist = Playlist(context: context)
         newPlaylist.name = name
-        newPlaylist.id = UUID()
         newPlaylist.episodeIdArray = [] // Initialize empty array
         try? context.save()
         return newPlaylist

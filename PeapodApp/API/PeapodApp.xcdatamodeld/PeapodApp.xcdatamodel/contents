@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24288" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Episode" representedClassName="Episode" syncable="YES" codeGenerationType="class">
         <attribute name="actualDuration" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="airDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -7,37 +7,28 @@
         <attribute name="duration" optional="YES" attributeType="Double" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="episodeDescription" optional="YES" attributeType="String"/>
         <attribute name="episodeImage" optional="YES" attributeType="String"/>
-        <attribute name="episodeTint" optional="YES" attributeType="String"/>
-        <attribute name="episodeTintDarkened" optional="YES" attributeType="String"/>
-        <attribute name="favDate" optional="YES" attributeType="Date" defaultDateTimeInterval="763509900" usesScalarValueType="NO"/>
         <attribute name="guid" optional="YES" attributeType="String"/>
         <attribute name="hasBeenSeen" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="String"/>
-        <attribute name="isFav" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="isPlayed" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="isQueued" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="isSaved" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="nowPlaying" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="playbackPosition" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
-        <attribute name="playCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="playedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="playedDates" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer"/>
-        <attribute name="queuePosition" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="savedDate" optional="YES" attributeType="Date" defaultDateTimeInterval="763509900" usesScalarValueType="NO"/>
+        <attribute name="nowPlaying" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="podcastId" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String"/>
-        <relationship name="playlist" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Playlist" inverseName="items" inverseEntity="Playlist"/>
-        <relationship name="podcast" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Podcast" inverseName="episode" inverseEntity="Podcast"/>
         <fetchIndex name="guid_index">
             <fetchIndexElement property="guid" type="Binary" order="ascending"/>
         </fetchIndex>
-        <fetchIndex name="queuePosition_index">
-            <fetchIndexElement property="queuePosition" type="Binary" order="ascending"/>
-        </fetchIndex>
+    </entity>
+    <entity name="Playback" representedClassName="Playback" syncable="YES" codeGenerationType="class">
+        <attribute name="episodeId" optional="YES" attributeType="String"/>
+        <attribute name="favDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="playbackPosition" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="playCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="playedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="queuePosition" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
     </entity>
     <entity name="Playlist" representedClassName="Playlist" syncable="YES" codeGenerationType="class">
+        <attribute name="episodeIds" optional="YES" attributeType="Binary"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" optional="YES" attributeType="String"/>
-        <relationship name="items" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Episode" inverseName="playlist" inverseEntity="Episode"/>
     </entity>
     <entity name="Podcast" representedClassName="Podcast" syncable="YES" codeGenerationType="class">
         <attribute name="author" optional="YES" attributeType="String"/>
@@ -48,10 +39,7 @@
         <attribute name="playCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="playedSeconds" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="podcastDescription" optional="YES" attributeType="String"/>
-        <attribute name="podcastTint" optional="YES" attributeType="String"/>
-        <attribute name="podcastTintDarkened" optional="YES" attributeType="String"/>
         <attribute name="title" optional="YES" attributeType="String" defaultValueString="Podcast Title"/>
-        <relationship name="episode" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Episode" inverseName="podcast" inverseEntity="Episode"/>
         <fetchIndex name="feedUrl_index">
             <fetchIndexElement property="feedUrl" type="Binary" order="ascending"/>
         </fetchIndex>
@@ -63,4 +51,9 @@
         <attribute name="userSince" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="userType" optional="YES" attributeType="String" defaultValueString="listener"/>
     </entity>
+    <configuration name="Sync" usedWithCloudKit="YES">
+        <memberEntity name="Playlist"/>
+        <memberEntity name="Podcast"/>
+        <memberEntity name="User"/>
+    </configuration>
 </model>

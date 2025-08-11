@@ -67,10 +67,8 @@ struct Peapod: App {
         
         // Setup queues and other required data
         ensureQueuePlaylistExists(context: context)
+        ensurePlayedPlaylistExists(context: context)
+        ensureFavoritesPlaylistExists(context: context)
         migrateOldQueueToPlaylist(context: context)
-        if !didFlushTints {
-            resetAllTints(in: context)
-            didFlushTints = true
-        }
     }
 }

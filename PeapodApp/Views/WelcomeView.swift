@@ -180,11 +180,19 @@ struct WelcomeView: View {
                                 if let podcastEntity = loadedPodcast {
                                     podcastEntity.isSubscribed = true
                                     
-                                    // Now queue the latest episode too
-                                    if let latest = (podcastEntity.episode as? Set<Episode>)?
-                                        .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                        .first {
-                                        toggleQueued(latest)
+                                    // Find the latest episode using podcastId instead of relationship
+                                    let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                                    episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcastEntity.id ?? "")
+                                    episodeRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+                                    episodeRequest.fetchLimit = 1
+                                    
+                                    do {
+                                        let episodes = try context.fetch(episodeRequest)
+                                        if let latestEpisode = episodes.first {
+                                            toggleQueued(latestEpisode)
+                                        }
+                                    } catch {
+                                        LogManager.shared.error("Failed to fetch latest episode: \(error)")
                                     }
                                     
                                     try? podcastEntity.managedObjectContext?.save()

@@ -390,7 +390,7 @@ class EpisodeRefresher {
         context: NSManagedObjectContext
     ) -> [String: Episode] {
         let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "podcast == %@", podcast)
+        fetchRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
         
         var episodeMap: [String: Episode] = [:]
         
@@ -425,13 +425,12 @@ class EpisodeRefresher {
         
         let title = item.title
         let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let audioUrl = forceHTTPS(item.enclosure?.attributes?.url) // Convert to HTTPS for matching
+        let audioUrl = forceHTTPS(item.enclosure?.attributes?.url)
         let airDate = item.pubDate
         
         // Strategy 1: Match by audio URL (most reliable)
         if let audioUrl = audioUrl {
             if let existing = existingEpisodes[audioUrl] {
-//                print("🎯 Found existing episode by audio URL: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
@@ -439,7 +438,6 @@ class EpisodeRefresher {
         // Strategy 2: Match by GUID
         if let guid = guid {
             if let existing = existingEpisodes[guid] {
-//                print("🎯 Found existing episode by GUID: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
@@ -448,32 +446,28 @@ class EpisodeRefresher {
         if let title = title, let airDate = airDate {
             let titleDateKey = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
             if let existing = existingEpisodes[titleDateKey] {
-//                print("🎯 Found existing episode by title+date: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
         
-        // Strategy 4: FALLBACK - Direct database query for extra safety
-        // This catches cases where the pre-fetch might have missed something
+        // Strategy 4: FALLBACK - Direct database query using podcastId
         if let guid = guid {
             let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcast == %@", guid, podcast)
+            fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcastId == %@", guid, podcast.id ?? "")
             fetchRequest.fetchLimit = 1
             
             if let existing = try? context.fetch(fetchRequest).first {
-//                print("🎯 Found existing episode via fallback database query: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
         
-        // Strategy 5: LAST RESORT - Match by title alone (for episodes with inconsistent GUIDs)
+        // Strategy 5: LAST RESORT - Match by title alone using podcastId
         if let title = title {
             let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "title == %@ AND podcast == %@", title, podcast)
+            fetchRequest.predicate = NSPredicate(format: "title == %@ AND podcastId == %@", title, podcast.id ?? "")
             fetchRequest.fetchLimit = 1
             
             if let existing = try? context.fetch(fetchRequest).first {
-//                print("🎯 Found existing episode by title match: \(existing.title ?? "Unknown")")
                 return existing
             }
         }
@@ -515,7 +509,7 @@ class EpisodeRefresher {
                 // Create new episode
                 let episode = Episode(context: context)
                 episode.id = UUID().uuidString
-                episode.podcast = podcast
+                episode.podcastId = podcast.id
                 updateEpisodeAttributes(episode: episode, item: item, podcast: podcast)
                 newEpisodesCount += 1
                 
@@ -743,10 +737,13 @@ class EpisodeRefresher {
             return
         }
         
-        // Get GUIDs of all currently loaded episodes
-        let existingEpisodes = (podcast.episode as? Set<Episode>) ?? []
+        // Get all currently loaded episodes for this podcast using podcastId
+        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+        
+        let existingEpisodes = (try? context.fetch(fetchRequest)) ?? []
         let loadedGUIDs = Set(existingEpisodes.compactMap { $0.guid?.trimmingCharacters(in: .whitespacesAndNewlines) })
-        let loadedAudioURLs = Set(existingEpisodes.compactMap { $0.audio }) // Fallback for episodes without GUIDs
+        let loadedAudioURLs = Set(existingEpisodes.compactMap { $0.audio })
         
         LogManager.shared.info("📊 Current episodes: \(existingEpisodes.count), Total available: \(items.count)")
         LogManager.shared.info("🔑 Loaded GUIDs: \(loadedGUIDs.count), Loaded audio URLs: \(loadedAudioURLs.count)")
@@ -767,7 +764,7 @@ class EpisodeRefresher {
             return true
         }
         
-        // Take the next 50 episodes (items are already in feed order: newest first)
+        // Take the next 50 episodes
         let batchItems = Array(unloadedItems.prefix(50))
         
         guard !batchItems.isEmpty else {
@@ -778,7 +775,7 @@ class EpisodeRefresher {
         
         LogManager.shared.info("📦 Processing next \(batchItems.count) unloaded episodes")
         
-        // Pre-fetch existing episodes for duplicate checking (uses the comprehensive lookup)
+        // Pre-fetch existing episodes for duplicate checking
         let existingEpisodeMap = fetchAllExistingEpisodes(for: podcast, context: context)
         
         // Process the batch
@@ -787,7 +784,7 @@ class EpisodeRefresher {
             podcast: podcast,
             existingEpisodes: existingEpisodeMap,
             context: context,
-            skipQueueing: true // 🚨 ADD THIS LINE
+            skipQueueing: true
         )
         
         // Save changes

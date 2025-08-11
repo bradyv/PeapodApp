@@ -14,6 +14,7 @@ struct PodcastDetailView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var toastManager: ToastManager
     @FetchRequest var podcastResults: FetchedResults<Podcast>
+    @State private var episodes: [Episode] = []
     @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
     @State private var scrollOffset: CGFloat = 0
@@ -25,10 +26,6 @@ struct PodcastDetailView: View {
     @State private var showSearch = false
     
     var podcast: Podcast? { podcastResults.first }
-    var episodes: [Episode] {
-        (podcast?.episode as? Set<Episode>)?
-            .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) }) ?? []
-    }
 
     init(feedUrl: String) {
         _podcastResults = FetchRequest<Podcast>(
@@ -71,9 +68,19 @@ struct PodcastDetailView: View {
                     .alert(
                         "Delete Podcast",
                         isPresented: $showConfirm,
-                        presenting: podcast // Optional if you want access to the object inside the alert
+                        presenting: podcast
                     ) { podcast in
                         Button("Delete", role: .destructive) {
+                            // Delete all episodes for this podcast first
+                            let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                            episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+                            
+                            if let podcastEpisodes = try? context.fetch(episodeRequest) {
+                                for episode in podcastEpisodes {
+                                    context.delete(episode)
+                                }
+                            }
+                            
                             context.delete(podcast)
                             try? context.save()
                             
@@ -164,9 +171,15 @@ struct PodcastDetailView: View {
             .frame(maxWidth:.infinity)
             .onAppear {
                 checkNotificationStatus()
+                loadEpisodesForPodcast()
                 
                 Task.detached(priority: .background) {
                     await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
+                    
+                    // Reload episodes after refresh
+                    DispatchQueue.main.async {
+                        loadEpisodesForPodcast()
+                    }
                 }
             }
             .sheet(item: $selectedEpisode) { episode in
@@ -187,6 +200,22 @@ struct PodcastDetailView: View {
                     }
                 )
             }
+        }
+    }
+    
+    // Load episodes using podcastId
+    private func loadEpisodesForPodcast() {
+        guard let podcast = podcast else { return }
+        
+        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+        
+        do {
+            episodes = try context.fetch(request)
+        } catch {
+            LogManager.shared.error("❌ Failed to load episodes: \(error)")
+            episodes = []
         }
     }
     
@@ -217,27 +246,15 @@ struct PodcastDetailView: View {
             
             if podcast!.isSubscribed {
                 // Add latest episode to queue when subscribing
-                if let latest = (podcast!.episode as? Set<Episode>)?
-                    .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                    .first {
-                    toggleQueued(latest)
+                if let latest = episodes.first {
+                    addEpisodeToPlaylist(latest, playlistName: "Queue")
                 }
                 
                 checkAndShowNotificationRequest()
                 
             } else {
-                // Remove all of this podcast's episodes from the Queue playlist when unsubscribing
-                let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-                request.predicate = NSPredicate(format: "name == %@", "Queue")
-
-                if let queuePlaylist = try? context.fetch(request).first,
-                   let allEpisodes = podcast!.episode as? Set<Episode> {
-                    for episode in allEpisodes where (queuePlaylist.items as? Set<Episode>)?.contains(episode) == true {
-                        queuePlaylist.removeFromItems(episode)
-                        episode.isQueued = false
-                        episode.queuePosition = -1
-                    }
-                }
+                // Remove all of this podcast's episodes from all playlists when unsubscribing
+                removeAllEpisodesFromPlaylists(for: podcast!)
             }
 
             // Save Core Data changes
@@ -256,5 +273,27 @@ struct PodcastDetailView: View {
                 .titleCondensed()
         }
         .if(!podcast!.isSubscribed, transform: { $0.buttonStyle(.glassProminent) })
+    }
+    
+    // Helper function to remove all episodes from playlists when unsubscribing
+    private func removeAllEpisodesFromPlaylists(for podcast: Podcast) {
+        let queuePlaylist = getPlaylist(named: "Queue", context: context)
+        let playedPlaylist = getPlaylist(named: "Played", context: context)
+        let favoritesPlaylist = getPlaylist(named: "Favorites", context: context)
+        
+        // Get all episode IDs for this podcast
+        let podcastEpisodeIds = Set(episodes.compactMap { $0.id })
+        
+        // Remove from Queue playlist
+        let queueIds = queuePlaylist.episodeIdArray.filter { !podcastEpisodeIds.contains($0) }
+        queuePlaylist.episodeIdArray = queueIds
+        
+        // Remove from Played playlist
+        let playedIds = playedPlaylist.episodeIdArray.filter { !podcastEpisodeIds.contains($0) }
+        playedPlaylist.episodeIdArray = playedIds
+        
+        // Remove from Favorites playlist
+        let favIds = favoritesPlaylist.episodeIdArray.filter { !podcastEpisodeIds.contains($0) }
+        favoritesPlaylist.episodeIdArray = favIds
     }
 }

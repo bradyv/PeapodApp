@@ -8,20 +8,19 @@
 import SwiftUI
 
 @MainActor func toggleFav(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-    let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
-    
-    episode.isFav.toggle()
+    guard let context = episode.managedObjectContext else { return }
     
     if episode.isFav {
-        episode.favDate = Date()
+        // Remove from favorites playlist
+        removeEpisodeFromPlaylist(episode, playlistName: "Favorites")
     } else {
-        episode.favDate = nil
+        // Add to favorites playlist
+        addEpisodeToPlaylist(episode, playlistName: "Favorites")
     }
     
     do {
         try context.save()
-//        episodesViewModel?.fetchFavs()
     } catch {
-        print("Failed to remove episode from favorites: \(error)")
+        print("Failed to toggle episode favorite: \(error)")
     }
 }

@@ -221,9 +221,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             for podcast in subscribedPodcasts {
                 guard let feedUrl = podcast.feedUrl else { continue }
                 
-                // Get episodes from this podcast
+                // Get episodes from this podcast using podcastId
                 let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                episodeRequest.predicate = NSPredicate(format: "podcast == %@", podcast)
+                episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
                 
                 do {
                     let episodes = try context.fetch(episodeRequest)
@@ -309,7 +309,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             print("🧪 DEBUG: Starting old episode purge")
 
             let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-            request.predicate = NSPredicate(format: "(podcast == nil OR podcast.isSubscribed == NO) AND isSaved == NO AND isPlayed == NO")
+            // FIXED: Use EXISTS query for unsubscribed podcasts and playlist system
+            let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
+            let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
+            let favIds = getPlaylist(named: "Favorites", context: context).episodeIdArray
+            let allPlaylistIds = Set(queueIds + playedIds + favIds)
+            
+            if allPlaylistIds.isEmpty {
+                request.predicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == NO)")
+            } else {
+                request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                    NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == NO)"),
+                    NSPredicate(format: "NOT (id IN %@)", Array(allPlaylistIds))
+                ])
+            }
 
             do {
                 let episodes = try context.fetch(request)
@@ -317,8 +330,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
                 for episode in episodes {
                     let title = episode.title ?? "Untitled"
-                    let podcast = episode.podcast?.title ?? "nil"
-                    print("   - Deleting: \(title) from \(podcast)")
+                    let podcastTitle = episode.podcast?.title ?? "nil"
+                    print("   - Deleting: \(title) from \(podcastTitle)")
                     context.delete(episode)
                 }
 
@@ -361,9 +374,21 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         // Step 1: Clean up episodes from unsubscribed podcasts (but preserve saved/played/queued ones)
         let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-        episodeRequest.predicate = NSPredicate(format:
-            "podcast.isSubscribed == NO AND isSaved == NO AND isPlayed == NO AND isQueued == NO AND playlist == nil"
-        )
+        
+        // FIXED: Use playlist system and EXISTS query
+        let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
+        let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
+        let favIds = getPlaylist(named: "Favorites", context: context).episodeIdArray
+        let allPlaylistIds = Set(queueIds + playedIds + favIds)
+        
+        if allPlaylistIds.isEmpty {
+            episodeRequest.predicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == NO)")
+        } else {
+            episodeRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == NO)"),
+                NSPredicate(format: "NOT (id IN %@)", Array(allPlaylistIds))
+            ])
+        }
         
         let episodesToDelete = try context.fetch(episodeRequest)
         LogManager.shared.info("🗑️ Found \(episodesToDelete.count) episodes to delete from unsubscribed podcasts")
@@ -386,22 +411,24 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         for podcast in unsubscribedPodcasts {
             // Check if podcast has any remaining episodes (saved, played, or queued)
             let remainingEpisodesRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            remainingEpisodesRequest.predicate = NSPredicate(format:
-                "podcast == %@ AND (isSaved == YES OR isPlayed == YES OR isQueued == YES)",
-                podcast
-            )
-            remainingEpisodesRequest.fetchLimit = 1 // We only need to know if any exist
             
-            let remainingEpisodes = try context.fetch(remainingEpisodesRequest)
+            // FIXED: Use playlist system to check for preserved episodes
+            let podcastEpisodeIds = Set(allPlaylistIds.filter { id in
+                // Check if this episode belongs to this podcast
+                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                episodeRequest.predicate = NSPredicate(format: "id == %@ AND podcastId == %@", id, podcast.id ?? "")
+                episodeRequest.fetchLimit = 1
+                return (try? context.fetch(episodeRequest).first) != nil
+            })
             
-            if remainingEpisodes.isEmpty {
+            if podcastEpisodeIds.isEmpty {
                 // Safe to delete this podcast as it has no saved/played/queued episodes
                 let title = podcast.title ?? "Unknown Podcast"
                 LogManager.shared.debug("   - Deleting podcast: \(title)")
                 context.delete(podcast) // This will cascade delete any remaining episodes
                 deletedPodcasts += 1
             } else {
-                LogManager.shared.debug("   - Keeping podcast: \(podcast.title ?? "Unknown") (has \(remainingEpisodes.count) preserved episodes)")
+                LogManager.shared.debug("   - Keeping podcast: \(podcast.title ?? "Unknown") (has \(podcastEpisodeIds.count) preserved episodes)")
             }
         }
         
@@ -449,7 +476,6 @@ extension String {
         return hash.map { String(format: "%02hhx", $0) }.joined()
     }
 }
-
 
 extension Notification.Name {
     static let didCompleteStartupCleanup = Notification.Name("didCompleteStartupCleanup")

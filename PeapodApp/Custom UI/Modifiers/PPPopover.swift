@@ -36,7 +36,7 @@ struct PPPopover<Content: View>: View {
     }
 
     var body: some View {
-        let bgColor = Color(hex: hex) ?? .white
+        let bgColor = Color.white
 
         return
             ZStack(alignment: .topLeading) {

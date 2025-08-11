@@ -60,7 +60,6 @@ struct AppIconView: View {
                 .padding()
                 .background {
                     GeometryReader { geometry in
-                        Color(hex: "#C9C9C9")
                         Image("pro-pattern")
                             .resizable()
                             .aspectRatio(contentMode: .fill)

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreData
 
 struct PodcastEpisodeSearchView: View {
     @Environment(\.managedObjectContext) private var context
@@ -14,21 +15,16 @@ struct PodcastEpisodeSearchView: View {
     @Binding var showSearch: Bool
     @Binding var selectedEpisode: Episode?
 
-    @FetchRequest private var latest: FetchedResults<Episode>
+    @State private var episodes: [Episode] = []
     @State private var query = ""
-    @State private var hasMoreEpisodes = true // Track if more episodes available
-    @State private var isLoadingMoreEpisodes = false // Loading state for incremental loads
+    @State private var hasMoreEpisodes = true
+    @State private var isLoadingMoreEpisodes = false
     @FocusState private var isTextFieldFocused: Bool
 
     init(podcast: Podcast, showSearch: Binding<Bool>, selectedEpisode: Binding<Episode?>) {
         self.podcast = podcast
         self._showSearch = showSearch
         self._selectedEpisode = selectedEpisode
-        _latest = FetchRequest<Episode>(
-            sortDescriptors: [SortDescriptor(\.airDate, order: .reverse)],
-            predicate: NSPredicate(format: "podcast == %@", podcast),
-            animation: .interactiveSpring()
-        )
     }
 
     var body: some View {
@@ -76,7 +72,7 @@ struct PodcastEpisodeSearchView: View {
                                 }
                         }
                         
-                        // 🆕 Show "Load more" button for search results too (not just when query is empty)
+                        // 🆕 Show "Load more" button for search results too
                         if hasMoreEpisodes && !isLoadingMoreEpisodes && !query.isEmpty {
                             VStack(spacing: 8) {
                                 Text("Don't see what you're looking for?")
@@ -106,7 +102,7 @@ struct PodcastEpisodeSearchView: View {
                         // Show "Load more" button at the bottom (when not searching)
                         if hasMoreEpisodes && !isLoadingMoreEpisodes && query.isEmpty {
                             VStack(spacing: 8) {
-                                Text("Showing \(latest.count) episodes")
+                                Text("Showing \(episodes.count) episodes")
                                     .textDetail()
                                 
                                 Button("Load more episodes") {
@@ -128,10 +124,10 @@ struct PodcastEpisodeSearchView: View {
                                 .padding(.vertical, 16)
                             }
                             .frame(maxWidth:.infinity)
-                        } else if !hasMoreEpisodes && query.isEmpty && latest.count > 50 {
+                        } else if !hasMoreEpisodes && query.isEmpty && episodes.count > 50 {
                             // Show "all loaded" message
                             VStack {
-                                Text("All \(latest.count) episodes loaded")
+                                Text("All \(episodes.count) episodes loaded")
                                     .textDetail()
                                     .padding(.vertical, 16)
                             }
@@ -151,28 +147,42 @@ struct PodcastEpisodeSearchView: View {
                 .modifier(PPSheet())
         }
         .onAppear {
-            // Check if we have more episodes available
+            loadEpisodesForPodcast()
             checkIfMoreEpisodesAvailable()
         }
     }
 
     private var filteredEpisodes: [Episode] {
         if query.isEmpty {
-            return Array(latest)
+            return episodes
         } else {
-            return latest.filter {
+            return episodes.filter {
                 $0.title?.localizedCaseInsensitiveContains(query) == true ||
                 $0.episodeDescription?.localizedCaseInsensitiveContains(query) == true
             }
         }
     }
     
+    // Load episodes using podcastId instead of relationship
+    private func loadEpisodesForPodcast() {
+        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+        
+        do {
+            episodes = try context.fetch(request)
+            LogManager.shared.info("📱 Loaded \(episodes.count) episodes for podcast")
+        } catch {
+            LogManager.shared.error("❌ Failed to load episodes: \(error)")
+            episodes = []
+        }
+    }
+    
     // Check if more episodes might be available
     private func checkIfMoreEpisodesAvailable() {
-        // If we have 50 or more episodes, there might be more
-        // This is just a heuristic - the actual check happens when loading
-//        hasMoreEpisodes = latest.count >= 50
-        hasMoreEpisodes = true
+        // If we have 25 or more episodes, there might be more
+        // (since initial load is limited to 25)
+        hasMoreEpisodes = episodes.count >= 25
     }
     
     // Load next batch of 50 episodes
@@ -187,6 +197,8 @@ struct PodcastEpisodeSearchView: View {
                 self.hasMoreEpisodes = moreAvailable
                 
                 if newCount > 0 {
+                    // Reload episodes to show new ones
+                    self.loadEpisodesForPodcast()
                     LogManager.shared.info("✅ Loaded \(newCount) more episodes. More available: \(moreAvailable)")
                 } else {
                     LogManager.shared.info("ℹ️ No new episodes loaded - might be at the end")

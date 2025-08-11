@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import FeedKit
 
 // MARK: - OPML Parser
 struct OPMLParser {
@@ -121,39 +122,138 @@ class OPMLImportManager: ObservableObject {
             currentStatus = "Loading podcast \(index + 1) of \(totalPodcasts)"
         }
         
-        // Use a continuation to bridge the callback-based PodcastLoader to async/await
+        // Parse feed directly instead of using deprecated PodcastLoader.loadFeed
+        guard let url = URL(string: feedUrl) else {
+            LogManager.shared.error("Invalid URL: \(feedUrl)")
+            await incrementProgress()
+            return
+        }
+        
+        // Use a continuation to bridge the callback-based FeedParser to async/await
         await withCheckedContinuation { continuation in
-            context.perform {
-                PodcastLoader.loadFeed(from: feedUrl, context: context) { loadedPodcast in
-                    if let podcast = loadedPodcast {
-                        // Subscribe to the podcast
-                        podcast.isSubscribed = true
-                        
-                        // Queue the latest episode
-                        if let latestEpisode = (podcast.episode as? Set<Episode>)?
-                            .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                            .first {
-                            toggleQueued(latestEpisode)
+            FeedParser(URL: url).parseAsync { result in
+                context.perform {
+                    switch result {
+                    case .success(let feed):
+                        if let rss = feed.rssFeed {
+                            // Create podcast metadata using new approach
+                            let podcast = self.createPodcastMetadataOnly(from: rss, feedUrl: feedUrl, context: context)
+                            podcast.isSubscribed = true
+                            
+                            // Save podcast first
+                            do {
+                                try context.save()
+                                LogManager.shared.info("✅ Created podcast: \(podcast.title ?? feedUrl)")
+                                
+                                // Load initial episodes
+                                EpisodeRefresher.loadInitialEpisodes(for: podcast, context: context) {
+                                    // Find latest episode and add to queue
+                                    self.queueLatestEpisode(for: podcast, context: context)
+                                    
+                                    Task { @MainActor in
+                                        self.incrementProgressSync()
+                                    }
+                                    continuation.resume()
+                                }
+                            } catch {
+                                LogManager.shared.error("❌ Error saving podcast: \(error)")
+                                Task { @MainActor in
+                                    self.incrementProgressSync()
+                                }
+                                continuation.resume()
+                            }
+                        } else {
+                            LogManager.shared.error("Failed to parse RSS for: \(feedUrl)")
+                            Task { @MainActor in
+                                self.incrementProgressSync()
+                            }
+                            continuation.resume()
                         }
                         
-                        // Save the context
-                        try? context.save()
-                        
+                    case .failure(let error):
+                        LogManager.shared.error("Feed parsing failed for \(feedUrl): \(error)")
                         Task { @MainActor in
-                            self.processedPodcasts += 1
-                            self.progress = Double(self.processedPodcasts) / Double(self.totalPodcasts)
+                            self.incrementProgressSync()
                         }
-                    } else {
-                        LogManager.shared.error("Failed to load podcast from URL: \(feedUrl)")
-                        Task { @MainActor in
-                            self.processedPodcasts += 1
-                            self.progress = Double(self.processedPodcasts) / Double(self.totalPodcasts)
-                        }
+                        continuation.resume()
                     }
-                    
-                    continuation.resume()
                 }
             }
         }
+    }
+    
+    // Helper function to create podcast metadata (same as in SubscribeViaURL)
+    private func createPodcastMetadataOnly(from rss: RSSFeed, feedUrl: String, context: NSManagedObjectContext) -> Podcast {
+        let podcast = fetchOrCreatePodcast(feedUrl: feedUrl, context: context, title: rss.title, author: rss.iTunes?.iTunesAuthor)
+
+        // Convert HTTP to HTTPS for podcast images
+        if podcast.image == nil {
+            podcast.image = forceHTTPS(rss.image?.url) ??
+                           forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
+                           forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
+        }
+
+        if podcast.podcastDescription == nil {
+            podcast.podcastDescription = rss.description ??
+                                        rss.iTunes?.iTunesSummary ??
+                                        rss.items?.first?.iTunes?.iTunesSummary ??
+                                        rss.items?.first?.description
+        }
+
+        if podcast.isInserted {
+            podcast.isSubscribed = false
+        }
+
+        return podcast
+    }
+    
+    private func fetchOrCreatePodcast(feedUrl: String, context: NSManagedObjectContext, title: String?, author: String?) -> Podcast {
+        let normalizedUrl = feedUrl.normalizeURL()
+        
+        let request = Podcast.fetchRequest()
+        request.predicate = NSPredicate(format: "feedUrl == %@", normalizedUrl)
+        request.fetchLimit = 1
+
+        if let existing = try? context.fetch(request).first {
+            return existing
+        } else {
+            let podcast = Podcast(context: context)
+            podcast.feedUrl = normalizedUrl
+            podcast.id = UUID().uuidString
+            podcast.title = title
+            podcast.author = author
+            return podcast
+        }
+    }
+    
+    // Helper function to convert HTTP URLs to HTTPS
+    private func forceHTTPS(_ urlString: String?) -> String? {
+        guard let urlString = urlString else { return nil }
+        return urlString.replacingOccurrences(of: "http://", with: "https://")
+    }
+    
+    // Helper to queue latest episode using new playlist system
+    private func queueLatestEpisode(for podcast: Podcast, context: NSManagedObjectContext) {
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+        episodeRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+        episodeRequest.fetchLimit = 1
+        
+        if let latestEpisode = try? context.fetch(episodeRequest).first {
+            // Add to queue using new playlist system
+            addEpisodeToPlaylist(latestEpisode, playlistName: "Queue")
+            LogManager.shared.info("🎵 Added latest episode to queue: \(latestEpisode.title ?? "Unknown")")
+        }
+    }
+    
+    @MainActor
+    private func incrementProgress() async {
+        processedPodcasts += 1
+        progress = Double(processedPodcasts) / Double(totalPodcasts)
+    }
+    
+    private func incrementProgressSync() {
+        processedPodcasts += 1
+        progress = Double(processedPodcasts) / Double(totalPodcasts)
     }
 }

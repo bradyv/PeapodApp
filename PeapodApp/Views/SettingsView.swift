@@ -21,7 +21,7 @@ struct SettingsView: View {
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var showNotificationAlert = false
     @State private var showNotificationRequest = false
-    @State private var statistics = AppStatistics(podcastCount: 0, episodeCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
+    @State private var statistics = AppStatistics(podcastCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
     @State private var lastSynced: Date? = UserDefaults.standard.object(forKey: "lastCloudSyncDate") as? Date
     @State private var selectedIconName: String = UIApplication.shared.alternateIconName ?? "AppIcon-Green"
     @State private var scrollOffset: CGFloat = 0
@@ -34,16 +34,16 @@ struct SettingsView: View {
     
     enum SheetType: Identifiable {
         case upgrade
-        case stats
+//        case stats
         case appIcons
         case mail
         
         var id: Int {
             switch self {
             case .upgrade: return 0
-            case .stats: return 1
-            case .appIcons: return 2
-            case .mail: return 3
+//            case .stats: return 1
+            case .appIcons: return 1
+            case .mail: return 2
             }
         }
     }
@@ -108,20 +108,20 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth:.infinity)
                     
-                    Spacer().frame(height:16)
-                    
-                    NavigationLink {
-                        ActivityView()
-                    } label: {
-                        Text("More Stats")
-                            .frame(maxWidth:.infinity)
-                    }
-                    .buttonStyle(PPButton(
-                        type:.filled,
-                        colorStyle:.monochrome,
-                        peapodPlus: true
-                    ))
-                    .glassEffect()
+//                    Spacer().frame(height:16)
+//                    
+//                    NavigationLink {
+//                        ActivityView()
+//                    } label: {
+//                        Text("More Stats")
+//                            .frame(maxWidth:.infinity)
+//                    }
+//                    .buttonStyle(PPButton(
+//                        type:.filled,
+//                        colorStyle:.monochrome,
+//                        peapodPlus: true
+//                    ))
+//                    .glassEffect()
                 }
                 .padding()
                 .background(Color.surface)
@@ -486,15 +486,15 @@ struct SettingsView: View {
                                         .padding(.vertical, 2)
                                     }
                                     
-                                    Divider()
-                                    
-                                    NavigationLink {
-                                        PPPopover(showBg: true) {
-                                            OldEpisodesView()
-                                        }
-                                    } label: {
-                                        RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
-                                    }
+//                                    Divider()
+//                                    
+//                                    NavigationLink {
+//                                        PPPopover(showBg: true) {
+//                                            OldEpisodesView()
+//                                        }
+//                                    } label: {
+//                                        RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
+//                                    }
                                 }
                                 .padding()
                                 .background(Color.surface)
@@ -540,9 +540,9 @@ struct SettingsView: View {
                 case .upgrade:
                     UpgradeView()
                         .modifier(PPSheet())
-                case .stats:
-                    ActivityView()
-                        .modifier(PPSheet())
+//                case .stats:
+//                    ActivityView()
+//                        .modifier(PPSheet())
                 case .appIcons:
                     AppIconView(selectedIconName: $selectedIconName)
                         .modifier(PPSheet())
@@ -575,18 +575,6 @@ struct SettingsView: View {
                     }
                 )
             }
-    }
-    
-    private var statsButtonGradient: LinearGradient {
-        LinearGradient(
-            gradient: Gradient(colors: [
-                Color(hex: "#3CA4F4") ?? .blue,
-                Color(hex: "#9D93C5") ?? .purple,
-                Color(hex: "#E98D64") ?? .orange
-            ]),
-            startPoint: .leading,
-            endPoint: .trailing
-        )
     }
     
     private var playbackSpeedIcon: String {

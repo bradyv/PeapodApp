@@ -38,8 +38,18 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
             allExistingRequest.predicate = NSPredicate(format: "feedUrl == %@", feedUrl)
             
             if let existing = try context.fetch(allExistingRequest).first {
+                // Delete all episodes for this podcast first
+                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                episodeRequest.predicate = NSPredicate(format: "podcastId == %@", existing.id ?? "")
+                
+                if let episodes = try? context.fetch(episodeRequest) {
+                    for episode in episodes {
+                        context.delete(episode)
+                    }
+                }
+                
                 context.delete(existing)
-                LogManager.shared.info("🗑️ Deleted existing unsubscribed podcast for URL: \(feedUrl)")
+                LogManager.shared.info("🗑️ Deleted existing unsubscribed podcast and episodes for URL: \(feedUrl)")
             }
         } catch {
             LogManager.shared.error("❌ Error checking for existing podcast: \(error)")
@@ -49,28 +59,21 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
             return
         }
 
-        // Parse feed
+        // Parse feed using the new approach
         FeedParser(URL: url).parseAsync { result in
             switch result {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     // Stay on the background context thread
                     context.perform {
-                        let podcast = PodcastLoader.createOrUpdatePodcast(from: rss, feedUrl: feedUrl, context: context)
+                        // Create podcast metadata using the new approach
+                        let podcast = createPodcastMetadataOnly(from: rss, feedUrl: feedUrl, context: context)
                         podcast.isSubscribed = true
-
-                        // 📢 MANUAL ASSIGN
-                        let artworkUrl = rss.iTunes?.iTunesImage?.attributes?.href
-                                      ?? rss.image?.url
-                                      ?? rss.items?.first?.iTunes?.iTunesImage?.attributes?.href
-
-                        podcast.image = artworkUrl
-
-                        print("Assigned podcast.image:", podcast.image ?? "nil")
 
                         // Save context before refreshing episodes
                         do {
                             try context.save()
+                            LogManager.shared.info("✅ Created podcast: \(podcast.title ?? "Unknown")")
                         } catch {
                             LogManager.shared.error("❌ Error saving podcast: \(error)")
                             DispatchQueue.main.async {
@@ -79,13 +82,20 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
                             return
                         }
 
-                        // Refresh episodes
-                        EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context) {
-                            if let latest = (podcast.episode as? Set<Episode>)?
-                                .sorted(by: { ($0.airDate ?? .distantPast) > ($1.airDate ?? .distantPast) })
-                                .first {
-                                toggleQueued(latest)
+                        // Load initial episodes using EpisodeRefresher
+                        EpisodeRefresher.loadInitialEpisodes(for: podcast, context: context) {
+                            // Find the latest episode using podcastId query
+                            let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                            episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+                            episodeRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+                            episodeRequest.fetchLimit = 1
+                            
+                            if let latestEpisode = try? context.fetch(episodeRequest).first {
+                                // Add latest episode to queue using new playlist system
+                                addEpisodeToPlaylist(latestEpisode, playlistName: "Queue")
+                                LogManager.shared.info("🎵 Added latest episode to queue: \(latestEpisode.title ?? "Unknown")")
                             }
+                            
                             LogManager.shared.info("✅ Subscribed to: \(rss.title ?? feedUrl)")
                             DispatchQueue.main.async {
                                 completion?(true)
@@ -106,6 +116,37 @@ func subscribeViaURL(feedUrl: String, completion: ((Bool) -> Void)? = nil) {
             }
         }
     }
+}
+
+// Helper function to create podcast metadata (extracted from PodcastLoader)
+private func createPodcastMetadataOnly(from rss: RSSFeed, feedUrl: String, context: NSManagedObjectContext) -> Podcast {
+    let podcast = fetchOrCreatePodcast(feedUrl: feedUrl, context: context, title: rss.title, author: rss.iTunes?.iTunesAuthor)
+
+    // Convert HTTP to HTTPS for podcast images
+    if podcast.image == nil {
+        podcast.image = forceHTTPS(rss.image?.url) ??
+                       forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
+                       forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
+    }
+
+    if podcast.podcastDescription == nil {
+        podcast.podcastDescription = rss.description ??
+                                    rss.iTunes?.iTunesSummary ??
+                                    rss.items?.first?.iTunes?.iTunesSummary ??
+                                    rss.items?.first?.description
+    }
+
+    if podcast.isInserted {
+        podcast.isSubscribed = false
+    }
+
+    return podcast
+}
+
+// Helper function to convert HTTP URLs to HTTPS
+private func forceHTTPS(_ urlString: String?) -> String? {
+    guard let urlString = urlString else { return nil }
+    return urlString.replacingOccurrences(of: "http://", with: "https://")
 }
 
 struct SubscribeTest: View {

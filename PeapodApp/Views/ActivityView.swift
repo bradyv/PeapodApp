@@ -9,336 +9,404 @@ import SwiftUI
 import CoreData
 import Kingfisher
 
-struct ActivityView: View {
-    @ObservedObject private var userManager = UserManager.shared
-    @State private var statistics = AppStatistics(podcastCount: 0, episodeCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
-    @State private var showingUpgrade = false
-    
-    @FetchRequest(
-        fetchRequest: Episode.recentlyPlayedRequest(limit: 5),
-        animation: .interactiveSpring()
-    )
-    var played: FetchedResults<Episode>
-    
-    @FetchRequest(
-        fetchRequest: Episode.longestPlayedEpisodeRequest(),
-        animation: .default
-    )
-    var longestEpisodes: FetchedResults<Episode>
-    
-    @FetchRequest(fetchRequest: Episode.topPlayedEpisodesRequest(), animation: .default)
-    var topPlayedEpisodes: FetchedResults<Episode>
-    
-    @FetchRequest(
-        fetchRequest: Podcast.topPlayedRequest(),
-        animation: .default
-    )
-    var topPodcasts: FetchedResults<Podcast>
-    
-    @State var degreesRotating = 0.0
-    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
-    @State private var isSpinning = false
-    @State private var favoriteDayName: String = "Loading..."
-    @State private var favoriteDayCount: Int = 0
-    @State private var weeklyData: [WeeklyListeningData] = []
-    
-    var body: some View {
-        ScrollView {
-            VStack(spacing:16) {
-                if played.isEmpty {
-                    ZStack {
-                        VStack {
-                            ForEach(0..<2, id: \.self) { _ in
-                                EmptyEpisodeItem()
-                                    .opacity(0.03)
-                            }
-                        }
-                        .mask(
-                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
-                        )
-                        
-                        VStack {
-                            Text("No listening activity")
-                                .titleCondensed()
-                            
-                            Text("Listen to some podcasts already.")
-                                .textBody()
-                        }
-                    }
-                } else {
-                    let podiumOrder = [0, 1, 2]
-                    let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
-                        guard index < topPodcasts.count else { return nil }
-                        return (index, topPodcasts[index])
-                    }
-                    let hours = Int(statistics.totalPlayedSeconds) / 3600
-                    let hourString = hours > 1 ? "Hours" : "Hour"
-                    let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
-                    let podcastString = statistics.podcastCount > 1 ? "podcasts" : "podcast"
-                    
-                    VStack(alignment:.leading) {
-                        Image("peapod-mark")
-                        
-                        HStack {
-                            VStack(alignment:.leading) {
-                                Text("Listener")
-                                    .foregroundStyle(Color.white)
-                                    .titleCondensed()
-                                
-                                Text("Since \(userManager.userDateString)")
-                                    .foregroundStyle(Color.white)
-                                    .textDetail()
-                            }
-                            
-                            Spacer()
-                            
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("\(hours)")
-                                        .foregroundStyle(Color.white)
-                                        .titleCondensed()
-                                        .monospaced()
-                                        .contentTransition(.numericText())
-                                    
-                                    Text("\(hourString) listened")
-                                        .foregroundStyle(Color.white)
-                                        .textDetail()
-                                }
-                                
-                                VStack(alignment: .leading) {
-                                    Text("\(statistics.playCount)")
-                                        .foregroundStyle(Color.white)
-                                        .titleCondensed()
-                                        .monospaced()
-                                        .contentTransition(.numericText())
-                                    
-                                    Text("\(episodeString) played")
-                                        .foregroundStyle(Color.white)
-                                        .textDetail()
-                                }
-                            }
-                        }
-                        .frame(maxWidth:.infinity)
-                    }
-                    .foregroundStyle(Color.white)
-                    .padding()
-                    .background {
-                        GeometryReader { geometry in
-                            Color(hex: "#C9C9C9")
-                            Image("pro-pattern")
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: geometry.size.height)
-                                .clipped()
-                        }
-                        .ignoresSafeArea(.all)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius:16))
-                    .glassEffect(in: .rect(cornerRadius: 16))
-                    
-                    FadeInView(delay: 0.1) {
-                        HStack(alignment:.bottom) {
-                            VStack(alignment:.leading) {
-                                Image("peapod-mark")
-                                
-                                Text(favoriteDayName)
-                                    .foregroundStyle(Color.white)
-                                    .titleCondensed()
-                                    .multilineTextAlignment(.center)
-                                
-                                Text("Favorite day to listen")
-                                    .foregroundStyle(Color.white)
-                                    .textDetail()
-                            }
-                            .frame(maxWidth:.infinity,alignment:.leading)
-                            
-                            // Weekly listening chart
-                            HStack(alignment: .bottom, spacing: 16) {
-                                ForEach(weeklyData, id: \.dayOfWeek) { dayData in
-                                    VStack(spacing: 4) {
-                                        // Bar
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .fill(Color.white)
-                                            .frame(width: 6, height: max(2, dayData.percentage * 40)) // Min height of 4, max of 40
-                                            .animation(.easeInOut(duration: 0.8).delay(0.1 * Double(dayData.dayOfWeek)), value: dayData.percentage)
-                                            .shadow(color: dayData.percentage == 1.0 ? Color.white : Color.clear, radius: 16)
-                                        
-                                        // Day label
-                                        Text(dayData.dayAbbreviation)
-                                            .foregroundStyle(Color.white)
-                                            .textDetail()
-                                    }
-                                    .opacity(dayData.percentage == 1.0 ? 1.0 : 0.5)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .frame(maxWidth:.infinity,alignment:.leading)
-                        .foregroundStyle(Color.white)
-                        .padding()
-                        .background {
-                            LinearGradient(
-                                stops: [
-                                    Gradient.Stop(color: Color(red: 1, green: 0.42, blue: 0.42), location: 0.00),
-                                    Gradient.Stop(color: Color(red: 0.2, green: 0.2, blue: 0.2), location: 1.00),
-                                ],
-                                startPoint: UnitPoint(x: 0, y: 0.5),
-                                endPoint: UnitPoint(x: 1, y: 0.5)
-                            )
-                            Image("Noise")
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .opacity(0.5)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius:16))
-                        .glassEffect(in: .rect(cornerRadius: 16))
-                    }
-                    
-                    FadeInView(delay: 0.2) {
-                        VStack(alignment:.leading) {
-                            Image("peapod-mark")
-                            
-                            FadeInView(delay: 0.2) {
-                                Text("My Top Podcasts")
-                                    .foregroundStyle(Color.white)
-                                    .titleCondensed()
-                                    .multilineTextAlignment(.center)
-                            }
-                            
-                            FadeInView(delay: 0.3) {
-                                HStack(alignment:.bottom, spacing: 16) {
-                                    ForEach(reordered, id: \.1.id) { (index, podcast) in
-                                        ZStack(alignment:.bottom) {
-                                            ArtworkView(
-                                                url: podcast.image ?? "",
-                                                size: index == 0 ? 128 : index == 1 ? 96 : index == 2 ? 72 : 64,
-                                                cornerRadius: 16
-                                                )
-                                                .if(index == 0, transform: {
-                                                    $0.background(
-                                                        Image("rays")
-                                                            .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
-                                                            .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
-                                                    )
-                                                })
-                                            
-                                            Spacer()
-                                            
-                                            Text("\(podcast.formattedPlayedHours)")
-                                                .foregroundStyle(Color.black)
-                                                .textDetailEmphasis()
-                                                .padding(.vertical, 3)
-                                                .padding(.horizontal, 8)
-                                                .background(Color.white)
-                                                .clipShape(Capsule())
-                                                .offset(y:12)
-                                        }
-                                        .zIndex(index == 0 ? 0 : 1)
-                                    }
-                                }
-                            }
-                        }
-                        .frame(maxWidth:.infinity,alignment:.leading)
-                        .foregroundStyle(Color.white)
-                        .padding([.horizontal,.top]).padding(.bottom,44)
-                        .background {
-                            if let winner = reordered.first(where: { $0.0 == 0 }) {
-                                ArtworkView(url: winner.1.image ?? "", size: 500, cornerRadius: 0)
-                                    .blur(radius: 128)
-                            }
-                            Image("Noise")
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .opacity(0.5)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius:16))
-                        .glassEffect(in: .rect(cornerRadius: 16))
-                    }
-                    
-//                    if topPlayedEpisodes.count > 1 {
-//                        FadeInView(delay: 0.5) {
+//struct ActivityView: View {
+//    @ObservedObject private var userManager = UserManager.shared
+//    @State private var statistics = AppStatistics(podcastCount: 0, episodeCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
+//    @State private var showingUpgrade = false
+//    
+//    @FetchRequest(
+//        fetchRequest: Episode.recentlyPlayedRequest(limit: 5),
+//        animation: .interactiveSpring()
+//    )
+//    var played: FetchedResults<Episode>
+//    
+//    @FetchRequest(
+//        fetchRequest: Episode.longestPlayedEpisodeRequest(),
+//        animation: .default
+//    )
+//    var longestEpisodes: FetchedResults<Episode>
+//    
+//    @FetchRequest(fetchRequest: Episode.topPlayedEpisodesRequest(), animation: .default)
+//    var topPlayedEpisodes: FetchedResults<Episode>
+//    
+//    @FetchRequest(
+//        fetchRequest: Podcast.topPlayedRequest(),
+//        animation: .default
+//    )
+//    var topPodcasts: FetchedResults<Podcast>
+//    
+//    @State var degreesRotating = 0.0
+//    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+//    @State private var isSpinning = false
+//    @State private var favoriteDayName: String = "Loading..."
+//    @State private var favoriteDayCount: Int = 0
+//    @State private var weeklyData: [WeeklyListeningData] = []
+//    
+//    var body: some View {
+//        ScrollView {
+//            VStack(spacing:16) {
+//                if played.isEmpty {
+//                    ZStack {
+//                        VStack {
+//                            ForEach(0..<2, id: \.self) { _ in
+//                                EmptyEpisodeItem()
+//                                    .opacity(0.03)
+//                            }
+//                        }
+//                        .mask(
+//                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+//                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+//                        )
+//                        
+//                        VStack {
+//                            Text("No listening activity")
+//                                .titleCondensed()
+//                            
+//                            Text("Listen to some podcasts already.")
+//                                .textBody()
+//                        }
+//                    }
+//                } else {
+//                    let podiumOrder = [0, 1, 2]
+//                    let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
+//                        guard index < topPodcasts.count else { return nil }
+//                        return (index, topPodcasts[index])
+//                    }
+//                    let hours = Int(statistics.totalPlayedSeconds) / 3600
+//                    let hourString = hours > 1 ? "Hours" : "Hour"
+//                    let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
+//                    let podcastString = statistics.podcastCount > 1 ? "podcasts" : "podcast"
+//                    
+//                    VStack(alignment:.leading) {
+//                        Image("peapod-mark")
+//                        
+//                        HStack {
 //                            VStack(alignment:.leading) {
-//                                Image("peapod-mark")
+//                                Text("Listener")
+//                                    .foregroundStyle(Color.white)
+//                                    .titleCondensed()
 //                                
-//                                FadeInView(delay: 0.6) {
-//                                    Text("Repeat Listener")
+//                                Text("Since \(userManager.userDateString)")
+//                                    .foregroundStyle(Color.white)
+//                                    .textDetail()
+//                            }
+//                            
+//                            Spacer()
+//                            
+//                            HStack {
+//                                VStack(alignment: .leading) {
+//                                    Text("\(hours)")
 //                                        .foregroundStyle(Color.white)
 //                                        .titleCondensed()
-//                                        .multilineTextAlignment(.center)
+//                                        .monospaced()
+//                                        .contentTransition(.numericText())
 //                                    
-//                                    Text("You've come back to these episodes.")
+//                                    Text("\(hourString) listened")
 //                                        .foregroundStyle(Color.white)
 //                                        .textDetail()
 //                                }
 //                                
-//                                FadeInView(delay: 0.7) {
-//                                    VStack {
-//                                        if let topReplayed = topPlayedEpisodes.first {
-//                                            HStack {
-//                                                ArtworkView(url:topReplayed.episodeImage ?? topReplayed.podcast?.image ?? "", size: 44, cornerRadius: 8)
-//                                                    .background(
+//                                VStack(alignment: .leading) {
+//                                    Text("\(statistics.playCount)")
+//                                        .foregroundStyle(Color.white)
+//                                        .titleCondensed()
+//                                        .monospaced()
+//                                        .contentTransition(.numericText())
+//                                    
+//                                    Text("\(episodeString) played")
+//                                        .foregroundStyle(Color.white)
+//                                        .textDetail()
+//                                }
+//                            }
+//                        }
+//                        .frame(maxWidth:.infinity)
+//                    }
+//                    .foregroundStyle(Color.white)
+//                    .padding()
+//                    .background {
+//                        GeometryReader { geometry in
+//                            Color(hex: "#C9C9C9")
+//                            Image("pro-pattern")
+//                                .resizable()
+//                                .aspectRatio(contentMode: .fill)
+//                                .frame(width: geometry.size.width, height: geometry.size.height)
+//                                .clipped()
+//                        }
+//                        .ignoresSafeArea(.all)
+//                    }
+//                    .clipShape(RoundedRectangle(cornerRadius:16))
+//                    .glassEffect(in: .rect(cornerRadius: 16))
+//                    
+//                    FadeInView(delay: 0.1) {
+//                        HStack(alignment:.bottom) {
+//                            VStack(alignment:.leading) {
+//                                Image("peapod-mark")
+//                                
+//                                Text(favoriteDayName)
+//                                    .foregroundStyle(Color.white)
+//                                    .titleCondensed()
+//                                    .multilineTextAlignment(.center)
+//                                
+//                                Text("Favorite day to listen")
+//                                    .foregroundStyle(Color.white)
+//                                    .textDetail()
+//                            }
+//                            .frame(maxWidth:.infinity,alignment:.leading)
+//                            
+//                            // Weekly listening chart
+//                            HStack(alignment: .bottom, spacing: 16) {
+//                                ForEach(weeklyData, id: \.dayOfWeek) { dayData in
+//                                    VStack(spacing: 4) {
+//                                        // Bar
+//                                        RoundedRectangle(cornerRadius: 3)
+//                                            .fill(Color.white)
+//                                            .frame(width: 6, height: max(2, dayData.percentage * 40)) // Min height of 4, max of 40
+//                                            .animation(.easeInOut(duration: 0.8).delay(0.1 * Double(dayData.dayOfWeek)), value: dayData.percentage)
+//                                            .shadow(color: dayData.percentage == 1.0 ? Color.white : Color.clear, radius: 16)
+//                                        
+//                                        // Day label
+//                                        Text(dayData.dayAbbreviation)
+//                                            .foregroundStyle(Color.white)
+//                                            .textDetail()
+//                                    }
+//                                    .opacity(dayData.percentage == 1.0 ? 1.0 : 0.5)
+//                                }
+//                            }
+//                            .frame(maxWidth: .infinity)
+//                        }
+//                        .frame(maxWidth:.infinity,alignment:.leading)
+//                        .foregroundStyle(Color.white)
+//                        .padding()
+//                        .background {
+//                            LinearGradient(
+//                                stops: [
+//                                    Gradient.Stop(color: Color(red: 1, green: 0.42, blue: 0.42), location: 0.00),
+//                                    Gradient.Stop(color: Color(red: 0.2, green: 0.2, blue: 0.2), location: 1.00),
+//                                ],
+//                                startPoint: UnitPoint(x: 0, y: 0.5),
+//                                endPoint: UnitPoint(x: 1, y: 0.5)
+//                            )
+//                            Image("Noise")
+//                                .resizable()
+//                                .aspectRatio(contentMode: .fill)
+//                                .opacity(0.5)
+//                        }
+//                        .clipShape(RoundedRectangle(cornerRadius:16))
+//                        .glassEffect(in: .rect(cornerRadius: 16))
+//                    }
+//                    
+//                    FadeInView(delay: 0.2) {
+//                        VStack(alignment:.leading) {
+//                            Image("peapod-mark")
+//                            
+//                            FadeInView(delay: 0.2) {
+//                                Text("My Top Podcasts")
+//                                    .foregroundStyle(Color.white)
+//                                    .titleCondensed()
+//                                    .multilineTextAlignment(.center)
+//                            }
+//                            
+//                            FadeInView(delay: 0.3) {
+//                                HStack(alignment:.bottom, spacing: 16) {
+//                                    ForEach(reordered, id: \.1.id) { (index, podcast) in
+//                                        ZStack(alignment:.bottom) {
+//                                            ArtworkView(
+//                                                url: podcast.image ?? "",
+//                                                size: index == 0 ? 128 : index == 1 ? 96 : index == 2 ? 72 : 64,
+//                                                cornerRadius: 16
+//                                                )
+//                                                .if(index == 0, transform: {
+//                                                    $0.background(
 //                                                        Image("rays")
-//                                                            .resizable()
-//                                                            .frame(width:114,height:114)
 //                                                            .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
 //                                                            .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
 //                                                    )
-//                                                
-//                                                VStack(alignment:.leading) {
-//                                                    Text(topReplayed.podcast?.title ?? "Unknown Podcast")
-//                                                        .foregroundStyle(Color.white)
-//                                                        .textDetailEmphasis()
-//                                                        .lineLimit(1)
-//                                                    
-//                                                    Text(topReplayed.title ?? "Untitled")
-//                                                        .foregroundStyle(Color.white)
-//                                                        .titleCondensed()
-//                                                        .lineLimit(1)
-//                                                }
-//                                                .frame(maxWidth:.infinity,alignment:.leading)
-//                                                
-//                                                Text("\(topReplayed.playCount) Listens")
-//                                                    .foregroundStyle(Color.black)
-//                                                    .textDetailEmphasis()
-//                                                    .padding(.vertical, 3)
-//                                                    .padding(.horizontal, 8)
-//                                                    .background(Color.white)
-//                                                    .clipShape(Capsule())
-//                                            }
-//                                        }
-//                                        
-//                                        Divider()
-//                                        
-//                                        let remainingEpisodes = Array(topPlayedEpisodes.dropFirst())
-//                                        
-//                                        ForEach(remainingEpisodes, id: \.self) { episode in
-//                                            HStack {
-//                                                ArtworkView(url:episode.episodeImage ?? episode.podcast?.image ?? "", size: 36, cornerRadius: 8)
-//                                                
-//                                                VStack(alignment:.leading) {
-//                                                    Text(episode.podcast?.title ?? "Unknown Podcast")
-//                                                        .foregroundStyle(Color.white)
-//                                                        .textDetailEmphasis()
-//                                                        .lineLimit(1)
-//                                                    
-//                                                    Text(episode.title ?? "Untitled")
-//                                                        .foregroundStyle(Color.white)
-//                                                        .textBody()
-//                                                        .lineLimit(1)
-//                                                }
-//                                                .frame(maxWidth:.infinity,alignment:.leading)
-//                                                
-//                                                Text("\(episode.playCount) Listens")
-//                                                    .foregroundStyle(Color.black)
-//                                                    .textDetailEmphasis()
-//                                                    .padding(.vertical, 3)
-//                                                    .padding(.horizontal, 8)
-//                                                    .background(Color.white)
-//                                                    .clipShape(Circle())
-//                                            }
+//                                                })
 //                                            
-//                                            Divider()
+//                                            Spacer()
+//                                            
+//                                            Text("\(podcast.formattedPlayedHours)")
+//                                                .foregroundStyle(Color.black)
+//                                                .textDetailEmphasis()
+//                                                .padding(.vertical, 3)
+//                                                .padding(.horizontal, 8)
+//                                                .background(Color.white)
+//                                                .clipShape(Capsule())
+//                                                .offset(y:12)
+//                                        }
+//                                        .zIndex(index == 0 ? 0 : 1)
+//                                    }
+//                                }
+//                            }
+//                        }
+//                        .frame(maxWidth:.infinity,alignment:.leading)
+//                        .foregroundStyle(Color.white)
+//                        .padding([.horizontal,.top]).padding(.bottom,44)
+//                        .background {
+//                            if let winner = reordered.first(where: { $0.0 == 0 }) {
+//                                ArtworkView(url: winner.1.image ?? "", size: 500, cornerRadius: 0)
+//                                    .blur(radius: 128)
+//                            }
+//                            Image("Noise")
+//                                .resizable()
+//                                .aspectRatio(contentMode: .fill)
+//                                .opacity(0.5)
+//                        }
+//                        .clipShape(RoundedRectangle(cornerRadius:16))
+//                        .glassEffect(in: .rect(cornerRadius: 16))
+//                    }
+//                    
+////                    if topPlayedEpisodes.count > 1 {
+////                        FadeInView(delay: 0.5) {
+////                            VStack(alignment:.leading) {
+////                                Image("peapod-mark")
+////                                
+////                                FadeInView(delay: 0.6) {
+////                                    Text("Repeat Listener")
+////                                        .foregroundStyle(Color.white)
+////                                        .titleCondensed()
+////                                        .multilineTextAlignment(.center)
+////                                    
+////                                    Text("You've come back to these episodes.")
+////                                        .foregroundStyle(Color.white)
+////                                        .textDetail()
+////                                }
+////                                
+////                                FadeInView(delay: 0.7) {
+////                                    VStack {
+////                                        if let topReplayed = topPlayedEpisodes.first {
+////                                            HStack {
+////                                                ArtworkView(url:topReplayed.episodeImage ?? topReplayed.podcast?.image ?? "", size: 44, cornerRadius: 8)
+////                                                    .background(
+////                                                        Image("rays")
+////                                                            .resizable()
+////                                                            .frame(width:114,height:114)
+////                                                            .rotationEffect(Angle(degrees: isSpinning ? 360 : 0))
+////                                                            .animation(.linear(duration: 20).repeatForever(autoreverses: false), value: isSpinning)
+////                                                    )
+////                                                
+////                                                VStack(alignment:.leading) {
+////                                                    Text(topReplayed.podcast?.title ?? "Unknown Podcast")
+////                                                        .foregroundStyle(Color.white)
+////                                                        .textDetailEmphasis()
+////                                                        .lineLimit(1)
+////                                                    
+////                                                    Text(topReplayed.title ?? "Untitled")
+////                                                        .foregroundStyle(Color.white)
+////                                                        .titleCondensed()
+////                                                        .lineLimit(1)
+////                                                }
+////                                                .frame(maxWidth:.infinity,alignment:.leading)
+////                                                
+////                                                Text("\(topReplayed.playCount) Listens")
+////                                                    .foregroundStyle(Color.black)
+////                                                    .textDetailEmphasis()
+////                                                    .padding(.vertical, 3)
+////                                                    .padding(.horizontal, 8)
+////                                                    .background(Color.white)
+////                                                    .clipShape(Capsule())
+////                                            }
+////                                        }
+////                                        
+////                                        Divider()
+////                                        
+////                                        let remainingEpisodes = Array(topPlayedEpisodes.dropFirst())
+////                                        
+////                                        ForEach(remainingEpisodes, id: \.self) { episode in
+////                                            HStack {
+////                                                ArtworkView(url:episode.episodeImage ?? episode.podcast?.image ?? "", size: 36, cornerRadius: 8)
+////                                                
+////                                                VStack(alignment:.leading) {
+////                                                    Text(episode.podcast?.title ?? "Unknown Podcast")
+////                                                        .foregroundStyle(Color.white)
+////                                                        .textDetailEmphasis()
+////                                                        .lineLimit(1)
+////                                                    
+////                                                    Text(episode.title ?? "Untitled")
+////                                                        .foregroundStyle(Color.white)
+////                                                        .textBody()
+////                                                        .lineLimit(1)
+////                                                }
+////                                                .frame(maxWidth:.infinity,alignment:.leading)
+////                                                
+////                                                Text("\(episode.playCount) Listens")
+////                                                    .foregroundStyle(Color.black)
+////                                                    .textDetailEmphasis()
+////                                                    .padding(.vertical, 3)
+////                                                    .padding(.horizontal, 8)
+////                                                    .background(Color.white)
+////                                                    .clipShape(Circle())
+////                                            }
+////                                            
+////                                            Divider()
+////                                        }
+////                                    }
+////                                }
+////                            }
+////                            .frame(maxWidth:.infinity,alignment:.leading)
+////                            .foregroundStyle(Color.white)
+////                            .padding()
+////                            .background {
+////                                if let topEp = topPlayedEpisodes.first {
+////                                    ArtworkView(url: topEp.episodeImage ?? topEp.podcast?.image ?? "", size: 500, cornerRadius: 0)
+////                                        .blur(radius: 128)
+////                                }
+////                                Image("Noise")
+////                                    .resizable()
+////                                    .aspectRatio(contentMode: .fill)
+////                                    .opacity(0.5)
+////                            }
+////                            .clipShape(RoundedRectangle(cornerRadius:16))
+////                            .clipShape(RoundedRectangle(cornerRadius:16))
+////                            .glassEffect(in: .rect(cornerRadius: 16))
+////                        }
+////                    }
+//                    
+//                    if let longestEpisode = longestEpisodes.first {
+//                        FadeInView(delay: 0.3) {
+//                            VStack(alignment:.leading) {
+//                                HStack(alignment:.top) {
+//                                    Image("peapod-mark")
+//                                    Spacer()
+//                                }
+//                                
+//                                FadeInView(delay: 0.3) {
+//                                    Text("Longest Completed Episode")
+//                                        .foregroundStyle(Color.white)
+//                                        .titleCondensed()
+//                                        .multilineTextAlignment(.center)
+//                                }
+//                                
+//                                FadeInView(delay: 0.4) {
+//                                    HStack {
+//                                        let duration = Int(longestEpisode.actualDuration)
+//                                        ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 44, cornerRadius: 8)
+//                                        
+//                                        VStack(alignment:.leading) {
+//                                            HStack {
+//                                                Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
+//                                                    .foregroundStyle(Color.white)
+//                                                    .textDetailEmphasis()
+//                                                
+//                                                Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
+//                                                    .foregroundStyle(Color.white)
+//                                                    .textDetail()
+//                                            }
+//                                            Text(longestEpisode.title ?? "Untitled")
+//                                                .foregroundStyle(Color.white)
+//                                                .titleCondensed()
+//                                                .lineLimit(1)
+//                                        }
+//                                        .frame(maxWidth:.infinity,alignment:.leading)
+//                                        
+//                                        FadeInView(delay: 0.5) {
+//                                            Text("\(formatDuration(seconds: duration))")
+//                                                .foregroundStyle(Color.black)
+//                                                .textDetailEmphasis()
+//                                                .padding(.vertical, 3)
+//                                                .padding(.horizontal, 8)
+//                                                .background(Color.white)
+//                                                .clipShape(Capsule())
 //                                        }
 //                                    }
 //                                }
@@ -347,150 +415,82 @@ struct ActivityView: View {
 //                            .foregroundStyle(Color.white)
 //                            .padding()
 //                            .background {
-//                                if let topEp = topPlayedEpisodes.first {
-//                                    ArtworkView(url: topEp.episodeImage ?? topEp.podcast?.image ?? "", size: 500, cornerRadius: 0)
-//                                        .blur(radius: 128)
-//                                }
+//                                ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 500, cornerRadius: 0)
+//                                    .blur(radius: 128)
 //                                Image("Noise")
 //                                    .resizable()
 //                                    .aspectRatio(contentMode: .fill)
 //                                    .opacity(0.5)
 //                            }
 //                            .clipShape(RoundedRectangle(cornerRadius:16))
-//                            .clipShape(RoundedRectangle(cornerRadius:16))
 //                            .glassEffect(in: .rect(cornerRadius: 16))
 //                        }
 //                    }
-                    
-                    if let longestEpisode = longestEpisodes.first {
-                        FadeInView(delay: 0.3) {
-                            VStack(alignment:.leading) {
-                                HStack(alignment:.top) {
-                                    Image("peapod-mark")
-                                    Spacer()
-                                }
-                                
-                                FadeInView(delay: 0.3) {
-                                    Text("Longest Completed Episode")
-                                        .foregroundStyle(Color.white)
-                                        .titleCondensed()
-                                        .multilineTextAlignment(.center)
-                                }
-                                
-                                FadeInView(delay: 0.4) {
-                                    HStack {
-                                        let duration = Int(longestEpisode.actualDuration)
-                                        ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 44, cornerRadius: 8)
-                                        
-                                        VStack(alignment:.leading) {
-                                            HStack {
-                                                Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
-                                                    .foregroundStyle(Color.white)
-                                                    .textDetailEmphasis()
-                                                
-                                                Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
-                                                    .foregroundStyle(Color.white)
-                                                    .textDetail()
-                                            }
-                                            Text(longestEpisode.title ?? "Untitled")
-                                                .foregroundStyle(Color.white)
-                                                .titleCondensed()
-                                                .lineLimit(1)
-                                        }
-                                        .frame(maxWidth:.infinity,alignment:.leading)
-                                        
-                                        FadeInView(delay: 0.5) {
-                                            Text("\(formatDuration(seconds: duration))")
-                                                .foregroundStyle(Color.black)
-                                                .textDetailEmphasis()
-                                                .padding(.vertical, 3)
-                                                .padding(.horizontal, 8)
-                                                .background(Color.white)
-                                                .clipShape(Capsule())
-                                        }
-                                    }
-                                }
-                            }
-                            .frame(maxWidth:.infinity,alignment:.leading)
-                            .foregroundStyle(Color.white)
-                            .padding()
-                            .background {
-                                ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 500, cornerRadius: 0)
-                                    .blur(radius: 128)
-                                Image("Noise")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .opacity(0.5)
-                            }
-                            .clipShape(RoundedRectangle(cornerRadius:16))
-                            .glassEffect(in: .rect(cornerRadius: 16))
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle("My Stats")
-        .scrollEdgeEffectStyle(.soft, for: .all)
-        .contentMargins(.horizontal,16, for:.scrollContent)
-        .onAppear {
-            isSpinning = true
-        }
-        .task {
-            await loadStatistics()
-            await loadFavoriteDay()
-        }
-    }
-    
-    // MARK: - Statistics Loading
-    private func loadStatistics() async {
-        let context = PersistenceController.shared.container.viewContext
-        
-        do {
-            let newStats = try await AppStatistics.load(from: context)
-            
-            // Wait to allow the UI to render with zeros, then animate the updates
-            try? await Task.sleep(for: .nanoseconds(1))
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                withAnimation(.easeInOut) {
-                    statistics = newStats
-                }
-            }
-        } catch {
-            LogManager.shared.error("Error loading statistics: \(error)")
-            // Keep default zero values on error
-        }
-    }
-    
-    private func loadFavoriteDay() async {
-        let context = PersistenceController.shared.container.viewContext
-        
-        do {
-            // Load weekly data
-            let weeklyListeningData = try Episode.getWeeklyListeningData(in: context)
-            
-            // Find favorite day
-            if let (dayOfWeek, count) = try Episode.mostPopularListeningDay(in: context) {
-                let dayName = Episode.dayName(from: dayOfWeek)
-                
-                DispatchQueue.main.async {
-                    withAnimation(.easeInOut) {
-                        self.weeklyData = weeklyListeningData
-                        self.favoriteDayName = dayName
-                        self.favoriteDayCount = count
-                    }
-                }
-            } else {
-                DispatchQueue.main.async {
-                    self.weeklyData = weeklyListeningData
-                    self.favoriteDayName = "No data yet"
-                }
-            }
-        } catch {
-            LogManager.shared.error("Error loading favorite day: \(error)")
-            DispatchQueue.main.async {
-                self.favoriteDayName = "Unable to load"
-            }
-        }
-    }
-}
+//                }
+//            }
+//        }
+//        .navigationTitle("My Stats")
+//        .scrollEdgeEffectStyle(.soft, for: .all)
+//        .contentMargins(.horizontal,16, for:.scrollContent)
+//        .onAppear {
+//            isSpinning = true
+//        }
+//        .task {
+//            await loadStatistics()
+//            await loadFavoriteDay()
+//        }
+//    }
+//    
+//    // MARK: - Statistics Loading
+//    private func loadStatistics() async {
+//        let context = PersistenceController.shared.container.viewContext
+//        
+//        do {
+//            let newStats = try await AppStatistics.load(from: context)
+//            
+//            // Wait to allow the UI to render with zeros, then animate the updates
+//            try? await Task.sleep(for: .nanoseconds(1))
+//            
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+//                withAnimation(.easeInOut) {
+//                    statistics = newStats
+//                }
+//            }
+//        } catch {
+//            LogManager.shared.error("Error loading statistics: \(error)")
+//            // Keep default zero values on error
+//        }
+//    }
+//    
+//    private func loadFavoriteDay() async {
+//        let context = PersistenceController.shared.container.viewContext
+//        
+//        do {
+//            // Load weekly data
+//            let weeklyListeningData = try Episode.getWeeklyListeningData(in: context)
+//            
+//            // Find favorite day
+//            if let (dayOfWeek, count) = try Episode.mostPopularListeningDay(in: context) {
+//                let dayName = Episode.dayName(from: dayOfWeek)
+//                
+//                DispatchQueue.main.async {
+//                    withAnimation(.easeInOut) {
+//                        self.weeklyData = weeklyListeningData
+//                        self.favoriteDayName = dayName
+//                        self.favoriteDayCount = count
+//                    }
+//                }
+//            } else {
+//                DispatchQueue.main.async {
+//                    self.weeklyData = weeklyListeningData
+//                    self.favoriteDayName = "No data yet"
+//                }
+//            }
+//        } catch {
+//            LogManager.shared.error("Error loading favorite day: \(error)")
+//            DispatchQueue.main.async {
+//                self.favoriteDayName = "Unable to load"
+//            }
+//        }
+//    }
+//}

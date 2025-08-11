@@ -40,13 +40,7 @@ private var viewContext: NSManagedObjectContext {
 
 func fetchQueuedEpisodes() -> [Episode] {
     let context = PersistenceController.shared.container.viewContext
-    let queuePlaylist = getQueuePlaylist(context: context)
-    
-    guard let items = queuePlaylist.items as? Set<Episode> else {
-        return []
-    }
-    
-    return items.sorted { $0.queuePosition < $1.queuePosition }
+    return fetchEpisodesInPlaylist(named: "Queue", context: context)
 }
 
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
@@ -56,9 +50,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published private(set) var playbackState = PlaybackState.idle {
         didSet {
             if playbackState != oldValue {
-//                updateDerivedState()
                 updateNowPlayingInfo()
-//                savePositionIfNeeded()
                 
 //                LogManager.shared.info("🎯 State: episode=\(playbackState.episode?.title?.prefix(20) ?? "nil"), pos=\(String(format: "%.1f", playbackState.position)), playing=\(playbackState.isPlaying), loading=\(playbackState.isLoading)")
             }
@@ -227,10 +219,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             
             // Update episode state
             episode.nowPlaying = true
+            
+            // Mark as unplayed if it was previously played
             if episode.isPlayed {
-                episode.isPlayed = false
-                episode.playedDate = nil
+                removeEpisodeFromPlaylist(episode, playlistName: "Played")
             }
+            
             try? episode.managedObjectContext?.save()
             
             // Defer metadata update slightly
@@ -606,11 +600,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // CRITICAL: Reset position to 0 BEFORE any other operations
         episode.playbackPosition = 0
         
-        // Mark as played (same pattern as markAsPlayed)
-        episode.isPlayed = true
+        // Mark as played using playlist system
+        addEpisodeToPlaylist(episode, playlistName: "Played")
+        
+        // Clear nowPlaying
         episode.nowPlaying = false
-        episode.playedDate = Date()
-        episode.addPlayedDate(Date.now)
         
         if let podcast = episode.podcast {
             podcast.playCount += 1
@@ -750,12 +744,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         let wasPlayed = episode.isPlayed // Store original state
         
         if episode.isPlayed {
-            episode.isPlayed = false
-            episode.playedDate = nil
+            // Unmark as played
+            removeEpisodeFromPlaylist(episode, playlistName: "Played")
         } else {
-            episode.isPlayed = true
-            episode.playedDate = Date.now
-            episode.addPlayedDate(Date.now)
+            // Mark as played
+            addEpisodeToPlaylist(episode, playlistName: "Played")
             
             let actualDuration = getActualDuration(for: episode)
             let playedTime = manually ? progressBeforeStop : actualDuration
@@ -1072,22 +1065,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // CRITICAL FIX: Always check if episode is actually IN the playlist,
         // regardless of isQueued boolean value
-        let playlistItems = queuePlaylist.items as? Set<Episode> ?? []
-        let isActuallyInPlaylist = playlistItems.contains(episode)
+        let playlistItems = queuePlaylist.episodeIdArray
+        let isActuallyInPlaylist = playlistItems.contains(episode.id ?? "")
         
         if !isActuallyInPlaylist {
-            // Episode not in playlist - add it regardless of isQueued value
+            // Episode not in playlist - add it
             LogManager.shared.info("🔧 Adding episode to playlist: \(episode.title?.prefix(30) ?? "Episode")")
-            episode.isQueued = true
-            queuePlaylist.addToItems(episode)
-        } else if !episode.isQueued {
-            // Episode in playlist but boolean is wrong - fix it
-            LogManager.shared.info("🔧 Fixing isQueued boolean for: \(episode.title?.prefix(30) ?? "Episode")")
-            episode.isQueued = true
+            queuePlaylist.addEpisodeId(episode.id ?? "")
         }
         
         // Get current queue order (now guaranteed to include our episode)
-        let queue = playlistItems.union([episode]).sorted { $0.queuePosition < $1.queuePosition }
+        let queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
         
         if queue.first?.id == episode.id {
             // Already at front, just save to ensure consistency
@@ -1132,6 +1120,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 }
 
+// MARK: - Missing Helper Functions
 extension Float {
     func nonZeroOrDefault(_ defaultValue: Float) -> Float {
         return self == 0 ? defaultValue : self

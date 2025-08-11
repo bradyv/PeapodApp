@@ -67,9 +67,15 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     func fetchLatest() {
         guard let context = context else { return }
         
+        // Get subscribed podcast IDs first
+        let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
+        guard !subscribedPodcastIds.isEmpty else {
+            latest = []
+            return
+        }
+        
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        // FIXED: Use EXISTS query to check if there's a subscribed podcast with matching podcastId
-        request.predicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == YES)")
+        request.predicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
         request.fetchLimit = 100 // Reasonable limit
         
@@ -84,26 +90,28 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     func fetchUnplayed() {
         guard let context = context else { return }
         
+        // Get subscribed podcast IDs first
+        let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
+        guard !subscribedPodcastIds.isEmpty else {
+            unplayed = []
+            return
+        }
+        
         // Get played episode IDs
         let playedPlaylist = getPlaylist(named: "Played", context: context)
         let playedIds = playedPlaylist.episodeIdArray
         
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        // FIXED: Use EXISTS query for subscribed podcasts
-        let subscribedPredicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == YES)")
+        let subscribedPredicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
         
         if playedIds.isEmpty {
-            // No played episodes, so all subscribed episodes with no progress are unplayed
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                subscribedPredicate,
-                NSPredicate(format: "playbackPosition == 0")
-            ])
+            // No played episodes, so all subscribed episodes are unplayed
+            request.predicate = subscribedPredicate
         } else {
             // Exclude played episodes
             request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
                 subscribedPredicate,
-                NSPredicate(format: "NOT (id IN %@)", playedIds),
-                NSPredicate(format: "playbackPosition == 0")
+                NSPredicate(format: "NOT (id IN %@)", playedIds)
             ])
         }
         
@@ -111,7 +119,9 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         request.fetchLimit = 100
         
         do {
-            unplayed = try context.fetch(request)
+            let allEpisodes = try context.fetch(request)
+            // Filter out episodes that have playback progress (since playbackPosition is now a computed property)
+            unplayed = allEpisodes.filter { $0.playbackPosition == 0 }
         } catch {
             LogManager.shared.error("Failed to fetch unplayed episodes: \(error)")
             unplayed = []
@@ -126,6 +136,13 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     func fetchOld() {
         guard let context = context else { return }
         
+        // Get unsubscribed podcast IDs first
+        let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
+        guard !unsubscribedPodcastIds.isEmpty else {
+            old = []
+            return
+        }
+        
         // Get all episode IDs that are in ANY playlist
         let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
         let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
@@ -134,8 +151,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         let allPlaylistIds = Set(queueIds + playedIds + favIds)
         
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        // FIXED: Use EXISTS query for unsubscribed podcasts
-        let unsubscribedPredicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == NO)")
+        let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
         
         if allPlaylistIds.isEmpty {
             request.predicate = unsubscribedPredicate
@@ -178,6 +194,10 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     func updateQueue() {
         fetchQueue()
     }
+    
+    // MARK: - Helper Functions
+    // Helper functions are now in FetchRequests.swift as standalone functions
+    // Remove duplicate implementations to avoid conflicts
     
     deinit {
         NotificationCenter.default.removeObserver(self)

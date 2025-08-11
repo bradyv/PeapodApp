@@ -51,9 +51,13 @@
         <attribute name="userSince" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="userType" optional="YES" attributeType="String" defaultValueString="listener"/>
     </entity>
+    <configuration name="Local">
+        <memberEntity name="Episode"/>
+    </configuration>
     <configuration name="Sync" usedWithCloudKit="YES">
         <memberEntity name="Playlist"/>
         <memberEntity name="Podcast"/>
         <memberEntity name="User"/>
+        <memberEntity name="Playback"/>
     </configuration>
 </model>

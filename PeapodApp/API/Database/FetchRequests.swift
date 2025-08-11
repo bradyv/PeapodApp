@@ -20,8 +20,8 @@ extension Episode {
     // Latest episodes from subscribed podcasts
     static func latestEpisodesRequest() -> NSFetchRequest<Episode> {
         let request = Episode.fetchRequest()
-        // FIXED: Use EXISTS query instead of SUBQUERY
-        request.predicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == YES)")
+        // Note: This should be used with context-specific podcast ID fetching
+        request.predicate = NSPredicate(format: "TRUEPREDICATE") // Placeholder - use helper function
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
         request.fetchBatchSize = 20
         return request
@@ -29,12 +29,18 @@ extension Episode {
     
     // Unplayed episodes: need to check if NOT in "Played" playlist
     static func unplayedEpisodesRequest(context: NSManagedObjectContext) -> NSFetchRequest<Episode> {
+        let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
         let playedPlaylist = getPlaylist(named: "Played", context: context)
         let playedIds = playedPlaylist.episodeIdArray
         
         let request = Episode.fetchRequest()
-        // FIXED: Use EXISTS query for subscribed podcasts
-        let subscribedPredicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == YES)")
+        
+        guard !subscribedPodcastIds.isEmpty else {
+            request.predicate = NSPredicate(format: "FALSEPREDICATE")
+            return request
+        }
+        
+        let subscribedPredicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
         
         if playedIds.isEmpty {
             // No played episodes, so all subscribed episodes are unplayed
@@ -58,6 +64,8 @@ extension Episode {
     
     // Old episodes: episodes from unsubscribed podcasts that aren't in any playlist
     static func oldEpisodesRequest(context: NSManagedObjectContext) -> NSFetchRequest<Episode> {
+        let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
+        
         // Get all episode IDs that are in ANY playlist
         let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
         let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
@@ -66,8 +74,13 @@ extension Episode {
         let allPlaylistIds = Set(queueIds + playedIds + favIds)
         
         let request = Episode.fetchRequest()
-        // FIXED: Use EXISTS query for unsubscribed podcasts
-        let unsubscribedPredicate = NSPredicate(format: "EXISTS (SELECT p FROM Podcast p WHERE p.id == podcastId AND p.isSubscribed == NO)")
+        
+        guard !unsubscribedPodcastIds.isEmpty else {
+            request.predicate = NSPredicate(format: "FALSEPREDICATE")
+            return request
+        }
+        
+        let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
         
         if allPlaylistIds.isEmpty {
             request.predicate = unsubscribedPredicate
@@ -83,38 +96,6 @@ extension Episode {
         return request
     }
 }
-
-extension EpisodesViewModel {
-    func fetchQueuedEpisodes() {
-        guard let context = context else { return }
-        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
-    }
-    
-    func fetchFavoriteEpisodes() {
-        guard let context = context else { return }
-        favs = fetchEpisodesInPlaylist(named: "Favorites", context: context)
-    }
-    
-    func fetchPlayedEpisodes() {
-        guard let context = context else { return }
-        // If you need a played episodes list
-        let playedEpisodes = fetchEpisodesInPlaylist(named: "Played", context: context)
-        // Store in appropriate property
-    }
-    
-    func fetchUnplayedEpisodes() {
-        guard let context = context else { return }
-        let request = Episode.unplayedEpisodesRequest(context: context)
-        unplayed = (try? context.fetch(request)) ?? []
-    }
-    
-    func fetchOldEpisodes() {
-        guard let context = context else { return }
-        let request = Episode.oldEpisodesRequest(context: context)
-        old = (try? context.fetch(request)) ?? []
-    }
-}
-
 
 extension Podcast {
     static func subscriptionsFetchRequest() -> NSFetchRequest<Podcast> {
@@ -224,6 +205,34 @@ extension User {
         request.predicate = NSPredicate(format: "userType == %@", type)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \User.userType, ascending: true)]
         return request
+    }
+}
+
+// MARK: - Helper Functions for Predicates
+
+func getSubscribedPodcastIds(context: NSManagedObjectContext) -> [String] {
+    let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+    request.predicate = NSPredicate(format: "isSubscribed == YES")
+    
+    do {
+        let podcasts = try context.fetch(request)
+        return podcasts.compactMap { $0.id }
+    } catch {
+        LogManager.shared.error("Error fetching subscribed podcast IDs: \(error)")
+        return []
+    }
+}
+
+func getUnsubscribedPodcastIds(context: NSManagedObjectContext) -> [String] {
+    let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+    request.predicate = NSPredicate(format: "isSubscribed == NO")
+    
+    do {
+        let podcasts = try context.fetch(request)
+        return podcasts.compactMap { $0.id }
+    } catch {
+        LogManager.shared.error("Error fetching unsubscribed podcast IDs: \(error)")
+        return []
     }
 }
 

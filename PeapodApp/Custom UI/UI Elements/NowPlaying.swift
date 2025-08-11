@@ -15,16 +15,11 @@ struct NowPlaying: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @State private var selectedEpisode: Episode? = nil
     @State private var episodeID = UUID()
+    @State private var queue: [Episode] = []
     var onTap: ((Episode) -> Void)?
     
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Episode.queuePosition, ascending: true)],
-        predicate: NSPredicate(format: "isQueued == YES"),
-        animation: .none
-    ) private var queuedEpisodes: FetchedResults<Episode>
-    
     private var firstQueueEpisode: Episode? {
-        queuedEpisodes.first
+        queue.first
     }
 
     var body: some View {
@@ -107,8 +102,19 @@ struct NowPlaying: View {
                 .modifier(PPSheet())
         }
         .id(episodeID)
-        .onChange(of: firstQueueEpisode) { _ in
+        .onChange(of: firstQueueEpisode?.id) { _ in
             episodeID = UUID()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            // Refresh queue when Core Data changes
+            loadQueue()
+        }
+        .onAppear {
+            loadQueue()
+        }
+    }
+    
+    private func loadQueue() {
+        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
     }
 }

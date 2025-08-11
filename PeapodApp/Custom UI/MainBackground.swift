@@ -12,17 +12,7 @@ struct MainBackground: View {
     @Environment(\.managedObjectContext) private var context
     @State private var displayedEpisode: Episode?
     @State private var currentScrollIndex: Int = 0
-    
-    // Direct fetch instead of using EpisodesViewModel to break the cycle
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Episode.queuePosition, ascending: true)],
-        predicate: NSPredicate(format: "isQueued == YES"),
-        animation: .none
-    ) private var queuedEpisodes: FetchedResults<Episode>
-    
-    private var queue: [Episode] {
-        Array(queuedEpisodes)
-    }
+    @State private var queue: [Episode] = []
     
     var body: some View {
         ZStack {
@@ -39,15 +29,18 @@ struct MainBackground: View {
                 updateDisplayedEpisode()
             }
         }
-        .onChange(of: queue.count) { _, _ in
-            updateDisplayedEpisode()
-        }
-        .onChange(of: queue.first?.id) { _, _ in
-            updateDisplayedEpisode()
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            // Refresh queue when Core Data changes
+            loadQueue()
         }
         .onAppear {
-            updateDisplayedEpisode()
+            loadQueue()
         }
+    }
+    
+    private func loadQueue() {
+        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
+        updateDisplayedEpisode()
     }
     
     private func updateDisplayedEpisode() {

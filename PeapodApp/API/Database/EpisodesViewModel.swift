@@ -43,14 +43,6 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             name: .NSManagedObjectContextDidSave,
             object: nil
         )
-            
-        // Listen for episode refresh completion
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(episodeRefreshCompleted),
-            name: .episodeRefreshCompleted,
-            object: nil
-        )
     }
     
     @objc private func contextDidSave() {
@@ -203,10 +195,5 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
-    }
-    
-    @objc private func episodeRefreshCompleted() {
-        LogManager.shared.info("🔄 EpisodesViewModel received refresh completion - updating all lists")
-        fetchAll()
     }
 }

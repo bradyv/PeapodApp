@@ -33,15 +33,6 @@ struct ContentView: View {
         case .main:
             Peapod
                 .transition(.opacity)
-                .onChange(of: subscriptions.count) { oldCount, newCount in
-                    if oldCount != newCount {
-                        // Delay sync to allow Core Data to settle
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            forceRefreshPodcasts()
-                            SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
-                        }
-                    }
-                }
         }
     }
     
@@ -119,6 +110,14 @@ struct ContentView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .environmentObject(episodesViewModel)
         // Track subscription changes for backend sync
+        .onChange(of: subscriptions.count) { oldCount, newCount in
+            if oldCount != newCount {
+                // Delay sync to allow Core Data to settle
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+                }
+            }
+        }
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode)
                 .modifier(PPSheet())
@@ -127,11 +126,6 @@ struct ContentView: View {
             if episodesViewModel.context == nil { // not yet initialized properly
                 episodesViewModel.setup(context: context)
             }
-            
-//            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-//                debugSyncAfterReinstall()
-//                debugEpisodeIDs()
-//            }
             
             checkPendingNotification()
         }

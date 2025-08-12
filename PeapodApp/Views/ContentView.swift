@@ -10,12 +10,12 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @EnvironmentObject var appStateManager: AppStateManager
     @EnvironmentObject var toastManager: ToastManager
     @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
-    @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
@@ -123,10 +123,6 @@ struct ContentView: View {
                 .modifier(PPSheet())
         }
         .onAppear {
-            if episodesViewModel.context == nil { // not yet initialized properly
-                episodesViewModel.setup(context: context)
-            }
-            
             checkPendingNotification()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in

@@ -90,6 +90,7 @@ struct QueueView: View {
                                                     }
                                                     
                                                     Text("Add from Favorites")
+                                                        .foregroundStyle(Color.background)
                                                 }
                                             }
                                             .buttonStyle(PPButton(type: .filled, colorStyle: .monochrome))

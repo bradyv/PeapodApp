@@ -73,11 +73,7 @@ class PlaybackMigration {
                 }
             }
             
-            // Step 3: Migrate Queue playlist to boolean system
-            let queueMigrationResult = migrateQueuePlaylist(context: context)
-            migratedCount += queueMigrationResult
-            
-            // Step 4: Clean up old playlist entities (optional)
+            // Step 3: Clean up old playlist entities (optional)
             cleanupOldPlaylists(context: context)
             
         } catch {
@@ -121,14 +117,10 @@ class PlaybackMigration {
                 let oldFavDate = episode.value(forKey: "favDate") as? Date
                 let oldSavedDate = episode.value(forKey: "savedDate") as? Date
                 
-                // Check if episode was in a Queue playlist (legacy system)
-                let wasInQueuePlaylist = checkIfEpisodeWasInQueuePlaylist(episode: episode)
-                
                 // Determine if we need to create a Playback entity
                 if oldIsFav || oldIsPlayed || oldIsQueued || oldIsSaved ||
                    oldPlaybackPosition > 0 || oldPlayCount > 0 ||
-                   oldPlayedDate != nil || oldFavDate != nil || oldSavedDate != nil ||
-                   wasInQueuePlaylist {
+                   oldPlayedDate != nil || oldFavDate != nil || oldSavedDate != nil {
                     hasPlaybackData = true
                 }
                 
@@ -140,7 +132,7 @@ class PlaybackMigration {
                     // Migrate boolean states
                     playback?.isFav = oldIsFav
                     playback?.isPlayed = oldIsPlayed
-                    playback?.isQueued = oldIsQueued || wasInQueuePlaylist // Include queue playlist episodes
+                    playback?.isQueued = oldIsQueued
                     
                     // Note: isSaved functionality seems to be replaced by isFav, but keeping logic separate
                     // You might want to merge isSaved into isFav if that was the intent
@@ -150,7 +142,7 @@ class PlaybackMigration {
                     
                     // Migrate numeric/date values
                     playback?.playbackPosition = oldPlaybackPosition
-                    playback?.queuePosition = wasInQueuePlaylist ? getQueuePositionFromPlaylist(episode: episode) : oldQueuePosition
+                    playback?.queuePosition = oldQueuePosition
                     playback?.playCount = oldPlayCount
                     playback?.playedDate = oldPlayedDate
                     playback?.favDate = oldFavDate ?? oldSavedDate // Use favDate, fallback to savedDate
@@ -184,73 +176,18 @@ class PlaybackMigration {
         }
     }
     
-    private static func checkIfEpisodeWasInQueuePlaylist(episode: Episode) -> Bool {
-        // Check if episode has a relationship to a playlist named "Queue"
-        if let playlist = episode.value(forKey: "playlist") as? NSManagedObject,
-           let playlistName = playlist.value(forKey: "name") as? String {
-            return playlistName == "Queue"
-        }
-        return false
-    }
-    
-    private static func getQueuePositionFromPlaylist(episode: Episode) -> Int64 {
-        // Try to get queue position from the old system
-        // This might need adjustment based on how your old queue playlist stored positions
-        return episode.value(forKey: "queuePosition") as? Int64 ?? 0
-    }
-    
-    private static func migrateQueuePlaylist(context: NSManagedObjectContext) -> Int {
-        var migratedCount = 0
-        
-        // Find the "Queue" playlist if it exists
-        let playlistRequest = NSFetchRequest<NSManagedObject>(entityName: "Playlist")
-        playlistRequest.predicate = NSPredicate(format: "name == %@", "Queue")
-        
-        do {
-            if let queuePlaylist = try context.fetch(playlistRequest).first {
-                LogManager.shared.info("📋 Found Queue playlist, migrating episodes...")
-                
-                // Get episodes in the queue playlist
-                if let episodes = queuePlaylist.value(forKey: "items") as? Set<Episode> {
-                    for episode in episodes {
-                        guard let episodeId = episode.id else { continue }
-                        
-                        // Find or create Playback entity
-                        let playback = findOrCreatePlayback(episodeId: episodeId, context: context)
-                        playback.isQueued = true
-                        playback.queuePosition = episode.value(forKey: "queuePosition") as? Int64 ?? 0
-                        
-                        migratedCount += 1
-                    }
-                    
-                    LogManager.shared.info("✅ Migrated \(migratedCount) episodes from Queue playlist")
-                }
-            }
-        } catch {
-            LogManager.shared.error("❌ Error migrating Queue playlist: \(error)")
-        }
-        
-        return migratedCount
-    }
-    
-    private static func findOrCreatePlayback(episodeId: String, context: NSManagedObjectContext) -> Playback {
-        let request: NSFetchRequest<Playback> = Playback.fetchRequest()
-        request.predicate = NSPredicate(format: "episodeId == %@", episodeId)
-        request.fetchLimit = 1
-        
-        if let existing = try? context.fetch(request).first {
-            return existing
-        } else {
-            let playback = Playback(context: context)
-            playback.episodeId = episodeId
-            return playback
-        }
-    }
-    
     private static func cleanupOldPlaylists(context: NSManagedObjectContext) {
+        // Check if Playlist entity exists in the current model before trying to fetch
+        let model = context.persistentStoreCoordinator?.managedObjectModel
+        let entityNames = model?.entities.compactMap { $0.name } ?? []
+        
+        guard entityNames.contains("Playlist") else {
+            LogManager.shared.info("🗑️ Playlist entity not found in current model - no cleanup needed")
+            return
+        }
+        
         // Optional: Remove old playlist entities after migration
         // Be careful with this - you might want to keep playlists for other purposes
-        
         let playlistRequest = NSFetchRequest<NSManagedObject>(entityName: "Playlist")
         playlistRequest.predicate = NSPredicate(format: "name == %@", "Queue")
         

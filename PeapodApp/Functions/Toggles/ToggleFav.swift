@@ -10,12 +10,19 @@ import SwiftUI
 @MainActor func toggleFav(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
     
+    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    episode.objectWillChange.send()
+    
     // Simple boolean toggle
     episode.isFav.toggle()
     
     do {
         try context.save()
         LogManager.shared.info("✅ Toggled favorite for: \(episode.title?.prefix(30) ?? "Episode") -> \(episode.isFav)")
+        
+        // 🔥 ADD THIS: Force view model refresh
+        episodesViewModel?.fetchFavs()
+        
     } catch {
         LogManager.shared.error("❌ Failed to toggle episode favorite: \(error)")
     }
@@ -25,6 +32,9 @@ import SwiftUI
 
 func addEpisodeToPlaylist(_ episode: Episode, playlistName: String) {
     guard let context = episode.managedObjectContext else { return }
+    
+    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    episode.objectWillChange.send()
     
     switch playlistName {
     case "Queue":
@@ -48,6 +58,9 @@ func addEpisodeToPlaylist(_ episode: Episode, playlistName: String) {
 
 func removeEpisodeFromPlaylist(_ episode: Episode, playlistName: String) {
     guard let context = episode.managedObjectContext else { return }
+    
+    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    episode.objectWillChange.send()
     
     switch playlistName {
     case "Queue":

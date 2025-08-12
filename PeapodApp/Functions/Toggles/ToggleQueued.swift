@@ -16,6 +16,12 @@ private let queueLock = NSLock()
 func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
 
+    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    episode.objectWillChange.send()
+    
+    // Also notify current episode if it exists
+    current?.objectWillChange.send()
+
     if toFront {
         // Move to front for playback
         moveEpisodeInQueue(episode, to: 0)
@@ -76,6 +82,9 @@ func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? =
         return
     }
     
+    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    episode.objectWillChange.send()
+    
     LogManager.shared.info("✅ Removing episode from queue: \(episode.title?.prefix(30) ?? "Episode")")
     episode.isQueued = false
     
@@ -84,6 +93,8 @@ func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? =
         .sorted { $0.queuePosition < $1.queuePosition }
     
     for (index, ep) in remainingEpisodes.enumerated() {
+        // 🔥 ADD THIS: Notify each episode that changes
+        ep.objectWillChange.send()
         ep.queuePosition = Int64(index)
     }
     
@@ -110,6 +121,9 @@ func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel:
     queueLock.lock()
     defer { queueLock.unlock() }
     
+    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    episode.objectWillChange.send()
+    
     // Ensure episode is in the queue
     if !episode.isQueued {
         episode.isQueued = true
@@ -126,6 +140,8 @@ func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel:
     
     // Update positions
     for (index, ep) in reordered.enumerated() {
+        // 🔥 ADD THIS: Notify each episode that changes position
+        ep.objectWillChange.send()
         ep.queuePosition = Int64(index)
     }
     
@@ -151,6 +167,8 @@ func reindexQueuePositions(context: NSManagedObjectContext) {
         .sorted { $0.queuePosition < $1.queuePosition }
     
     for (index, episode) in episodes.enumerated() {
+        // 🔥 ADD THIS: Notify each episode of position change
+        episode.objectWillChange.send()
         episode.queuePosition = Int64(index)
     }
     

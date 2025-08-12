@@ -1,5 +1,5 @@
 //
-//  AddToQueue.swift
+//  ToggleQueued.swift
 //  PeapodApp
 //
 //  Created by Brady Valentino on 2025-04-08.
@@ -8,18 +8,13 @@
 import SwiftUI
 import CoreData
 
-// MARK: - Queue Management
+// MARK: - Queue Management Functions
 
 private let queueLock = NSLock()
 
-/// Get or create the Queue playlist
-func getQueuePlaylist(context: NSManagedObjectContext) -> Playlist {
-    return getPlaylist(named: "Queue", context: context)
-}
-
-/// Toggle episode in queue using playlist system
+/// Toggle episode in queue using boolean approach
 func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
-    let context = episode.managedObjectContext ?? PersistenceController.shared.container.viewContext
+    guard let context = episode.managedObjectContext else { return }
 
     if toFront {
         // Move to front for playback
@@ -28,7 +23,7 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
         if let current = current, current.id != episode.id {
             // Ensure current episode is queued
             if !current.isQueued {
-                addEpisodeToPlaylist(current, playlistName: "Queue")
+                current.isQueued = true
             }
             moveEpisodeInQueue(current, to: 1)
         }
@@ -39,6 +34,12 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
         } else {
             addToQueue(episode)
         }
+    }
+    
+    do {
+        try context.save()
+    } catch {
+        LogManager.shared.error("❌ Error saving queue toggle: \(error)")
     }
     
     Task { @MainActor in
@@ -52,54 +53,34 @@ func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious cur
 
 /// Add episode to queue
 private func addToQueue(_ episode: Episode) {
-    guard let context = episode.managedObjectContext,
-          let episodeId = episode.id else { return }
-    
-    let queuePlaylist = getQueuePlaylist(context: context)
+    guard let context = episode.managedObjectContext else { return }
     
     // Check if already in queue
     if episode.isQueued {
         return
     }
     
-    // Get the highest position and add 1
-    let existingEpisodes = fetchEpisodesInPlaylist(named: "Queue", context: context)
-    let maxPosition = existingEpisodes.map(\.queuePosition).max() ?? -1
-    
-    episode.queuePosition = maxPosition + 1
-    queuePlaylist.addEpisodeId(episodeId)
-    
-    do {
-        try context.save()
-        print("Added episode to queue: \(episode.title ?? "Episode")")
-    } catch {
-        print("Error adding episode to queue: \(error.localizedDescription)")
-        context.rollback()
-    }
+    episode.isQueued = true
+    LogManager.shared.info("✅ Added episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
 }
 
-/// Remove episode from queue using playlist system
+/// Remove episode from queue
 func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-    guard let context = episode.managedObjectContext,
-          let episodeId = episode.id else { return }
+    guard let context = episode.managedObjectContext else { return }
     
     queueLock.lock()
     defer { queueLock.unlock() }
     
-    let queuePlaylist = getQueuePlaylist(context: context)
-    
-    // Check if episode is in the queue playlist using episodeIds
-    if queuePlaylist.containsEpisode(id: episodeId) {
-        LogManager.shared.info("✅ Removing episode from queue: \(episode.title?.prefix(30) ?? "Episode")")
-        queuePlaylist.removeEpisodeId(episodeId)
-        episode.queuePosition = -1
-    } else {
-        LogManager.shared.warning("⚠️ Episode not found in queue: \(episode.title?.prefix(30) ?? "Episode")")
+    if !episode.isQueued {
+        LogManager.shared.warning("⚠️ Episode not in queue: \(episode.title?.prefix(30) ?? "Episode")")
         return
     }
     
+    LogManager.shared.info("✅ Removing episode from queue: \(episode.title?.prefix(30) ?? "Episode")")
+    episode.isQueued = false
+    
     // Reindex remaining episodes
-    let remainingEpisodes = fetchEpisodesInPlaylist(named: "Queue", context: context)
+    let remainingEpisodes = getQueuedEpisodes(context: context)
         .sorted { $0.queuePosition < $1.queuePosition }
     
     for (index, ep) in remainingEpisodes.enumerated() {
@@ -124,21 +105,18 @@ func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? =
 
 /// Move episode to specific position in queue
 func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel: EpisodesViewModel? = nil) {
-    guard let context = episode.managedObjectContext,
-          let episodeId = episode.id else { return }
+    guard let context = episode.managedObjectContext else { return }
     
     queueLock.lock()
     defer { queueLock.unlock() }
     
-    let queuePlaylist = getQueuePlaylist(context: context)
-    
     // Ensure episode is in the queue
     if !episode.isQueued {
-        queuePlaylist.addEpisodeId(episodeId)
+        episode.isQueued = true
     }
     
     // Get current queue order
-    let queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
+    let queue = getQueuedEpisodes(context: context)
         .sorted { $0.queuePosition < $1.queuePosition }
     
     // Create new ordering
@@ -153,9 +131,9 @@ func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel:
     
     do {
         try context.save()
-        print("Episode moved in queue: \(episode.title ?? "Episode") to position \(position)")
+        LogManager.shared.info("✅ Episode moved in queue: \(episode.title ?? "Episode") to position \(position)")
     } catch {
-        print("Error moving episode in queue: \(error.localizedDescription)")
+        LogManager.shared.error("❌ Error moving episode in queue: \(error)")
         context.rollback()
     }
     
@@ -169,7 +147,7 @@ func reindexQueuePositions(context: NSManagedObjectContext) {
     queueLock.lock()
     defer { queueLock.unlock() }
     
-    let episodes = fetchEpisodesInPlaylist(named: "Queue", context: context)
+    let episodes = getQueuedEpisodes(context: context)
         .sorted { $0.queuePosition < $1.queuePosition }
     
     for (index, episode) in episodes.enumerated() {
@@ -178,9 +156,113 @@ func reindexQueuePositions(context: NSManagedObjectContext) {
     
     do {
         try context.save()
-        print("Queue reindexed with \(episodes.count) episodes")
+        LogManager.shared.info("✅ Queue reindexed with \(episodes.count) episodes")
     } catch {
-        print("Error reindexing queue: \(error.localizedDescription)")
+        LogManager.shared.error("❌ Error reindexing queue: \(error)")
         context.rollback()
+    }
+}
+
+/// Get next queue position
+func getNextQueuePosition(context: NSManagedObjectContext) -> Int64 {
+    let request: NSFetchRequest<Playback> = Playback.fetchRequest()
+    request.predicate = NSPredicate(format: "isQueued == YES")
+    request.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.queuePosition, ascending: false)]
+    request.fetchLimit = 1
+    
+    if let maxPlayback = try? context.fetch(request).first {
+        return maxPlayback.queuePosition + 1
+    }
+    return 0
+}
+
+// MARK: - Fetch Functions (Updated to use Playback booleans)
+
+/// Get queued episodes
+func getQueuedEpisodes(context: NSManagedObjectContext) -> [Episode] {
+    let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+    playbackRequest.predicate = NSPredicate(format: "isQueued == YES")
+    playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.queuePosition, ascending: true)]
+    
+    guard let playbackStates = try? context.fetch(playbackRequest) else { return [] }
+    let episodeIds = playbackStates.compactMap { $0.episodeId }
+    
+    guard !episodeIds.isEmpty else { return [] }
+    
+    let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+    episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
+    
+    do {
+        let episodes = try context.fetch(episodeRequest)
+        // Sort by queue position from the playback states
+        return episodes.sorted { $0.queuePosition < $1.queuePosition }
+    } catch {
+        LogManager.shared.error("❌ Error fetching queued episodes: \(error)")
+        return []
+    }
+}
+
+/// Get played episodes
+func getPlayedEpisodes(context: NSManagedObjectContext) -> [Episode] {
+    let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+    playbackRequest.predicate = NSPredicate(format: "isPlayed == YES")
+    playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.playedDate, ascending: false)]
+    
+    guard let playbackStates = try? context.fetch(playbackRequest) else { return [] }
+    let episodeIds = playbackStates.compactMap { $0.episodeId }
+    
+    guard !episodeIds.isEmpty else { return [] }
+    
+    let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+    episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
+    
+    do {
+        let episodes = try context.fetch(episodeRequest)
+        // Sort by played date (newest first)
+        return episodes.sorted { ($0.playedDate ?? Date.distantPast) > ($1.playedDate ?? Date.distantPast) }
+    } catch {
+        LogManager.shared.error("❌ Error fetching played episodes: \(error)")
+        return []
+    }
+}
+
+/// Get favorite episodes
+func getFavoriteEpisodes(context: NSManagedObjectContext) -> [Episode] {
+    let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+    playbackRequest.predicate = NSPredicate(format: "isFav == YES")
+    playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.favDate, ascending: false)]
+    
+    guard let playbackStates = try? context.fetch(playbackRequest) else { return [] }
+    let episodeIds = playbackStates.compactMap { $0.episodeId }
+    
+    guard !episodeIds.isEmpty else { return [] }
+    
+    let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+    episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
+    
+    do {
+        let episodes = try context.fetch(episodeRequest)
+        // Sort by favorited date (newest first)
+        return episodes.sorted { ($0.favDate ?? Date.distantPast) > ($1.favDate ?? Date.distantPast) }
+    } catch {
+        LogManager.shared.error("❌ Error fetching favorite episodes: \(error)")
+        return []
+    }
+}
+
+// MARK: - Backward Compatibility Functions
+
+/// Backward compatibility for fetchEpisodesInPlaylist
+func fetchEpisodesInPlaylist(named playlistName: String, context: NSManagedObjectContext) -> [Episode] {
+    switch playlistName {
+    case "Queue":
+        return getQueuedEpisodes(context: context)
+    case "Played":
+        return getPlayedEpisodes(context: context)
+    case "Favorites":
+        return getFavoriteEpisodes(context: context)
+    default:
+        LogManager.shared.error("❌ Unknown playlist name: \(playlistName)")
+        return []
     }
 }

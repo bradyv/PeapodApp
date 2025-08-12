@@ -63,12 +63,6 @@ struct Peapod: App {
             oneTimeSplashMark(context: context)
             hasRunOneTimeSplashMark = true
         }
-        migrateMissingEpisodeGUIDs(context: context)
-        
-        // Setup queues and other required data
-        ensureQueuePlaylistExists(context: context)
-        ensurePlayedPlaylistExists(context: context)
-        ensureFavoritesPlaylistExists(context: context)
-        migrateOldQueueToPlaylist(context: context)
+//        migrateMissingEpisodeGUIDs(context: context)
     }
 }

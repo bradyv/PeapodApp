@@ -11,7 +11,7 @@ import CoreData
 extension Episode {
     // Queue episodes: use helper function instead of direct fetch
     static func queueFetchRequest() -> NSFetchRequest<Episode> {
-        // This will be replaced by fetchEpisodesInPlaylist(named: "Queue")
+        // This will be replaced by getQueuedEpisodes(context:)
         let request = Episode.fetchRequest()
         request.predicate = NSPredicate(format: "FALSEPREDICATE") // Empty result, use helper function
         return request
@@ -27,11 +27,9 @@ extension Episode {
         return request
     }
     
-    // Unplayed episodes: need to check if NOT in "Played" playlist
+    // Unplayed episodes: need to check if NOT in "Played" using boolean approach
     static func unplayedEpisodesRequest(context: NSManagedObjectContext) -> NSFetchRequest<Episode> {
         let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
-        let playedPlaylist = getPlaylist(named: "Played", context: context)
-        let playedIds = playedPlaylist.episodeIdArray
         
         let request = Episode.fetchRequest()
         
@@ -40,20 +38,22 @@ extension Episode {
             return request
         }
         
+        // Get played episode IDs using boolean approach
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        playbackRequest.predicate = NSPredicate(format: "isPlayed == YES")
+        let playedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
+        let playedIds = playedPlaybackStates.compactMap { $0.episodeId }
+        
         let subscribedPredicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
         
         if playedIds.isEmpty {
             // No played episodes, so all subscribed episodes are unplayed
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                subscribedPredicate,
-                NSPredicate(format: "playbackPosition == 0")
-            ])
+            request.predicate = subscribedPredicate
         } else {
             // Exclude played episodes
             request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
                 subscribedPredicate,
-                NSPredicate(format: "NOT (id IN %@)", playedIds),
-                NSPredicate(format: "playbackPosition == 0")
+                NSPredicate(format: "NOT (id IN %@)", playedIds)
             ])
         }
         
@@ -62,16 +62,15 @@ extension Episode {
         return request
     }
     
-    // Old episodes: episodes from unsubscribed podcasts that aren't in any playlist
+    // Old episodes: episodes from unsubscribed podcasts that aren't saved in any boolean state
     static func oldEpisodesRequest(context: NSManagedObjectContext) -> NSFetchRequest<Episode> {
         let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
         
-        // Get all episode IDs that are in ANY playlist
-        let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
-        let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
-        let favIds = getPlaylist(named: "Favorites", context: context).episodeIdArray
-        
-        let allPlaylistIds = Set(queueIds + playedIds + favIds)
+        // Get all episode IDs that have ANY playback state (queued, played, or favorited)
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        playbackRequest.predicate = NSPredicate(format: "isQueued == YES OR isPlayed == YES OR isFav == YES")
+        let savedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
+        let savedEpisodeIds = savedPlaybackStates.compactMap { $0.episodeId }
         
         let request = Episode.fetchRequest()
         
@@ -82,12 +81,12 @@ extension Episode {
         
         let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
         
-        if allPlaylistIds.isEmpty {
+        if savedEpisodeIds.isEmpty {
             request.predicate = unsubscribedPredicate
         } else {
             request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
                 unsubscribedPredicate,
-                NSPredicate(format: "NOT (id IN %@)", Array(allPlaylistIds))
+                NSPredicate(format: "NOT (id IN %@)", savedEpisodeIds)
             ])
         }
         
@@ -178,10 +177,6 @@ extension Podcast {
     var formattedPlayedHours: String {
         let hours = playedSeconds / 3600
         let rounded = (hours * 10).rounded() / 10  // round to 1 decimal place
-
-//        if rounded < 0.1 {
-//            return "1 hour"
-//        }
 
         if rounded == floor(rounded) {
             let whole = Int(rounded)

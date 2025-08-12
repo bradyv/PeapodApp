@@ -65,144 +65,6 @@ func migrateMissingEpisodeGUIDs(context: NSManagedObjectContext) {
     }
 }
 
-func ensureQueuePlaylistExists(context: NSManagedObjectContext) {
-    // This will now use the deterministic UUID from getPlaylist
-    _ = getPlaylist(named: "Queue", context: context)
-    LogManager.shared.info("✅ Ensured 'Queue' playlist exists")
-}
-
-func ensurePlayedPlaylistExists(context: NSManagedObjectContext) {
-    // This will now use the deterministic UUID from getPlaylist
-    _ = getPlaylist(named: "Played", context: context)
-    LogManager.shared.info("✅ Ensured 'Played' playlist exists")
-}
-
-func ensureFavoritesPlaylistExists(context: NSManagedObjectContext) {
-    // This will now use the deterministic UUID from getPlaylist
-    _ = getPlaylist(named: "Favorites", context: context)
-    LogManager.shared.info("✅ Ensured 'Favorites' playlist exists")
-}
-
-func migrateOldQueueToPlaylist(context: NSManagedObjectContext) {
-    let queueMigrateKey = "com.bradyv.Peapod.Dev.queueMigrateKey.v1"
-    if UserDefaults.standard.bool(forKey: queueMigrateKey) {
-        return
-    }
-    
-    // This function is now deprecated since we're using episodeIds instead of relationships
-    // But we'll mark it as complete to avoid repeated execution
-    UserDefaults.standard.set(true, forKey: queueMigrateKey)
-    LogManager.shared.info("✅ Skipped old queue migration (using new playlist system)")
-}
-
-func migrateOldBooleanPropertiesToPlaylists(context: NSManagedObjectContext) {
-    let migrationKey = "com.bradyv.Peapod.Dev.booleanToPlaylistMigration.v1"
-    if UserDefaults.standard.bool(forKey: migrationKey) {
-        return
-    }
-    
-    LogManager.shared.info("🔄 Starting migration from boolean properties to playlists...")
-    
-    // Ensure playlists exist
-    let queuePlaylist = getPlaylist(named: "Queue", context: context)
-    let playedPlaylist = getPlaylist(named: "Played", context: context)
-    let favoritesPlaylist = getPlaylist(named: "Favorites", context: context)
-    
-    // Fetch all episodes that have old boolean properties set
-    let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-    // Note: You'll need to remove these predicates once you remove the boolean attributes
-    // request.predicate = NSPredicate(format: "isQueued == YES OR isPlayed == YES OR isFav == YES")
-    
-    do {
-        let episodes = try context.fetch(request)
-        var queueIds: [String] = []
-        var playedIds: [String] = []
-        var favIds: [String] = []
-        
-        for episode in episodes {
-            guard let episodeId = episode.id else { continue }
-            
-            // Check old boolean properties and add to appropriate playlists
-            // Note: Remove these checks once you remove the boolean attributes
-            /*
-            if episode.isQueued {
-                queueIds.append(episodeId)
-                
-                // Create playback state for queue position
-                let playback = episode.getOrCreatePlaybackState()
-                playback.queuePosition = episode.queuePosition
-            }
-            
-            if episode.isPlayed {
-                playedIds.append(episodeId)
-                
-                // Migrate playback data
-                let playback = episode.getOrCreatePlaybackState()
-                playback.playedDate = episode.playedDate
-                playback.playCount = episode.playCount
-                playback.playbackPosition = episode.playbackPosition
-            }
-            
-            if episode.isFav {
-                favIds.append(episodeId)
-                
-                // Migrate favorite date
-                let playback = episode.getOrCreatePlaybackState()
-                playback.favDate = episode.favDate
-            }
-            */
-        }
-        
-        // Update playlists with episode IDs
-        queuePlaylist.episodeIdArray = queueIds
-        playedPlaylist.episodeIdArray = playedIds
-        favoritesPlaylist.episodeIdArray = favIds
-        
-        try context.save()
-        
-        LogManager.shared.info("✅ Migrated \(queueIds.count) queued, \(playedIds.count) played, \(favIds.count) favorite episodes")
-        UserDefaults.standard.set(true, forKey: migrationKey)
-        
-    } catch {
-        LogManager.shared.error("❌ Failed to migrate boolean properties: \(error)")
-    }
-}
-
-func migrateOldPlaylistRelationshipsToEpisodeIds(context: NSManagedObjectContext) {
-    let migrationKey = "com.bradyv.Peapod.Dev.playlistRelationshipMigration.v1"
-    if UserDefaults.standard.bool(forKey: migrationKey) {
-        return
-    }
-    
-    LogManager.shared.info("🔄 Starting migration from playlist relationships to episode IDs...")
-    
-    let request: NSFetchRequest<Playlist> = Playlist.fetchRequest()
-    
-    do {
-        let playlists = try context.fetch(request)
-        
-        for playlist in playlists {
-            // Note: This assumes you still have the old relationship for migration
-            // Remove this code once migration is complete
-            /*
-            if let episodes = playlist.episodes as? Set<Episode> {
-                let episodeIds = episodes.compactMap { $0.id }
-                playlist.episodeIdArray = episodeIds
-                
-                LogManager.shared.info("Migrated playlist '\(playlist.name ?? "Unknown")' with \(episodeIds.count) episodes")
-            }
-            */
-        }
-        
-        try context.save()
-        LogManager.shared.info("✅ Completed playlist relationship migration")
-        UserDefaults.standard.set(true, forKey: migrationKey)
-        
-    } catch {
-        LogManager.shared.error("❌ Failed to migrate playlist relationships: \(error)")
-    }
-}
-
 // Updated deduplication function for the new model
 func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
     context.perform {
@@ -233,19 +95,19 @@ func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
                     let toDelete = sorted.dropFirst()
 
                     for duplicate in toDelete {
-                        // Transfer important flags using the new system
+                        // Transfer important flags using the new boolean system
                         if duplicate.isQueued {
-                            addEpisodeToPlaylist(keeper, playlistName: "Queue")
-                            keeper.queuePosition = duplicate.queuePosition
+                            keeper.isQueued = true
+                            keeper.queuePosition = max(keeper.queuePosition, duplicate.queuePosition)
                         }
                         
                         if duplicate.isPlayed {
-                            addEpisodeToPlaylist(keeper, playlistName: "Played")
+                            keeper.isPlayed = true
                             keeper.playedDate = max(keeper.playedDate ?? Date.distantPast, duplicate.playedDate ?? Date.distantPast)
                         }
                         
                         if duplicate.isFav {
-                            addEpisodeToPlaylist(keeper, playlistName: "Favorites")
+                            keeper.isFav = true
                             keeper.favDate = max(keeper.favDate ?? Date.distantPast, duplicate.favDate ?? Date.distantPast)
                         }
 
@@ -323,14 +185,13 @@ func deduplicatePodcasts(context: NSManagedObjectContext) {
 // MARK: - CloudKit Sync Store Wiper
 
 // MARK: - Simple & Reliable Sync Store Wiper
-
 func quickWipeSyncData() {
     print("🧹 Wiping sync data...")
     
     let context = PersistenceController.shared.container.viewContext
     
     // Delete all synced entities from Core Data
-    let entityNames = ["Playlist", "Podcast", "User", "Playback"]
+    let entityNames = ["Podcast", "User", "Playback"]
     
     for entityName in entityNames {
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
@@ -396,7 +257,6 @@ func printCloudKitResetInstructions() {
     3. Click "Development" environment
     4. Go to "Data" tab
     5. Delete record types one by one:
-       - CD_Playlist
        - CD_Podcast  
        - CD_User
        - CD_Playback
@@ -430,7 +290,7 @@ func printCurrentSyncData() {
     print("\n📊 CURRENT SYNC DATA:")
     print("====================")
     
-    let entityNames = ["Playlist", "Podcast", "User", "Playback"]
+    let entityNames = ["Podcast", "User", "Playback"]
     
     for entityName in entityNames {
         let request = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)

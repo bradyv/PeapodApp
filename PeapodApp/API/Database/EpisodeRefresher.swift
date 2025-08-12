@@ -485,6 +485,8 @@ class EpisodeRefresher {
     ) -> Int {
         var newEpisodesCount = 0
         var updatedEpisodesCount = 0
+        var newestNewEpisode: Episode? = nil
+        var newestAirDate: Date? = nil
         
         for item in items {
             guard let title = item.title else { continue }
@@ -515,16 +517,33 @@ class EpisodeRefresher {
                 
                 print("🆕 Created new episode: \(title)")
                 
-                // 🆕 Only queue new episodes if subscribed AND not skipping queueing (for incremental loads)
+                // 🆕 Track the newest episode by air date
                 if podcast.isSubscribed && !skipQueueing {
-                    toggleQueued(episode)
+                    if let airDate = item.pubDate {
+                        if newestAirDate == nil || airDate > newestAirDate! {
+                            newestAirDate = airDate
+                            newestNewEpisode = episode
+                        }
+                    } else if newestNewEpisode == nil {
+                        // If no air date, use the first episode as fallback
+                        newestNewEpisode = episode
+                    }
                 }
             }
+        }
+        
+        // 🆕 Only queue the newest episode (if subscribed and not skipping)
+        if let newestEpisode = newestNewEpisode {
+            newestEpisode.isQueued = true
+            LogManager.shared.info("📥 Queued newest episode: \(newestEpisode.title ?? "Unknown")")
         }
         
         // ✅ Only log summary if there were actual changes
         if newEpisodesCount > 0 || updatedEpisodesCount > 0 {
             print("📊 \(podcast.title ?? "Podcast"): \(newEpisodesCount) new, \(updatedEpisodesCount) updated")
+            if let newestEpisode = newestNewEpisode {
+                print("📥 Queued newest: \(newestEpisode.title ?? "Unknown")")
+            }
         }
         
         return newEpisodesCount

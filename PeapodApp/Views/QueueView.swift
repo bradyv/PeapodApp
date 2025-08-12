@@ -50,8 +50,9 @@ struct QueueView: View {
                                         Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New releases are automatically added.")
                                             .textBody()
                                         
-                                        if !episodesViewModel.saved.isEmpty {
-                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
+                                        // UPDATED: Change from episodesViewModel.saved to episodesViewModel.favs
+                                        if !episodesViewModel.favs.isEmpty {
+                                            let items = Array(episodesViewModel.favs.prefix(3).enumerated().reversed())
                                             Button(action: {
                                                 for (_, episode) in items {
                                                     withAnimation {
@@ -59,7 +60,7 @@ struct QueueView: View {
                                                     }
                                                 }
                                             }) {
-                                                HStack(spacing: episodesViewModel.saved.count > 2 ? 12 : 8) {
+                                                HStack(spacing: episodesViewModel.favs.count > 2 ? 12 : 8) {
                                                     let customOffsets: [(x: CGFloat, y: CGFloat)] = [
                                                         (x: 2, y: -5),   // back
                                                         (x: 8, y: 0),  // middle
@@ -88,7 +89,7 @@ struct QueueView: View {
                                                         }
                                                     }
                                                     
-                                                    Text("Add from Play Later")
+                                                    Text("Add from Favorites")
                                                 }
                                             }
                                             .buttonStyle(PPButton(type: .filled, colorStyle: .monochrome))

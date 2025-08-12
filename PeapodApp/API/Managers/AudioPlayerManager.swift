@@ -40,7 +40,7 @@ private var viewContext: NSManagedObjectContext {
 
 func fetchQueuedEpisodes() -> [Episode] {
     let context = PersistenceController.shared.container.viewContext
-    return fetchEpisodesInPlaylist(named: "Queue", context: context)
+    return getQueuedEpisodes(context: context)
 }
 
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
@@ -600,8 +600,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // CRITICAL: Reset position to 0 BEFORE any other operations
         episode.playbackPosition = 0
         
-        // Mark as played using playlist system
-        addEpisodeToPlaylist(episode, playlistName: "Played")
+        // Mark as played using boolean system
+        episode.isPlayed = true
         
         // Clear nowPlaying
         episode.nowPlaying = false
@@ -667,7 +667,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Final queue status check
         checkQueueStatusAfterRemoval()
     }
-    
+
     private func handlePlayerError() {
         // Try to recover once
         if let episode = playbackState.episode {
@@ -745,10 +745,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         if episode.isPlayed {
             // Unmark as played
-            removeEpisodeFromPlaylist(episode, playlistName: "Played")
+            episode.isPlayed = false
         } else {
             // Mark as played
-            addEpisodeToPlaylist(episode, playlistName: "Played")
+            episode.isPlayed = true
             
             let actualDuration = getActualDuration(for: episode)
             let playedTime = manually ? progressBeforeStop : actualDuration
@@ -1061,21 +1061,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         queueLock.lock()
         defer { queueLock.unlock() }
         
-        let queuePlaylist = getQueuePlaylist(context: context)
-        
-        // CRITICAL FIX: Always check if episode is actually IN the playlist,
-        // regardless of isQueued boolean value
-        let playlistItems = queuePlaylist.episodeIdArray
-        let isActuallyInPlaylist = playlistItems.contains(episode.id ?? "")
-        
-        if !isActuallyInPlaylist {
-            // Episode not in playlist - add it
-            LogManager.shared.info("🔧 Adding episode to playlist: \(episode.title?.prefix(30) ?? "Episode")")
-            queuePlaylist.addEpisodeId(episode.id ?? "")
+        // Ensure episode is queued
+        if !episode.isQueued {
+            LogManager.shared.info("🔧 Adding episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+            episode.isQueued = true
         }
         
-        // Get current queue order (now guaranteed to include our episode)
-        let queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
+        // Get current queue order
+        let queue = getQueuedEpisodes(context: context)
         
         if queue.first?.id == episode.id {
             // Already at front, just save to ensure consistency
@@ -1113,7 +1106,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
     }
-    
+
     /// Public method for global queue functions to call
     func handleQueueRemoval() {
         checkQueueStatusAfterRemoval()

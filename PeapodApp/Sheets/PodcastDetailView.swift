@@ -245,9 +245,10 @@ struct PodcastDetailView: View {
             toastManager.show(message: podcast!.isSubscribed ? "Followed \(podcast!.title ?? "")" : "Unfollowed \(podcast!.title ?? "")", icon: podcast!.isSubscribed ? "checkmark.circle" : "minus.circle")
             
             if podcast!.isSubscribed {
-                // Add latest episode to queue when subscribing
+                // FIXED: Add latest episode to queue when subscribing using boolean approach
                 if let latest = episodes.first {
-                    addEpisodeToPlaylist(latest, playlistName: "Queue")
+                    latest.isQueued = true
+                    LogManager.shared.info("📥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
                 }
                 
                 checkAndShowNotificationRequest()
@@ -277,23 +278,29 @@ struct PodcastDetailView: View {
     
     // Helper function to remove all episodes from playlists when unsubscribing
     private func removeAllEpisodesFromPlaylists(for podcast: Podcast) {
-        let queuePlaylist = getPlaylist(named: "Queue", context: context)
-        let playedPlaylist = getPlaylist(named: "Played", context: context)
-        let favoritesPlaylist = getPlaylist(named: "Favorites", context: context)
+        // Get all episodes for this podcast
+        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
         
-        // Get all episode IDs for this podcast
-        let podcastEpisodeIds = Set(episodes.compactMap { $0.id })
-        
-        // Remove from Queue playlist
-        let queueIds = queuePlaylist.episodeIdArray.filter { !podcastEpisodeIds.contains($0) }
-        queuePlaylist.episodeIdArray = queueIds
-        
-        // Remove from Played playlist
-        let playedIds = playedPlaylist.episodeIdArray.filter { !podcastEpisodeIds.contains($0) }
-        playedPlaylist.episodeIdArray = playedIds
-        
-        // Remove from Favorites playlist
-        let favIds = favoritesPlaylist.episodeIdArray.filter { !podcastEpisodeIds.contains($0) }
-        favoritesPlaylist.episodeIdArray = favIds
+        do {
+            let podcastEpisodes = try context.fetch(request)
+            
+            // Clear all boolean states for episodes from this podcast
+            for episode in podcastEpisodes {
+                episode.isQueued = false
+                episode.isPlayed = false
+                episode.isFav = false
+                
+                // Also reset playback position
+                episode.playbackPosition = 0
+            }
+            
+            // Save the changes
+            try context.save()
+            LogManager.shared.info("✅ Removed all episodes from playlists for podcast: \(podcast.title ?? "Unknown")")
+            
+        } catch {
+            LogManager.shared.error("❌ Failed to remove episodes from playlists: \(error)")
+        }
     }
 }

@@ -20,14 +20,13 @@
     <entity name="Playback" representedClassName="Playback" syncable="YES" codeGenerationType="class">
         <attribute name="episodeId" optional="YES" attributeType="String"/>
         <attribute name="favDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isFav" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isPlayed" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isQueued" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="playbackPosition" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="playCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="playedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="queuePosition" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-    </entity>
-    <entity name="Playlist" representedClassName="Playlist" syncable="YES" codeGenerationType="class">
-        <attribute name="episodeIds" optional="YES" attributeType="Binary"/>
-        <attribute name="name" optional="YES" attributeType="String"/>
     </entity>
     <entity name="Podcast" representedClassName="Podcast" syncable="YES" codeGenerationType="class">
         <attribute name="author" optional="YES" attributeType="String"/>
@@ -54,7 +53,6 @@
         <memberEntity name="Episode"/>
     </configuration>
     <configuration name="Sync" usedWithCloudKit="YES">
-        <memberEntity name="Playlist"/>
         <memberEntity name="Podcast"/>
         <memberEntity name="User"/>
         <memberEntity name="Playback"/>

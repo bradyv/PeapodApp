@@ -310,7 +310,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
             let request: NSFetchRequest<Episode> = Episode.fetchRequest()
             // FIXED: Use proper IN syntax with helper functions
-            let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
+            let unsubscribedPodcastIds = self.getUnsubscribedPodcastIds(context: context)
             let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
             let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
             let favIds = getPlaylist(named: "Favorites", context: context).episodeIdArray
@@ -380,15 +380,21 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         var deletedEpisodes = 0
         var deletedPodcasts = 0
         
-        // Step 1: Clean up episodes from unsubscribed podcasts (but preserve saved/played/queued ones)
+        // UPDATED: Use main context for playlist access, not background context
+        let mainContext = PersistenceController.shared.container.viewContext
+        
         let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
         
-        // FIXED: Use proper IN syntax with helper functions
-        let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
-        let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
-        let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
-        let favIds = getPlaylist(named: "Favorites", context: context).episodeIdArray
-        let allPlaylistIds = Set(queueIds + playedIds + favIds)
+        let unsubscribedPodcastIds = self.getUnsubscribedPodcastIds(context: context)
+        
+        // CRITICAL FIX: Access playlists from main context only
+        var allPlaylistIds = Set<String>()
+        mainContext.performAndWait {
+            let queueIds = getPlaylistThreadSafe(named: "Queue", context: mainContext).episodeIdArray
+            let playedIds = getPlaylistThreadSafe(named: "Played", context: mainContext).episodeIdArray
+            let favIds = getPlaylistThreadSafe(named: "Favorites", context: mainContext).episodeIdArray
+            allPlaylistIds = Set(queueIds + playedIds + favIds)
+        }
         
         guard !unsubscribedPodcastIds.isEmpty else {
             LogManager.shared.info("🗑️ No unsubscribed podcasts found")
@@ -426,9 +432,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         for podcast in unsubscribedPodcasts {
             // Check if podcast has any remaining episodes (saved, played, or queued)
-            let remainingEpisodesRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            
-            // FIXED: Use proper IN syntax to check for preserved episodes
             let podcastEpisodeIds = allPlaylistIds.filter { id in
                 // Check if this episode belongs to this podcast
                 let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
@@ -441,7 +444,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 // Safe to delete this podcast as it has no saved/played/queued episodes
                 let title = podcast.title ?? "Unknown Podcast"
                 LogManager.shared.debug("   - Deleting podcast: \(title)")
-                context.delete(podcast) // This will cascade delete any remaining episodes
+                context.delete(podcast)
                 deletedPodcasts += 1
             } else {
                 LogManager.shared.debug("   - Keeping podcast: \(podcast.title ?? "Unknown") (has \(podcastEpisodeIds.count) preserved episodes)")
@@ -481,6 +484,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             try BGTaskScheduler.shared.submit(request)
         } catch {
             print("Could not schedule episode cleanup task: \(error)")
+        }
+    }
+    
+    private func getUnsubscribedPodcastIds(context: NSManagedObjectContext) -> [String] {
+        let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        request.predicate = NSPredicate(format: "isSubscribed == NO")
+        
+        do {
+            let unsubscribedPodcasts = try context.fetch(request)
+            return unsubscribedPodcasts.compactMap { $0.id }
+        } catch {
+            LogManager.shared.error("❌ Failed to fetch unsubscribed podcast IDs: \(error)")
+            return []
         }
     }
 }

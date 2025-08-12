@@ -77,10 +77,19 @@ func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
                 }
             }
 
+            // Save on background thread, but dispatch completion to main if needed
             try context.save()
-            LogManager.shared.info("✅ Merged and deleted \(duplicatesFound) duplicate episode(s)")
+            
+            // If you need to update UI or call completion handlers, do it on main thread
+            DispatchQueue.main.async {
+                LogManager.shared.info("✅ Merged and deleted \(duplicatesFound) duplicate episode(s)")
+                // Any UI updates or completion callbacks should go here
+            }
+            
         } catch {
-            LogManager.shared.error("❌ Failed merging duplicates: \(error)")
+            DispatchQueue.main.async {
+                LogManager.shared.error("❌ Failed merging duplicates: \(error)")
+            }
         }
     }
 }

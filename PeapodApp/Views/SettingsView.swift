@@ -108,20 +108,20 @@ struct SettingsView: View {
                     }
                     .frame(maxWidth:.infinity)
                     
-//                    Spacer().frame(height:16)
-//                    
-//                    NavigationLink {
-//                        ActivityView()
-//                    } label: {
-//                        Text("More Stats")
-//                            .frame(maxWidth:.infinity)
-//                    }
-//                    .buttonStyle(PPButton(
-//                        type:.filled,
-//                        colorStyle:.monochrome,
-//                        peapodPlus: true
-//                    ))
-//                    .glassEffect()
+                    Spacer().frame(height:16)
+                    
+                    NavigationLink {
+                        ActivityView()
+                    } label: {
+                        Text("More Stats")
+                            .frame(maxWidth:.infinity)
+                    }
+                    .buttonStyle(PPButton(
+                        type:.filled,
+                        colorStyle:.monochrome,
+                        peapodPlus: true
+                    ))
+                    .glassEffect()
                 }
                 .padding()
                 .background(Color.surface)

@@ -45,7 +45,7 @@ struct Peapod: App {
                 .onAppear {
                     // Perform one-time setup
                     runOneTimeSetupIfNeeded()
-                    PlaybackMigration.runMigrationOnAppStart()
+//                    PlaybackMigration.runMigrationOnAppStart()
                     
 //                    EpisodeMaintenance.performMaintenance(context: viewContext)
                 }

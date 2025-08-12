@@ -19,8 +19,6 @@ struct Peapod: App {
     @StateObject private var userManager = UserManager.shared
     @StateObject private var audioPlayer = AudioPlayerManager.shared
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
-    @AppStorage("didFlushTints") private var didFlushTints: Bool = false
-    @AppStorage("hasRunOneTimeSplashMark") private var hasRunOneTimeSplashMark = false
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var appTheme: AppTheme {
@@ -59,9 +57,5 @@ struct Peapod: App {
         // Run data migrations and cleanup
         runDeduplicationOnceIfNeeded(context: context)
         appDelegate.scheduleEpisodeCleanup()
-        if !hasRunOneTimeSplashMark {
-            oneTimeSplashMark(context: context)
-            hasRunOneTimeSplashMark = true
-        }
     }
 }

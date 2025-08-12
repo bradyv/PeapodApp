@@ -54,6 +54,8 @@ class AppStateManager: ObservableObject {
         } else {
             currentState = .main
         }
+        
+        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
     }
     
     func completeNotificationRequest() {

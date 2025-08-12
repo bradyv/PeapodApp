@@ -20,51 +20,6 @@ func runDeduplicationOnceIfNeeded(context: NSManagedObjectContext) {
     UserDefaults.standard.set(true, forKey: versionKey)
 }
 
-func oneTimeSplashMark(context: NSManagedObjectContext) {
-    let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
-    request.predicate = NSPredicate(format: "isSubscribed == YES")
-    
-    let hasSubscriptions = (try? context.fetch(request))?.isEmpty == false
-    
-    UserDefaults.standard.set(!hasSubscriptions, forKey: "showOnboarding")
-}
-
-func migrateMissingEpisodeGUIDs(context: NSManagedObjectContext) {
-    let migrateGUIDKey = "com.bradyv.Peapod.Dev.migrateMissingGUIDs.v1"
-    if UserDefaults.standard.bool(forKey: migrateGUIDKey) {
-        return
-    }
-    
-    context.perform {
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "guid == nil")
-
-        do {
-            let episodes = try context.fetch(request)
-            print("🔄 Found \(episodes.count) episode(s) missing GUIDs")
-
-            for episode in episodes {
-                if let title = episode.title, let airDate = episode.airDate {
-                    let key = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
-                    episode.guid = key
-                } else if let title = episode.title {
-                    // Fall back to title alone if no airDate
-                    episode.guid = title.lowercased()
-                } else {
-                    // Last resort, random UUID
-                    episode.guid = UUID().uuidString
-                }
-            }
-
-            try context.save()
-            LogManager.shared.info("✅ Migration completed: GUIDs populated")
-            UserDefaults.standard.set(true, forKey: migrateGUIDKey)
-        } catch {
-            LogManager.shared.error("❌ Migration failed: \(error)")
-        }
-    }
-}
-
 // Updated deduplication function for the new model
 func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
     context.perform {

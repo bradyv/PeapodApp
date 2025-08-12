@@ -22,6 +22,10 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         super.init()
     }
 
+    static func placeholder() -> EpisodesViewModel {
+        EpisodesViewModel()
+    }
+
     func setup(context: NSManagedObjectContext) {
         self.context = context
         

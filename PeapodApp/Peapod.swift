@@ -14,11 +14,6 @@ import Kingfisher
 @main
 struct Peapod: App {
     let persistenceController = PersistenceController.shared
-    @StateObject private var episodesViewModel = {
-        let vm = EpisodesViewModel()
-        vm.setup(context: PersistenceController.shared.container.viewContext)
-        return vm
-    }()
     @StateObject private var toastManager = ToastManager()
     @StateObject private var appStateManager = AppStateManager()
     @StateObject private var userManager = UserManager.shared
@@ -45,7 +40,6 @@ struct Peapod: App {
                 .environmentObject(toastManager)
                 .environmentObject(userManager)
                 .environmentObject(audioPlayer)
-                .environmentObject(episodesViewModel)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .preferredColorScheme(appTheme.colorScheme)
                 .onAppear {

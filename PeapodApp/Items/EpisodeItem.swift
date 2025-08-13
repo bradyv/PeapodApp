@@ -37,45 +37,47 @@ struct EpisodeItem: View {
         VStack(alignment: .leading) {
             // Podcast Info Row
             HStack {
-                HStack {
-                    ZStack(alignment:.bottomTrailing) {
-                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
-                        
-                        if episode.isPlayed && !displayedInQueue {
-                            ZStack {
-                                Image(systemName:"checkmark.circle.fill")
-                                    .foregroundStyle(Color.accentColor)
-                                    .textMini()
+                if !displayedInQueue {
+                    HStack {
+                        ZStack(alignment:.bottomTrailing) {
+                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                            
+                            if episode.isPlayed && !displayedInQueue {
+                                ZStack {
+                                    Image(systemName:"checkmark.circle.fill")
+                                        .foregroundStyle(Color.accentColor)
+                                        .textMini()
+                                }
+                                .background(Color.background)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.background, lineWidth: 1)
+                                )
+                                .offset(x:5)
                             }
-                            .background(Color.background)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.background, lineWidth: 1)
-                            )
-                            .offset(x:5)
                         }
+                        
+                        Text(episode.podcast?.title ?? "Podcast title")
+                            .lineLimit(1)
+                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                            .textDetailEmphasis()
                     }
-                    
-                    Text(episode.podcast?.title ?? "Podcast title")
-                        .lineLimit(1)
-                        .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
-                        .textDetailEmphasis()
-                }
-                .onTapGesture {
-                    selectedPodcast = episode.podcast
-                }
-                .sheet(item: $selectedPodcast) { podcast in
-                    if podcast.isSubscribed {
-                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                            .modifier(PPSheet())
-                    } else {
-                        PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "")
-                            .modifier(PPSheet())
+                    .onTapGesture {
+                        selectedPodcast = episode.podcast
+                    }
+                    .sheet(item: $selectedPodcast) { podcast in
+                        if podcast.isSubscribed {
+                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+                                .modifier(PPSheet())
+                        } else {
+                            PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "")
+                                .modifier(PPSheet())
+                        }
                     }
                 }
                 
-                Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
+                Text(displayedInQueue ? "Released \(getRelativeDateString(from: episode.airDate ?? Date.distantPast))" : getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : Color.text)
                     .textDetail()
             }

@@ -481,14 +481,21 @@ class EpisodeRefresher {
         podcast: Podcast,
         existingEpisodes: [String: Episode],
         context: NSManagedObjectContext,
-        skipQueueing: Bool = false // 🆕 Add parameter to skip queueing old episodes
+        skipQueueing: Bool = false
     ) -> Int {
         var newEpisodesCount = 0
         var updatedEpisodesCount = 0
-        var newestNewEpisode: Episode? = nil
-        var newestAirDate: Date? = nil
         
-        for item in items {
+        // 🆕 ALWAYS check the first episode in the feed for queueing (newest episode)
+        var shouldQueueFirstEpisode = false
+        if podcast.isSubscribed && !skipQueueing && !items.isEmpty {
+            if let firstItem = items.first,
+               let firstItemGuid = firstItem.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                shouldQueueFirstEpisode = !hasPlaybackData(episodeId: firstItemGuid, context: context)
+            }
+        }
+        
+        for (index, item) in items.enumerated() {
             guard let title = item.title else { continue }
             
             // Use enhanced duplicate detection
@@ -504,9 +511,15 @@ class EpisodeRefresher {
                 if hasEpisodeChanged(episode: existing, item: item, podcast: podcast) {
                     updateEpisodeAttributes(episode: existing, item: item, podcast: podcast)
                     updatedEpisodesCount += 1
-                    print("📝 Updated episode: \(title)")
+                    print("🔄 Updated episode: \(title)")
                 }
-                // ✅ No logging for unchanged episodes
+                
+                // 🆕 Queue the first episode if it should be queued
+                if index == 0 && shouldQueueFirstEpisode {
+                    existing.isQueued = true
+                    LogManager.shared.info("🔥 Queued newest episode (existing): \(existing.title ?? "Unknown")")
+                }
+                
             } else {
                 // Create new episode
                 let episode = Episode(context: context)
@@ -517,36 +530,35 @@ class EpisodeRefresher {
                 
                 print("🆕 Created new episode: \(title)")
                 
-                // 🆕 Track the newest episode by air date
-                if podcast.isSubscribed && !skipQueueing {
-                    if let airDate = item.pubDate {
-                        if newestAirDate == nil || airDate > newestAirDate! {
-                            newestAirDate = airDate
-                            newestNewEpisode = episode
-                        }
-                    } else if newestNewEpisode == nil {
-                        // If no air date, use the first episode as fallback
-                        newestNewEpisode = episode
-                    }
+                // 🆕 Queue the first episode if it should be queued
+                if index == 0 && shouldQueueFirstEpisode {
+                    episode.isQueued = true
+                    LogManager.shared.info("🔥 Queued newest episode (new): \(episode.title ?? "Unknown")")
                 }
             }
-        }
-        
-        // 🆕 Only queue the newest episode (if subscribed and not skipping)
-        if let newestEpisode = newestNewEpisode {
-            newestEpisode.isQueued = true
-            LogManager.shared.info("📥 Queued newest episode: \(newestEpisode.title ?? "Unknown")")
         }
         
         // ✅ Only log summary if there were actual changes
         if newEpisodesCount > 0 || updatedEpisodesCount > 0 {
             print("📊 \(podcast.title ?? "Podcast"): \(newEpisodesCount) new, \(updatedEpisodesCount) updated")
-            if let newestEpisode = newestNewEpisode {
-                print("📥 Queued newest: \(newestEpisode.title ?? "Unknown")")
-            }
         }
         
         return newEpisodesCount
+    }
+    
+    // 🆕 Helper function to check if episode has playback data
+    private static func hasPlaybackData(episodeId: String, context: NSManagedObjectContext) -> Bool {
+        let request: NSFetchRequest<Playback> = Playback.fetchRequest()
+        request.predicate = NSPredicate(format: "episodeId == %@ AND (isPlayed == YES OR isFav == YES)", episodeId)
+        request.fetchLimit = 1
+        
+        do {
+            let count = try context.count(for: request)
+            return count > 0
+        } catch {
+            LogManager.shared.error("❌ Error checking playback data for episode \(episodeId): \(error)")
+            return false // Default to allowing queueing if we can't check
+        }
     }
 
     private static func hasEpisodeChanged(episode: Episode, item: RSSFeedItem, podcast: Podcast) -> Bool {

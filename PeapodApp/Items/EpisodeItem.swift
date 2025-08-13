@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Pow
 
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
@@ -205,6 +206,11 @@ struct EpisodeItem: View {
                         Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                     }
                     .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                    .changeEffect(
+                        .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                          Image(systemName: "heart.fill")
+                            .foregroundStyle(.red)
+                        }, value: episode.isFav)
                 }
             }
         }

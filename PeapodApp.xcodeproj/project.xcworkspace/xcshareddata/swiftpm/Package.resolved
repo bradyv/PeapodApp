@@ -1,5 +1,5 @@
 {
-  "originHash" : "cbcc61b10bc57bd5861ee66d98306d59a1b801849de7f52e195464ff71fd0a39",
+  "originHash" : "c5d7b8cf28019e57c207e341b52eded656e367dee4c4c6034140e31930b55157",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -125,6 +125,15 @@
       "state" : {
         "revision" : "b7e1104502eca3a213b46303391ca4d3bc8ddec1",
         "version" : "2.30910.0"
+      }
+    },
+    {
+      "identity" : "pow",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/EmergeTools/Pow",
+      "state" : {
+        "revision" : "a504eb6d144bcf49f4f33029a2795345cb39e6b4",
+        "version" : "1.0.5"
       }
     },
     {

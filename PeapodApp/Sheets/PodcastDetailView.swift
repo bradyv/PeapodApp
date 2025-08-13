@@ -9,6 +9,7 @@ import SwiftUI
 import FeedKit
 import CoreData
 import Kingfisher
+import Pow
 
 struct PodcastDetailView: View {
     @Environment(\.managedObjectContext) private var context
@@ -46,6 +47,7 @@ struct PodcastDetailView: View {
                     }
             
                 ArtworkView(url: podcast.image ?? "", size: 128, cornerRadius: 24, tilt: true)
+                    .changeEffect(.spin, value: podcast.isSubscribed)
                     .onTapGesture(count: 5) {
                         withAnimation {
                             showDebugTools.toggle()

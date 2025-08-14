@@ -19,6 +19,13 @@ struct ContentView: View {
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
+    @State private var selectedTab: Tabs = .listen
+    
+    enum Tabs: Hashable {
+        case listen
+        case library
+        case search
+    }
 
     var body: some View {
         switch appStateManager.currentState {
@@ -38,14 +45,14 @@ struct ContentView: View {
     
     @ViewBuilder
     var Peapod: some View {
-        TabView {
-            Tab("Listen", systemImage: "play.square.stack") {
+        TabView(selection: $selectedTab) {
+            Tab("Listen", systemImage: "play.square.stack", value: .listen) {
                 NavigationStack {
                     ZStack {
                         MainBackground()
                         
                         ScrollView {
-                            QueueView()
+                            QueueView(selectedTab: $selectedTab)
                             LatestEpisodesView(mini: true, maxItems: 3)
                         }
                     }
@@ -64,7 +71,7 @@ struct ContentView: View {
                 }
             }
             
-            Tab("Library", systemImage: "circle.grid.3x3") {
+            Tab("Library", systemImage: "circle.grid.3x3", value: .library) {
                 NavigationStack {
                     ScrollView {
                         SubscriptionsView()
@@ -85,7 +92,7 @@ struct ContentView: View {
                 }
             }
             
-            Tab("Search", systemImage: "plus.magnifyingglass", role: .search) {
+            Tab("Search", systemImage: "plus.magnifyingglass", value: .search, role: .search) {
                 NavigationStack {
                     PodcastSearchView(searchQuery: $query)
                         .searchable(text: $query, prompt: "Find a Podcast")

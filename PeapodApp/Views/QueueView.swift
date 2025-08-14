@@ -16,6 +16,7 @@ struct QueueView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
+    @Binding var selectedTab: ContentView.Tabs
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -49,6 +50,29 @@ struct QueueView: View {
                                         
                                         Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New releases are automatically added.")
                                             .textBody()
+                                        
+                                        if subscriptions.isEmpty {
+                                            VStack {
+                                                Button {
+                                                    selectedTab = .search
+                                                } label: {
+                                                    Label("Find a Podcast", systemImage: "plus.magnifyingglass")
+                                                        .padding(.vertical,4)
+                                                        .foregroundStyle(.white)
+                                                        .textBodyEmphasis()
+                                                }
+                                                .buttonStyle(.glassProminent)
+                                                
+                                                Button {
+                                                    //
+                                                } label: {
+                                                    Label("Import OPML", systemImage: "tray.and.arrow.down")
+                                                        .padding(.vertical,4)
+                                                        .foregroundStyle(Color.accentColor)
+                                                        .textBodyEmphasis()
+                                                }
+                                            }
+                                        }
                                         
                                         // UPDATED: Change from episodesViewModel.saved to episodesViewModel.favs
                                         if !episodesViewModel.favs.isEmpty {

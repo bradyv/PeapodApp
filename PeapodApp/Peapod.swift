@@ -42,20 +42,6 @@ struct Peapod: App {
                 .environmentObject(audioPlayer)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .preferredColorScheme(appTheme.colorScheme)
-                .onAppear {
-                    // Perform one-time setup
-                    runOneTimeSetupIfNeeded()
-                    
-//                    EpisodeMaintenance.performMaintenance(context: viewContext)
-                }
         }
-    }
-    
-    private func runOneTimeSetupIfNeeded() {
-        let context = PersistenceController.shared.container.viewContext
-        
-        // Run data migrations and cleanup
-        runDeduplicationOnceIfNeeded(context: context)
-        appDelegate.scheduleEpisodeCleanup()
     }
 }

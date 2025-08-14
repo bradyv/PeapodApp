@@ -167,7 +167,13 @@ struct EpisodeItem: View {
                             }) {
                                 Label("Archive", systemImage: "archivebox")
                             }
-                            .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome))
+                            .buttonStyle(
+                                PPButton(
+                                    type: .transparent,
+                                    colorStyle: .monochrome,
+                                    customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
+                                )
+                            )
                             
                         } else {
                             Button(action: {
@@ -197,14 +203,32 @@ struct EpisodeItem: View {
                     
                     Spacer()
                     
-                    Button(action: {
-                        withAnimation {
-                            toggleFav(episode)
+                    if displayedInQueue {
+                        Button(action: {
+                            withAnimation {
+                                toggleFav(episode)
+                            }
+                        }) {
+                            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                         }
-                    }) {
-                        Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                        .buttonStyle(
+                            PPButton(
+                                type: .transparent,
+                                colorStyle: .monochrome,
+                                iconOnly: true,
+                                customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
+                            )
+                        )
+                    } else {
+                        Button(action: {
+                            withAnimation {
+                                toggleFav(episode)
+                            }
+                        }) {
+                            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                        }
+                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                     }
-                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
                 }
             }
         }

@@ -34,14 +34,12 @@ struct SettingsView: View {
     
     enum SheetType: Identifiable {
         case upgrade
-//        case stats
         case appIcons
         case mail
         
         var id: Int {
             switch self {
             case .upgrade: return 0
-//            case .stats: return 1
             case .appIcons: return 1
             case .mail: return 2
             }
@@ -490,16 +488,6 @@ struct SettingsView: View {
                                         .foregroundStyle(Color.red)
                                         .padding(.vertical, 2)
                                     }
-                                    
-//                                    Divider()
-//                                    
-//                                    NavigationLink {
-//                                        PPPopover(showBg: true) {
-//                                            OldEpisodesView()
-//                                        }
-//                                    } label: {
-//                                        RowItem(icon: "eraser", label: "Purge old episodes", tint: Color.red)
-//                                    }
                                 }
                                 .padding()
                                 .background(Color.surface)
@@ -530,7 +518,6 @@ struct SettingsView: View {
             .background(Color.background)
             .navigationTitle("Settings")
             .scrollEdgeEffectStyle(.soft, for: .all)
-    //        .preferredColorScheme(appTheme.colorScheme)
             .contentMargins(16,for:.scrollContent)
             .coordinateSpace(name: "scroll")
             .task {
@@ -545,9 +532,6 @@ struct SettingsView: View {
                 case .upgrade:
                     UpgradeView()
                         .modifier(PPSheet())
-//                case .stats:
-//                    ActivityView()
-//                        .modifier(PPSheet())
                 case .appIcons:
                     AppIconView(selectedIconName: $selectedIconName)
                         .modifier(PPSheet())

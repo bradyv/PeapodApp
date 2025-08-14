@@ -109,15 +109,6 @@ struct ContentView: View {
 //        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .environmentObject(episodesViewModel)
-        // Track subscription changes for backend sync
-        .onChange(of: subscriptions.count) { oldCount, newCount in
-            if oldCount != newCount {
-                // Delay sync to allow Core Data to settle
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
-                }
-            }
-        }
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode)
                 .modifier(PPSheet())
@@ -132,7 +123,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
                 // Clear badge when app becomes active
-                UIApplication.shared.applicationIconBadgeNumber = 0
+                UNUserNotificationCenter.current().setBadgeCount(0)
                 
                 // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
                 let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)

@@ -60,7 +60,7 @@ struct QueueView: View {
                                                     }
                                                 }
                                             }) {
-                                                HStack(spacing: episodesViewModel.favs.count > 2 ? 12 : 8) {
+                                                HStack(spacing: 16) {
                                                     let customOffsets: [(x: CGFloat, y: CGFloat)] = [
                                                         (x: 2, y: -5),   // back
                                                         (x: 8, y: 0),  // middle
@@ -90,6 +90,7 @@ struct QueueView: View {
                                                     }
                                                     
                                                     Text("Add from Favorites")
+                                                        .foregroundStyle(Color.background)
                                                 }
                                             }
                                             .buttonStyle(PPButton(type: .filled, colorStyle: .monochrome))

@@ -15,10 +15,10 @@ struct AppIconView: View {
     
     private var iconCategories: [(String, [AppIcons])] {
         return [
-            ("Peapod", AppIconManager.shared.baseIcons),
-            ("Pride", AppIconManager.shared.prideIcons),
-            ("Legacy", AppIconManager.shared.legacyIcons),
-            ("MKI", AppIconManager.shared.mkiIcons)
+            ("Peapod", AppIconManager.shared.baseIcons)
+//            ("Pride", AppIconManager.shared.prideIcons),
+//            ("Legacy", AppIconManager.shared.legacyIcons),
+//            ("MKI", AppIconManager.shared.mkiIcons)
         ]
     }
     

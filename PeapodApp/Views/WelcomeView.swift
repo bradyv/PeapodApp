@@ -108,9 +108,9 @@ struct WelcomeView: View {
                 Spacer()
                 
                 FadeInView(delay:0.5) {
-                    Image("peapod-mark-adaptive")
+                    Image("peapod-mark")
                         .resizable()
-                        .frame(width:44,height:44)
+                        .frame(width:58,height:44)
                 }
                 
                 FadeInView(delay:0.6) {
@@ -266,9 +266,9 @@ struct WelcomeView: View {
     var importOPML: some View {
         VStack(spacing: 24) {
             FadeInView(delay:0.1) {
-                Image("peapod-mark-adaptive")
+                Image("peapod-mark")
                     .resizable()
-                    .frame(width:44,height:44)
+                    .frame(width:58,height:44)
             }
             
             VStack(spacing: 16) {

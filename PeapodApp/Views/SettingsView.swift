@@ -66,7 +66,7 @@ struct SettingsView: View {
                     let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
                     
                     HStack(alignment:.top) {
-                        Image("peapod-mark-adaptive")
+                        Image("peapod-mark")
                     }
                     .frame(maxWidth:.infinity, alignment:.leading)
                     
@@ -320,6 +320,35 @@ struct SettingsView: View {
                                     .tint(.accentColor)
                                     .labelsHidden()
                                 }
+                            
+//                            let themeIcon = appTheme.icon
+//                            let themeLabel = appTheme.rawValue
+//                            RowItem(
+//                                icon: themeIcon,
+//                                label: "Theme",
+//                                tint: Color.cyan,
+//                                framedIcon: true,
+//                                showDivider: false) {
+//                                    Menu {
+//                                        ForEach(AppTheme.allCases) { theme in
+//                                            Button(action: {
+//                                                appThemeRawValue = theme.rawValue
+//                                            }) {
+//                                                HStack {
+//                                                    Text(theme.label.capitalized)
+//                                                    Image(systemName:theme.icon)
+//                                                        .symbolRenderingMode(.hierarchical)
+//                                                }
+//                                            }
+//                                        }
+//                                    } label: {
+//                                        HStack {
+//                                            Text(themeLabel.capitalized)
+//                                                .textBody()
+//                                            Image(systemName:"chevron.up.chevron.down")
+//                                        }
+//                                    }
+//                                }
                         }
                         .padding()
                         .background(Color.surface)
@@ -328,176 +357,123 @@ struct SettingsView: View {
                 }
                 
                 FadeInView(delay:0.3) {
-                    VStack {
-                        let themeIcon = appTheme.icon
-                        let themeLabel = appTheme.rawValue
-                        
-                        Text("Appearance")
+                    VStack(alignment:.leading) {
+                        Text("About")
                             .titleSerifMini()
-                            .frame(maxWidth:.infinity, alignment: .leading)
+                            .frame(maxWidth:.infinity, alignment:.leading)
                             .padding(.top,24)
                         
                         VStack {
-                            RowItem(
-                                icon: themeIcon,
-                                label: "Theme",
-                                tint: Color.cyan,
-                                framedIcon: true) {
-                                    Menu {
-                                        ForEach(AppTheme.allCases) { theme in
-                                            Button(action: {
-                                                appThemeRawValue = theme.rawValue
-                                            }) {
-                                                HStack {
-                                                    Text(theme.label.capitalized)
-                                                    Image(systemName:theme.icon)
-                                                        .symbolRenderingMode(.hierarchical)
-                                                }
-                                            }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text(themeLabel.capitalized)
-                                                .textBody()
-                                            Image(systemName:"chevron.up.chevron.down")
-                                        }
-                                    }
-                                }
+                            Text("Thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I’ve put a lot of love into building it. I hope that you enjoy using it as much as I do.\n")
+                                .multilineTextAlignment(.leading)
+                                .textBody()
                             
-                            RowItem(
-                                icon: "app.gift",
-                                label: "App Icon",
-                                tint: Color.cyan,
-                                framedIcon: true,
-                                showDivider: false)
-                            .onTapGesture {
-                                activeSheet = .appIcons
+                            Text("- Brady")
+                                .multilineTextAlignment(.leading)
+                                .font(.custom("Bradley Hand", size: 17))
+                                .frame(maxWidth:.infinity, alignment: .leading)
+                            
+                            if !userManager.isSubscriber {
+                                Button(action: {
+                                    activeSheet = .upgrade
+                                }) {
+                                    Text("Become a Supporter")
+                                        .frame(maxWidth:.infinity)
+                                }
+                                .buttonStyle(PPButton(
+                                    type:.filled,
+                                    colorStyle:.monochrome,
+                                    peapodPlus: true
+                                ))
+                            }
+                            
+                            Divider()
+                            
+                            Button {
+                                if MFMailComposeViewController.canSendMail() {
+                                    activeSheet = .mail
+                                } else {
+                                    showMailErrorAlert = true
+                                }
+                            } label: {
+                                RowItem(
+                                    icon: "paperplane.circle",
+                                    label: "Send Feedback",
+                                    tint: Color.gray,
+                                    framedIcon: true,
+                                    showDivider: false)
+                            }
+                            .alert("Mail not configured", isPresented: $showMailErrorAlert) {
+                                Button("OK", role: .cancel) { }
+                            } message: {
+                                Text("Please set up a Mail account in order to send logs.")
                             }
                         }
                         .padding()
                         .background(Color.surface)
                         .clipShape(RoundedRectangle(cornerRadius:16))
                     }
-                    
-                    FadeInView(delay:0.4) {
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                }
+                
+                if _isDebugAssertConfiguration() || showDebugTools {
+                    FadeInView(delay:0.5) {
                         VStack(alignment:.leading) {
-                            Text("About")
+                            Text("Debug")
                                 .titleSerifMini()
-                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .frame(maxWidth:.infinity, alignment: .leading)
                                 .padding(.top,24)
                             
                             VStack {
-                                Text("Thanks for taking the time to check out Peapod! This is the podcast app I’ve wanted for years and I’ve put a lot of love into building it. I hope that you enjoy using it as much as I do.\n")
-                                    .multilineTextAlignment(.leading)
-                                    .textBody()
-                                
-                                Text("- Brady")
-                                    .multilineTextAlignment(.leading)
-                                    .font(.custom("Bradley Hand", size: 17))
-                                    .frame(maxWidth:.infinity, alignment: .leading)
-                                
-                                if !userManager.isSubscriber {
-                                    Button(action: {
-                                        activeSheet = .upgrade
-                                    }) {
-                                        Text("Become a Supporter")
-                                            .frame(maxWidth:.infinity)
-                                    }
-                                    .buttonStyle(PPButton(
-                                        type:.filled,
-                                        colorStyle:.monochrome,
-                                        peapodPlus: true
-                                    ))
+                                Button("🧹 Wipe Sync Data") {
+                                    quickWipeSyncData()
                                 }
                                 
-                                Divider()
+                                RowItem(icon: "doc.text", label: "Log Storage") {
+                                    Text(LogManager.shared.getTotalLogSize())
+                                        .textBody()
+                                }
                                 
                                 Button {
-                                    if MFMailComposeViewController.canSendMail() {
-                                        activeSheet = .mail
-                                    } else {
-                                        showMailErrorAlert = true
-                                    }
+                                    LogManager.shared.clearLog()
                                 } label: {
-                                    RowItem(
-                                        icon: "paperplane.circle",
-                                        label: "Send Feedback",
-                                        tint: Color.gray,
-                                        framedIcon: true,
-                                        showDivider: false)
+                                    RowItem(icon: "trash", label: "Clear Logs", tint: Color.orange)
                                 }
-                                .alert("Mail not configured", isPresented: $showMailErrorAlert) {
-                                    Button("OK", role: .cancel) { }
-                                } message: {
-                                    Text("Please set up a Mail account in order to send logs.")
+                                
+                                Button {
+                                    LogManager.shared.cleanupOldLogs()
+                                } label: {
+                                    RowItem(icon: "eraser", label: "Cleanup Old Logs", tint: Color.blue)
+                                }
+                                
+                                Button {
+                                    subscribeViaURL(feedUrl: "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml")
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "plus.diamond")
+                                        
+                                        Text("Show test feed")
+                                            .foregroundStyle(Color.red)
+                                            .textBody()
+                                    }
+                                    .foregroundStyle(Color.red)
+                                    .padding(.vertical, 2)
                                 }
                             }
                             .padding()
                             .background(Color.surface)
                             .clipShape(RoundedRectangle(cornerRadius:16))
                         }
-                        .frame(maxWidth:.infinity,alignment:.leading)
                     }
-                    
-                    if _isDebugAssertConfiguration() || showDebugTools {
-                        FadeInView(delay:0.5) {
-                            VStack(alignment:.leading) {
-                                Text("Debug")
-                                    .titleSerifMini()
-                                    .frame(maxWidth:.infinity, alignment: .leading)
-                                    .padding(.top,24)
-                                
-                                VStack {
-                                    Button("🧹 Wipe Sync Data") {
-                                        quickWipeSyncData()
-                                    }
-                                    
-                                    RowItem(icon: "doc.text", label: "Log Storage") {
-                                        Text(LogManager.shared.getTotalLogSize())
-                                            .textBody()
-                                    }
-                                    
-                                    Button {
-                                        LogManager.shared.clearLog()
-                                    } label: {
-                                        RowItem(icon: "trash", label: "Clear Logs", tint: Color.orange)
-                                    }
-                                    
-                                    Button {
-                                        LogManager.shared.cleanupOldLogs()
-                                    } label: {
-                                        RowItem(icon: "eraser", label: "Cleanup Old Logs", tint: Color.blue)
-                                    }
-                                    
-                                    Button {
-                                        subscribeViaURL(feedUrl: "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml")
-                                    } label: {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: "plus.diamond")
-                                            
-                                            Text("Show test feed")
-                                                .foregroundStyle(Color.red)
-                                                .textBody()
-                                        }
-                                        .foregroundStyle(Color.red)
-                                        .padding(.vertical, 2)
-                                    }
-                                }
-                                .padding()
-                                .background(Color.surface)
-                                .clipShape(RoundedRectangle(cornerRadius:16))
-                            }
-                        }
-                        .frame(maxWidth:.infinity,alignment:.leading)
-                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
                 }
                 
                 FadeInView(delay:0.4) {
                     Spacer().frame(height:24)
                     
-                    Image("peapod-mark-adaptive")
+                    Image("peapod-mark")
                         .resizable()
-                        .frame(width:32, height:32)
+                        .frame(width:58, height:44)
                         .onTapGesture(count: 5) {
                             showDebugTools.toggle()
                         }

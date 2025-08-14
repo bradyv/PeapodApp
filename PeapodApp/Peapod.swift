@@ -18,11 +18,11 @@ struct Peapod: App {
     @StateObject private var appStateManager = AppStateManager()
     @StateObject private var userManager = UserManager.shared
     @StateObject private var audioPlayer = AudioPlayerManager.shared
-    @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
+    @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.dark.rawValue
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var appTheme: AppTheme {
-       AppTheme(rawValue: appThemeRawValue) ?? .system
+       AppTheme(rawValue: appThemeRawValue) ?? .dark
     }
     
     init() {

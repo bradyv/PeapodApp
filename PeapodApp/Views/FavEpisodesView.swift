@@ -11,67 +11,46 @@ struct FavEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedEpisode: Episode? = nil
     
+    let mini: Bool
+    let maxItems: Int?
+    
+    init(mini: Bool = false, maxItems: Int? = nil) {
+        self.mini = mini
+        self.maxItems = maxItems
+    }
+    
+    private var displayedEpisodes: [Episode] {
+        if let maxItems = maxItems {
+            return Array(episodesViewModel.favs.prefix(maxItems))
+        }
+        return episodesViewModel.favs
+    }
+    
     var body: some View {
-        ScrollView {
-            if episodesViewModel.favs.isEmpty {
-                ZStack {
-                    VStack {
-                        ForEach(0..<2, id: \.self) { _ in
-                            EmptyEpisodeItem()
-                                .opacity(0.03)
-                        }
-                    }
-                    .mask(
-                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                       startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
-                    )
-                    
-                    VStack {
-                        Text("No favorites")
-                            .titleCondensed()
-                        
-                        Text("Tap \(Image(systemName:"heart")) on any episode you'd like to favorite.")
-                            .textBody()
-                    }
-                }
+        Group {
+            if mini {
+                miniView
             } else {
-                ForEach(episodesViewModel.favs, id: \.id) { episode in
-                    FadeInView(delay: 0.3) {
-                        EpisodeItem(episode: episode, showActions: true)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .onTapGesture {
-                                selectedEpisode = episode
-                            }
-                    }
-                }
+                fullView
             }
         }
-        .background(Color.background)
-        .scrollDisabled(episodesViewModel.favs.isEmpty)
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
     }
-}
-
-struct FavEpisodesMini: View {
-    @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @Environment(\.managedObjectContext) private var context
-    @State private var selectedEpisode: Episode? = nil
-    @State private var selectedPodcast: Podcast? = nil
     
-    var body: some View {
+    @ViewBuilder
+    private var miniView: some View {
         VStack {
             if !episodesViewModel.favs.isEmpty {
-                Spacer().frame(height:24)
+                Spacer().frame(height: 24)
+                
                 NavigationLink {
-                    FavEpisodesView()
+                    FavEpisodesView(mini: false)
                         .navigationTitle("Favorites")
                 } label: {
-                    HStack(alignment:.center) {
+                    HStack(alignment: .center) {
                         Text("Favorites")
                             .titleSerifMini()
                             .padding(.leading)
@@ -79,25 +58,65 @@ struct FavEpisodesMini: View {
                         Image(systemName: "chevron.right")
                             .textDetailEmphasis()
                     }
-                    .frame(maxWidth:.infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            
-                LazyVStack(alignment: .leading) {
-                    ForEach(episodesViewModel.favs.prefix(3), id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .onTapGesture {
-                                selectedEpisode = episode
-                            }
-                    }
+                
+                episodesList
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var fullView: some View {
+        ScrollView {
+            if episodesViewModel.favs.isEmpty {
+                emptyState
+            } else {
+                episodesList
+            }
+        }
+        .background(Color.background)
+        .scrollDisabled(episodesViewModel.favs.isEmpty)
+    }
+    
+    @ViewBuilder
+    private var episodesList: some View {
+        LazyVStack(alignment: .leading) {
+            ForEach(displayedEpisodes, id: \.id) { episode in
+                FadeInView(delay: mini ? 0 : 0.3) {
+                    EpisodeItem(episode: episode, showActions: true)
+                        .lineLimit(3)
+                        .padding(.bottom, 24)
+                        .padding(.horizontal)
+                        .onTapGesture {
+                            selectedEpisode = episode
+                        }
                 }
             }
         }
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
+    }
+    
+    @ViewBuilder
+    private var emptyState: some View {
+        ZStack {
+            VStack {
+                ForEach(0..<2, id: \.self) { _ in
+                    EmptyEpisodeItem()
+                        .opacity(0.03)
+                }
+            }
+            .mask(
+                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                               startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+            )
+            
+            VStack {
+                Text("No favorites")
+                    .titleCondensed()
+                
+                Text("Tap \(Image(systemName:"heart")) on any episode you'd like to favorite.")
+                    .textBody()
+            }
         }
     }
 }

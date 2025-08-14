@@ -46,7 +46,7 @@ struct ContentView: View {
                         
                         ScrollView {
                             QueueView()
-                            LatestEpisodesMini()
+                            LatestEpisodesView(mini: true, maxItems: 3)
                         }
                     }
                     .scrollEdgeEffectStyle(.soft, for: .all)
@@ -68,7 +68,7 @@ struct ContentView: View {
                 NavigationStack {
                     ScrollView {
                         SubscriptionsView()
-                        FavEpisodesMini()
+                        FavEpisodesView(mini: true, maxItems: 3)
                     }
                     .scrollEdgeEffectStyle(.soft, for: .all)
                     .navigationTitle("Library")

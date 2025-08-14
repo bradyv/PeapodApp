@@ -9,7 +9,6 @@ import SwiftUI
 
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
-    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
     @EnvironmentObject var player: AudioPlayerManager
     @State private var selectedPodcast: Podcast? = nil

@@ -452,12 +452,6 @@ struct SettingsView: View {
                                         quickWipeSyncData()
                                     }
                                     
-                                    Button {
-                                        EpisodeMaintenance.performMaintenance(context: PersistenceController.shared.container.viewContext, force: true)
-                                    } label: {
-                                        RowItem(icon: "sparkles", label: "Purge database")
-                                    }
-                                    
                                     RowItem(icon: "doc.text", label: "Log Storage") {
                                         Text(LogManager.shared.getTotalLogSize())
                                             .textBody()

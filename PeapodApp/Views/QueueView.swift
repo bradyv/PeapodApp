@@ -213,7 +213,6 @@ private struct ScrollOffsetKey: PreferenceKey {
 }
 
 struct QueueItemView: View {
-    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @EnvironmentObject var player: AudioPlayerManager
     let episode: Episode
     let index: Int

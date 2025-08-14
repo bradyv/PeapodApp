@@ -10,7 +10,6 @@ import Kingfisher
 
 struct NowPlaying: View {
     @Environment(\.managedObjectContext) private var context
-    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @EnvironmentObject var player: AudioPlayerManager
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     @State private var selectedEpisode: Episode? = nil

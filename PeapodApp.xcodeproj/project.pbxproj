@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD2F2DA88952007348BC /* ColorThiefSwift */; };
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
 		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
 		2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD3B2DA889BA007348BC /* FeedKit */; };
@@ -127,7 +126,6 @@
 				239EFB8D2DE2607A0036D6F3 /* FirebaseMessaging in Frameworks */,
 				239EFB942DE26AE20036D6F3 /* FirebaseFunctions in Frameworks */,
 				2354DD362DA88968007348BC /* Kingfisher in Frameworks */,
-				2354DD302DA88952007348BC /* ColorThiefSwift in Frameworks */,
 				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
 				2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */,
 				2390AC012DE8C7C100487751 /* SmoothGradient in Frameworks */,
@@ -211,7 +209,6 @@
 			);
 			name = PeapodApp;
 			packageProductDependencies = (
-				2354DD2F2DA88952007348BC /* ColorThiefSwift */,
 				2354DD322DA8895E007348BC /* SwiftSoup */,
 				2354DD352DA88968007348BC /* Kingfisher */,
 				2354DD3B2DA889BA007348BC /* FeedKit */,
@@ -328,7 +325,6 @@
 			mainGroup = 23599E222D9B895C00F2DE3B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */,
 				2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 				2354DD342DA88968007348BC /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				2354DD3A2DA889BA007348BC /* XCRemoteSwiftPackageReference "FeedKit" */,
@@ -797,14 +793,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/yamoridon/ColorThiefSwift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.5.0;
-			};
-		};
 		2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
@@ -848,11 +836,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		2354DD2F2DA88952007348BC /* ColorThiefSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2354DD2E2DA88952007348BC /* XCRemoteSwiftPackageReference "ColorThiefSwift" */;
-			productName = ColorThiefSwift;
-		};
 		2354DD322DA8895E007348BC /* SwiftSoup */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2354DD312DA8895E007348BC /* XCRemoteSwiftPackageReference "SwiftSoup" */;

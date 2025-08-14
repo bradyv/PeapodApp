@@ -11,10 +11,11 @@ import CoreData
 import Kingfisher
 
 struct PodcastDetailView: View {
+    let feedUrl: String
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var toastManager: ToastManager
     @FetchRequest var podcastResults: FetchedResults<Podcast>
-    @State private var episodes: [Episode] = []
+    @FetchRequest var episodeResults: FetchedResults<Episode>
     @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
     @State private var scrollOffset: CGFloat = 0
@@ -24,198 +25,223 @@ struct PodcastDetailView: View {
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var query = ""
     @State private var showSearch = false
+    @State private var isLoading = true
+    @State private var loadedPodcast: Podcast? = nil
     
-    var podcast: Podcast? { podcastResults.first }
+    var podcast: Podcast? { loadedPodcast ?? podcastResults.first }
+    var episodes: [Episode] { Array(episodeResults) }
 
     init(feedUrl: String) {
+        self.feedUrl = feedUrl
         _podcastResults = FetchRequest<Podcast>(
             entity: Podcast.entity(),
             sortDescriptors: [],
             predicate: NSPredicate(format: "feedUrl == %@", feedUrl),
             animation: .default
         )
+        
+        // Initialize episodes fetch request with a placeholder predicate
+        // This will be updated when we know the podcast ID
+        _episodeResults = FetchRequest<Episode>(
+            entity: Episode.entity(),
+            sortDescriptors: [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)],
+            predicate: NSPredicate(format: "podcastId == %@", "placeholder"),
+            animation: .default
+        )
     }
 
     var body: some View {
-        if let podcast {
-            ScrollView {
-                Color.clear
-                    .frame(height: 1)
-                    .trackScrollOffset("scroll") { value in
-                        scrollOffset = value
-                    }
-            
-                ArtworkView(url: podcast.image ?? "", size: 128, cornerRadius: 24, tilt: true)
-                    .onTapGesture(count: 5) {
-                        withAnimation {
-                            showDebugTools.toggle()
+        Group {
+            if let podcast = podcast {
+                ScrollView {
+                    Color.clear
+                        .frame(height: 1)
+                        .trackScrollOffset("scroll") { value in
+                            scrollOffset = value
                         }
-                    }
                 
-                Text(podcast.title ?? "Podcast title")
-                    .titleSerif()
-                    .multilineTextAlignment(.center)
-            
-                Spacer().frame(height:32)
-                
-                if showDebugTools {
-                    Button(action: {
-                        showConfirm = true
-                    }) {
-                        Label("Delete Podcast", systemImage: "trash")
-                    }
-                    .buttonStyle(ShadowButton())
-                    .alert(
-                        "Delete Podcast",
-                        isPresented: $showConfirm,
-                        presenting: podcast
-                    ) { podcast in
-                        Button("Delete", role: .destructive) {
-                            // Delete all episodes for this podcast first
-                            let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                            episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
-                            
-                            if let podcastEpisodes = try? context.fetch(episodeRequest) {
-                                for episode in podcastEpisodes {
-                                    context.delete(episode)
-                                }
+                    ArtworkView(url: podcast.image ?? "", size: 128, cornerRadius: 24, tilt: true)
+                        .onTapGesture(count: 5) {
+                            withAnimation {
+                                showDebugTools.toggle()
                             }
-                            
-                            context.delete(podcast)
-                            try? context.save()
-                            
-                            // 🔥 Sync subscription changes with Firebase after deletion
-                            SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
                         }
-                        Button("Cancel", role: .cancel) { }
-                    } message: { podcast in
-                        Text("Are you sure you want to delete this podcast from Core Data? This action cannot be undone.")
-                    }
-                }
+                    
+                    Text(podcast.title ?? "Podcast title")
+                        .titleSerif()
+                        .multilineTextAlignment(.center)
                 
-                if let latestEpisode = episodes.first {
-                    VStack {
+                    Spacer().frame(height:32)
+                    
+                    if showDebugTools {
+                        Button(action: {
+                            showConfirm = true
+                        }) {
+                            Label("Delete Podcast", systemImage: "trash")
+                        }
+                        .buttonStyle(ShadowButton())
+                        .alert(
+                            "Delete Podcast",
+                            isPresented: $showConfirm,
+                            presenting: podcast
+                        ) { podcast in
+                            Button("Delete", role: .destructive) {
+                                // Delete all episodes for this podcast first
+                                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                                episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+                                
+                                if let podcastEpisodes = try? context.fetch(episodeRequest) {
+                                    for episode in podcastEpisodes {
+                                        context.delete(episode)
+                                    }
+                                }
+                                
+                                context.delete(podcast)
+                                try? context.save()
+                                
+                                // 🔥 Sync subscription changes with Firebase after deletion
+                                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+                            }
+                            Button("Cancel", role: .cancel) { }
+                        } message: { podcast in
+                            Text("Are you sure you want to delete this podcast from Core Data? This action cannot be undone.")
+                        }
+                    }
+                    
+                    if let latestEpisode = episodes.first {
                         VStack {
-                            Text("Latest Episode")
+                            VStack {
+                                Text("Latest Episode")
+                                    .titleSerifMini()
+                                    .frame(maxWidth:.infinity, alignment:.leading)
+                                
+                                EpisodeItem(episode: latestEpisode, showActions: true)
+                                    .lineLimit(3)
+                                    .onTapGesture {
+                                        selectedEpisode = latestEpisode
+                                    }
+                            }
+                            .padding()
+                        }
+                        .background {
+                            KFImage(URL(string: latestEpisode.episodeImage ?? latestEpisode.podcast?.image ?? ""))
+                                .resizable()
+                                .aspectRatio(contentMode:.fill)
+                                .blur(radius:50)
+                                .mask(
+                                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                                   startPoint: .top, endPoint: .bottom)
+                                )
+                                .opacity(0.5)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius:16))
+                        .glassEffect(in: .rect(cornerRadius:16))
+                    }
+                    
+                    Spacer().frame(height:24)
+                    
+                    NavigationLink {
+                        PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
+                    } label: {
+                        HStack(alignment:.center) {
+                            Text("Episodes")
                                 .titleSerifMini()
-                                .frame(maxWidth:.infinity, alignment:.leading)
                             
-                            EpisodeItem(episode: latestEpisode, showActions: true)
+                            Image(systemName: "chevron.right")
+                                .textDetailEmphasis()
+                        }
+                        .frame(maxWidth:.infinity, alignment: .leading)
+                    }
+                    
+                    LazyVStack(alignment: .leading) {
+                        ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
+                            EpisodeItem(episode: episode, showActions: true)
                                 .lineLimit(3)
+                                .padding(.bottom, 24)
                                 .onTapGesture {
-                                    selectedEpisode = latestEpisode
+                                    selectedEpisode = episode
                                 }
                         }
-                        .padding()
                     }
-                    .background {
-                        KFImage(URL(string: latestEpisode.episodeImage ?? latestEpisode.podcast?.image ?? ""))
-                            .resizable()
-                            .aspectRatio(contentMode:.fill)
-                            .blur(radius:50)
-                            .mask(
-                                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                               startPoint: .top, endPoint: .bottom)
-                            )
-                            .opacity(0.5)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius:16))
-                    .glassEffect(in: .rect(cornerRadius:16))
-                }
-                
-                Spacer().frame(height:24)
-                
-                NavigationLink {
-                    PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
-                } label: {
-                    HStack(alignment:.center) {
-                        Text("Episodes")
+                    
+                    VStack(spacing:8) {
+                        Text("About")
                             .titleSerifMini()
+                            .frame(maxWidth:.infinity, alignment:.leading)
                         
-                        Image(systemName: "chevron.right")
-                            .textDetailEmphasis()
-                    }
-                    .frame(maxWidth:.infinity, alignment: .leading)
-                }
-                
-                LazyVStack(alignment: .leading) {
-                    ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .onTapGesture {
-                                selectedEpisode = episode
-                            }
+                        Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
+                            .textBody()
+                            .lineLimit(nil)
+                            .frame(maxWidth:.infinity)
+                            .transition(.opacity)
+                            .animation(.easeOut(duration: 0.15), value: showFullDescription)
                     }
                 }
-                
-                VStack(spacing:8) {
-                    Text("About")
-                        .titleSerifMini()
-                        .frame(maxWidth:.infinity, alignment:.leading)
+                .background {
+                    SplashImage(image: podcast.image ?? "")
+                }
+                .scrollEdgeEffectStyle(.soft, for: .all)
+                .coordinateSpace(name: "scroll")
+                .contentMargins(16, for: .scrollContent)
+                .frame(maxWidth:.infinity)
+                .onAppear {
+                    checkNotificationStatus()
                     
-                    Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
-                        .textBody()
-                        .lineLimit(nil)
-                        .frame(maxWidth:.infinity)
-                        .transition(.opacity)
-                        .animation(.easeOut(duration: 0.15), value: showFullDescription)
-                }
-            }
-            .background {
-                SplashImage(image: podcast.image ?? "")
-            }
-            .scrollEdgeEffectStyle(.soft, for: .all)
-            .coordinateSpace(name: "scroll")
-            .contentMargins(16, for: .scrollContent)
-            .frame(maxWidth:.infinity)
-            .onAppear {
-                checkNotificationStatus()
-                loadEpisodesForPodcast()
-                
-                Task.detached(priority: .background) {
-                    await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
-                    
-                    // Reload episodes after refresh
-                    DispatchQueue.main.async {
-                        loadEpisodesForPodcast()
+                    Task.detached(priority: .background) {
+                        await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                     }
                 }
-            }
-            .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode)
-                    .modifier(PPSheet())
-            }
-            .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem {
-                    subscribeButton()
+                .sheet(item: $selectedEpisode) { episode in
+                    EpisodeView(episode: episode)
+                        .modifier(PPSheet())
                 }
-            }
-            .fullScreenCover(isPresented: $showNotificationRequest) {
-                RequestNotificationsView(
-                    onComplete: {
-                        showNotificationRequest = false
+                .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem {
+                        subscribeButton()
                     }
-                )
+                }
+                .fullScreenCover(isPresented: $showNotificationRequest) {
+                    RequestNotificationsView(
+                        onComplete: {
+                            showNotificationRequest = false
+                        }
+                    )
+                }
+            } else if isLoading {
+                VStack {
+                    ProgressView("Loading...")
+                }
+                .frame(maxWidth:.infinity, maxHeight:.infinity)
+            } else {
+                VStack {
+                    Text("Unable to load podcast")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth:.infinity, maxHeight:.infinity)
             }
         }
-    }
-    
-    // Load episodes using podcastId
-    private func loadEpisodesForPodcast() {
-        guard let podcast = podcast else { return }
-        
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
-        
-        do {
-            episodes = try context.fetch(request)
-        } catch {
-            LogManager.shared.error("❌ Failed to load episodes: \(error)")
-            episodes = []
+        .onAppear {
+            // Load podcast if not already available
+            if podcast == nil && isLoading {
+                PodcastLoader.loadFeed(from: feedUrl, context: context) { podcast in
+                    self.loadedPodcast = podcast
+                    self.isLoading = false
+                    
+                    // Update episodes fetch request with the correct podcast ID
+                    if let podcastId = podcast?.id {
+                        episodeResults.nsPredicate = NSPredicate(format: "podcastId == %@", podcastId)
+                    }
+                }
+            } else if podcast != nil {
+                isLoading = false
+                
+                // Update episodes fetch request if we have a podcast
+                if let podcastId = podcast?.id {
+                    episodeResults.nsPredicate = NSPredicate(format: "podcastId == %@", podcastId)
+                }
+            }
         }
     }
     
@@ -236,44 +262,45 @@ struct PodcastDetailView: View {
     
     @ViewBuilder
     func subscribeButton() -> some View {
-    
         Button(action: {
+            guard let podcast = podcast else { return }
+            
             // Toggle subscription state
-            podcast!.isSubscribed.toggle()
+            podcast.isSubscribed.toggle()
             
             // Show toast message
-            toastManager.show(message: podcast!.isSubscribed ? "Followed \(podcast!.title ?? "")" : "Unfollowed \(podcast!.title ?? "")", icon: podcast!.isSubscribed ? "checkmark.circle" : "minus.circle")
+            toastManager.show(message: podcast.isSubscribed ? "Followed \(podcast.title ?? "")" : "Unfollowed \(podcast.title ?? "")", icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle")
             
-            if podcast!.isSubscribed {
+            if podcast.isSubscribed {
                 // FIXED: Add latest episode to queue when subscribing using boolean approach
                 if let latest = episodes.first {
                     latest.isQueued = true
-                    LogManager.shared.info("📥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
+                    LogManager.shared.info("🔥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
                 }
                 
                 checkAndShowNotificationRequest()
                 
             } else {
                 // Remove all of this podcast's episodes from all playlists when unsubscribing
-                removeAllEpisodesFromPlaylists(for: podcast!)
+                removeAllEpisodesFromPlaylists(for: podcast)
             }
 
             // Save Core Data changes
             do {
-                try podcast?.managedObjectContext?.save()
+                try podcast.managedObjectContext?.save()
                 
                 // 🔥 Sync subscription changes with Firebase after Core Data save
                 SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
                 
             } catch {
-                LogManager.shared.error("❌ Failed to save subscription change: \(error)")
+                LogManager.shared.error("⚠️ Failed to save subscription change: \(error)")
             }
         }) {
-            Text(podcast!.isSubscribed ? "Unfollow" : "Follow")
-                .if(!podcast!.isSubscribed, transform: { $0.foregroundStyle(.white) })
+            Text(podcast?.isSubscribed == true ? "Unfollow" : "Follow")
+                .if(podcast?.isSubscribed != true, transform: { $0.foregroundStyle(.white) })
                 .titleCondensed()
         }
-        .if(!podcast!.isSubscribed, transform: { $0.buttonStyle(.glassProminent) })
+        .if(podcast?.isSubscribed != true, transform: { $0.buttonStyle(.glassProminent) })
     }
     
     // Helper function to remove all episodes from playlists when unsubscribing
@@ -300,7 +327,7 @@ struct PodcastDetailView: View {
             LogManager.shared.info("✅ Removed all episodes from playlists for podcast: \(podcast.title ?? "Unknown")")
             
         } catch {
-            LogManager.shared.error("❌ Failed to remove episodes from playlists: \(error)")
+            LogManager.shared.error("⚠️ Failed to remove episodes from playlists: \(error)")
         }
     }
 }

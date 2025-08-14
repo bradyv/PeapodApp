@@ -243,7 +243,7 @@ struct PodcastSearchView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: task)
         }
         .sheet(item: $selectedPodcast) { podcastResult in
-            PodcastDetailLoaderView(feedUrl: podcastResult.feedUrl)
+            PodcastDetailView(feedUrl: podcastResult.feedUrl)
                 .modifier(PPSheet())
         }
     }

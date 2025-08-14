@@ -64,13 +64,8 @@ struct EpisodeItem: View {
                     selectedPodcast = episode.podcast
                 }
                 .sheet(item: $selectedPodcast) { podcast in
-                    if podcast.isSubscribed {
-                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                            .modifier(PPSheet())
-                    } else {
-                        PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "")
-                            .modifier(PPSheet())
-                    }
+                    PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+                        .modifier(PPSheet())
                 }
                 
                 Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))

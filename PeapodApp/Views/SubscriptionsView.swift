@@ -90,9 +90,7 @@ struct PodcastGridItem: View {
                 .resizable()
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5))
         }
-        .buttonStyle(PlainButtonStyle())
-        .drawingGroup() // Render as single composited layer
+        .glassEffect(in: .rect(cornerRadius: 16))
     }
 }

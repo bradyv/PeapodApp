@@ -187,16 +187,16 @@ struct EpisodeView: View {
                 }) {
                     Group {
                         if isLoading {
-                            PPSpinner(color: Color.white)
+                            PPSpinner(color: Color.heading)
                                 .transition(.scale.combined(with: .opacity))
                         } else if isPlaying {
                             Image(systemName: "pause.fill")
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.heading)
                                 .textBody()
                                 .transition(.scale.combined(with: .opacity))
                         } else {
                             Image(systemName: "play.fill")
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.heading)
                                 .textBody()
                             .transition(.scale.combined(with: .opacity))
                         }

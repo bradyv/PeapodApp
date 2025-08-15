@@ -21,8 +21,6 @@ struct PodcastDetailView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var showDebugTools = false
     @State private var showConfirm = false
-    @State private var showNotificationRequest = false
-    @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var query = ""
     @State private var showSearch = false
     @State private var isLoading = true
@@ -185,8 +183,6 @@ struct PodcastDetailView: View {
                 .contentMargins(16, for: .scrollContent)
                 .frame(maxWidth:.infinity)
                 .onAppear {
-                    checkNotificationStatus()
-                    
                     Task.detached(priority: .background) {
                         await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                     }
@@ -201,13 +197,6 @@ struct PodcastDetailView: View {
                     ToolbarItem {
                         subscribeButton()
                     }
-                }
-                .fullScreenCover(isPresented: $showNotificationRequest) {
-                    RequestNotificationsView(
-                        onComplete: {
-                            showNotificationRequest = false
-                        }
-                    )
                 }
             } else if isLoading {
                 VStack {
@@ -245,21 +234,6 @@ struct PodcastDetailView: View {
         }
     }
     
-    private func checkNotificationStatus() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                notificationAuthStatus = settings.authorizationStatus
-            }
-        }
-    }
-    
-    private func checkAndShowNotificationRequest() {
-        // Only show if notifications haven't been granted AND haven't been explicitly denied
-        if notificationAuthStatus == .notDetermined {
-            showNotificationRequest = true
-        }
-    }
-    
     @ViewBuilder
     func subscribeButton() -> some View {
         Button(action: {
@@ -277,8 +251,6 @@ struct PodcastDetailView: View {
                     latest.isQueued = true
                     LogManager.shared.info("🔥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
                 }
-                
-                checkAndShowNotificationRequest()
                 
             } else {
                 // Remove all of this podcast's episodes from all playlists when unsubscribing

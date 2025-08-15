@@ -28,7 +28,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         AppAppearance.setupAppearance()
         UserManager.shared.setupCurrentUser()
         
-        performStartupCleanup()
+//        performStartupCleanup()
 
         // Keep cleanup task for old episodes
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1", using: nil) { task in
@@ -36,7 +36,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             self.handleOldEpisodeCleanup(task: task as! BGAppRefreshTask)
         }
         
-        scheduleEpisodeCleanup()
+//        scheduleEpisodeCleanup()
         
         // Check and register for remote notifications
         checkAndRegisterForNotificationsIfGranted()

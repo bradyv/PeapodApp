@@ -22,7 +22,7 @@ struct SplashImage: View {
                     LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                    startPoint: .top, endPoint: .bottom)
                 )
-                .opacity(colorScheme == .dark ? 0.65 : 0.8)
+                .opacity(colorScheme == .dark ? 0.75 : 1)
             Spacer()
         }
         .frame(maxWidth:.infinity)

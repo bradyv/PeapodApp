@@ -9,6 +9,9 @@ import CoreData
 
 final class PersistenceController {
     static let shared = PersistenceController()
+    private var cloudSyncDebounceTimer: Timer?
+    private var cloudSyncChangeCount = 0
+    private let cloudSyncDebounceInterval: TimeInterval = 2.0
 
     let container: NSPersistentContainer
 
@@ -39,7 +42,20 @@ final class PersistenceController {
         // Set up CloudKit sync notifications
         NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { _ in
             UserDefaults.standard.set(Date(), forKey: "lastCloudSyncDate")
-            LogManager.shared.info("📱 CloudKit remote change detected")
+            
+            // Increment counter
+            self.cloudSyncChangeCount += 1
+            
+            // Debounce the logging with count
+            self.cloudSyncDebounceTimer?.invalidate()
+            self.cloudSyncDebounceTimer = Timer.scheduledTimer(withTimeInterval: self.cloudSyncDebounceInterval, repeats: false) { _ in
+                if self.cloudSyncChangeCount == 1 {
+                    LogManager.shared.info("📱 CloudKit remote change detected")
+                } else {
+                    LogManager.shared.info("📱 CloudKit remote changes detected (\(self.cloudSyncChangeCount) changes)")
+                }
+                self.cloudSyncChangeCount = 0
+            }
         }
         
         // Optional: Clean up old history periodically

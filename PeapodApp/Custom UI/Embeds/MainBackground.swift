@@ -21,6 +21,7 @@ struct MainBackground: View {
                     .transition(.opacity)
                     .id(episode.id)
                     .animation(.easeInOut(duration: 0.3), value: episode.id)
+                    .offset(y:-250)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .queueScrollPositionChanged)) { notification in
@@ -36,7 +37,6 @@ struct MainBackground: View {
         .onAppear {
             loadQueue()
         }
-        .offset(y:-200)
     }
     
     private func loadQueue() {

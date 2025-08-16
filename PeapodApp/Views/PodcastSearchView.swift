@@ -210,6 +210,7 @@ struct PodcastSearchView: View {
                 }
             }
         }
+        .background(Color.background)
         .frame(maxWidth:.infinity, alignment:.leading)
         .contentMargins(16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)

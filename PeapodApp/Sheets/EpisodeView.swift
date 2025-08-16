@@ -168,6 +168,7 @@ struct EpisodeView: View {
         .background {
             SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
         }
+        .background(Color.background)
         .coordinateSpace(name: "scroll")
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity)

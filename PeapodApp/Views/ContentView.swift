@@ -56,6 +56,7 @@ struct ContentView: View {
                             LatestEpisodesView(mini: true, maxItems: 3)
                         }
                     }
+                    .background(Color.background)
                     .scrollEdgeEffectStyle(.soft, for: .all)
                     .navigationTitle("Listen")
                     .toolbar {
@@ -77,6 +78,7 @@ struct ContentView: View {
                         SubscriptionsView()
                         FavEpisodesView(mini: true, maxItems: 3)
                     }
+                    .background(Color.background)
                     .scrollEdgeEffectStyle(.soft, for: .all)
                     .navigationTitle("Library")
                     .toolbar {

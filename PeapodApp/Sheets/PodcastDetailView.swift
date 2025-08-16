@@ -170,6 +170,7 @@ struct PodcastDetailView: View {
                 .background {
                     SplashImage(image: podcast.image ?? "")
                 }
+                .background(Color.background)
                 .scrollEdgeEffectStyle(.soft, for: .all)
                 .coordinateSpace(name: "scroll")
                 .contentMargins(16, for: .scrollContent)

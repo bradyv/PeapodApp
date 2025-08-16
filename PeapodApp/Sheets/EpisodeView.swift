@@ -167,6 +167,7 @@ struct EpisodeView: View {
         }
         .background {
             SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
+                .offset(y:-200)
         }
         .background(Color.background)
         .coordinateSpace(name: "scroll")

@@ -121,6 +121,7 @@ struct PodcastDetailView: View {
                                     LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                                    startPoint: .top, endPoint: .bottom)
                                 )
+                                .offset(y:-128)
                                 .opacity(0.5)
                         }
                         .clipShape(RoundedRectangle(cornerRadius:16))
@@ -169,6 +170,7 @@ struct PodcastDetailView: View {
                 }
                 .background {
                     SplashImage(image: podcast.image ?? "")
+                        .offset(y:-200)
                 }
                 .background(Color.background)
                 .scrollEdgeEffectStyle(.soft, for: .all)

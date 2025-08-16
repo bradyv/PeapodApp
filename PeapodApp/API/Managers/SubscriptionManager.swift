@@ -75,10 +75,10 @@ class SubscriptionManager: ObservableObject {
             lifetimePurchaseDate = lifetimeData
         }
         
-        print("📱 Loaded subscription status from UserDefaults:")
-        print("   Subscriber: \(isSubscriberLocal)")
-        print("   Lifetime: \(hasLifetimeAccessLocal)")
-        print("   Environment: \(currentEnvironment)")
+//        print("📱 Loaded subscription status from UserDefaults:")
+//        print("   Subscriber: \(isSubscriberLocal)")
+//        print("   Lifetime: \(hasLifetimeAccessLocal)")
+//        print("   Environment: \(currentEnvironment)")
     }
     
     private func saveSubscriptionStatusToUserDefaults() {

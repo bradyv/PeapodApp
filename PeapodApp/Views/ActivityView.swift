@@ -17,23 +17,18 @@ struct ActivityView: View {
     @State private var recentlyPlayed: [Episode] = []
     @State private var longestEpisode: Episode?
     @State private var topPlayedEpisodes: [Episode] = []
-    
+    @State private var favoriteDayName: String = "Loading..."
+    @State private var favoriteDayCount: Int = 0
+    @State private var weeklyData: [WeeklyListeningData] = []
     @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default
     )
     var topPodcasts: FetchedResults<Podcast>
     
-    @State var degreesRotating = 0.0
-    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
-    @State private var isSpinning = false
-    @State private var favoriteDayName: String = "Loading..."
-    @State private var favoriteDayCount: Int = 0
-    @State private var weeklyData: [WeeklyListeningData] = []
-    
     var body: some View {
         ScrollView {
-            VStack(spacing:16) {
+            VStack(spacing:32) {
                 if recentlyPlayed.isEmpty {
                     ZStack {
                         VStack {
@@ -103,129 +98,133 @@ struct ActivityView: View {
                         }
                         .frame(maxWidth:.infinity)
                     }
+                    .padding(.horizontal)
                     
                     FadeInView(delay: 0.1) {
-                        WeeklyListeningLineChart(
-                            weeklyData: weeklyData,
-                            favoriteDayName: favoriteDayName
-                        )
-                    }
-                    
-                    FadeInView(delay: 0.2) {
-                        VStack(alignment:.leading) {
-                            FadeInView(delay: 0.2) {
-                                Text("My Top Podcasts")
-                                    .titleCondensed()
-                                    .multilineTextAlignment(.center)
-                            }
+                        VStack(spacing:16) {
+                            WeeklyListeningLineChart(
+                                weeklyData: weeklyData,
+                                favoriteDayName: favoriteDayName
+                            )
                             
-                            HStack(spacing:32) {
-                                ZStack {
-                                    ForEach(reordered, id: \.1.id) { (index, podcast) in
-                                        ArtworkView(url: podcast.image ?? "", size: 96, cornerRadius: 16)
-                                            .offset(
-                                                x: index == 1 ? 4 : (index == 2 ? 10 : 0),
-                                                y: index == 1 ? 0 : (index == 2 ? -10 : 0)
-                                            )
-                                            .rotationEffect(
-                                                .degrees(index == 1 ? 10 : (index == 2 ? 10 : 0))
-                                            )
-                                    }
-                                }
+                            HStack(spacing:2) {
+                                Text("You listen the most on")
+                                    .textDetail()
                                 
-                                VStack {
-                                    ForEach(reordered.reversed(), id: \.1.id) { (index, podcast) in
-                                        HStack {
-                                            ArtworkView(url: podcast.image ?? "", size: 24, cornerRadius: 3)
-                                            
-                                            Text(podcast.title ?? "")
-                                                .textDetailEmphasis()
-                                                .lineLimit(1)
-                                            
-                                            Text(podcast.formattedPlayedHours)
-                                                .textDetail()
-                                        }
-                                        .frame(maxWidth:.infinity, alignment:.leading)
-                                    }
-                                }
-                                .frame(maxWidth:.infinity, alignment:.leading)
+                                Text(favoriteDayName)
+                                    .textDetailEmphasis()
                             }
-                            .frame(maxWidth:.infinity,alignment:.leading)
                         }
                     }
                     
+                    FadeInView(delay: 0.2) {
+                        HStack(spacing:32) {
+                            VStack {
+                                Text("My Top Podcasts")
+                                    .titleCondensed()
+                                    .frame(maxWidth:.infinity,alignment:.leading)
+                                    
+                                ForEach(reordered.reversed(), id: \.1.id) { (index, podcast) in
+                                    HStack {
+                                        ArtworkView(url: podcast.image ?? "", size: 24, cornerRadius: 3)
+                                        
+                                        Text(podcast.title ?? "")
+                                            .textDetailEmphasis()
+                                            .lineLimit(1)
+                                        
+                                        Text(podcast.formattedPlayedHours)
+                                            .textDetail()
+                                    }
+                                    .opacity(index == 1 ? 0.75 : (index == 2 ? 0.50 : 1))
+                                    .frame(maxWidth:.infinity, alignment:.leading)
+                                }
+                            }
+                            .frame(maxWidth:.infinity, alignment:.leading)
+                            
+                            ZStack {
+                                ForEach(reordered, id: \.1.id) { (index, podcast) in
+                                    KFImage(URL(string:podcast.image ?? ""))
+                                        .resizable()
+                                        .frame(width: 96, height: 96)
+                                        .clipShape(RoundedRectangle(cornerRadius:16))
+                                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5))
+                                        .offset(
+                                            x: index == 1 ? 4 : (index == 2 ? 10 : 0),
+                                            y: index == 1 ? 0 : (index == 2 ? -10 : 0)
+                                        )
+                                        .rotationEffect(
+                                            .degrees(index == 1 ? 10 : (index == 2 ? 10 : 0))
+                                        )
+                                }
+                            }
+                        }
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                        .padding(.horizontal)
+                    }
+                    
                     if let longestEpisode = longestEpisode {
-                        FadeInView(delay: 0.3) {
-                            VStack(alignment:.leading) {
-                                HStack(alignment:.top) {
-                                    Image("peapod-mark")
-                                    Spacer()
-                                }
+                        FadeInView(delay:0.3) {
+                            VStack {
+                                Text("Longest Completed Episode")
+                                    .titleCondensed()
+                                    .frame(maxWidth:.infinity,alignment:.leading)
                                 
-                                FadeInView(delay: 0.3) {
-                                    Text("Longest Completed Episode")
-                                        .foregroundStyle(Color.white)
-                                        .titleCondensed()
-                                        .multilineTextAlignment(.center)
-                                }
-                                
-                                FadeInView(delay: 0.4) {
+                                VStack {
                                     HStack {
                                         let duration = Int(longestEpisode.actualDuration)
-                                        ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 44, cornerRadius: 8)
+                                        ArtworkView(url: longestEpisode.podcast?.image ?? "", size: 24, cornerRadius: 4)
                                         
-                                        VStack(alignment:.leading) {
-                                            HStack {
-                                                Text(longestEpisode.podcast?.title ?? "Unknown Podcast")
-                                                    .foregroundStyle(Color.white)
-                                                    .textDetailEmphasis()
-                                                
-                                                Text(getRelativeDateString(from: longestEpisode.airDate ?? Date()))
-                                                    .foregroundStyle(Color.white)
-                                                    .textDetail()
-                                            }
-                                            Text(longestEpisode.title ?? "Untitled")
-                                                .foregroundStyle(Color.white)
-                                                .titleCondensed()
-                                                .lineLimit(1)
-                                        }
-                                        .frame(maxWidth:.infinity,alignment:.leading)
+                                        Text(longestEpisode.podcast?.title ?? "Podcast title")
+                                            .lineLimit(1)
+                                            .textDetailEmphasis()
                                         
-                                        FadeInView(delay: 0.5) {
-                                            Text("\(formatDuration(seconds: duration))")
-                                                .foregroundStyle(Color.black)
-                                                .textDetailEmphasis()
-                                                .padding(.vertical, 3)
-                                                .padding(.horizontal, 8)
-                                                .background(Color.white)
-                                                .clipShape(Capsule())
-                                        }
+                                        Text("\(formatDuration(seconds: duration))")
+                                            .textDetailEmphasis()
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(longestEpisode.title ?? "Episode title")
+                                            .multilineTextAlignment(.leading)
+                                            .titleCondensed()
+                                        
+                                        Text(parseHtml(longestEpisode.episodeDescription ?? "Episode description", flat: true))
+                                            .multilineTextAlignment(.leading)
+                                            .textBody()
+                                            .lineLimit(4)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                 }
+                                .padding()
+                                .background {
+                                    KFImage(URL(string: longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? ""))
+                                        .resizable()
+                                        .aspectRatio(contentMode:.fill)
+                                        .blur(radius:50)
+                                        .mask(
+                                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                                           startPoint: .top, endPoint: .bottom)
+                                        )
+                                        .opacity(0.5)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius:16))
+                                .mask(
+                                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                                   startPoint: .top, endPoint: .bottom)
+                                )
+                                
                             }
                             .frame(maxWidth:.infinity,alignment:.leading)
-                            .foregroundStyle(Color.white)
-                            .padding()
-                            .background {
-                                ArtworkView(url:longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 500, cornerRadius: 0)
-                                    .blur(radius: 128)
-                                Image("Noise")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .opacity(0.5)
-                            }
-                            .clipShape(RoundedRectangle(cornerRadius:16))
-                            .glassEffect(in: .rect(cornerRadius: 16))
+                            .padding(.horizontal)
                         }
                     }
                 }
             }
         }
+        .background(Color.background)
         .navigationTitle("My Stats")
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .contentMargins(.horizontal,16, for:.scrollContent)
         .onAppear {
-            isSpinning = true
             loadEpisodeData()
         }
         .task {

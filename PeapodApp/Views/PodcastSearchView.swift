@@ -54,8 +54,8 @@ struct PodcastSearchView: View {
                                     KFImage(URL(string: podcast.artworkUrl600))
                                         .resizable()
                                         .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .glassEffect(in: .rect(cornerRadius: 16))
+                                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                                        .glassEffect(in: .rect(cornerRadius: 24))
                                 }
                             }
                         }
@@ -82,8 +82,8 @@ struct PodcastSearchView: View {
                                     KFImage(URL(string: podcast.artworkUrl600))
                                         .resizable()
                                         .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .glassEffect(in: .rect(cornerRadius: 16))
+                                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                                        .glassEffect(in: .rect(cornerRadius: 24))
                                 }
                             }
                         }
@@ -139,7 +139,7 @@ struct PodcastSearchView: View {
                                 selectedPodcast = podcastResult
                             } label: {
                                 HStack {
-                                    ArtworkView(url: urlPodcast.image ?? "", size: 44, cornerRadius: 8, tilt: false)
+                                    ArtworkView(url: urlPodcast.image ?? "", size: 44, cornerRadius: 12, tilt: false)
                                     
                                     VStack(alignment: .leading) {
                                         Text(urlPodcast.title ?? "Unknown Podcast")
@@ -185,7 +185,7 @@ struct PodcastSearchView: View {
                                     selectedPodcast = podcast
                                 } label: {
                                     HStack {
-                                        ArtworkView(url: podcast.artworkUrl600, size: 44, cornerRadius: 8, tilt: false)
+                                        ArtworkView(url: podcast.artworkUrl600, size: 44, cornerRadius: 12, tilt: false)
                                         
                                         VStack(alignment: .leading) {
                                             Text(podcast.title)

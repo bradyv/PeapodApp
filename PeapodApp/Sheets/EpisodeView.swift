@@ -48,7 +48,7 @@ struct EpisodeView: View {
                     
                     HStack {
                         HStack {
-                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
                             
                             Text(episode.podcast?.title ?? "Podcast title")
                                 .lineLimit(1)

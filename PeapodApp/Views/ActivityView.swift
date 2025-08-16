@@ -126,7 +126,7 @@ struct ActivityView: View {
                                     
                                 ForEach(reordered.reversed(), id: \.1.id) { (index, podcast) in
                                     HStack {
-                                        ArtworkView(url: podcast.image ?? "", size: 24, cornerRadius: 3)
+                                        ArtworkView(url: podcast.image ?? "", size: 24, cornerRadius: 6)
                                         
                                         Text(podcast.title ?? "")
                                             .textDetailEmphasis()
@@ -146,8 +146,8 @@ struct ActivityView: View {
                                     KFImage(URL(string:podcast.image ?? ""))
                                         .resizable()
                                         .frame(width: 96, height: 96)
-                                        .clipShape(RoundedRectangle(cornerRadius:16))
-                                        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5))
+                                        .clipShape(RoundedRectangle(cornerRadius:24))
+                                        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5))
                                         .offset(
                                             x: index == 1 ? 4 : (index == 2 ? 10 : 0),
                                             y: index == 1 ? 0 : (index == 2 ? -10 : 0)
@@ -172,7 +172,7 @@ struct ActivityView: View {
                                 VStack {
                                     HStack {
                                         let duration = Int(longestEpisode.actualDuration)
-                                        ArtworkView(url: longestEpisode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                                        ArtworkView(url: longestEpisode.podcast?.image ?? "", size: 24, cornerRadius: 6)
                                         
                                         Text(longestEpisode.podcast?.title ?? "Podcast title")
                                             .lineLimit(1)

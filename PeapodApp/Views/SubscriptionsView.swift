@@ -84,13 +84,13 @@ struct PodcastGridItem: View {
         Button(action: onTap) {
             KFImage(URL(string: podcast.image ?? ""))
                 .placeholder {
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 24)
                         .fill(Color.surface)
                 }
                 .resizable()
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .clipShape(RoundedRectangle(cornerRadius: 24))
         }
-        .glassEffect(in: .rect(cornerRadius: 16))
+        .glassEffect(in: .rect(cornerRadius: 24))
     }
 }

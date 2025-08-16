@@ -38,7 +38,7 @@ struct EpisodeItem: View {
             HStack {
                 HStack {
                     ZStack(alignment:.bottomTrailing) {
-                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
                         
                         if episode.isPlayed && !displayedInQueue {
                             ZStack {

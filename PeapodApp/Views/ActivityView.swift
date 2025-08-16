@@ -56,7 +56,7 @@ struct ActivityView: View {
                         }
                     }
                 } else {
-                    let podiumOrder = [0, 1, 2]
+                    let podiumOrder = [2,1,0]
                     let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
                         guard index < topPodcasts.count else { return nil }
                         return (index, topPodcasts[index])
@@ -71,11 +71,9 @@ struct ActivityView: View {
                         HStack {
                             VStack(alignment:.leading) {
                                 Text("Listener")
-                                    .foregroundStyle(Color.white)
                                     .titleCondensed()
                                 
                                 Text("Since \(userManager.userDateString)")
-                                    .foregroundStyle(Color.white)
                                     .textDetail()
                             }
                             
@@ -84,167 +82,76 @@ struct ActivityView: View {
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text("\(hours)")
-                                        .foregroundStyle(Color.white)
                                         .titleCondensed()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("\(hourString) listened")
-                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                                 
                                 VStack(alignment: .leading) {
                                     Text("\(statistics.playCount)")
-                                        .foregroundStyle(Color.white)
                                         .titleCondensed()
                                         .monospaced()
                                         .contentTransition(.numericText())
                                     
                                     Text("\(episodeString) played")
-                                        .foregroundStyle(Color.white)
                                         .textDetail()
                                 }
                             }
                         }
                         .frame(maxWidth:.infinity)
                     }
-                    .padding()
-                    .background {
-                        GeometryReader { geometry in
-                            Color.white
-                            Image("pro-pattern")
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: geometry.size.height)
-                                .clipped()
-                        }
-                        .ignoresSafeArea(.all)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius:16))
-                    .glassEffect(in: .rect(cornerRadius: 16))
                     
                     FadeInView(delay: 0.1) {
-                        HStack(alignment:.bottom) {
-                            VStack(alignment:.leading) {
-                                Image("peapod-mark")
-                                
-                                Text(favoriteDayName)
-                                    .foregroundStyle(Color.white)
-                                    .titleCondensed()
-                                    .multilineTextAlignment(.center)
-                                
-                                Text("Favorite day to listen")
-                                    .foregroundStyle(Color.white)
-                                    .textDetail()
-                            }
-                            .frame(maxWidth:.infinity,alignment:.leading)
-                            
-                            // Weekly listening chart
-                            HStack(alignment: .bottom, spacing: 16) {
-                                ForEach(weeklyData, id: \.dayOfWeek) { dayData in
-                                    VStack(spacing: 4) {
-                                        // Bar
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .fill(Color.white)
-                                            .frame(width: 6, height: max(2, dayData.percentage * 40)) // Min height of 4, max of 40
-                                            .animation(.easeInOut(duration: 0.8).delay(0.1 * Double(dayData.dayOfWeek)), value: dayData.percentage)
-                                            .shadow(color: dayData.percentage == 1.0 ? Color.white : Color.clear, radius: 16)
-                                        
-                                        // Day label
-                                        Text(dayData.dayAbbreviation)
-                                            .foregroundStyle(Color.white)
-                                            .textDetail()
-                                    }
-                                    .opacity(dayData.percentage == 1.0 ? 1.0 : 0.5)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .frame(maxWidth:.infinity,alignment:.leading)
-                        .foregroundStyle(Color.white)
-                        .padding()
-                        .background {
-                            LinearGradient(
-                                stops: [
-                                    Gradient.Stop(color: Color(red: 1, green: 0.42, blue: 0.42), location: 0.00),
-                                    Gradient.Stop(color: Color(red: 0.2, green: 0.2, blue: 0.2), location: 1.00),
-                                ],
-                                startPoint: UnitPoint(x: 0, y: 0.5),
-                                endPoint: UnitPoint(x: 1, y: 0.5)
-                            )
-                            Image("Noise")
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .opacity(0.5)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius:16))
-                        .glassEffect(in: .rect(cornerRadius: 16))
+                        WeeklyListeningLineChart(
+                            weeklyData: weeklyData,
+                            favoriteDayName: favoriteDayName
+                        )
                     }
                     
                     FadeInView(delay: 0.2) {
                         VStack(alignment:.leading) {
-                            Image("peapod-mark")
-                            
                             FadeInView(delay: 0.2) {
                                 Text("My Top Podcasts")
-                                    .foregroundStyle(Color.white)
                                     .titleCondensed()
                                     .multilineTextAlignment(.center)
                             }
                             
-                            FadeInView(delay: 0.3) {
-                                HStack(alignment:.bottom, spacing: 16) {
+                            HStack(spacing:32) {
+                                ZStack {
                                     ForEach(reordered, id: \.1.id) { (index, podcast) in
-                                        ZStack(alignment:.bottom) {
-                                            ArtworkView(
-                                                url: podcast.image ?? "",
-                                                size: index == 0 ? 128 : index == 1 ? 96 : index == 2 ? 72 : 64,
-                                                cornerRadius: 16
-                                                )
-                                                .if(index == 0, transform: {
-                                                    $0.background(
-                                                        Image("rays")
-                                                            .rotationEffect(.degrees(isSpinning ? 360 : 0))
-                                                            .onAppear {
-                                                                withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
-                                                                    isSpinning = true
-                                                                }
-                                                            }
-                                                    )
-                                                })
-                                            
-                                            Spacer()
-                                            
-                                            Text("\(podcast.formattedPlayedHours)")
-                                                .foregroundStyle(Color.black)
-                                                .textDetailEmphasis()
-                                                .padding(.vertical, 3)
-                                                .padding(.horizontal, 8)
-                                                .background(Color.white)
-                                                .clipShape(Capsule())
-                                                .offset(y:12)
-                                        }
-                                        .zIndex(index == 0 ? 0 : 1)
+                                        ArtworkView(url: podcast.image ?? "", size: 96, cornerRadius: 16)
+                                            .offset(
+                                                x: index == 1 ? 4 : (index == 2 ? 10 : 0),
+                                                y: index == 1 ? 0 : (index == 2 ? -10 : 0)
+                                            )
+                                            .rotationEffect(
+                                                .degrees(index == 1 ? 10 : (index == 2 ? 10 : 0))
+                                            )
                                     }
                                 }
+                                
+                                VStack {
+                                    ForEach(reordered.reversed(), id: \.1.id) { (index, podcast) in
+                                        HStack {
+                                            ArtworkView(url: podcast.image ?? "", size: 24, cornerRadius: 3)
+                                            
+                                            Text(podcast.title ?? "")
+                                                .textDetailEmphasis()
+                                                .lineLimit(1)
+                                            
+                                            Text(podcast.formattedPlayedHours)
+                                                .textDetail()
+                                        }
+                                        .frame(maxWidth:.infinity, alignment:.leading)
+                                    }
+                                }
+                                .frame(maxWidth:.infinity, alignment:.leading)
                             }
+                            .frame(maxWidth:.infinity,alignment:.leading)
                         }
-                        .frame(maxWidth:.infinity,alignment:.leading)
-                        .foregroundStyle(Color.white)
-                        .padding([.horizontal,.top]).padding(.bottom,44)
-                        .background {
-                            if let winner = reordered.first(where: { $0.0 == 0 }) {
-                                ArtworkView(url: winner.1.image ?? "", size: 500, cornerRadius: 0)
-                                    .blur(radius: 128)
-                            }
-                            Image("Noise")
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .opacity(0.5)
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius:16))
-                        .glassEffect(in: .rect(cornerRadius: 16))
                     }
                     
                     if let longestEpisode = longestEpisode {

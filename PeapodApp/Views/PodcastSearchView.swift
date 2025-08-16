@@ -62,6 +62,14 @@ struct PodcastSearchView: View {
                     }
                 }
                 
+//                ScrollView(.horizontal) {
+//                    LazyHStack {
+//                        ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
+//                            CuratedFeedView(url:podcast.artworkUrl600, description: "Lorem ipsum dolor sit amet.")
+//                        }
+//                    }
+//                }
+                
                 Spacer().frame(height:24)
                 
                 Text("Top Podcasts")
@@ -308,5 +316,44 @@ struct PodcastSearchView: View {
                 }
             }
         }.resume()
+    }
+}
+
+
+struct CuratedFeedView: View {
+    @State private var curatedFeeds: [PodcastResult] = []
+    let url: String
+    let description: String
+    
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            VStack {
+                KFImage(URL(string:url))
+                    .resizable()
+                    .frame(width: 270, height: 270)
+                    .mask(
+                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                       startPoint: .init(x:0.5,y:0.4), endPoint: .init(x:0.5,y:0.8))
+                    )
+                    .allowsHitTesting(false)
+                Spacer()
+            }
+            
+            Text(description)
+                .foregroundStyle(.white)
+                .textBody()
+        }
+        .frame(width: 270, height: 320)
+        .background(
+            KFImage(URL(string:url))
+                .resizable()
+                .aspectRatio(1, contentMode: .fill)
+                .scaleEffect(x: 1, y: -1)
+                .blur(radius: 44)
+                .opacity(0.5)
+        )
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 32))
+        .glassEffect(in: .rect(cornerRadius:32))
     }
 }

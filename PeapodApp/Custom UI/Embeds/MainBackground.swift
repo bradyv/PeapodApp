@@ -36,6 +36,7 @@ struct MainBackground: View {
         .onAppear {
             loadQueue()
         }
+        .offset(y:-200)
     }
     
     private func loadQueue() {

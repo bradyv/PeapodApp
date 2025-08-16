@@ -14,8 +14,9 @@ struct PodcastDetailView: View {
     let feedUrl: String
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var toastManager: ToastManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @FetchRequest var podcastResults: FetchedResults<Podcast>
-    @FetchRequest var episodeResults: FetchedResults<Episode>
+    @State private var episodes: [Episode] = []
     @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
     @State private var scrollOffset: CGFloat = 0
@@ -27,7 +28,6 @@ struct PodcastDetailView: View {
     @State private var loadedPodcast: Podcast? = nil
     
     var podcast: Podcast? { loadedPodcast ?? podcastResults.first }
-    var episodes: [Episode] { Array(episodeResults) }
 
     init(feedUrl: String) {
         self.feedUrl = feedUrl
@@ -35,15 +35,6 @@ struct PodcastDetailView: View {
             entity: Podcast.entity(),
             sortDescriptors: [],
             predicate: NSPredicate(format: "feedUrl == %@", feedUrl),
-            animation: .default
-        )
-        
-        // Initialize episodes fetch request with a placeholder predicate
-        // This will be updated when we know the podcast ID
-        _episodeResults = FetchRequest<Episode>(
-            entity: Episode.entity(),
-            sortDescriptors: [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)],
-            predicate: NSPredicate(format: "podcastId == %@", "placeholder"),
             animation: .default
         )
     }
@@ -159,6 +150,7 @@ struct PodcastDetailView: View {
                                 .onTapGesture {
                                     selectedEpisode = episode
                                 }
+                                .environmentObject(episodesViewModel)
                         }
                     }
                     
@@ -198,6 +190,12 @@ struct PodcastDetailView: View {
                         subscribeButton()
                     }
                 }
+                // 🔥 ADD: Listen for Core Data changes and refresh episodes
+                .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+                    Task { @MainActor in
+                        refreshEpisodes()
+                    }
+                }
             } else if isLoading {
                 VStack {
                     ProgressView("Loading...")
@@ -217,20 +215,38 @@ struct PodcastDetailView: View {
                 PodcastLoader.loadFeed(from: feedUrl, context: context) { podcast in
                     self.loadedPodcast = podcast
                     self.isLoading = false
-                    
-                    // Update episodes fetch request with the correct podcast ID
-                    if let podcastId = podcast?.id {
-                        episodeResults.nsPredicate = NSPredicate(format: "podcastId == %@", podcastId)
-                    }
+                    refreshEpisodes()
                 }
             } else if podcast != nil {
                 isLoading = false
-                
-                // Update episodes fetch request if we have a podcast
-                if let podcastId = podcast?.id {
-                    episodeResults.nsPredicate = NSPredicate(format: "podcastId == %@", podcastId)
+                refreshEpisodes()
+            }
+        }
+    }
+    
+    // 🔥 ADD: Manual episode refresh function to avoid @FetchRequest issues
+    @MainActor
+    private func refreshEpisodes() {
+        guard let podcast = podcast else { return }
+        
+        Task {
+            let result: [Episode] = await withCheckedContinuation { continuation in
+                context.perform {
+                    let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+                    request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+                    request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+                    
+                    do {
+                        let fetchedEpisodes = try self.context.fetch(request)
+                        continuation.resume(returning: fetchedEpisodes)
+                    } catch {
+                        LogManager.shared.error("⚠️ Failed to fetch episodes for podcast: \(error)")
+                        continuation.resume(returning: [])
+                    }
                 }
             }
+            
+            self.episodes = result
         }
     }
     
@@ -263,6 +279,9 @@ struct PodcastDetailView: View {
                 
                 // 🔥 Sync subscription changes with Firebase after Core Data save
                 SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+                
+                // Refresh episodes after subscription change
+                refreshEpisodes()
                 
             } catch {
                 LogManager.shared.error("⚠️ Failed to save subscription change: \(error)")

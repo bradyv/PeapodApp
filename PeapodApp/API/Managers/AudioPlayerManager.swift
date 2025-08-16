@@ -582,6 +582,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    
     private func handleEpisodeEnd() {
         guard let episode = playbackState.episode else { return }
         
@@ -611,7 +612,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             podcast.playedSeconds += playbackState.duration
         }
         
-        // Remove from queue in same transaction
+        // Remove from queue in same transaction if not already played
         if !wasPlayed {
             LogManager.shared.info("🗑️ Removing finished episode from queue")
             
@@ -622,16 +623,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 LogManager.shared.info("   \(index): \(ep.title?.prefix(20) ?? "No title") - \(ep.id?.prefix(8) ?? "no-id")")
             }
             
-            removeFromQueue(episode)
+            // 🔥 UPDATED: Use async removal with immediate UI feedback
+            Task { @MainActor in
+                removeFromQueue(episode)
+            }
             
             // DEBUG: Check queue after removal
-            let queueAfter = fetchQueuedEpisodes()
-            LogManager.shared.info("📊 Queue after removal: \(queueAfter.count) episodes")
-            for (index, ep) in queueAfter.enumerated() {
-                LogManager.shared.info("   \(index): \(ep.title?.prefix(20) ?? "No title") - \(ep.id?.prefix(8) ?? "no-id")")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                let queueAfter = fetchQueuedEpisodes()
+                LogManager.shared.info("📊 Queue after removal: \(queueAfter.count) episodes")
+                for (index, ep) in queueAfter.enumerated() {
+                    LogManager.shared.info("   \(index): \(ep.title?.prefix(20) ?? "No title") - \(ep.id?.prefix(8) ?? "no-id")")
+                }
             }
         } else {
-            LogManager.shared.info("⏭️ Episode was already played - not removing from queue")
+            LogManager.shared.info("⭐️ Episode was already played - not removing from queue")
         }
         
         // Single save for all changes
@@ -639,17 +645,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             try context.save()
             LogManager.shared.info("✅ Episode marked as played and saved with position reset to 0")
         } catch {
-            LogManager.shared.error("❌ Failed to save episode completion: \(error)")
+            LogManager.shared.error("⚠️ Failed to save episode completion: \(error)")
         }
         
         // Clear player state AFTER saving (only if not already cleared by removeFromQueue)
         if playbackState.episode != nil {
-            LogManager.shared.info("🔄 Clearing player state after episode completion")
+            LogManager.shared.info("🔥 Clearing player state after episode completion")
             clearState()
             cleanupPlayer()
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         } else {
-            LogManager.shared.info("🔄 Player state already cleared by queue removal")
+            LogManager.shared.info("🔥 Player state already cleared by queue removal")
         }
         
         // Check for autoplay AFTER clearing state
@@ -779,17 +785,23 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Remove from queue if episode was just marked as played (not unmarked)
         if !wasPlayed && episode.isPlayed {
             LogManager.shared.info("🗑️ Removing manually marked episode from queue")
-            removeFromQueue(episode)
+            
+            // 🔥 UPDATED: Use async removal with immediate UI feedback
+            Task { @MainActor in
+                removeFromQueue(episode)
+            }
             
             // Check if we need to clear player state after queue removal
-            checkQueueStatusAfterRemoval()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.checkQueueStatusAfterRemoval()
+            }
         }
         
         do {
             try context.save()
             LogManager.shared.info("✅ Manual mark as played completed")
         } catch {
-            LogManager.shared.error("❌ Failed to save manual mark as played: \(error)")
+            LogManager.shared.error("⚠️ Failed to save manual mark as played: \(error)")
         }
         
         DispatchQueue.main.async {
@@ -1061,6 +1073,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         queueLock.lock()
         defer { queueLock.unlock() }
         
+        // 🔥 UPDATED: Immediate UI feedback
+        episode.objectWillChange.send()
+        
         // Ensure episode is queued
         if !episode.isQueued {
             LogManager.shared.info("🔧 Adding episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
@@ -1080,16 +1095,24 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         var reordered = queue.filter { $0.id != episode.id }
         reordered.insert(episode, at: 0)
         
-        // Update all positions
+        // Update all positions with immediate UI feedback
         for (index, ep) in reordered.enumerated() {
+            ep.objectWillChange.send()
             ep.queuePosition = Int64(index)
         }
         
         do {
             try context.save()
             LogManager.shared.info("✅ Moved episode to front of queue: \(episode.title?.prefix(30) ?? "Episode")")
+            
+            // 🔥 UPDATED: Notify EpisodesViewModel if available
+            Task { @MainActor in
+                // Try to find EpisodesViewModel and update it
+                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+            }
+            
         } catch {
-            LogManager.shared.error("❌ Failed to move episode to front: \(error)")
+            LogManager.shared.error("⚠️ Failed to move episode to front: \(error)")
             context.rollback()
         }
     }
@@ -1108,8 +1131,127 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
 
     /// Public method for global queue functions to call
+    @MainActor
     func handleQueueRemoval() {
         checkQueueStatusAfterRemoval()
+        
+        // Notify any listening views that queue changed
+        NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+    }
+    
+    @MainActor
+    func removeMultipleFromQueue(_ episodes: [Episode]) {
+        guard !episodes.isEmpty else { return }
+        guard let context = episodes.first?.managedObjectContext else { return }
+        
+        queueLock.lock()
+        defer { queueLock.unlock() }
+        
+        // Immediate UI feedback for all episodes
+        for episode in episodes {
+            episode.objectWillChange.send()
+            episode.isQueued = false
+        }
+        
+        // Reindex remaining episodes
+        let remainingEpisodes = getQueuedEpisodes(context: context)
+            .sorted { $0.queuePosition < $1.queuePosition }
+        
+        for (index, ep) in remainingEpisodes.enumerated() {
+            ep.objectWillChange.send()
+            ep.queuePosition = Int64(index)
+        }
+        
+        do {
+            try context.save()
+            LogManager.shared.info("✅ Removed \(episodes.count) episodes from queue")
+            
+            // Notify views
+            NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+            
+        } catch {
+            LogManager.shared.error("⚠️ Error removing multiple episodes from queue: \(error)")
+            context.rollback()
+        }
+        
+        // Check if current episode should be stopped
+        if let currentEpisode = playbackState.episode,
+           episodes.contains(where: { $0.id == currentEpisode.id }) {
+            handleQueueRemoval()
+        }
+    }
+
+    /// 🔥 NEW: Optimized queue reordering for drag/drop operations
+    @MainActor
+    func reorderQueue(episodes: [Episode]) {
+        guard !episodes.isEmpty else { return }
+        guard let context = episodes.first?.managedObjectContext else { return }
+        
+        queueLock.lock()
+        defer { queueLock.unlock() }
+        
+        // Update positions with immediate UI feedback
+        for (index, episode) in episodes.enumerated() {
+            episode.objectWillChange.send()
+            episode.queuePosition = Int64(index)
+        }
+        
+        do {
+            try context.save()
+            LogManager.shared.info("✅ Reordered queue with \(episodes.count) episodes")
+            
+            // Notify views
+            NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+            
+        } catch {
+            LogManager.shared.error("⚠️ Error reordering queue: \(error)")
+            context.rollback()
+        }
+    }
+
+    /// 🔥 NEW: Helper function to update queue position for episode with immediate UI feedback
+    func updateEpisodeQueuePosition(_ episode: Episode, to position: Int) {
+        guard let context = episode.managedObjectContext else { return }
+        
+        queueLock.lock()
+        defer { queueLock.unlock() }
+        
+        // Immediate UI feedback
+        episode.objectWillChange.send()
+        
+        // Ensure episode is in the queue
+        if !episode.isQueued {
+            episode.isQueued = true
+        }
+        
+        // Get current queue order
+        let queue = getQueuedEpisodes(context: context)
+            .sorted { $0.queuePosition < $1.queuePosition }
+        
+        // Create new ordering
+        var reordered = queue.filter { $0.id != episode.id }
+        let targetPosition = min(max(0, position), reordered.count)
+        reordered.insert(episode, at: targetPosition)
+        
+        // Update positions with immediate UI feedback
+        for (index, ep) in reordered.enumerated() {
+            ep.objectWillChange.send()
+            ep.queuePosition = Int64(index)
+        }
+        
+        do {
+            try context.save()
+            LogManager.shared.info("✅ Updated episode queue position: \(episode.title ?? "Episode") to position \(position)")
+            
+            // Notify views of queue change
+            Task { @MainActor in
+                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+            }
+            
+        } catch {
+            LogManager.shared.error("⚠️ Error updating episode queue position: \(error)")
+            context.rollback()
+        }
     }
 }
 
@@ -1118,4 +1260,9 @@ extension Float {
     func nonZeroOrDefault(_ defaultValue: Float) -> Float {
         return self == 0 ? defaultValue : self
     }
+}
+
+extension Notification.Name {
+    static let episodeQueueUpdated = Notification.Name("episodeQueueUpdated")
+    static let episodePlaybackStateChanged = Notification.Name("episodePlaybackStateChanged")
 }

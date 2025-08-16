@@ -11,52 +11,56 @@ import CoreData
 private let queueLock = NSLock()
 
 /// Toggle episode in queue using boolean approach
-func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
+@MainActor func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
-
-    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
-    episode.objectWillChange.send()
-    
-    // Also notify current episode if it exists
-    current?.objectWillChange.send()
 
     if toFront {
         // Move to front for playback
-        moveEpisodeInQueue(episode, to: 0)
+        moveEpisodeInQueue(episode, to: 0, episodesViewModel: episodesViewModel)
         
         if let current = current, current.id != episode.id {
             // Ensure current episode is queued
             if !current.isQueued {
                 current.isQueued = true
             }
-            moveEpisodeInQueue(current, to: 1)
+            moveEpisodeInQueue(current, to: 1, episodesViewModel: episodesViewModel)
         }
     } else {
-        // Toggle operation
+        // 🔥 Immediate toggle for UI feedback
         if episode.isQueued {
-            removeFromQueue(episode)
+            episode.isQueued = false
+            episode.objectWillChange.send()
         } else {
-            addToQueue(episode)
+            episode.isQueued = true
+            episode.objectWillChange.send()
         }
+        
+        // 🔥 CRITICAL: Update EpisodesViewModel immediately for animations
+        episodesViewModel?.fetchQueue()
     }
     
     do {
         try context.save()
+        LogManager.shared.info("✅ Toggled queue for: \(episode.title?.prefix(30) ?? "Episode") -> \(episode.isQueued)")
+        
     } catch {
-        LogManager.shared.error("❌ Error saving queue toggle: \(error)")
-    }
-    
-    Task { @MainActor in
-        episodesViewModel?.updateQueue()
+        LogManager.shared.error("⚠️ Error saving queue toggle: \(error)")
+        // Revert the change if save failed
+        episode.isQueued.toggle()
+        // Also revert the view model
+        episodesViewModel?.fetchQueue()
     }
     
     if !toFront {
-        reindexQueuePositions(context: context)
+        // Reindex in background after UI update
+        Task {
+            reindexQueuePositions(context: context, episodesViewModel: episodesViewModel)
+        }
     }
 }
 
 /// Add episode to queue
-private func addToQueue(_ episode: Episode) {
+private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
     
     // Check if already in queue
@@ -69,44 +73,40 @@ private func addToQueue(_ episode: Episode) {
 }
 
 /// Remove episode from queue
-func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+@MainActor func removeFromQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
-    
-    queueLock.lock()
-    defer { queueLock.unlock() }
     
     if !episode.isQueued {
         LogManager.shared.warning("⚠️ Episode not in queue: \(episode.title?.prefix(30) ?? "Episode")")
         return
     }
     
-    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    // 🔥 Immediate change for UI feedback
+    episode.isQueued = false
     episode.objectWillChange.send()
     
+    // 🔥 CRITICAL: Update EpisodesViewModel immediately for animations
+    episodesViewModel?.fetchQueue()
+    
     LogManager.shared.info("✅ Removing episode from queue: \(episode.title?.prefix(30) ?? "Episode")")
-    episode.isQueued = false
-    
-    // Reindex remaining episodes
-    let remainingEpisodes = getQueuedEpisodes(context: context)
-        .sorted { $0.queuePosition < $1.queuePosition }
-    
-    for (index, ep) in remainingEpisodes.enumerated() {
-        // 🔥 ADD THIS: Notify each episode that changes
-        ep.objectWillChange.send()
-        ep.queuePosition = Int64(index)
-    }
     
     do {
         try context.save()
         LogManager.shared.info("✅ Episode removed from queue successfully")
+        
+        // Reindex positions in background after UI update
+        Task {
+            reindexQueuePositions(context: context, episodesViewModel: episodesViewModel)
+        }
+        
     } catch {
-        LogManager.shared.error("❌ Error removing from queue: \(error)")
+        LogManager.shared.error("⚠️ Error removing from queue: \(error)")
+        // Revert the change if save failed
+        episode.isQueued = true
         context.rollback()
+        // Also revert the view model
+        episodesViewModel?.fetchQueue()
         return
-    }
-    
-    Task { @MainActor in
-        episodesViewModel?.updateQueue()
     }
     
     AudioPlayerManager.shared.handleQueueRemoval()
@@ -157,7 +157,7 @@ func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel:
 }
 
 /// Reindex queue positions
-func reindexQueuePositions(context: NSManagedObjectContext) {
+func reindexQueuePositions(context: NSManagedObjectContext, episodesViewModel: EpisodesViewModel? = nil) {
     queueLock.lock()
     defer { queueLock.unlock() }
     
@@ -283,25 +283,28 @@ func fetchEpisodesInPlaylist(named playlistName: String, context: NSManagedObjec
     }
 }
 
-
 @MainActor func toggleFav(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
     
-    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
-    episode.objectWillChange.send()
-    
-    // Simple boolean toggle
+    // 🔥 Immediately toggle for instant UI feedback
     episode.isFav.toggle()
+    
+    // Force SwiftUI to update immediately
+    episode.objectWillChange.send()
     
     do {
         try context.save()
         LogManager.shared.info("✅ Toggled favorite for: \(episode.title?.prefix(30) ?? "Episode") -> \(episode.isFav)")
         
-        // 🔥 ADD THIS: Force view model refresh
-        episodesViewModel?.fetchFavs()
+        // 🔥 Update view model in background to keep lists in sync
+        Task {
+            episodesViewModel?.fetchFavs()
+        }
         
     } catch {
-        LogManager.shared.error("❌ Failed to toggle episode favorite: \(error)")
+        LogManager.shared.error("⚠️ Failed to toggle episode favorite: \(error)")
+        // Revert the change if save failed
+        episode.isFav.toggle()
     }
 }
 

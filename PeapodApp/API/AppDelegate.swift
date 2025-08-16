@@ -387,8 +387,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         let unsubscribedPodcastIds = self.getUnsubscribedPodcastIds(context: context)
         
-        // CRITICAL FIX: Access playlists from main context only
+        // CRITICAL FIX: Access playlists from main context using synchronous approach
         var allPlaylistIds = Set<String>()
+        
+        // Use performAndWait for synchronous execution on main context
         mainContext.performAndWait {
             let queueIds = getPlaylistThreadSafe(named: "Queue", context: mainContext).episodeIdArray
             let playedIds = getPlaylistThreadSafe(named: "Played", context: mainContext).episodeIdArray
@@ -458,7 +460,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         return (deletedEpisodes, deletedPodcasts)
     }
-
+    
     /// Updated background task handler to use the same cleanup logic
     private func handleOldEpisodeCleanup(task: BGAppRefreshTask) {
         scheduleEpisodeCleanup() // Reschedule for next week

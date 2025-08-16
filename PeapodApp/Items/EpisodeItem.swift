@@ -11,6 +11,7 @@ struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
     @EnvironmentObject var player: AudioPlayerManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedPodcast: Podcast? = nil
     @State private var selectedEpisode: Episode? = nil
     @State private var workItem: DispatchWorkItem?
@@ -156,7 +157,7 @@ struct EpisodeItem: View {
                         if displayedInQueue {
                             Button(action: {
                                 withAnimation {
-                                    removeFromQueue(episode)
+                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
                                 }
                             }) {
                                 Label("Archive", systemImage: "archivebox")
@@ -173,9 +174,9 @@ struct EpisodeItem: View {
                             Button(action: {
                                 withAnimation {
                                     if episode.isQueued {
-                                        removeFromQueue(episode)
+                                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
                                     } else {
-                                        toggleQueued(episode)
+                                        toggleQueued(episode, episodesViewModel: episodesViewModel)
                                     }
                                 }
                             }) {
@@ -200,7 +201,7 @@ struct EpisodeItem: View {
                     if displayedInQueue {
                         Button(action: {
                             withAnimation {
-                                toggleFav(episode)
+                                toggleFav(episode, episodesViewModel: episodesViewModel)
                             }
                         }) {
                             Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
@@ -216,7 +217,7 @@ struct EpisodeItem: View {
                     } else {
                         Button(action: {
                             withAnimation {
-                                toggleFav(episode)
+                                toggleFav(episode, episodesViewModel: episodesViewModel)
                             }
                         }) {
                             Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")

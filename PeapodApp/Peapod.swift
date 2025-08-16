@@ -18,6 +18,7 @@ struct Peapod: App {
     @StateObject private var appStateManager = AppStateManager()
     @StateObject private var userManager = UserManager.shared
     @StateObject private var audioPlayer = AudioPlayerManager.shared
+    @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
     @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
@@ -40,6 +41,7 @@ struct Peapod: App {
                 .environmentObject(toastManager)
                 .environmentObject(userManager)
                 .environmentObject(audioPlayer)
+                .environmentObject(episodesViewModel)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .preferredColorScheme(appTheme.colorScheme)
         }

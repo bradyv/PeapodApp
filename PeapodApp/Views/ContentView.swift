@@ -12,10 +12,10 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var appStateManager: AppStateManager
     @EnvironmentObject var toastManager: ToastManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
-    @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
@@ -115,7 +115,6 @@ struct ContentView: View {
 //            NowPlaying()
 //        }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .environmentObject(episodesViewModel)
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode)
                 .modifier(PPSheet())

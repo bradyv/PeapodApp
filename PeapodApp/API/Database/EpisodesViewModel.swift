@@ -43,131 +43,216 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             name: .NSManagedObjectContextDidSave,
             object: nil
         )
+        
+        // 🔥 NEW: Listen for queue updates from AudioPlayerManager
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(queueDidUpdate),
+            name: .episodeQueueUpdated,
+            object: nil
+        )
     }
     
     @objc private func contextDidSave() {
-        // Refresh all lists when Core Data changes
-        fetchQueue()
-        fetchLatest()
-        fetchUnplayed()
-        fetchFavs()
-        fetchOld()
+        // Ensure refresh happens on main thread
+        Task { @MainActor in
+            fetchQueue()
+            fetchLatest()
+            fetchUnplayed()
+            fetchFavs()
+            fetchOld()
+        }
+    }
+    
+    // 🔥 NEW: Handle queue updates from AudioPlayerManager
+    @objc private func queueDidUpdate() {
+        Task { @MainActor in
+            fetchQueue()
+        }
     }
 
     // MARK: - Fetch Functions (Updated to use boolean approach)
 
     func fetchQueue() {
         guard let context = context else { return }
-        queue = getQueuedEpisodes(context: context)
+        
+        // For queue updates during animations, we need immediate synchronous updates
+        let episodes = getQueuedEpisodes(context: context)
+        self.queue = episodes
+    }
+    
+    // 🔥 NEW: Async version for background updates
+    func fetchQueueAsync() {
+        guard let context = context else { return }
+        
+        // Perform Core Data operation on background thread, then update UI on main thread
+        Task {
+            let result: [Episode] = await withCheckedContinuation { continuation in
+                context.perform {
+                    let episodes = getQueuedEpisodes(context: context)
+                    continuation.resume(returning: episodes)
+                }
+            }
+            
+            // Update @Published property on main thread
+            await MainActor.run {
+                self.queue = result
+            }
+        }
     }
     
     func fetchLatest() {
         guard let context = context else { return }
         
-        // Get subscribed podcast IDs first
-        let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
-        guard !subscribedPodcastIds.isEmpty else {
-            latest = []
-            return
-        }
-        
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
-        request.fetchLimit = 100
-        
-        do {
-            latest = try context.fetch(request)
-        } catch {
-            LogManager.shared.error("❌ Failed to fetch latest episodes: \(error)")
-            latest = []
+        Task {
+            let result: [Episode] = await withCheckedContinuation { continuation in
+                context.perform {
+                    // Get subscribed podcast IDs first
+                    let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
+                    guard !subscribedPodcastIds.isEmpty else {
+                        continuation.resume(returning: [])
+                        return
+                    }
+                    
+                    let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+                    request.predicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
+                    request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+                    request.fetchLimit = 100
+                    
+                    do {
+                        let episodes = try context.fetch(request)
+                        continuation.resume(returning: episodes)
+                    } catch {
+                        LogManager.shared.error("⚠️ Failed to fetch latest episodes: \(error)")
+                        continuation.resume(returning: [])
+                    }
+                }
+            }
+            
+            await MainActor.run {
+                self.latest = result
+            }
         }
     }
     
     func fetchUnplayed() {
         guard let context = context else { return }
         
-        // Get subscribed podcast IDs first
-        let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
-        guard !subscribedPodcastIds.isEmpty else {
-            unplayed = []
-            return
-        }
-        
-        // Get played episode IDs using boolean approach
-        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
-        playbackRequest.predicate = NSPredicate(format: "isPlayed == YES")
-        let playedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
-        let playedIds = playedPlaybackStates.compactMap { $0.episodeId }
-        
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        let subscribedPredicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
-        
-        if playedIds.isEmpty {
-            // No played episodes, so all subscribed episodes are unplayed
-            request.predicate = subscribedPredicate
-        } else {
-            // Exclude played episodes
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                subscribedPredicate,
-                NSPredicate(format: "NOT (id IN %@)", playedIds)
-            ])
-        }
-        
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
-        request.fetchLimit = 100
-        
-        do {
-            let allEpisodes = try context.fetch(request)
-            // Also filter out episodes that have playback progress
-            unplayed = allEpisodes.filter { $0.playbackPosition == 0 }
-        } catch {
-            LogManager.shared.error("❌ Failed to fetch unplayed episodes: \(error)")
-            unplayed = []
+        Task {
+            let result: [Episode] = await withCheckedContinuation { continuation in
+                context.perform {
+                    // Get subscribed podcast IDs first
+                    let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
+                    guard !subscribedPodcastIds.isEmpty else {
+                        continuation.resume(returning: [])
+                        return
+                    }
+                    
+                    // Get played episode IDs using boolean approach
+                    let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+                    playbackRequest.predicate = NSPredicate(format: "isPlayed == YES")
+                    let playedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
+                    let playedIds = playedPlaybackStates.compactMap { $0.episodeId }
+                    
+                    let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+                    let subscribedPredicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
+                    
+                    if playedIds.isEmpty {
+                        // No played episodes, so all subscribed episodes are unplayed
+                        request.predicate = subscribedPredicate
+                    } else {
+                        // Exclude played episodes
+                        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                            subscribedPredicate,
+                            NSPredicate(format: "NOT (id IN %@)", playedIds)
+                        ])
+                    }
+                    
+                    request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+                    request.fetchLimit = 100
+                    
+                    do {
+                        let allEpisodes = try context.fetch(request)
+                        // Also filter out episodes that have playback progress
+                        let unplayedEpisodes = allEpisodes.filter { $0.playbackPosition == 0 }
+                        continuation.resume(returning: unplayedEpisodes)
+                    } catch {
+                        LogManager.shared.error("⚠️ Failed to fetch unplayed episodes: \(error)")
+                        continuation.resume(returning: [])
+                    }
+                }
+            }
+            
+            await MainActor.run {
+                self.unplayed = result
+            }
         }
     }
     
     func fetchFavs() {
         guard let context = context else { return }
-        favs = getFavoriteEpisodes(context: context)
+        
+        Task {
+            let result: [Episode] = await withCheckedContinuation { continuation in
+                context.perform {
+                    let episodes = getFavoriteEpisodes(context: context)
+                    continuation.resume(returning: episodes)
+                }
+            }
+            
+            await MainActor.run {
+                self.favs = result
+            }
+        }
     }
 
     func fetchOld() {
         guard let context = context else { return }
         
-        // Get unsubscribed podcast IDs first
-        let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
-        guard !unsubscribedPodcastIds.isEmpty else {
-            old = []
-            return
-        }
-        
-        // Get all episode IDs that have ANY playback state (queued, played, or favorited)
-        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
-        playbackRequest.predicate = NSPredicate(format: "isQueued == YES OR isPlayed == YES OR isFav == YES")
-        let savedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
-        let savedEpisodeIds = savedPlaybackStates.compactMap { $0.episodeId }
-        
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
-        
-        if savedEpisodeIds.isEmpty {
-            request.predicate = unsubscribedPredicate
-        } else {
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                unsubscribedPredicate,
-                NSPredicate(format: "NOT (id IN %@)", savedEpisodeIds)
-            ])
-        }
-        
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.id, ascending: true)]
-        request.fetchLimit = 100
-        
-        do {
-            old = try context.fetch(request)
-        } catch {
-            LogManager.shared.error("❌ Failed to fetch old episodes: \(error)")
-            old = []
+        Task {
+            let result: [Episode] = await withCheckedContinuation { continuation in
+                context.perform {
+                    // Get unsubscribed podcast IDs first
+                    let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
+                    guard !unsubscribedPodcastIds.isEmpty else {
+                        continuation.resume(returning: [])
+                        return
+                    }
+                    
+                    // Get all episode IDs that have ANY playback state (queued, played, or favorited)
+                    let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+                    playbackRequest.predicate = NSPredicate(format: "isQueued == YES OR isPlayed == YES OR isFav == YES")
+                    let savedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
+                    let savedEpisodeIds = savedPlaybackStates.compactMap { $0.episodeId }
+                    
+                    let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+                    let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
+                    
+                    if savedEpisodeIds.isEmpty {
+                        request.predicate = unsubscribedPredicate
+                    } else {
+                        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                            unsubscribedPredicate,
+                            NSPredicate(format: "NOT (id IN %@)", savedEpisodeIds)
+                        ])
+                    }
+                    
+                    request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.id, ascending: true)]
+                    request.fetchLimit = 100
+                    
+                    do {
+                        let episodes = try context.fetch(request)
+                        continuation.resume(returning: episodes)
+                    } catch {
+                        LogManager.shared.error("⚠️ Failed to fetch old episodes: \(error)")
+                        continuation.resume(returning: [])
+                    }
+                }
+            }
+            
+            await MainActor.run {
+                self.old = result
+            }
         }
     }
 
@@ -190,7 +275,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     }
 
     func updateQueue() {
-        fetchQueue()
+        fetchQueueAsync() // Use async version for background updates
     }
     
     deinit {

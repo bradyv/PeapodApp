@@ -22,12 +22,16 @@ func runDeduplicationOnceIfNeeded(context: NSManagedObjectContext) {
 
 // Updated deduplication function for the new model
 func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
-    context.perform {
+    // Ensure we're using a background context
+    let backgroundContext = context.concurrencyType == .mainQueueConcurrencyType ?
+        PersistenceController.shared.container.newBackgroundContext() : context
+    
+    backgroundContext.perform {
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
 
         do {
-            let episodes = try context.fetch(request)
-            print("🔎 Checking \(episodes.count) episodes for duplicates")
+            let episodes = try backgroundContext.fetch(request)
+            print("🔍 Checking \(episodes.count) episodes for duplicates")
 
             var episodesByGUID: [String: [Episode]] = [:]
 
@@ -71,73 +75,103 @@ func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
                             keeper.playbackPosition = max(keeper.playbackPosition, duplicate.playbackPosition)
                         }
 
-                        context.delete(duplicate)
+                        backgroundContext.delete(duplicate)
                         duplicatesFound += 1
                     }
                 }
             }
 
-            try context.save()
+            // Save on background context
+            if backgroundContext.hasChanges {
+                try backgroundContext.save()
+                
+                // If we created a new background context, merge changes to main context
+                if backgroundContext !== context {
+                    DispatchQueue.main.async {
+                        PersistenceController.shared.container.viewContext.mergeChanges(
+                            fromContextDidSave: Notification(name: .NSManagedObjectContextDidSave)
+                        )
+                    }
+                }
+            }
+            
             LogManager.shared.info("✅ Merged and deleted \(duplicatesFound) duplicate episode(s)")
         } catch {
-            LogManager.shared.error("❌ Failed merging duplicates: \(error)")
+            LogManager.shared.error("⚠️ Failed merging duplicates: \(error)")
         }
     }
 }
 
 // Updated deduplication for podcasts with new episode relationship
 func deduplicatePodcasts(context: NSManagedObjectContext) {
-    let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+    // Ensure we're using a background context
+    let backgroundContext = context.concurrencyType == .mainQueueConcurrencyType ?
+        PersistenceController.shared.container.newBackgroundContext() : context
+    
+    backgroundContext.perform {
+        let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
 
-    do {
-        let podcasts = try context.fetch(request)
-        
-        // Group by normalized URL instead of exact match
-        let groupedByNormalizedUrl = Dictionary(grouping: podcasts) { podcast in
-            podcast.feedUrl?.normalizeURL() ?? UUID().uuidString
-        }
+        do {
+            let podcasts = try backgroundContext.fetch(request)
+            
+            // Group by normalized URL instead of exact match
+            let groupedByNormalizedUrl = Dictionary(grouping: podcasts) { podcast in
+                podcast.feedUrl?.normalizeURL() ?? UUID().uuidString
+            }
 
-        for (normalizedUrl, group) in groupedByNormalizedUrl {
-            guard group.count > 1 else { continue }
+            for (normalizedUrl, group) in groupedByNormalizedUrl {
+                guard group.count > 1 else { continue }
 
-            // Prefer the one that is subscribed, then newest
-            let primary = group.first(where: { $0.isSubscribed }) ??
-                         group.max(by: { ($0.objectID.description) < ($1.objectID.description) })!
+                // Prefer the one that is subscribed, then newest
+                let primary = group.first(where: { $0.isSubscribed }) ??
+                             group.max(by: { ($0.objectID.description) < ($1.objectID.description) })!
 
-            // Update primary with normalized URL
-            primary.feedUrl = normalizedUrl
+                // Update primary with normalized URL
+                primary.feedUrl = normalizedUrl
 
-            for duplicate in group {
-                if duplicate == primary { continue }
+                for duplicate in group {
+                    if duplicate == primary { continue }
 
-                // Merge metadata (prefer non-nil values)
-                if primary.title == nil { primary.title = duplicate.title }
-                if primary.author == nil { primary.author = duplicate.author }
-                if primary.image == nil { primary.image = duplicate.image }
-                if primary.podcastDescription == nil { primary.podcastDescription = duplicate.podcastDescription }
+                    // Merge metadata (prefer non-nil values)
+                    if primary.title == nil { primary.title = duplicate.title }
+                    if primary.author == nil { primary.author = duplicate.author }
+                    if primary.image == nil { primary.image = duplicate.image }
+                    if primary.podcastDescription == nil { primary.podcastDescription = duplicate.podcastDescription }
 
-                // Reassign episodes using podcastId
-                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                episodeRequest.predicate = NSPredicate(format: "podcastId == %@", duplicate.id ?? "")
+                    // Reassign episodes using podcastId
+                    let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                    episodeRequest.predicate = NSPredicate(format: "podcastId == %@", duplicate.id ?? "")
+                    
+                    if let episodes = try? backgroundContext.fetch(episodeRequest) {
+                        for episode in episodes {
+                            episode.podcastId = primary.id
+                        }
+                    }
+
+                    backgroundContext.delete(duplicate)
+                }
+            }
+
+            // Save on background context
+            if backgroundContext.hasChanges {
+                try backgroundContext.save()
                 
-                if let episodes = try? context.fetch(episodeRequest) {
-                    for episode in episodes {
-                        episode.podcastId = primary.id
+                // If we created a new background context, merge changes to main context
+                if backgroundContext !== context {
+                    DispatchQueue.main.async {
+                        PersistenceController.shared.container.viewContext.mergeChanges(
+                            fromContextDidSave: Notification(name: .NSManagedObjectContextDidSave)
+                        )
                     }
                 }
-
-                context.delete(duplicate)
             }
+            
+            LogManager.shared.info("✅ Enhanced podcast deduplication complete.")
+        } catch {
+            LogManager.shared.error("⚠️ Failed to deduplicate podcasts: \(error)")
         }
-
-        try context.save()
-        LogManager.shared.info("✅ Enhanced podcast deduplication complete.")
-    } catch {
-        LogManager.shared.error("❌ Failed to deduplicate podcasts: \(error)")
     }
 }
-
-// MARK: - CloudKit Sync Store Wiper
 
 // MARK: - Simple & Reliable Sync Store Wiper
 func quickWipeSyncData() {

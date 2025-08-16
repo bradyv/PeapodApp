@@ -80,7 +80,7 @@ struct QueueView: View {
                                             Button(action: {
                                                 for (_, episode) in items {
                                                     withAnimation {
-                                                        toggleQueued(episode)
+                                                        toggleQueued(episode, episodesViewModel: episodesViewModel)
                                                     }
                                                 }
                                             }) {

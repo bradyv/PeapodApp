@@ -19,8 +19,8 @@ struct ArtworkView: View {
             .resizable()
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius:cornerRadius))
-//            .if(tilt, transform: { $0.overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5)) })
-//            .if(!tilt, transform: { $0.glassEffect(in: .rect(cornerRadius: cornerRadius)) })
+            .if(tilt, transform: { $0.overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5)) })
+            .if(!tilt, transform: { $0.glassEffect(in: .rect(cornerRadius: cornerRadius)) })
             .rotationEffect(.degrees(tilt ? 2 : 0))
     }
 }

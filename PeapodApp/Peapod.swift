@@ -36,6 +36,8 @@ struct Peapod: App {
         
         LogManager.shared.setupAppLifecycleLogging()
         LogManager.shared.startLogging()
+        
+        _ = PodcastBlacklist.shared
     }
 
     var body: some Scene {

@@ -79,10 +79,7 @@ struct WelcomeView: View {
                         ForEach(Array(topPodcasts.enumerated())
                             .filter { $0.offset % 5 == column }, id: \.1.id) { index, podcast in
                                 FadeInView(delay: Double(index) * 0.02) {
-                                    KFImage(URL(string: podcast.artworkUrl600))
-                                        .resizable()
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
                                         .transition(.move(edge: .top).combined(with: .opacity))
                                         .animation(.easeOut(duration: 0.15).delay(Double(index) * 0.01), value: showSubscriptions)
                                 }
@@ -205,11 +202,7 @@ struct WelcomeView: View {
                         }) {
                             ZStack(alignment:.topTrailing) {
                                 FadeInView(delay: 0 + Double(index) * 0.05) {
-                                    KFImage(URL(string: podcast.artworkUrl600))
-                                        .resizable()
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                                        .glassEffect(in: .rect(cornerRadius:16))
+                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
                                     
                                     ZStack {
                                         Circle()

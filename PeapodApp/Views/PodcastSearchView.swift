@@ -51,11 +51,7 @@ struct PodcastSearchView: View {
                         } label: {
                             VStack {
                                 FadeInView(delay: Double(index) * 0.05) {
-                                    KFImage(URL(string: podcast.artworkUrl600))
-                                        .resizable()
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 24))
-                                        .glassEffect(in: .rect(cornerRadius: 24))
+                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
                                 }
                             }
                         }
@@ -87,11 +83,7 @@ struct PodcastSearchView: View {
                         } label: {
                             VStack {
                                 FadeInView(delay: Double(index) * 0.05) {
-                                    KFImage(URL(string: podcast.artworkUrl600))
-                                        .resizable()
-                                        .aspectRatio(1, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 24))
-                                        .glassEffect(in: .rect(cornerRadius: 24))
+                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
                                 }
                             }
                         }

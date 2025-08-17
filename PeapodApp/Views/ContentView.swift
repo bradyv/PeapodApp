@@ -113,19 +113,15 @@ struct ContentView: View {
                 .scrollEdgeEffectStyle(.soft, for: .all)
             }
         }
-//        .tabViewBottomAccessory {
-//            NowPlaying()
-//        }
+        .tabViewBottomAccessory {
+            NowPlaying()
+        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
         .onAppear {
-            if episodesViewModel.context == nil { // not yet initialized properly
-                episodesViewModel.setup(context: context)
-            }
-            
             checkPendingNotification()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in

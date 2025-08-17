@@ -16,6 +16,13 @@ import CryptoKit
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     static var pendingNotificationEpisodeID: String?
     
+    lazy var episodesViewModel: EpisodesViewModel = {
+        let viewModel = EpisodesViewModel()
+        // Setup with the main context immediately
+        viewModel.setup(context: PersistenceController.shared.container.viewContext)
+        return viewModel
+    }()
+    
     override init() {
         super.init()
         print("🧬 AppDelegate initialized")
@@ -28,17 +35,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         AppAppearance.setupAppearance()
         UserManager.shared.setupCurrentUser()
         
-//        performStartupCleanup()
-
-        // Keep cleanup task for old episodes
+        // Initialize the episodes view model early
+        _ = episodesViewModel
+        LogManager.shared.info("✅ EpisodesViewModel initialized early in AppDelegate")
+        
+        // Rest of your existing code...
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1", using: nil) { task in
             print("🚀 BGTask fired: com.bradyv.Peapod.Dev.deleteOldEpisodes.v1")
             self.handleOldEpisodeCleanup(task: task as! BGAppRefreshTask)
         }
         
-//        scheduleEpisodeCleanup()
-        
-        // Check and register for remote notifications
         checkAndRegisterForNotificationsIfGranted()
         
         return true

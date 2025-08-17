@@ -1,6 +1,6 @@
 //
 //  Persistence.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-03-31.
 //
@@ -74,7 +74,7 @@ final class PersistenceController {
         // Enable CloudKit for synced store
         syncStoreDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         syncStoreDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-        syncStoreDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.bradyv.PeapodApp")
+        syncStoreDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.fm.peapod")
         
         // LOCAL-ONLY STORE (Local configuration)
         let localStoreURL = URL.storeURL(for: "LocalStore", databaseName: "PeapodApp_Local")

@@ -1,6 +1,6 @@
 //
 //  FirebaseConfig.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-05-24.
 //
@@ -16,19 +16,19 @@ class FirebaseConfig {
             return
         }
         
-        var configFileName = "GoogleService-Info-Release"
+        var configFileName = "GoogleService-Info"
         
         switch bundleId {
-        case "com.bradyv.Peapod.Debug":
-            configFileName = "GoogleService-Info-Debug"
+        case "fm.peapod.debug":
+            configFileName = "GoogleService-Info-Internal"
             print("🔥 Detected DEBUG environment")
             
-        case "com.bradyv.Peapod.Dev":
-            configFileName = "GoogleService-Info-Release"
+        case "fm.peapod":
+            configFileName = "GoogleService-Info"
             print("🔥 Detected DEV environment")
             
         default:
-            configFileName = "GoogleService-Info-Release" // Explicit default
+            configFileName = "GoogleService-Info" // Explicit default
             print("🔥 Using default Firebase config for bundle: \(bundleId)")
         }
         

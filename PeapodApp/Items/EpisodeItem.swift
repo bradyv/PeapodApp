@@ -1,6 +1,6 @@
 //
 //  EpisodeItem.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-02.
 //

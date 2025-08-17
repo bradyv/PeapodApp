@@ -10,7 +10,7 @@
 	</array>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.com.bradyv.PeapodApp</string>
+		<string>iCloud.fm.peapod</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>

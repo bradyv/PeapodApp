@@ -1,6 +1,6 @@
 //
 //  Utilities.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-21.
 //
@@ -242,7 +242,7 @@ func printCloudKitResetInstructions() {
     🌩️ TO MANUALLY RESET CLOUDKIT DATA:
     
     1. Go to: https://icloud.developer.apple.com
-    2. Select your app: iCloud.com.bradyv.PeapodApp  
+    2. Select your app: iCloud.fm.peapod  
     3. Click "Development" environment
     4. Go to "Data" tab
     5. Delete record types one by one:

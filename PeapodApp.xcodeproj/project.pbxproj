@@ -74,8 +74,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				API/Firebase/FirebaseConfig.swift,
-				"GoogleService-Info-Debug.plist",
-				"GoogleService-Info-Release.plist",
 			);
 			target = 239EFB982DE285950036D6F3 /* NotificationServiceExtension */;
 		};
@@ -96,16 +94,6 @@
 				239EFDF12DE2D4500036D6F3 /* Exceptions for "PeapodApp" folder in "NotificationServiceExtension" target */,
 			);
 			path = PeapodApp;
-			sourceTree = "<group>";
-		};
-		23599E432D9B895D00F2DE3B /* PeapodAppTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PeapodAppTests;
-			sourceTree = "<group>";
-		};
-		23599E4D2D9B895D00F2DE3B /* PeapodAppUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PeapodAppUITests;
 			sourceTree = "<group>";
 		};
 		239EFB9A2DE285950036D6F3 /* NotificationServiceExtension */ = {
@@ -161,8 +149,6 @@
 			isa = PBXGroup;
 			children = (
 				23599E2D2D9B895C00F2DE3B /* PeapodApp */,
-				23599E432D9B895D00F2DE3B /* PeapodAppTests */,
-				23599E4D2D9B895D00F2DE3B /* PeapodAppUITests */,
 				239EFB9A2DE285950036D6F3 /* NotificationServiceExtension */,
 				239EFDED2DE2D4340036D6F3 /* Frameworks */,
 				23599E2C2D9B895C00F2DE3B /* Products */,
@@ -233,9 +219,6 @@
 			dependencies = (
 				23599E422D9B895D00F2DE3B /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				23599E432D9B895D00F2DE3B /* PeapodAppTests */,
-			);
 			name = PeapodAppTests;
 			packageProductDependencies = (
 			);
@@ -255,9 +238,6 @@
 			);
 			dependencies = (
 				23599E4C2D9B895D00F2DE3B /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				23599E4D2D9B895D00F2DE3B /* PeapodAppUITests */,
 			);
 			name = PeapodAppUITests;
 			packageProductDependencies = (
@@ -549,7 +529,7 @@
 		23599E552D9B895D00F2DE3B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = PeapodAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = PeapodApp/PeapodApp.entitlements;
@@ -559,7 +539,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Peapod Dev";
+				INFOPLIST_KEY_CFBundleDisplayName = "Peapod β";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -574,7 +554,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bradyv.Peapod.Debug;
+				PRODUCT_BUNDLE_IDENTIFIER = fm.peapod.debug;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -586,7 +566,7 @@
 		23599E562D9B895D00F2DE3B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = PeapodAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = PeapodApp/PeapodApp.entitlements;
@@ -596,13 +576,13 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Peapod Dev";
+				INFOPLIST_KEY_CFBundleDisplayName = Peapod;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = "";
+				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen.storyboard";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -611,7 +591,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bradyv.Peapod.Dev;
+				PRODUCT_BUNDLE_IDENTIFIER = fm.peapod;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -705,7 +685,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bradyv.Peapod.Debug.NotificationServiceExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = fm.peapod.debug.NotificationServiceExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -731,7 +711,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bradyv.Peapod.Dev.NotificationServiceExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = fm.peapod.NotificationServiceExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;

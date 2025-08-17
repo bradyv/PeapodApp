@@ -1,6 +1,6 @@
 //
 //  PlaylistHelpers.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-08-11.
 //

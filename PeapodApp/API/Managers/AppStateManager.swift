@@ -1,6 +1,6 @@
 //
 //  AppStateManager.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-05-03.
 //

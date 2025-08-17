@@ -60,8 +60,6 @@ struct WeeklyListeningLineChart: View {
                     y: .value("Percentage", dayData.percentage)
                 )
                 .foregroundStyle(Color.accentColor)
-//                .symbolSize(100) // 10x10 circle
-//                .symbol(.circle)
                 .symbol {
                     Circle()
                         .fill(Color.accentColor)
@@ -79,5 +77,42 @@ struct WeeklyListeningLineChart: View {
             // Custom background if needed
             Color.clear
         }
+    }
+}
+
+extension WeeklyListeningLineChart {
+    static var mockData: [WeeklyListeningData] {
+        [
+            WeeklyListeningData(dayOfWeek: 1, count: 2, percentage: 0.3, dayAbbreviation: "Sun"),
+            WeeklyListeningData(dayOfWeek: 2, count: 5, percentage: 0.7, dayAbbreviation: "Mon"),
+            WeeklyListeningData(dayOfWeek: 3, count: 3, percentage: 0.4, dayAbbreviation: "Tue"),
+            WeeklyListeningData(dayOfWeek: 4, count: 1, percentage: 0.1, dayAbbreviation: "Wed"),
+            WeeklyListeningData(dayOfWeek: 5, count: 4, percentage: 0.6, dayAbbreviation: "Thu"),
+            WeeklyListeningData(dayOfWeek: 6, count: 7, percentage: 1.0, dayAbbreviation: "Fri"), // Peak day
+            WeeklyListeningData(dayOfWeek: 7, count: 6, percentage: 0.8, dayAbbreviation: "Sat")
+        ]
+    }
+}
+
+struct WeeklyListeningLineChart_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack {
+            Text("Weekly Listening Pattern")
+                .font(.headline)
+                .padding()
+            
+            WeeklyListeningLineChart(
+                weeklyData: WeeklyListeningLineChart.mockData,
+                favoriteDayName: "Friday"
+            )
+            .padding()
+            .background(Color.black)
+            
+            Text("You listen the most on Friday")
+                .foregroundColor(.white)
+                .padding()
+        }
+        .background(Color.black)
+        .preferredColorScheme(.dark)
     }
 }

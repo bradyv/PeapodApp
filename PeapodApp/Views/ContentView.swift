@@ -238,10 +238,6 @@ struct ContentView: View {
                 .frame(maxWidth:.infinity, alignment:.leading)
             }
         }
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
-        }
         .id(episodeID)
         .onChange(of: firstQueueEpisode?.id) { _ in
             episodeID = UUID()

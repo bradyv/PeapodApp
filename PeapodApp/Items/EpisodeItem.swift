@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Pow
 
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
@@ -18,6 +19,7 @@ struct EpisodeItem: View {
     var showActions: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
+    @State private var favoriteCount = 0
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -201,7 +203,13 @@ struct EpisodeItem: View {
                     if displayedInQueue {
                         Button(action: {
                             withAnimation {
+                                let wasFavorite = episode.isFav
                                 toggleFav(episode, episodesViewModel: episodesViewModel)
+                                
+                                // Only increment counter when favoriting (not unfavoriting)
+                                if !wasFavorite && episode.isFav {
+                                    favoriteCount += 1
+                                }
                             }
                         }) {
                             Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
@@ -214,15 +222,31 @@ struct EpisodeItem: View {
                                 customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
                             )
                         )
+                        .changeEffect(
+                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                              Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                            }, value: favoriteCount)
                     } else {
                         Button(action: {
                             withAnimation {
+                                let wasFavorite = episode.isFav
                                 toggleFav(episode, episodesViewModel: episodesViewModel)
+                                
+                                // Only increment counter when favoriting (not unfavoriting)
+                                if !wasFavorite && episode.isFav {
+                                    favoriteCount += 1
+                                }
                             }
                         }) {
                             Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                         }
                         .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                        .changeEffect(
+                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                              Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                            }, value: favoriteCount)
                     }
                 }
             }

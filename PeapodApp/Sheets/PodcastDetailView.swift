@@ -9,6 +9,7 @@ import SwiftUI
 import FeedKit
 import CoreData
 import Kingfisher
+import Pow
 
 struct PodcastDetailView: View {
     let feedUrl: String
@@ -55,6 +56,7 @@ struct PodcastDetailView: View {
                                 showDebugTools.toggle()
                             }
                         }
+                        .changeEffect(.spin, value: podcast.isSubscribed)
                     
                     Text(podcast.title ?? "Podcast title")
                         .titleSerif()

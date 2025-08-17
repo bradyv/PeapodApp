@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Kingfisher
+import Pow
 
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
@@ -15,6 +16,7 @@ struct EpisodeView: View {
     @EnvironmentObject var player: AudioPlayerManager
     @State private var selectedPodcast: Podcast? = nil
     @State private var scrollOffset: CGFloat = 0
+    @State private var favoriteCount = 0
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -100,12 +102,23 @@ struct EpisodeView: View {
                         
                         Button(action: {
                             withAnimation {
+                                let wasFavorite = episode.isFav
                                 toggleFav(episode)
+                                
+                                // Only increment counter when favoriting (not unfavoriting)
+                                if !wasFavorite && episode.isFav {
+                                    favoriteCount += 1
+                                }
                             }
                         }) {
                             Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                         }
                         .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                        .changeEffect(
+                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                              Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                            }, value: favoriteCount)
                     }
                     
                     Spacer().frame(height: 8)

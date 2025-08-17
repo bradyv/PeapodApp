@@ -534,8 +534,12 @@ class EpisodeRefresher {
         
         // 🆕 Only queue the newest episode (if subscribed and not skipping)
         if let newestEpisode = newestNewEpisode {
-            newestEpisode.isQueued = true
-            LogManager.shared.info("📥 Queued newest episode: \(newestEpisode.title ?? "Unknown")")
+            if newestEpisode.isPlayed {
+                LogManager.shared.info("📥 Skipping queueing for played episode: \(newestEpisode.title ?? "Unknown")")
+            } else {
+                newestEpisode.isQueued = true
+                LogManager.shared.info("📥 Queued newest episode: \(newestEpisode.title ?? "Unknown")")
+            }
         }
         
         // ✅ Only log summary if there were actual changes

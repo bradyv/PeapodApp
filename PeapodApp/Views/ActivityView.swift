@@ -150,13 +150,14 @@ struct ActivityView: View {
                                         .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5))
                                         .offset(
                                             x: index == 1 ? 4 : (index == 2 ? 10 : 0),
-                                            y: index == 1 ? 0 : (index == 2 ? -10 : 0)
+                                            y: index == 1 ? 0 : (index == 2 ? -5 : 0)
                                         )
                                         .rotationEffect(
-                                            .degrees(index == 1 ? 10 : (index == 2 ? 10 : 0))
+                                            .degrees(index == 1 ? 10 : (index == 2 ? 18 : 0))
                                         )
                                 }
                             }
+                            .padding(.trailing,24)
                         }
                         .frame(maxWidth:.infinity,alignment:.leading)
                         .padding(.horizontal)

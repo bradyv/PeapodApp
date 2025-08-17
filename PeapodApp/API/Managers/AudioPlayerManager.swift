@@ -872,12 +872,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         let duration = getActualDuration(for: episode)
         let progress = getProgress(for: episode)
         
-        let playingOrResumed = isPlayingEpisode(episode) || hasStartedPlayback(for: episode)
+        // Check if this episode has ever been played (either currently or previously)
+        let hasEverBeenPlayed = isPlayingEpisode(episode) ||
+                               isLoadingEpisode(episode) ||
+                               hasStartedPlayback(for: episode) ||
+                               progress > 0
         
         let valueToShow: Double
-        if playingOrResumed && progress > 0 {
+        if hasEverBeenPlayed {
+            // Always show remaining time if episode has been touched
             valueToShow = max(0, duration - progress)
         } else {
+            // Show full duration for untouched episodes
             valueToShow = duration
         }
         

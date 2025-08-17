@@ -13,6 +13,7 @@ struct ContentView: View {
     @EnvironmentObject var appStateManager: AppStateManager
     @EnvironmentObject var toastManager: ToastManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @EnvironmentObject var player: AudioPlayerManager
     @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
@@ -20,6 +21,12 @@ struct ContentView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
     @State private var selectedTab: Tabs = .listen
+    @State private var queue: [Episode] = []
+    @State private var episodeID = UUID()
+    
+    private var firstQueueEpisode: Episode? {
+        queue.first
+    }
     
     enum Tabs: Hashable {
         case listen
@@ -114,7 +121,7 @@ struct ContentView: View {
             }
         }
         .tabViewBottomAccessory {
-            NowPlaying()
+            NowPlayingBar
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(item: $selectedEpisode) { episode in
@@ -154,6 +161,102 @@ struct ContentView: View {
             }
         }
         .toast()
+    }
+    
+    @ViewBuilder
+    var NowPlayingBar: some View {
+        Group {
+            if let episode = firstQueueEpisode {
+                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
+                HStack {
+                    HStack {
+                        ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
+                        
+                        VStack(alignment:.leading) {
+                            Text(episode.podcast?.title ?? "Podcast title")
+                                .textDetail()
+                                .lineLimit(1)
+                            
+                            Text(episode.title ?? "Episode title")
+                                .textBody()
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedEpisode = episode
+                    }
+                    
+                    HStack {
+                        Button(action: {
+                            player.togglePlayback(for: episode)
+                            print("Playing episode")
+                        }) {
+                            if player.isLoading {
+                                PPSpinner(color: Color.heading)
+                            } else if player.isPlaying {
+                                Image(systemName: "pause")
+                            } else {
+                                Image(systemName: "play.fill")
+                            }
+                        }
+                        
+                        Button(action: {
+                            player.skipForward(seconds: player.forwardInterval)
+                            print("Seeking forward")
+                        }) {
+                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                        }
+                        .disabled(!player.isPlaying)
+                    }
+                }
+                .padding(.leading,4)
+                .padding(.trailing, 8)
+                .frame(maxWidth:.infinity, alignment:.leading)
+            } else {
+                HStack {
+                    Text("Nothing playing")
+                        .textBody()
+                        .frame(maxWidth:.infinity, alignment: .leading)
+
+                    HStack {
+                        Button(action: {
+                        }) {
+                            Image(systemName: "play.fill")
+                        }
+                        .disabled(player.isPlaying)
+                        
+                        Button(action: {
+                        }) {
+                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                        }
+                        .disabled(!player.isPlaying)
+                    }
+                }
+                .padding(.leading,16).padding(.trailing, 8)
+                .frame(maxWidth:.infinity, alignment:.leading)
+            }
+        }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode)
+                .modifier(PPSheet())
+        }
+        .id(episodeID)
+        .onChange(of: firstQueueEpisode?.id) { _ in
+            episodeID = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            // Refresh queue when Core Data changes
+            loadQueue()
+        }
+        .onAppear {
+            loadQueue()
+        }
+    }
+    
+    private func loadQueue() {
+        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
     }
     
     // 🚀 UPDATED: Unified refresh method with source tracking and debouncing

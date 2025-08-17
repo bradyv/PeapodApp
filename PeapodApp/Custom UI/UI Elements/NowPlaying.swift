@@ -23,7 +23,6 @@ struct NowPlaying: View {
 
     var body: some View {
         Group {
-//            if let episode = player.currentEpisode {
             if let episode = firstQueueEpisode {
                 let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {

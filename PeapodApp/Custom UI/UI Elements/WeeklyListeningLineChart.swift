@@ -1,3 +1,10 @@
+//
+//  WeeklyListeningLineChart.swift
+//  Peapod
+//
+//  Created by Brady Valentino on 2025-08-12.
+//
+
 import SwiftUI
 import Charts
 
@@ -7,10 +14,14 @@ struct WeeklyListeningLineChart: View {
     
     private let chartHeight: CGFloat = 92
     
+    // Find the single peak day
+    private var peakDay: Int? {
+        weeklyData.max(by: { $0.percentage < $1.percentage })?.dayOfWeek
+    }
+    
     private var paddedData: [WeeklyListeningData] {
         let dayAbbreviations = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         
-        // Create complete week data (ensuring all 7 days are present)
         let completeWeekData = (1...7).map { dayOfWeek in
             weeklyData.first { $0.dayOfWeek == dayOfWeek } ??
             WeeklyListeningData(
@@ -21,7 +32,6 @@ struct WeeklyListeningLineChart: View {
             )
         }
         
-        // Add padding points to create the bleed effect
         let firstPercentage = completeWeekData.first?.percentage ?? 0
         let lastPercentage = completeWeekData.last?.percentage ?? 0
         
@@ -43,7 +53,6 @@ struct WeeklyListeningLineChart: View {
     }
     
     var body: some View {
-        
         Chart(paddedData, id: \.dayOfWeek) { dayData in
             LineMark(
                 x: .value("Day", dayData.dayOfWeek),
@@ -51,10 +60,11 @@ struct WeeklyListeningLineChart: View {
             )
             .foregroundStyle(Color.heading)
             .lineStyle(StrokeStyle(lineWidth: 2))
-            .interpolationMethod(.catmullRom) // Smooth curve interpolation
+            .interpolationMethod(.catmullRom)
             
-            // Peak dot - only show for actual days (1-7)
-            if dayData.percentage == 1.0 && dayData.dayOfWeek >= 1 && dayData.dayOfWeek <= 7 {
+            // Show dot ONLY for the single peak day
+            if let peakDay = peakDay,
+               dayData.dayOfWeek == peakDay {
                 PointMark(
                     x: .value("Day", dayData.dayOfWeek),
                     y: .value("Percentage", dayData.percentage)
@@ -73,10 +83,6 @@ struct WeeklyListeningLineChart: View {
         .chartYScale(domain: 0...1)
         .chartXScale(domain: 0...8)
         .frame(height: chartHeight)
-        .chartBackground { _ in
-            // Custom background if needed
-            Color.clear
-        }
     }
 }
 

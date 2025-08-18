@@ -57,6 +57,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    // MARK: - State Intents
+    private var userInitiatedPause = false
+    private var wasInterruptedByRouteChange = false
+    private var lastRouteChangeReason: AVAudioSession.RouteChangeReason?
+    
     // MARK: - Computed Properties (derived from playbackState)
     var currentEpisode: Episode? { playbackState.episode }
     var progress: Double { playbackState.position }
@@ -141,17 +146,39 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Handle current episode
         if let currentEpisode = playbackState.episode, currentEpisode.id == episodeID {
             if playbackState.isPlaying {
-                pause()
+                pause() // This sets userInitiatedPause = true
             } else if playbackState.isLoading {
                 LogManager.shared.info("⏳ Already loading - ignoring")
             } else {
+                // User explicitly wants to resume
+                userInitiatedPause = false
+                wasInterruptedByRouteChange = false
                 resume()
             }
             return
         }
         
-        // Start new episode
+        // Start new episode (user explicit action)
+        userInitiatedPause = false
+        wasInterruptedByRouteChange = false
         startPlayback(for: episode)
+    }
+    
+    private func shouldAutoResume() -> Bool {
+        // Never auto-resume if user explicitly paused
+        if userInitiatedPause {
+            return false
+        }
+        
+        // Only consider auto-resume for system interruptions, not route changes
+        if wasInterruptedByRouteChange {
+            return false
+        }
+        
+        // Could add user preference here
+        // return UserDefaults.standard.bool(forKey: "autoResumeAfterInterruption")
+        
+        return false // For now, never auto-resume
     }
     
     private func startPlayback(for episode: Episode) {
@@ -237,6 +264,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func pause() {
         guard let player = player else { return }
         
+        // Mark as user-initiated pause
+        userInitiatedPause = true
+        
         player.pause()
         updateState(isPlaying: false, isLoading: false)
         
@@ -248,22 +278,28 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func resume() {
         guard let player = player else {
-            // If no player, restart playback
-            if let episode = playbackState.episode {
-                startPlayback(for: episode)
-            }
+            // Don't auto-restart unless user explicitly requested it
+            LogManager.shared.warning("⚠️ No player available - user must explicitly restart")
             return
         }
         
         // Check if player item is still valid
         if let currentItem = player.currentItem, currentItem.status == .readyToPlay {
+            // Reset user pause flag when user explicitly resumes
+            userInitiatedPause = false
+            wasInterruptedByRouteChange = false
+            
+            // Ensure audio session is properly configured before resuming
+            configureAudioSession()
+            
             player.playImmediately(atRate: playbackSpeed)
             updateState(isPlaying: true, isLoading: false)
         } else {
-            // Player item is invalid, restart
+            // Player item is invalid, but don't auto-restart
+            LogManager.shared.warning("⚠️ Player item invalid - user must restart manually")
             if let episode = playbackState.episode {
-                LogManager.shared.warning("⚠️ Player item invalid - restarting playback")
-                startPlayback(for: episode)
+                // Just clear the state, don't restart
+                updateState(isPlaying: false, isLoading: false)
             }
         }
     }
@@ -295,7 +331,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         playerObservations.forEach { $0.invalidate() }
         playerObservations.removeAll()
         
-        // Rate observer (for play/pause state)
+        // Rate observer with enhanced logic
         let rateObserver = player.observe(\.rate, options: [.new, .old]) { [weak self] _, change in
             guard let self = self else { return }
             
@@ -310,8 +346,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     // Started playing
                     LogManager.shared.info("🎵 Audio started playing")
                     self.updateState(isPlaying: true, isLoading: false)
+                    
+                    // Verify we can actually hear audio
+                    self.verifyAudioOutput()
+                    
                 } else if newRate == 0 && oldRate > 0 {
-                    // Paused
+                    // Paused (could be system or user)
                     LogManager.shared.info("⏸️ Audio paused")
                     self.updateState(isPlaying: false, isLoading: false)
                 }
@@ -442,6 +482,20 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     }
                 }
             }
+        }
+    }
+    
+    private func verifyAudioOutput() {
+        let session = AVAudioSession.sharedInstance()
+        let route = session.currentRoute
+        
+        if route.outputs.isEmpty {
+            LogManager.shared.warning("⚠️ No audio output route available")
+            player?.pause()
+            updateState(isPlaying: false, isLoading: false)
+        } else {
+            let outputs = route.outputs.map { $0.portType.rawValue }
+            LogManager.shared.info("🔊 Audio output verified: \(outputs)")
         }
     }
 
@@ -895,10 +949,26 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
+            
+            // Try to set category first
             try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .defaultToSpeaker])
+            
+            // Verify the route before activating
+            let currentRoute = session.currentRoute
+            LogManager.shared.info("🔊 Current audio route: \(currentRoute.outputs.map { $0.portType.rawValue })")
+            
+            // Activate session
             try session.setActive(true)
+            
+            LogManager.shared.info("✅ Audio session configured successfully")
+            
         } catch {
             LogManager.shared.error("❌ Failed to configure audio session: \(error)")
+            
+            // If we can't configure audio session, don't proceed with playback
+            if playbackState.isPlaying {
+                updateState(isPlaying: false, isLoading: false)
+            }
         }
     }
     
@@ -918,15 +988,25 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         switch type {
         case .began:
             LogManager.shared.info("🔇 Audio interruption began")
-            // Just save position - let AVPlayer handle the pause automatically
+            wasInterruptedByRouteChange = false // This is a different type of interruption
+            userInitiatedPause = false
+            
+            // Save position immediately
             if let episode = playbackState.episode {
                 savePositionImmediately(for: episode, position: playbackState.position)
             }
             
         case .ended:
             LogManager.shared.info("🔊 Audio interruption ended")
-            // Don't auto-resume anything - let the user decide
-            // The system/user will resume if they want to
+            
+            // Check if we should resume
+            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                if options.contains(.shouldResume) && !userInitiatedPause {
+                    LogManager.shared.info("🔄 System suggests resume, but letting user decide")
+                    // Still don't auto-resume - respect user preference
+                }
+            }
             
         @unknown default:
             break
@@ -938,9 +1018,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
               let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
         
+        lastRouteChangeReason = reason
+        
         switch reason {
         case .oldDeviceUnavailable:
             LogManager.shared.info("🔌 Audio device disconnected")
+            wasInterruptedByRouteChange = true
+            userInitiatedPause = false // This wasn't user-initiated
+            
             // Save position but let the system handle pausing
             if let episode = playbackState.episode {
                 savePositionImmediately(for: episode, position: playbackState.position)
@@ -948,7 +1033,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             
         case .newDeviceAvailable:
             LogManager.shared.info("🔌 Audio device connected")
-            // Just log - no auto-resume behavior
+            // Don't auto-resume - let user decide
             
         default:
             LogManager.shared.info("🔄 Audio route changed: \(reason)")
@@ -957,8 +1042,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     @objc private func appDidEnterBackground() {
-        // Don't pause automatically - let the system handle it
-        // Just save the current state
+        // Save current state without changing pause flags
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
         }
@@ -969,8 +1053,16 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func appWillEnterForeground() {
         LogManager.shared.info("📱 App foregrounding")
         
-        // Reset any tracking variables
-        wasPlayingBeforeBackground = false
+        // FIXED: Don't auto-resume based on background state
+        // Let the user explicitly choose to resume
+        
+        // Only log the state for debugging
+        if let episode = playbackState.episode {
+            LogManager.shared.info("📱 Current episode: \(episode.title?.prefix(30) ?? "Unknown")")
+            LogManager.shared.info("📱 Was interrupted by route change: \(wasInterruptedByRouteChange)")
+            LogManager.shared.info("📱 User initiated pause: \(userInitiatedPause)")
+            LogManager.shared.info("📱 Last route change: \(lastRouteChangeReason?.rawValue ?? 0)")
+        }
     }
     
     @objc private func savePlaybackOnExit() {
@@ -984,7 +1076,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         let commandCenter = MPRemoteCommandCenter.shared()
         
         commandCenter.playCommand.addTarget { [weak self] _ in
-            self?.resume()
+            guard let self = self else { return .commandFailed }
+            
+            // Only resume if we have a valid player and episode
+            if let episode = self.playbackState.episode {
+                if self.player != nil {
+                    self.resume()
+                } else {
+                    // User explicitly pressed play - restart is OK here
+                    self.userInitiatedPause = false
+                    self.wasInterruptedByRouteChange = false
+                    self.startPlayback(for: episode)
+                }
+            }
             return .success
         }
         

@@ -23,6 +23,7 @@ struct ContentView: View {
     @State private var selectedTab: Tabs = .listen
     @State private var queue: [Episode] = []
     @State private var episodeID = UUID()
+    @State private var rotateTrigger = false
     
     private var firstQueueEpisode: Episode? {
         queue.first
@@ -135,6 +136,7 @@ struct ContentView: View {
             if newPhase == .active {
                 // Clear badge when app becomes active
                 UNUserNotificationCenter.current().setBadgeCount(0)
+                UNUserNotificationCenter.current().removeAllDeliveredNotifications()
                 
                 // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
                 let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
@@ -165,6 +167,7 @@ struct ContentView: View {
     
     @ViewBuilder
     var NowPlayingBar: some View {
+        
         Group {
             if let episode = firstQueueEpisode {
                 let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
@@ -203,10 +206,12 @@ struct ContentView: View {
                         }
                         
                         Button(action: {
+                            rotateTrigger.toggle()
                             player.skipForward(seconds: player.forwardInterval)
                             print("Seeking forward")
                         }) {
                             Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                                .symbolEffect(.rotate.byLayer, options: .nonRepeating.speed(10), value: rotateTrigger)
                         }
                         .disabled(!player.isPlaying)
                     }
@@ -220,18 +225,25 @@ struct ContentView: View {
                         .textBody()
                         .frame(maxWidth:.infinity, alignment: .leading)
 
-                    HStack {
-                        Button(action: {
-                        }) {
-                            Image(systemName: "play.fill")
+                    ZStack {
+                        HStack {
+                            Button(action: {
+                            }) {
+                                Image(systemName: "play.fill")
+                            }
+                            .disabled(player.isPlaying)
+                            
+                            Button(action: {
+                            }) {
+                                Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                            }
+                            .disabled(!player.isPlaying)
                         }
-                        .disabled(player.isPlaying)
+                        .opacity(0)
                         
-                        Button(action: {
-                        }) {
-                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-                        }
-                        .disabled(!player.isPlaying)
+                        Image("peapod-mark")
+                            .resizable()
+                            .frame(width:29, height:22)
                     }
                 }
                 .padding(.leading,16).padding(.trailing, 8)

@@ -1,5 +1,5 @@
 //
-//  PodcastBlacklistManager.swift
+//  PodcastBlacklist.swift
 //  Peapod
 //
 //  Created by Brady Valentino on 2025-08-17.
@@ -13,16 +13,23 @@ class PodcastBlacklist: ObservableObject {
     static let shared = PodcastBlacklist()
     
     @AppStorage("blacklistedPodcastIds") private var storedBlacklistData: Data = Data()
+    @AppStorage("blacklistedSearchTerms") private var storedSearchTermsData: Data = Data()
     @AppStorage("blacklistLastUpdated") private var lastUpdated: TimeInterval = 0
+    @AppStorage("searchTermsLastUpdated") private var searchTermsLastUpdated: TimeInterval = 0
     
     private var _blacklistedIds: Set<String>?
+    private var _blacklistedSearchTerms: Set<String>?
     private let remoteBlacklistURL = "https://bradyv.github.io/bvfeed.github.io/blacklisted-podcasts.json"
+    private let remoteSearchTermsURL = "https://bradyv.github.io/bvfeed.github.io/blacklisted-search-terms.json"
     private let cacheExpiryHours: TimeInterval = 24 // Update every 24 hours
     
     private init() {
         // Auto-fetch on init if cache is expired
         if shouldUpdateFromRemote() {
             updateFromRemote()
+        }
+        if shouldUpdateSearchTermsFromRemote() {
+            updateSearchTermsFromRemote()
         }
     }
     
@@ -42,6 +49,22 @@ class PodcastBlacklist: ObservableObject {
         return Set<String>()
     }
     
+    var blacklistedSearchTerms: Set<String> {
+        if let cached = _blacklistedSearchTerms {
+            return cached
+        }
+        
+        // Try to load from UserDefaults
+        if let decoded = try? JSONDecoder().decode(Set<String>.self, from: storedSearchTermsData) {
+            _blacklistedSearchTerms = decoded
+            return decoded
+        }
+        
+        // Fallback to empty set
+        _blacklistedSearchTerms = Set<String>()
+        return Set<String>()
+    }
+    
     func isBlacklisted(_ id: String) -> Bool {
         return blacklistedIds.contains(id)
     }
@@ -50,9 +73,22 @@ class PodcastBlacklist: ObservableObject {
         return blacklistedIds.contains(String(trackId))
     }
     
+    func isSearchTermBlocked(_ searchTerm: String) -> Bool {
+        let lowercaseSearch = searchTerm.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return blacklistedSearchTerms.contains { blockedTerm in
+            lowercaseSearch.contains(blockedTerm.lowercased())
+        }
+    }
+    
     private func shouldUpdateFromRemote() -> Bool {
         let now = Date().timeIntervalSince1970
         return (now - lastUpdated) > (cacheExpiryHours * 3600)
+    }
+    
+    private func shouldUpdateSearchTermsFromRemote() -> Bool {
+        let now = Date().timeIntervalSince1970
+        return (now - searchTermsLastUpdated) > (cacheExpiryHours * 3600)
     }
     
     private func updateBlacklist(_ newList: Set<String>) {
@@ -62,6 +98,15 @@ class PodcastBlacklist: ObservableObject {
             lastUpdated = Date().timeIntervalSince1970
         }
         LogManager.shared.info("📛 Updated blacklist with \(newList.count) blocked podcasts")
+    }
+    
+    private func updateSearchTerms(_ newList: Set<String>) {
+        _blacklistedSearchTerms = newList
+        if let encoded = try? JSONEncoder().encode(newList) {
+            storedSearchTermsData = encoded
+            searchTermsLastUpdated = Date().timeIntervalSince1970
+        }
+        LogManager.shared.info("🚫 Updated blocked search terms with \(newList.count) terms")
     }
     
     func updateFromRemote() {
@@ -90,9 +135,36 @@ class PodcastBlacklist: ObservableObject {
         }.resume()
     }
     
-    // Manual refresh method
+    func updateSearchTermsFromRemote() {
+        guard let url = URL(string: remoteSearchTermsURL) else { return }
+        
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self,
+                  let data = data,
+                  error == nil else {
+                LogManager.shared.error("❌ Failed to fetch search terms blacklist: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
+            
+            do {
+                // Expect JSON array of strings: ["joe rogan", "tucker carlson", ...]
+                let searchTermsArray = try JSONDecoder().decode([String].self, from: data)
+                DispatchQueue.main.async {
+                    self.updateSearchTerms(Set(searchTermsArray))
+                }
+            } catch {
+                LogManager.shared.error("❌ Failed to decode search terms blacklist JSON: \(error)")
+            }
+        }.resume()
+    }
+    
+    // Manual refresh methods
     func forceUpdate(completion: @escaping (Bool) -> Void = { _ in }) {
         updateFromRemote()
+        updateSearchTermsFromRemote()
         // Simple completion - in a real app you might want to track the actual success/failure
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             completion(true)

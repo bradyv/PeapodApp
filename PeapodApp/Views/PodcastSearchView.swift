@@ -31,6 +31,7 @@ struct PodcastSearchView: View {
     @State private var urlFeedError: String?
     @State private var debounceWorkItem: DispatchWorkItem?
     @State private var selectedPodcast: PodcastResult? = nil
+    @State private var isBlockedSearchTerm = false
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
 
     var body: some View {
@@ -90,6 +91,26 @@ struct PodcastSearchView: View {
                     }
                 }
             } else {
+                // Show blocked search term message
+                if isBlockedSearchTerm {
+                    FadeInView(delay: 0.1) {
+                        VStack(spacing: 16) {
+                            Image(systemName: "hand.wave")
+                                .titleSerif()
+                            
+                            Text("Mics On, Misinformation Off")
+                                .titleCondensed()
+                            
+                            Text("Peapod does not support Joe Rogan due to concerns over the spread of misinformation and promotion of controversial, unverified content.")
+                                .textBody()
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth:.infinity)
+                        .padding(.top, 64)
+                        .padding(.horizontal,32)
+                    }
+                }
+                
                 // Show loading indicator for URL feeds
                 if isLoadingUrlFeed {
                     FadeInView(delay: 0.1) {
@@ -147,7 +168,6 @@ struct PodcastSearchView: View {
                                             .lineLimit(1)
                                         Text(urlPodcast.author ?? "Unknown Author")
                                             .textDetail()
-                                            .lineLimit(1)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     
@@ -164,7 +184,7 @@ struct PodcastSearchView: View {
                 }
                 
                 // Show regular search results
-                if results.isEmpty && hasSearched && urlFeedPodcast == nil && !isLoadingUrlFeed && urlFeedError == nil {
+                if results.isEmpty && hasSearched && urlFeedPodcast == nil && !isLoadingUrlFeed && urlFeedError == nil && !isBlockedSearchTerm {
                     FadeInView(delay: 0.2) {
                         VStack {
                             Text("No results for \(query)")
@@ -172,7 +192,7 @@ struct PodcastSearchView: View {
                         }
                         .padding(.top,32)
                     }
-                } else if !results.isEmpty && hasSearched {
+                } else if !results.isEmpty && hasSearched && !isBlockedSearchTerm {
                     FadeInView(delay: 0.2) {
                         Text("Search Results")
                             .titleSerifMini()
@@ -194,7 +214,6 @@ struct PodcastSearchView: View {
                                                 .lineLimit(1)
                                             Text(podcast.author)
                                                 .textDetail()
-                                                .lineLimit(1)
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         
@@ -237,6 +256,7 @@ struct PodcastSearchView: View {
                     urlFeedPodcast = nil
                     urlFeedError = nil
                     hasSearched = false
+                    isBlockedSearchTerm = false
                     return
                 }
                 search()
@@ -253,6 +273,19 @@ struct PodcastSearchView: View {
 
     func search() {
         let trimmedQuery = query.trimmingCharacters(in: .whitespaces)
+        
+        // Check if the search term is blocked
+        if PodcastBlacklist.shared.isSearchTermBlocked(trimmedQuery) {
+            isBlockedSearchTerm = true
+            results = []
+            urlFeedPodcast = nil
+            urlFeedError = nil
+            hasSearched = true
+            return
+        }
+        
+        // Reset blocked state
+        isBlockedSearchTerm = false
         
         // Check if the query looks like a URL
         if isValidURL(trimmedQuery) {

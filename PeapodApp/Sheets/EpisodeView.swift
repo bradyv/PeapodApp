@@ -219,7 +219,7 @@ struct EpisodeView: View {
                                     .transition(.scale.combined(with: .opacity))
                             }
                             
-                            Text("Listen Now")
+                            Text(isPlaying ? "Pause" : "Listen Now")
                                 .foregroundStyle(.white)
                                 .textBodyEmphasis()
                         }

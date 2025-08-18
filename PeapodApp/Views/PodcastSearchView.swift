@@ -147,7 +147,6 @@ struct PodcastSearchView: View {
                                             .lineLimit(1)
                                         Text(urlPodcast.author ?? "Unknown Author")
                                             .textDetail()
-                                            .lineLimit(1)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     
@@ -194,7 +193,6 @@ struct PodcastSearchView: View {
                                                 .lineLimit(1)
                                             Text(podcast.author)
                                                 .textDetail()
-                                                .lineLimit(1)
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         
@@ -305,8 +303,7 @@ struct PodcastSearchView: View {
             guard let data else { return }
             if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
                 DispatchQueue.main.async {
-                    // Filter out blacklisted podcasts from search results
-                    results = decoded.results.filter { !PodcastBlacklist.shared.isBlacklisted($0.trackId) }
+                    results = decoded.results
                     hasSearched = true
                 }
             }

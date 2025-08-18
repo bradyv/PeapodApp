@@ -46,7 +46,6 @@ enum PodcastAPI {
             do {
                 let decoded = try JSONDecoder().decode(FeedResponse.self, from: data)
                 let ids = decoded.feed.entry.map { $0.id.attributes.imID }
-                // NO FILTERING - you control curated feeds manually
                 fetchPodcastResults(for: ids, completion: completion)
             } catch {
                 LogManager.shared.error("❌ Failed to decode curated podcasts: \(error)")
@@ -56,10 +55,7 @@ enum PodcastAPI {
     }
     
     static func fetchTopPodcasts(limit: Int = 21, completion: @escaping ([PodcastResult]) -> Void) {
-        // Fetch more than needed to account for blacklisted items
-        let bufferLimit = min(200, limit + 50) // Fetch extra, but cap at iTunes limit
-        
-        guard let url = URL(string: "https://itunes.apple.com/us/rss/toppodcasts/limit=\(bufferLimit)/json") else {
+        guard let url = URL(string: "https://itunes.apple.com/us/rss/toppodcasts/limit=\(limit)/json") else {
             completion([])
             return
         }
@@ -89,13 +85,8 @@ enum PodcastAPI {
 
             do {
                 let decoded = try JSONDecoder().decode(FeedResponse.self, from: data)
-                // Filter out blacklisted podcasts, then take only the limit needed
-                let filteredIds = decoded.feed.entry
-                    .map { $0.id.attributes.imID }
-                    .filter { !PodcastBlacklist.shared.isBlacklisted($0) }
-                    .prefix(limit) // Take only the requested amount after filtering
-                
-                fetchPodcastResults(for: Array(filteredIds), completion: completion)
+                let ids = decoded.feed.entry.map { $0.id.attributes.imID }
+                fetchPodcastResults(for: ids, completion: completion)
             } catch {
                 LogManager.shared.error("❌ Failed to decode top podcasts: \(error)")
                 completion([])
@@ -118,7 +109,7 @@ enum PodcastAPI {
 
             if let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
                 let validPodcasts = decoded.results.filter {
-                    !$0.feedUrl.isEmpty && !PodcastBlacklist.shared.isBlacklisted($0.trackId)
+                    !$0.feedUrl.isEmpty
                 }
                 
                 DispatchQueue.main.async {

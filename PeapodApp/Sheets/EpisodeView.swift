@@ -8,6 +8,7 @@
 import SwiftUI
 import Kingfisher
 import Pow
+import TipKit
 
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
@@ -17,6 +18,7 @@ struct EpisodeView: View {
     @State private var selectedPodcast: Podcast? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var favoriteCount = 0
+    var skipTip = SkipTip()
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -127,6 +129,9 @@ struct EpisodeView: View {
                         Text(player.getElapsedTime(for: episode))
                             .fontDesign(.monospaced)
                             .font(.caption)
+                            .onTapGesture {
+                                player.skipBackward(seconds: player.backwardInterval)
+                            }
                         
                         PPProgress(
                             value: Binding(
@@ -143,6 +148,10 @@ struct EpisodeView: View {
                         Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
                             .fontDesign(.monospaced)
                             .font(.caption)
+                            .onTapGesture {
+                                player.skipForward(seconds: player.forwardInterval)
+                            }
+                            .popoverTip(skipTip, arrowEdge: .top)
                     }
                 }
                 .padding(.horizontal)
@@ -187,46 +196,60 @@ struct EpisodeView: View {
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Button(action: {
-                    player.skipBackward(seconds: player.backwardInterval)
-                }) {
-                    Label("Go back", systemImage: "\(String(format: "%.0f", player.backwardInterval)).arrow.trianglehead.counterclockwise")
-                }
-                .disabled(!isPlaying)
-                
+            ToolbarItem(placement: .bottomBar) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         player.togglePlayback(for: episode)
                     }
                 }) {
                     Group {
-                        if isLoading {
-                            PPSpinner(color: Color.heading)
-                                .transition(.scale.combined(with: .opacity))
-                        } else if isPlaying {
-                            Image(systemName: "pause.fill")
-                                .foregroundStyle(Color.heading)
-                                .textBody()
-                                .transition(.scale.combined(with: .opacity))
-                        } else {
-                            Image(systemName: "play.fill")
-                                .foregroundStyle(Color.heading)
-                                .textBody()
-                            .transition(.scale.combined(with: .opacity))
+                        HStack {
+                            if isLoading {
+                                PPSpinner(color: Color.heading)
+                                    .transition(.scale.combined(with: .opacity))
+                            } else if isPlaying {
+                                Image(systemName: "pause.fill")
+                                    .foregroundStyle(Color.heading)
+                                    .textBody()
+                                    .transition(.scale.combined(with: .opacity))
+                            } else {
+                                Image(systemName: "play.fill")
+                                    .foregroundStyle(Color.heading)
+                                    .textBody()
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                            
+                            Text("Listen Now")
+                                .foregroundStyle(.white)
+                                .textBodyEmphasis()
                         }
+                        .padding(.horizontal,8)
                     }
                     .animation(.easeInOut(duration: 0.2), value: isLoading)
                     .animation(.easeInOut(duration: 0.2), value: isPlaying)
                 }
-                
-                Button(action: {
-                    player.skipForward(seconds: player.forwardInterval)
-                }) {
-                    Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-                }
-                .disabled(!isPlaying)
+                .buttonStyle(.glassProminent)
             }
         }
+        .task {
+            // Configure and load your tips at app launch.
+            do {
+                try Tips.configure()
+            }
+            catch {
+                // Handle TipKit errors
+                print("Error initializing TipKit \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+struct SkipTip: Tip {
+    var title: Text {
+        Text("Jump Around")
+    }
+    
+    var message: Text? {
+        Text("Tap the timestamps to skip forward or backward.")
     }
 }

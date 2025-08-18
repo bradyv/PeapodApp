@@ -12,12 +12,12 @@ import OSLog
 class LogManager {
     static let shared = LogManager()
     private var logFileHandle: FileHandle?
-    private let queue = DispatchQueue(label: "com.peapod.logging", qos: .utility)
-    private let logger = Logger(subsystem: "com.peapod.app", category: "LogManager")
+    private let queue = DispatchQueue(label: "fm.peapod.logging", qos: .utility)
+    private let logger = Logger(subsystem: "fm.peapod.app", category: "LogManager")
     
     // Configuration
-    private let maxLogFileSize: Int64 = 5 * 1024 * 1024 // 5MB per file
-    private let maxTotalLogSize: Int64 = 20 * 1024 * 1024 // 20MB total
+    private let maxLogFileSize: Int64 = 1 * 1024 * 1024 // 5MB per file
+    private let maxTotalLogSize: Int64 = 5 * 1024 * 1024 // 20MB total
     private let maxLogFiles = 3 // Keep 3 rotated logs
     private let flushInterval: TimeInterval = 2.0 // Force flush every 2 seconds
     

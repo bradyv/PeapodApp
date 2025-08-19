@@ -90,108 +90,65 @@ struct PodcastSearchView: View {
                     }
                 }
             } else {
-                // Show loading indicator for URL feeds
-                if isLoadingUrlFeed {
-                    FadeInView(delay: 0.1) {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Loading podcast feed...")
-                                .textBody()
-                        }
-                        .padding()
-                    }
-                }
-                
-                // Show URL feed error if any
-                if let error = urlFeedError {
-                    FadeInView(delay: 0.2) {
-                        VStack {
-                            Image(systemName: "exclamationmark.triangle")
-                                .foregroundColor(.orange)
-                            Text(error)
-                                .textBody()
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding()
-                    }
-                }
-                
-                // Show URL feed result if available
-                if let urlPodcast = urlFeedPodcast {
-                    FadeInView(delay: 0.2) {
-                        Text("Podcast Feed")
-                            .headerSection()
-                            .frame(maxWidth:.infinity, alignment:.leading)
-                            .padding(.horizontal)
-                    }
-                    
-                    VStack(spacing: 8) {
-                        FadeInView(delay: 0.3) {
-                            Button {
-                                let podcastResult = PodcastResult(
-                                    feedUrl: urlPodcast.feedUrl ?? "",
-                                    trackName: urlPodcast.title ?? "Unknown Podcast",
-                                    artistName: urlPodcast.author ?? "Unknown Author",
-                                    artworkUrl600: urlPodcast.image ?? "",
-                                    trackId: urlPodcast.id?.hashValue ?? 0
-                                )
-                                selectedPodcast = podcastResult
-                            } label: {
-                                HStack {
-                                    ArtworkView(url: urlPodcast.image ?? "", size: 44, cornerRadius: 12, tilt: false)
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text(urlPodcast.title ?? "Unknown Podcast")
-                                            .titleCondensed()
-                                            .lineLimit(1)
-                                        Text(urlPodcast.author ?? "Unknown Author")
-                                            .textDetail()
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .frame(width:12)
-                                        .textDetail()
-                                }
-                                .contentShape(Rectangle())
+                VStack {
+                    // Show loading indicator for URL feeds
+                    if isLoadingUrlFeed {
+                        FadeInView(delay: 0.1) {
+                            HStack {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text("Loading podcast feed...")
+                                    .textBody()
                             }
-                            
-                            Divider()
+                            .frame(maxWidth:.infinity)
+                            .padding()
                         }
-                    }
-                }
-                
-                // Show regular search results
-                if results.isEmpty && hasSearched && urlFeedPodcast == nil && !isLoadingUrlFeed && urlFeedError == nil {
-                    FadeInView(delay: 0.2) {
-                        VStack {
-                            Text("No results for \(query)")
-                                .textBody()
-                        }
-                        .padding(.top,32)
-                    }
-                } else if !results.isEmpty && hasSearched {
-                    FadeInView(delay: 0.2) {
-                        Text("Search Results")
-                            .titleSerifMini()
-                            .frame(maxWidth:.infinity, alignment:.leading)
                     }
                     
-                    VStack(spacing: 8) {
-                        ForEach(results, id: \.id) { podcast in
+                    // Show URL feed error if any
+                    if let error = urlFeedError {
+                        FadeInView(delay: 0.2) {
+                            VStack {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundColor(.orange)
+                                Text(error)
+                                    .textBody()
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth:.infinity)
+                            .padding()
+                        }
+                    }
+                    
+                    // Show URL feed result if available
+                    if let urlPodcast = urlFeedPodcast {
+                        FadeInView(delay: 0.2) {
+                            Text("Podcast Feed")
+                                .headerSection()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .padding(.horizontal)
+                        }
+                        
+                        VStack(spacing: 8) {
                             FadeInView(delay: 0.3) {
                                 Button {
-                                    selectedPodcast = podcast
+                                    let podcastResult = PodcastResult(
+                                        feedUrl: urlPodcast.feedUrl ?? "",
+                                        trackName: urlPodcast.title ?? "Unknown Podcast",
+                                        artistName: urlPodcast.author ?? "Unknown Author",
+                                        artworkUrl600: urlPodcast.image ?? "",
+                                        trackId: urlPodcast.id?.hashValue ?? 0
+                                    )
+                                    selectedPodcast = podcastResult
                                 } label: {
                                     HStack {
-                                        ArtworkView(url: podcast.artworkUrl600, size: 44, cornerRadius: 12, tilt: false)
+                                        ArtworkView(url: urlPodcast.image ?? "", size: 44, cornerRadius: 12, tilt: false)
                                         
                                         VStack(alignment: .leading) {
-                                            Text(podcast.title)
+                                            Text(urlPodcast.title ?? "Unknown Podcast")
                                                 .titleCondensed()
                                                 .lineLimit(1)
-                                            Text(podcast.author)
+                                            Text(urlPodcast.author ?? "Unknown Author")
                                                 .textDetail()
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,11 +163,61 @@ struct PodcastSearchView: View {
                                 Divider()
                             }
                         }
+                        .frame(maxWidth:.infinity)
+                    }
+                    
+                    // Show regular search results
+                    if results.isEmpty && hasSearched && urlFeedPodcast == nil && !isLoadingUrlFeed && urlFeedError == nil {
+                        FadeInView(delay: 0.2) {
+                            VStack {
+                                Text("No results for \(query)")
+                                    .textBody()
+                            }
+                            .frame(maxWidth:.infinity)
+                            .padding(.top,32)
+                        }
+                    } else if !results.isEmpty && hasSearched {
+                        FadeInView(delay: 0.2) {
+                            Text("Search Results")
+                                .titleSerifMini()
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                        }
+                        
+                        VStack(spacing: 8) {
+                            ForEach(results, id: \.id) { podcast in
+                                FadeInView(delay: 0.3) {
+                                    Button {
+                                        selectedPodcast = podcast
+                                    } label: {
+                                        HStack {
+                                            ArtworkView(url: podcast.artworkUrl600, size: 44, cornerRadius: 12, tilt: false)
+                                            
+                                            VStack(alignment: .leading) {
+                                                Text(podcast.title)
+                                                    .titleCondensed()
+                                                    .lineLimit(1)
+                                                Text(podcast.author)
+                                                    .textDetail()
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .frame(width:12)
+                                                .textDetail()
+                                        }
+                                        .contentShape(Rectangle())
+                                    }
+                                    
+                                    Divider()
+                                }
+                            }
+                        }
+                        .frame(maxWidth:.infinity)
                     }
                 }
+                .frame(maxWidth:.infinity)
             }
         }
-        .background(Color.background)
         .frame(maxWidth:.infinity, alignment:.leading)
         .contentMargins(16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)

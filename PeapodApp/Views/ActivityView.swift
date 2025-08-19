@@ -20,6 +20,7 @@ struct ActivityView: View {
     @State private var favoriteDayName: String = "Loading..."
     @State private var favoriteDayCount: Int = 0
     @State private var weeklyData: [WeeklyListeningData] = []
+    @State private var rotationAngle: Double = 0
     @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default
@@ -165,58 +166,74 @@ struct ActivityView: View {
                     
                     if let longestEpisode = longestEpisode {
                         FadeInView(delay:0.3) {
-                            VStack {
-                                Text("Longest Completed Episode")
-                                    .titleCondensed()
-                                    .frame(maxWidth:.infinity,alignment:.leading)
+                            ZStack {
+                                Image("rays")
+                                    .offset(y:-16)
+                                    .rotationEffect(Angle(degrees: rotationAngle))
+                                    .onAppear {
+                                        withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
+                                            rotationAngle = 360
+                                        }
+                                    }
+                                    .mask(
+                                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                                       startPoint: .top, endPoint: .bottom)
+                                    )
                                 
                                 VStack {
-                                    HStack {
-                                        let duration = Int(longestEpisode.actualDuration)
-                                        ArtworkView(url: longestEpisode.podcast?.image ?? "", size: 24, cornerRadius: 6)
-                                        
-                                        Text(longestEpisode.podcast?.title ?? "Podcast title")
-                                            .lineLimit(1)
-                                            .textDetailEmphasis()
-                                        
-                                        Text("\(formatDuration(seconds: duration))")
-                                            .textDetailEmphasis()
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text("Longest Completed Episode")
+                                        .titleCondensed()
+                                        .frame(maxWidth:.infinity,alignment:.leading)
                                     
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(longestEpisode.title ?? "Episode title")
-                                            .multilineTextAlignment(.leading)
-                                            .titleCondensed()
+                                    VStack {
+                                        HStack {
+                                            let duration = Int(longestEpisode.actualDuration)
+                                            ArtworkView(url: longestEpisode.podcast?.image ?? "", size: 24, cornerRadius: 6)
+                                            
+                                            Text(longestEpisode.podcast?.title ?? "Podcast title")
+                                                .lineLimit(1)
+                                                .textDetailEmphasis()
+                                            
+                                            Text("\(formatDuration(seconds: duration))")
+                                                .textDetailEmphasis()
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                         
-                                        Text(parseHtml(longestEpisode.episodeDescription ?? "Episode description", flat: true))
-                                            .multilineTextAlignment(.leading)
-                                            .textBody()
-                                            .lineLimit(4)
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text(longestEpisode.title ?? "Episode title")
+                                                .multilineTextAlignment(.leading)
+                                                .titleCondensed()
+                                            
+                                            Text(parseHtml(longestEpisode.episodeDescription ?? "Episode description", flat: true))
+                                                .multilineTextAlignment(.leading)
+                                                .textBody()
+                                                .lineLimit(3)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                     }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding()
+                                    .background {
+                                        KFImage(URL(string: longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? ""))
+                                            .resizable()
+                                            .aspectRatio(contentMode:.fill)
+                                            .blur(radius:50)
+                                            .mask(
+                                                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                                               startPoint: .top, endPoint: .bottom)
+                                            )
+                                            .opacity(0.5)
+                                    }
+                                    .background(Color.background)
+                                    .clipShape(RoundedRectangle(cornerRadius:16))
+                                    .overlay {
+                                        LinearGradient(gradient: Gradient(colors: [Color.clear, Color.background]),
+                                                       startPoint: .init(x:0.5,y:0.5), endPoint: .init(x:0.5,y:1.0))
+                                        .frame(maxWidth:.infinity,maxHeight:.infinity)
+                                    }
                                 }
-                                .padding()
-                                .background {
-                                    KFImage(URL(string: longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? ""))
-                                        .resizable()
-                                        .aspectRatio(contentMode:.fill)
-                                        .blur(radius:50)
-                                        .mask(
-                                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                                           startPoint: .top, endPoint: .bottom)
-                                        )
-                                        .opacity(0.5)
-                                }
-                                .clipShape(RoundedRectangle(cornerRadius:16))
-                                .mask(
-                                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                                   startPoint: .top, endPoint: .bottom)
-                                )
-                                
+                                .frame(maxWidth:.infinity,alignment:.leading)
+                                .padding(.horizontal)
                             }
-                            .frame(maxWidth:.infinity,alignment:.leading)
-                            .padding(.horizontal)
                         }
                     }
                 }

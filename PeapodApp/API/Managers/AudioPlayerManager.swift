@@ -360,8 +360,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         playerObservations.append(rateObserver)
         
         // Time observer (for position updates) - FIXED
+        let interval = UIApplication.shared.applicationState == .background ? 3.0 : 1.0
         timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.5, preferredTimescale: 10),
+            forInterval: CMTime(seconds: interval, preferredTimescale: 10),
             queue: .main
         ) { [weak self] time in
             guard let self = self else { return }

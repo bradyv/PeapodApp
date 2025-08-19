@@ -124,7 +124,7 @@ struct EpisodeItem: View {
             
             // Episode Actions
             if showActions {
-                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
+                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
                 
                 HStack {
                     // ▶️ Playback Button
@@ -195,7 +195,13 @@ struct EpisodeItem: View {
                         }) {
                             Label("Mark as Played", systemImage: "checkmark.circle")
                         }
-                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome))
+                        .buttonStyle(
+                            PPButton(
+                                type: .transparent,
+                                colorStyle: .monochrome,
+                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : Color.heading, background: displayedInQueue ? Color.white.opacity(0.15) : Color.heading.opacity(0.15))
+                            )
+                        )
                     }
                     
                     Spacer()

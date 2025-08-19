@@ -151,7 +151,7 @@ struct EpisodeView: View {
                             .onTapGesture {
                                 player.skipForward(seconds: player.forwardInterval)
                             }
-                            .popoverTip(skipTip, arrowEdge: .top)
+                            .if(player.isPlaying, transform: { $0.popoverTip(skipTip, arrowEdge: .bottom) })
                     }
                 }
                 .padding(.horizontal)
@@ -205,16 +205,16 @@ struct EpisodeView: View {
                     Group {
                         HStack {
                             if isLoading {
-                                PPSpinner(color: Color.heading)
+                                PPSpinner(color: Color.white)
                                     .transition(.scale.combined(with: .opacity))
                             } else if isPlaying {
                                 Image(systemName: "pause.fill")
-                                    .foregroundStyle(Color.heading)
+                                    .foregroundStyle(Color.white)
                                     .textBody()
                                     .transition(.scale.combined(with: .opacity))
                             } else {
                                 Image(systemName: "play.fill")
-                                    .foregroundStyle(Color.heading)
+                                    .foregroundStyle(Color.white)
                                     .textBody()
                                     .transition(.scale.combined(with: .opacity))
                             }

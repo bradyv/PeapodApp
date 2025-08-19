@@ -167,18 +167,32 @@ struct ActivityView: View {
                     if let longestEpisode = longestEpisode {
                         FadeInView(delay:0.3) {
                             ZStack {
-                                Image("rays")
+                                KFImage(URL(string: longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? ""))
+                                    .resizable()
+                                    .frame(width:248,height:248)
+                                    .blur(radius:100)
+                                    .mask(
+                                        Image("rays")
+                                            .rotationEffect(Angle(degrees: rotationAngle))
+                                    )
                                     .offset(y:-16)
-                                    .rotationEffect(Angle(degrees: rotationAngle))
                                     .onAppear {
                                         withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
                                             rotationAngle = 360
                                         }
                                     }
-                                    .mask(
-                                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                                       startPoint: .top, endPoint: .bottom)
-                                    )
+//                                Image("rays")
+//                                    .offset(y:-16)
+//                                    .rotationEffect(Angle(degrees: rotationAngle))
+//                                    .onAppear {
+//                                        withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
+//                                            rotationAngle = 360
+//                                        }
+//                                    }
+//                                    .mask(
+//                                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+//                                                       startPoint: .top, endPoint: .bottom)
+//                                    )
                                 
                                 VStack {
                                     Text("Longest Completed Episode")

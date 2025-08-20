@@ -12,6 +12,7 @@ import UserNotifications
 import FirebaseMessaging
 import FirebaseFunctions
 import CryptoKit
+import AVFoundation
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     static var pendingNotificationEpisodeID: String?
@@ -35,19 +36,35 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         AppAppearance.setupAppearance()
         UserManager.shared.setupCurrentUser()
         
+        // Configure audio session once at startup
+        configureGlobalAudioSession()
+        
         // Initialize the episodes view model early
         _ = episodesViewModel
-        LogManager.shared.info("✅ EpisodesViewModel initialized early in AppDelegate")
+        LogManager.shared.info("EpisodesViewModel initialized early in AppDelegate")
         
         // Rest of your existing code...
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1", using: nil) { task in
-            print("🚀 BGTask fired: com.bradyv.Peapod.Dev.deleteOldEpisodes.v1")
+            print("BGTask fired: com.bradyv.Peapod.Dev.deleteOldEpisodes.v1")
             self.handleOldEpisodeCleanup(task: task as! BGAppRefreshTask)
         }
         
         checkAndRegisterForNotificationsIfGranted()
         
         return true
+    }
+    
+    // MARK: - Setup Audio
+    
+    func configureGlobalAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay, .allowBluetooth])
+            try session.setActive(true)
+            LogManager.shared.info("Global audio session configured successfully")
+        } catch {
+            LogManager.shared.error("Failed to configure global audio session: \\(error)")
+        }
     }
 
     // MARK: - Firebase Messaging Delegate

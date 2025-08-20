@@ -948,28 +948,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     // MARK: - Audio Session & Setup
     private func configureAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            
-            // Try to set category first
-            try session.setCategory(.playback, mode: .default, options: [.allowAirPlay, .defaultToSpeaker])
-            
-            // Verify the route before activating
-            let currentRoute = session.currentRoute
-            LogManager.shared.info("🔊 Current audio route: \(currentRoute.outputs.map { $0.portType.rawValue })")
-            
-            // Activate session
-            try session.setActive(true)
-            
-            LogManager.shared.info("✅ Audio session configured successfully")
-            
-        } catch {
-            LogManager.shared.error("❌ Failed to configure audio session: \(error)")
-            
-            // If we can't configure audio session, don't proceed with playback
+        // Only verify, don't reconfigure since it's set globally
+        let session = AVAudioSession.sharedInstance()
+        let currentRoute = session.currentRoute
+        
+        if currentRoute.outputs.isEmpty {
+            LogManager.shared.warning("No audio output available")
             if playbackState.isPlaying {
                 updateState(isPlaying: false, isLoading: false)
             }
+        } else {
+            LogManager.shared.info("Audio session verified: \\(currentRoute.outputs.map { $0.portType.rawValue })")
         }
     }
     

@@ -16,6 +16,7 @@
       "layers" : [
         {
           "glass" : false,
+          "hidden" : false,
           "image-name" : "icon-face 3.png",
           "name" : "icon-face 3"
         },
@@ -90,7 +91,7 @@
       ]
     },
     {
-      "blur-material" : 0.7,
+      "blur-material" : 1,
       "layers" : [
         {
           "hidden-specializations" : [
@@ -193,6 +194,7 @@
       }
     },
     {
+      "blur-material" : null,
       "layers" : [
         {
           "fill-specializations" : [

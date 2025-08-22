@@ -183,6 +183,7 @@ struct EpisodeItem: View {
                                 }
                             }) {
                                 Label("Up Next", systemImage: episode.isQueued ? "checkmark" : "text.append")
+                                    .contentTransition(.symbolEffect(.replace))
                             }
                             .buttonStyle(PPButton(type: .transparent, colorStyle: episode.isQueued ? .tinted : .monochrome))
                         }

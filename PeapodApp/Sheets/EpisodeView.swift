@@ -207,21 +207,18 @@ struct EpisodeView: View {
                             if isLoading {
                                 PPSpinner(color: Color.white)
                                     .transition(.scale.combined(with: .opacity))
-                            } else if isPlaying {
-                                Image(systemName: "pause.fill")
-                                    .foregroundStyle(Color.white)
-                                    .textBody()
-                                    .transition(.scale.combined(with: .opacity))
                             } else {
-                                Image(systemName: "play.fill")
+                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                                     .foregroundStyle(Color.white)
                                     .textBody()
                                     .transition(.scale.combined(with: .opacity))
+                                    .contentTransition(.symbolEffect(.replace))
                             }
                             
                             Text(isPlaying ? "Pause" : "Listen Now")
                                 .foregroundStyle(.white)
                                 .textBodyEmphasis()
+                                .contentTransition(.interpolate)
                         }
                         .padding(.horizontal,8)
                     }

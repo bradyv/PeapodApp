@@ -198,10 +198,9 @@ struct ContentView: View {
                         }) {
                             if player.isLoading {
                                 PPSpinner(color: Color.heading)
-                            } else if player.isPlaying {
-                                Image(systemName: "pause")
                             } else {
-                                Image(systemName: "play.fill")
+                                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                                    .contentTransition(.symbolEffect(.replace))
                             }
                         }
                         

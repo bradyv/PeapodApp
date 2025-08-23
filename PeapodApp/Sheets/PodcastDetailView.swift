@@ -43,8 +43,8 @@ struct PodcastDetailView: View {
     var body: some View {
         Group {
             if let podcast = podcast {
-                let badFeed = "https://feeds.megaphone.fm/GLT1412515089"
-                let blockFeed = podcast.feedUrl == badFeed
+//                let badFeed = "https://feeds.megaphone.fm/GLT1412515089"
+//                let blockFeed = podcast.feedUrl == badFeed
                 ScrollView {
                     Color.clear
                         .frame(height: 1)
@@ -173,26 +173,27 @@ struct PodcastDetailView: View {
                                 .animation(.easeOut(duration: 0.15), value: showFullDescription)
                         }
                     }
-                    .if(blockFeed, transform: { $0.blur(radius:16) })
+//                    .if(blockFeed, transform: { $0.blur(radius:16) })
                 }
-                .disabled(blockFeed)
-                .overlay {
-                    if blockFeed {
-                        VStack(spacing:8) {
-                            Text("Mics On, Misinformation Off")
-                                .titleSerifMini()
-                            
-                            Text("Find a podcast that doesn’t spread misinformation or promote controversial, unverified content.")
-                                .textBody()
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal,32)
-                            
-                            Text("You can do better.")
-                                .textBody()
-                        }
-                    }
-                }
+//                .disabled(blockFeed)
+//                .overlay {
+//                    if blockFeed {
+//                        VStack(spacing:8) {
+//                            Text("Mics On, Misinformation Off")
+//                                .titleSerifMini()
+//                            
+//                            Text("Find a podcast that doesn’t spread misinformation or promote controversial, unverified content.")
+//                                .textBody()
+//                                .multilineTextAlignment(.center)
+//                                .padding(.horizontal,32)
+//                            
+//                            Text("You can do better.")
+//                                .textBody()
+//                        }
+//                    }
+//                }
                 .background {
+                    let frame = UIScreen.main.bounds.width
                     SplashImage(image: podcast.image ?? "")
                         .offset(y:-200)
                 }
@@ -215,7 +216,7 @@ struct PodcastDetailView: View {
                 .toolbar {
                     ToolbarItem {
                         subscribeButton()
-                            .disabled(blockFeed)
+//                            .disabled(blockFeed)
                     }
                 }
                 // 🔥 ADD: Listen for Core Data changes and refresh episodes
@@ -275,6 +276,15 @@ struct PodcastDetailView: View {
             }
             
             self.episodes = result
+        }
+    }
+    
+    @ViewBuilder
+    var EmptyPodcastView: some View {
+        VStack {
+            EmptyEpisodeItem()
+            EmptyEpisodeItem()
+            EmptyEpisodeItem()
         }
     }
     

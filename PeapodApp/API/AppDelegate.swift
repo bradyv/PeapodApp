@@ -63,7 +63,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             try session.setActive(true)
             LogManager.shared.info("Global audio session configured successfully")
         } catch {
-            LogManager.shared.error("Failed to configure global audio session: \\(error)")
+            LogManager.shared.error("Failed to configure global audio session: \(error)")
         }
     }
 

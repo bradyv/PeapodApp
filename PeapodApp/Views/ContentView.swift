@@ -220,7 +220,7 @@ struct ContentView: View {
                 .frame(maxWidth:.infinity, alignment:.leading)
             } else {
                 HStack {
-                    Text("Nothing playing")
+                    Text("Nothing up next")
                         .textBody()
                         .frame(maxWidth:.infinity, alignment: .leading)
 

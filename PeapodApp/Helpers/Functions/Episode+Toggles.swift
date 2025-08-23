@@ -200,20 +200,32 @@ func getQueuedEpisodes(context: NSManagedObjectContext) -> [Episode] {
     playbackRequest.predicate = NSPredicate(format: "isQueued == YES")
     playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.queuePosition, ascending: true)]
     
+    // PERFORMANCE: Only fetch required properties
+    playbackRequest.propertiesToFetch = ["episodeId"]
+    playbackRequest.returnsObjectsAsFaults = false
+    
     guard let playbackStates = try? context.fetch(playbackRequest) else { return [] }
     let episodeIds = playbackStates.compactMap { $0.episodeId }
     
     guard !episodeIds.isEmpty else { return [] }
     
+    // PERFORMANCE: Optimized episode fetch
     let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
     episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
     
+    // Add performance optimizations
+    episodeRequest.fetchBatchSize = 20
+    episodeRequest.returnsObjectsAsFaults = false
+    episodeRequest.includesPropertyValues = true
+    episodeRequest.includesSubentities = false
+    episodeRequest.relationshipKeyPathsForPrefetching = ["podcast"]
+    
     do {
         let episodes = try context.fetch(episodeRequest)
-        // Sort by queue position from the playback states
+        // Sort by queue position
         return episodes.sorted { $0.queuePosition < $1.queuePosition }
     } catch {
-        LogManager.shared.error("❌ Error fetching queued episodes: \(error)")
+        LogManager.shared.error("Error fetching queued episodes: \(error)")
         return []
     }
 }
@@ -224,44 +236,71 @@ func getPlayedEpisodes(context: NSManagedObjectContext) -> [Episode] {
     playbackRequest.predicate = NSPredicate(format: "isPlayed == YES")
     playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.playedDate, ascending: false)]
     
+    // PERFORMANCE: Only fetch required properties
+    playbackRequest.propertiesToFetch = ["episodeId"]
+    playbackRequest.returnsObjectsAsFaults = false
+    playbackRequest.fetchLimit = 100 // Limit played episodes
+    
     guard let playbackStates = try? context.fetch(playbackRequest) else { return [] }
     let episodeIds = playbackStates.compactMap { $0.episodeId }
     
     guard !episodeIds.isEmpty else { return [] }
     
+    // PERFORMANCE: Optimized episode fetch
     let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
     episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
+    
+    // Add performance optimizations
+    episodeRequest.fetchBatchSize = 20
+    episodeRequest.returnsObjectsAsFaults = false
+    episodeRequest.includesPropertyValues = true
+    episodeRequest.includesSubentities = false
+    episodeRequest.relationshipKeyPathsForPrefetching = ["podcast"]
     
     do {
         let episodes = try context.fetch(episodeRequest)
         // Sort by played date (newest first)
         return episodes.sorted { ($0.playedDate ?? Date.distantPast) > ($1.playedDate ?? Date.distantPast) }
     } catch {
-        LogManager.shared.error("❌ Error fetching played episodes: \(error)")
+        LogManager.shared.error("Error fetching played episodes: \(error)")
         return []
     }
 }
 
 /// Get favorite episodes
 func getFavoriteEpisodes(context: NSManagedObjectContext) -> [Episode] {
+    // PERFORMANCE: Get episode IDs only in first fetch
     let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
     playbackRequest.predicate = NSPredicate(format: "isFav == YES")
     playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.favDate, ascending: false)]
+    
+    // CRITICAL: Only fetch the episodeId property to minimize data transfer
+    playbackRequest.propertiesToFetch = ["episodeId"]
+    playbackRequest.returnsObjectsAsFaults = false
     
     guard let playbackStates = try? context.fetch(playbackRequest) else { return [] }
     let episodeIds = playbackStates.compactMap { $0.episodeId }
     
     guard !episodeIds.isEmpty else { return [] }
     
+    // PERFORMANCE: Optimized episode fetch with all the same optimizations as subscriptions
     let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
     episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
     
+    // CRITICAL: Add all the same performance optimizations as subscriptionsFetchRequest
+    episodeRequest.fetchBatchSize = 20
+    episodeRequest.returnsObjectsAsFaults = false
+    episodeRequest.includesPropertyValues = true
+    episodeRequest.includesSubentities = false
+    episodeRequest.relationshipKeyPathsForPrefetching = ["podcast"] // Prefetch podcast for FavEpisodesView
+    episodeRequest.fetchLimit = 100 // Reasonable limit for favorites
+    
     do {
         let episodes = try context.fetch(episodeRequest)
-        // Sort by favorited date (newest first)
+        // Sort by favorited date (newest first) using the episode's favDate property
         return episodes.sorted { ($0.favDate ?? Date.distantPast) > ($1.favDate ?? Date.distantPast) }
     } catch {
-        LogManager.shared.error("❌ Error fetching favorite episodes: \(error)")
+        LogManager.shared.error("Error fetching favorite episodes: \(error)")
         return []
     }
 }

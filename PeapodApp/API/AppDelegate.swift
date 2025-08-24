@@ -19,7 +19,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     lazy var episodesViewModel: EpisodesViewModel = {
         let viewModel = EpisodesViewModel()
-        // Setup with the main context immediately
         viewModel.setup(context: PersistenceController.shared.container.viewContext)
         return viewModel
     }()
@@ -36,18 +35,22 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         AppAppearance.setupAppearance()
         UserManager.shared.setupCurrentUser()
         
-        // Configure audio session once at startup
         configureGlobalAudioSession()
         
         // Initialize the episodes view model early
         _ = episodesViewModel
         LogManager.shared.info("EpisodesViewModel initialized early in AppDelegate")
         
-        // Rest of your existing code...
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1", using: nil) { task in
-            print("BGTask fired: com.bradyv.Peapod.Dev.deleteOldEpisodes.v1")
-            self.handleOldEpisodeCleanup(task: task as! BGAppRefreshTask)
+        // Register background task for weekly cleanup
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: "fm.peapod.weeklyCleanup.v1", using: nil) { task in
+            print("BGTask fired: fm.peapod.weeklyCleanup.v1")
+            self.handleWeeklyCleanup(task: task as! BGAppRefreshTask)
         }
+        
+        // Schedule the first cleanup
+//        scheduleWeeklyCleanup()
+        
+//        debugPerformCleanupNow()
         
         checkAndRegisterForNotificationsIfGranted()
         
@@ -72,7 +75,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         print("🔥 Firebase registration token: \(fcmToken ?? "nil")")
         
-        // Send token to your backend
         if let token = fcmToken {
             sendTokenToBackend(token: token)
         }
@@ -85,8 +87,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             DispatchQueue.main.async {
                 if settings.authorizationStatus == .authorized {
                     UIApplication.shared.registerForRemoteNotifications()
-                    
-                    // Update AppStorage to reflect current status
                     UserDefaults.standard.set(true, forKey: "notificationsGranted")
                     UserDefaults.standard.set(true, forKey: "notificationsAsked")
                 }
@@ -94,7 +94,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
     }
 
-    // Keep the requestNotificationPermissions method for when it's called from the RequestNotificationsView
     func requestNotificationPermissions() {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
@@ -120,21 +119,17 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         LogManager.shared.error("❌ Failed to register for remote notifications: \(error)")
     }
     
-    // ENHANCED: Handle background push notifications with better logging
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         LogManager.shared.info("📱 Received remote notification - app state: \(application.applicationState.rawValue)")
         LogManager.shared.info("📱 Notification payload: \(userInfo)")
         
-        // Check if this is a Firebase message
         if let messageID = userInfo["gcm.message_id"] as? String {
             LogManager.shared.info("🔥 Firebase message ID: \(messageID)")
         }
         
-        // Track the refresh start
         let refreshStartTime = Date()
-        LogManager.shared.info("🔔 Starting force refresh for notification at \(refreshStartTime)")
+        LogManager.shared.info("🔄 Starting force refresh for notification at \(refreshStartTime)")
         
-        // 🚀 NEW: Use a flag to ensure completion handler is only called once
         var hasCompleted = false
         let completionLock = NSLock()
         
@@ -148,14 +143,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             }
         }
         
-        // Force refresh feeds when receiving push notification
         EpisodeRefresher.forceRefreshForNotification {
             let refreshDuration = Date().timeIntervalSince(refreshStartTime)
             LogManager.shared.info("✅ Background refresh completed in \(String(format: "%.2f", refreshDuration))s")
             safeComplete(.newData)
         }
         
-        // Timeout protection - only call if refresh hasn't completed yet
         DispatchQueue.main.asyncAfter(deadline: .now() + 25) {
             completionLock.lock()
             if !hasCompleted {
@@ -169,35 +162,26 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     // MARK: - Notification Handling
     
-    // ENHANCED: When user taps a notification with better flow control
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                didReceive response: UNNotificationResponse,
                                withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         
         LogManager.shared.info("🔔 User tapped notification: \(userInfo)")
-        
-        // Clear badge immediately
         UIApplication.shared.applicationIconBadgeNumber = 0
         
-        // Handle both local and push notifications
         if let episodeID = userInfo["episodeID"] as? String {
             print("🔍 Looking for episode with ID: \(episodeID)")
-            
-            // Store the episode ID for ContentView to handle
             AppDelegate.pendingNotificationEpisodeID = episodeID
             
-            // Immediately try to find the episode first
             if findAndOpenEpisode(episodeID: episodeID) {
                 LogManager.shared.info("✅ Episode found immediately, no refresh needed")
                 completionHandler()
                 return
             }
             
-            // If not found, do a refresh and try again
             LogManager.shared.info("🔄 Episode not found, forcing refresh...")
             EpisodeRefresher.forceRefreshForNotification {
-                // After refresh, try to find and open the episode
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     if !self.findAndOpenEpisode(episodeID: episodeID) {
                         LogManager.shared.error("❌ Episode still not found after refresh")
@@ -209,32 +193,22 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         completionHandler()
     }
     
-    // Handle foreground notifications
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                willPresent notification: UNNotification,
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let userInfo = notification.request.content.userInfo
         LogManager.shared.info("🔔 Received notification while app in foreground: \(userInfo)")
         
-        // Force refresh when notification received in foreground
         EpisodeRefresher.forceRefreshForNotification()
-        
-        // Show notification even when app is in foreground
         completionHandler([.alert, .sound, .badge])
     }
     
-    // ENHANCED: Helper to find episode by Firebase episode ID format with return value
     @discardableResult
     private func findAndOpenEpisode(episodeID: String) -> Bool {
         let context = PersistenceController.shared.container.viewContext
         
         print("🔍 Searching for episode with Firebase ID: '\(episodeID)'")
         
-        // Firebase now sends MD5 hashes, so we need to reverse-engineer
-        // Since we can't reverse MD5, we'll search all episodes and match against generated hashes
-        
-        // Strategy 1: Direct search by reconstructing possible episode IDs
-        // We'll check all episodes in subscribed podcasts and see if any match the hash
         let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
         podcastRequest.predicate = NSPredicate(format: "isSubscribed == YES")
         
@@ -244,7 +218,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             for podcast in subscribedPodcasts {
                 guard let feedUrl = podcast.feedUrl else { continue }
                 
-                // Get episodes from this podcast using podcastId
                 let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
                 episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
                 
@@ -254,13 +227,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                     for episode in episodes {
                         guard let guid = episode.guid else { continue }
                         
-                        // Recreate the hash that Firebase would have generated
                         let combined = "\(feedUrl)_\(guid)"
                         let hash = combined.md5Hash()
                         
                         if hash == episodeID {
                             LogManager.shared.info("✅ Found episode by hash match: \(episode.title ?? "Unknown")")
-                            print("   📍 Matched: \(feedUrl) + \(guid) = \(hash)")
+                            print("   🔍 Matched: \(feedUrl) + \(guid) = \(hash)")
                             DispatchQueue.main.async {
                                 NotificationCenter.default.post(name: .didTapEpisodeNotification, object: episode.id)
                             }
@@ -287,7 +259,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             return
         }
         
-        // Get user's subscribed podcasts
         let context = PersistenceController.shared.container.viewContext
         let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
         request.predicate = NSPredicate(format: "isSubscribed == YES")
@@ -299,7 +270,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             let cleanUserID = UserManager.shared.cleanUserID
             LogManager.shared.info("✅ Using UUID user ID for Firebase: \(cleanUserID)")
             
-            // Send to Firebase Functions using Firebase SDK
             let functions = Functions.functions()
             let registerUser = functions.httpsCallable("registerUser")
             
@@ -323,205 +293,256 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
-    // MARK: - Background Tasks (keeping cleanup only)
+    // MARK: - Weekly Cleanup
     
-    func debugPurgeOldEpisodes() {
-        let context = PersistenceController.shared.container.viewContext
-
-        context.perform {
-            print("🧪 DEBUG: Starting old episode purge")
-
-            let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-            // FIXED: Use proper IN syntax with helper functions
-            let unsubscribedPodcastIds = self.getUnsubscribedPodcastIds(context: context)
-            let queueIds = getPlaylist(named: "Queue", context: context).episodeIdArray
-            let playedIds = getPlaylist(named: "Played", context: context).episodeIdArray
-            let favIds = getPlaylist(named: "Favorites", context: context).episodeIdArray
-            let allPlaylistIds = Set(queueIds + playedIds + favIds)
-            
-            guard !unsubscribedPodcastIds.isEmpty else {
-                print("→ No unsubscribed podcasts found")
-                return
-            }
-            
-            let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
-            
-            if allPlaylistIds.isEmpty {
-                request.predicate = unsubscribedPredicate
-            } else {
-                request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                    unsubscribedPredicate,
-                    NSPredicate(format: "NOT (id IN %@)", Array(allPlaylistIds))
-                ])
-            }
-
-            do {
-                let episodes = try context.fetch(request)
-                print("→ Found \(episodes.count) episode(s) eligible for deletion")
-
-                for episode in episodes {
-                    let title = episode.title ?? "Untitled"
-                    let podcastTitle = episode.podcast?.title ?? "nil"
-                    print("   - Deleting: \(title) from \(podcastTitle)")
-                    context.delete(episode)
-                }
-
-                try context.save()
-                LogManager.shared.info("✅ DEBUG: Deleted \(episodes.count) episode(s)")
-            } catch {
-                LogManager.shared.error("❌ DEBUG purge failed: \(error)")
-            }
-        }
-    }
-
-    // MARK: - Cleanup Functions
-
-    /// Performs comprehensive cleanup of unsubscribed podcasts and episodes on app startup
-    private func performStartupCleanup() {
-        LogManager.shared.info("🧹 Starting app startup cleanup")
+    /// Manual cleanup for testing - call this from your UI during development
+    func debugPerformCleanupNow() {
+        LogManager.shared.info("🧪 DEBUG: Starting manual cleanup")
+        print("🧪 DEBUG: Starting manual cleanup")
         
         let context = PersistenceController.shared.container.newBackgroundContext()
-        context.perform {
+        context.perform { [self] in
             do {
-                let (deletedEpisodes, deletedPodcasts) = try self.cleanupUnsubscribedContent(in: context)
-                
-                LogManager.shared.info("✅ Startup cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts deleted")
-                
-                // Optional: Post notification for UI updates if needed
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .didCompleteStartupCleanup, object: nil)
-                }
-                
+                let (deletedEpisodes, deletedPodcasts, deletedPlayback) = try cleanupUnusedData(in: context)
+                LogManager.shared.info("✅ DEBUG cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts, \(deletedPlayback) playback deleted")
+                print("✅ DEBUG cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts, \(deletedPlayback) playback deleted")
             } catch {
-                LogManager.shared.error("❌ Startup cleanup failed: \(error)")
+                LogManager.shared.error("❌ DEBUG cleanup failed: \(error)")
+                print("❌ DEBUG cleanup failed: \(error)")
             }
         }
     }
-
-    /// Core cleanup logic that can be reused by both startup and background tasks
-    private func cleanupUnsubscribedContent(in context: NSManagedObjectContext) throws -> (episodesDeleted: Int, podcastsDeleted: Int) {
+    
+    /// Performs comprehensive weekly cleanup of unused episodes and unsubscribed podcasts
+    func performWeeklyCleanup() {
+        LogManager.shared.info("🧹 Starting weekly cleanup")
+        
+        let context = PersistenceController.shared.container.newBackgroundContext()
+        context.perform { [self] in
+            do {
+                let (deletedEpisodes, deletedPodcasts, deletedPlayback) = try cleanupUnusedData(in: context)
+                LogManager.shared.info("✅ Weekly cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts, \(deletedPlayback) playback deleted")
+                
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .didCompleteWeeklyCleanup, object: nil)
+                }
+            } catch {
+                LogManager.shared.error("❌ Weekly cleanup failed: \(error)")
+            }
+        }
+    }
+    
+    /// Core cleanup logic that removes unused data based on subscription status
+    private func cleanupUnusedData(in context: NSManagedObjectContext) throws -> (episodesDeleted: Int, podcastsDeleted: Int, playbackDeleted: Int) {
         var deletedEpisodes = 0
         var deletedPodcasts = 0
+        var deletedPlayback = 0
         
-        // UPDATED: Use main context for playlist access, not background context
-        let mainContext = PersistenceController.shared.container.viewContext
+        LogManager.shared.info("🧹 Starting cleanup process")
+        print("🧹 Starting cleanup process")
         
-        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        // Get subscription status mappings upfront
+        let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
+        let unsubscribedPodcastIds = try getUnsubscribedPodcastIds(context: context)
         
-        let unsubscribedPodcastIds = self.getUnsubscribedPodcastIds(context: context)
+        print("📊 Subscribed podcasts: \(subscribedPodcastIds.count)")
+        print("📊 Unsubscribed podcasts: \(unsubscribedPodcastIds.count)")
         
-        // CRITICAL FIX: Access playlists from main context using synchronous approach
-        var allPlaylistIds = Set<String>()
+        // STEP 1: Clean playback records with different rules for subscribed vs unsubscribed
+        deletedPlayback = try cleanupPlaybackRecords(
+            subscribedPodcastIds: subscribedPodcastIds,
+            unsubscribedPodcastIds: unsubscribedPodcastIds,
+            context: context
+        )
         
-        // Use performAndWait for synchronous execution on main context
-        mainContext.performAndWait {
-            let queueIds = getPlaylistThreadSafe(named: "Queue", context: mainContext).episodeIdArray
-            let playedIds = getPlaylistThreadSafe(named: "Played", context: mainContext).episodeIdArray
-            let favIds = getPlaylistThreadSafe(named: "Favorites", context: mainContext).episodeIdArray
-            allPlaylistIds = Set(queueIds + playedIds + favIds)
-        }
+        // STEP 2: Remove episodes from unsubscribed podcasts that have no meaningful playback
+        deletedEpisodes = try cleanupEpisodesFromUnsubscribedPodcasts(
+            unsubscribedPodcastIds: unsubscribedPodcastIds,
+            context: context
+        )
         
-        guard !unsubscribedPodcastIds.isEmpty else {
-            LogManager.shared.info("🗑️ No unsubscribed podcasts found")
-            return (0, 0)
-        }
-        
-        let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
-        
-        if allPlaylistIds.isEmpty {
-            episodeRequest.predicate = unsubscribedPredicate
-        } else {
-            episodeRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-                unsubscribedPredicate,
-                NSPredicate(format: "NOT (id IN %@)", Array(allPlaylistIds))
-            ])
-        }
-        
-        let episodesToDelete = try context.fetch(episodeRequest)
-        LogManager.shared.info("🗑️ Found \(episodesToDelete.count) episodes to delete from unsubscribed podcasts")
-        
-        for episode in episodesToDelete {
-            let title = episode.title ?? "Untitled"
-            let podcastTitle = episode.podcast?.title ?? "Unknown Podcast"
-            LogManager.shared.debug("   - Deleting episode: \(title) from \(podcastTitle)")
-            context.delete(episode)
-            deletedEpisodes += 1
-        }
-        
-        // Step 2: Clean up podcasts that are unsubscribed and have no remaining episodes
-        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
-        podcastRequest.predicate = NSPredicate(format: "isSubscribed == NO")
-        
-        let unsubscribedPodcasts = try context.fetch(podcastRequest)
-        LogManager.shared.info("🔍 Found \(unsubscribedPodcasts.count) unsubscribed podcasts to evaluate")
-        
-        for podcast in unsubscribedPodcasts {
-            // Check if podcast has any remaining episodes (saved, played, or queued)
-            let podcastEpisodeIds = allPlaylistIds.filter { id in
-                // Check if this episode belongs to this podcast
-                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                episodeRequest.predicate = NSPredicate(format: "id == %@ AND podcastId == %@", id, podcast.id ?? "")
-                episodeRequest.fetchLimit = 1
-                return (try? context.fetch(episodeRequest).first) != nil
-            }
-            
-            if podcastEpisodeIds.isEmpty {
-                // Safe to delete this podcast as it has no saved/played/queued episodes
-                let title = podcast.title ?? "Unknown Podcast"
-                LogManager.shared.debug("   - Deleting podcast: \(title)")
-                context.delete(podcast)
-                deletedPodcasts += 1
-            } else {
-                LogManager.shared.debug("   - Keeping podcast: \(podcast.title ?? "Unknown") (has \(podcastEpisodeIds.count) preserved episodes)")
-            }
-        }
+        // STEP 3: Remove all unsubscribed podcasts
+        deletedPodcasts = try cleanupUnsubscribedPodcasts(context: context)
         
         // Save all changes
         if context.hasChanges {
             try context.save()
+            LogManager.shared.info("✅ Context saved successfully")
+            print("✅ Context saved successfully")
+        } else {
+            LogManager.shared.info("ℹ️ No changes to save")
+            print("ℹ️ No changes to save")
         }
         
-        return (deletedEpisodes, deletedPodcasts)
+        return (deletedEpisodes, deletedPodcasts, deletedPlayback)
+    }
+
+    /// Clean playback records with different rules for subscribed vs unsubscribed podcasts
+    private func cleanupPlaybackRecords(
+        subscribedPodcastIds: [String],
+        unsubscribedPodcastIds: [String],
+        context: NSManagedObjectContext
+    ) throws -> Int {
+        var deletedCount = 0
+        
+        // Get episode IDs for each subscription category
+        let subscribedEpisodeIds = try getEpisodeIds(forPodcasts: subscribedPodcastIds, context: context)
+        let unsubscribedEpisodeIds = try getEpisodeIds(forPodcasts: unsubscribedPodcastIds, context: context)
+        
+        // Clean subscribed podcast playback (conservative - keep if >5 minutes)
+        if !subscribedEpisodeIds.isEmpty {
+            let subscribedPlaybackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+            subscribedPlaybackRequest.predicate = NSPredicate(format:
+                "isQueued == NO AND isPlayed == NO AND isFav == NO AND playbackPosition <= 300 AND episodeId IN %@",
+                subscribedEpisodeIds)
+            
+            let subscribedPlaybackToDelete = try context.fetch(subscribedPlaybackRequest)
+            print("📊 Found \(subscribedPlaybackToDelete.count) low-engagement playback records from subscribed podcasts")
+            
+            for record in subscribedPlaybackToDelete {
+                context.delete(record)
+                deletedCount += 1
+            }
+        }
+        
+        // Clean unsubscribed podcast playback (aggressive - any without meaningful flags)
+        if !unsubscribedEpisodeIds.isEmpty {
+            let unsubscribedPlaybackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+            unsubscribedPlaybackRequest.predicate = NSPredicate(format:
+                "isQueued == NO AND isPlayed == NO AND isFav == NO AND episodeId IN %@",
+                unsubscribedEpisodeIds)
+            
+            let unsubscribedPlaybackToDelete = try context.fetch(unsubscribedPlaybackRequest)
+            print("📊 Found \(unsubscribedPlaybackToDelete.count) non-meaningful playback records from unsubscribed podcasts")
+            
+            for record in unsubscribedPlaybackToDelete {
+                context.delete(record)
+                deletedCount += 1
+            }
+        }
+        
+        LogManager.shared.info("🗑️ Deleted \(deletedCount) playback records")
+        print("🗑️ Deleted \(deletedCount) playback records")
+        return deletedCount
+    }
+
+    /// Remove episodes from unsubscribed podcasts that have no meaningful playback data
+    private func cleanupEpisodesFromUnsubscribedPodcasts(
+        unsubscribedPodcastIds: [String],
+        context: NSManagedObjectContext
+    ) throws -> Int {
+        var deletedCount = 0
+        
+        guard !unsubscribedPodcastIds.isEmpty else {
+            print("ℹ️ No unsubscribed podcasts found")
+            return 0
+        }
+        
+        // Get episodes that have meaningful interaction (played, queued, favorited, or >5 mins playback)
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        playbackRequest.predicate = NSPredicate(format: "isPlayed == YES OR isQueued == YES OR isFav == YES OR playbackPosition > 300")
+        let meaningfulPlaybackRecords = try context.fetch(playbackRequest)
+        let episodeIdsToPreserve = Set(meaningfulPlaybackRecords.compactMap { $0.episodeId })
+        
+        print("🔍 Found \(episodeIdsToPreserve.count) episodes with meaningful interaction to preserve")
+        
+        // Find episodes from unsubscribed podcasts
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        var predicates: [NSPredicate] = [
+            NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
+        ]
+        
+        // Exclude episodes with meaningful interaction
+        if !episodeIdsToPreserve.isEmpty {
+            predicates.append(NSPredicate(format: "NOT (id IN %@)", Array(episodeIdsToPreserve)))
+        }
+        
+        episodeRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        
+        let episodesToDelete = try context.fetch(episodeRequest)
+        print("🗑️ Found \(episodesToDelete.count) unused episodes from unsubscribed podcasts to delete")
+        
+        for episode in episodesToDelete {
+            let title = episode.title ?? "Untitled"
+            let podcastTitle = episode.podcast?.title ?? "Unknown Podcast"
+            print("   - Deleting episode: \(title) from \(podcastTitle)")
+            context.delete(episode)
+            deletedCount += 1
+        }
+        
+        LogManager.shared.info("🗑️ Deleted \(deletedCount) episodes from unsubscribed podcasts")
+        return deletedCount
+    }
+
+    /// Remove all unsubscribed podcasts
+    private func cleanupUnsubscribedPodcasts(context: NSManagedObjectContext) throws -> Int {
+        var deletedCount = 0
+        
+        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        podcastRequest.predicate = NSPredicate(format: "isSubscribed == NO")
+        
+        let unsubscribedPodcasts = try context.fetch(podcastRequest)
+        print("🗑️ Found \(unsubscribedPodcasts.count) unsubscribed podcasts to delete")
+        
+        for podcast in unsubscribedPodcasts {
+            let title = podcast.title ?? "Unknown Podcast"
+            print("   - Deleting podcast: \(title)")
+            context.delete(podcast)
+            deletedCount += 1
+        }
+        
+        LogManager.shared.info("🗑️ Deleted \(deletedCount) unsubscribed podcasts")
+        return deletedCount
+    }
+
+    /// Helper function to get episode IDs for specific podcasts
+    private func getEpisodeIds(forPodcasts podcastIds: [String], context: NSManagedObjectContext) throws -> [String] {
+        guard !podcastIds.isEmpty else { return [] }
+        
+        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "podcastId IN %@", podcastIds)
+        
+        let episodes = try context.fetch(request)
+        return episodes.compactMap { $0.id }
+    }
+
+    /// Helper to get unsubscribed podcast IDs
+    private func getUnsubscribedPodcastIds(context: NSManagedObjectContext) throws -> [String] {
+        let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        request.predicate = NSPredicate(format: "isSubscribed == NO")
+        
+        let podcasts = try context.fetch(request)
+        return podcasts.compactMap { $0.id }
     }
     
-    /// Updated background task handler to use the same cleanup logic
-    private func handleOldEpisodeCleanup(task: BGAppRefreshTask) {
-        scheduleEpisodeCleanup() // Reschedule for next week
+    /// Background task handler for weekly cleanup
+    private func handleWeeklyCleanup(task: BGAppRefreshTask) {
+        scheduleWeeklyCleanup() // Reschedule for next week
         
         let context = PersistenceController.shared.container.newBackgroundContext()
-        context.perform {
+        context.perform { [self] in
             do {
-                let (deletedEpisodes, deletedPodcasts) = try self.cleanupUnsubscribedContent(in: context)
-                LogManager.shared.info("✅ Background cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts deleted")
+                let (deletedEpisodes, deletedPodcasts, deletedPlayback) = try cleanupUnusedData(in: context)
+                LogManager.shared.info("✅ Background weekly cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts, \(deletedPlayback) playback deleted")
                 task.setTaskCompleted(success: true)
             } catch {
-                LogManager.shared.error("❌ Background cleanup failed: \(error)")
+                LogManager.shared.error("❌ Background weekly cleanup failed: \(error)")
                 task.setTaskCompleted(success: false)
             }
         }
     }
 
-    func scheduleEpisodeCleanup() {
-        let request = BGAppRefreshTaskRequest(identifier: "com.bradyv.Peapod.Dev.deleteOldEpisodes.v1")
+    func scheduleWeeklyCleanup() {
+        let request = BGAppRefreshTaskRequest(identifier: "fm.peapod.weeklyCleanup.v1")
         request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60 * 24 * 7) // 1 week
 
         do {
             try BGTaskScheduler.shared.submit(request)
+            LogManager.shared.info("✅ Weekly cleanup task scheduled successfully for: \(request.earliestBeginDate?.description ?? "unknown")")
+            print("✅ Weekly cleanup task scheduled successfully for: \(request.earliestBeginDate?.description ?? "unknown")")
         } catch {
-            print("Could not schedule episode cleanup task: \(error)")
-        }
-    }
-    
-    private func getUnsubscribedPodcastIds(context: NSManagedObjectContext) -> [String] {
-        let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
-        request.predicate = NSPredicate(format: "isSubscribed == NO")
-        
-        do {
-            let unsubscribedPodcasts = try context.fetch(request)
-            return unsubscribedPodcasts.compactMap { $0.id }
-        } catch {
-            LogManager.shared.error("❌ Failed to fetch unsubscribed podcast IDs: \(error)")
-            return []
+            LogManager.shared.error("❌ Could not schedule weekly cleanup task: \(error)")
+            print("❌ Could not schedule weekly cleanup task: \(error)")
         }
     }
 }
@@ -535,5 +556,5 @@ extension String {
 }
 
 extension Notification.Name {
-    static let didCompleteStartupCleanup = Notification.Name("didCompleteStartupCleanup")
+    static let didCompleteWeeklyCleanup = Notification.Name("didCompleteWeeklyCleanup")
 }

@@ -59,9 +59,9 @@ class SubscriptionSyncService {
         guard let bundleId = Bundle.main.bundleIdentifier else { return "unknown" }
         
         switch bundleId {
-        case "com.bradyv.Peapod.Debug":
+        case "fm.peapod.debug":
             return "debug"
-        case "com.bradyv.Peapod.Dev":
+        case "fm.peapod":
             return "dev"
         default:
             return "prod"

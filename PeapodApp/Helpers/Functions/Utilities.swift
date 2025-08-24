@@ -10,7 +10,7 @@ import CoreData
 import CloudKit
 
 func runDeduplicationOnceIfNeeded(context: NSManagedObjectContext) {
-    let versionKey = "com.bradyv.Peapod.Dev.didDeduplicatePodcasts.v1"
+    let versionKey = "fm.peapod.didDeduplicatePodcasts.v1"
     // Uncomment this line if you want to skip if already run
     // if UserDefaults.standard.bool(forKey: versionKey) {
     //     return

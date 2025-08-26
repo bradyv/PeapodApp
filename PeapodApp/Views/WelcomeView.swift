@@ -79,7 +79,7 @@ struct WelcomeView: View {
                         ForEach(Array(topPodcasts.enumerated())
                             .filter { $0.offset % 5 == column }, id: \.1.id) { index, podcast in
                                 FadeInView(delay: Double(index) * 0.02) {
-                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
+                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 12)
                                         .transition(.move(edge: .top).combined(with: .opacity))
                                         .animation(.easeOut(duration: 0.15).delay(Double(index) * 0.01), value: showSubscriptions)
                                 }

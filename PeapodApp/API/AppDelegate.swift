@@ -332,6 +332,46 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
     }
     
+    private func cleanupOrphanedPlaybackRecords(context: NSManagedObjectContext) {
+        // Get all existing episode IDs
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.propertiesToFetch = ["id"]
+        episodeRequest.returnsObjectsAsFaults = false
+        
+        let allEpisodes = (try? context.fetch(episodeRequest)) ?? []
+        let validEpisodeIds = Set(allEpisodes.compactMap { $0.id })
+        
+        // Find playback records that point to non-existent episodes
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        let allPlaybacks = (try? context.fetch(playbackRequest)) ?? []
+        
+        let orphanedPlaybacks = allPlaybacks.filter { playback in
+            guard let episodeId = playback.episodeId else { return true } // Delete playbacks with nil episodeId
+            return !validEpisodeIds.contains(episodeId)
+        }
+        
+        guard !orphanedPlaybacks.isEmpty else {
+            LogManager.shared.info("No orphaned playback records found")
+            return
+        }
+        
+        LogManager.shared.info("Found \(orphanedPlaybacks.count) orphaned playback records to delete")
+        
+        for playback in orphanedPlaybacks {
+            LogManager.shared.info("   Deleting orphaned playback for episode: \(playback.episodeId ?? "nil")")
+            context.delete(playback)
+        }
+        
+        if context.hasChanges {
+            do {
+                try context.save()
+                LogManager.shared.info("Successfully deleted \(orphanedPlaybacks.count) orphaned playback records")
+            } catch {
+                LogManager.shared.error("Failed to save orphan cleanup: \(error)")
+            }
+        }
+    }
+    
     /// Core cleanup logic that removes unused data based on subscription status
     private func cleanupUnusedData(in context: NSManagedObjectContext) throws -> (episodesDeleted: Int, podcastsDeleted: Int, playbackDeleted: Int) {
         var deletedEpisodes = 0
@@ -363,6 +403,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         // STEP 3: Remove all unsubscribed podcasts
         deletedPodcasts = try cleanupUnsubscribedPodcasts(context: context)
+        
+        // STEP 4: Cleanup orphaned playback
+        cleanupOrphanedPlaybackRecords(context: context)
         
         // Save all changes
         if context.hasChanges {

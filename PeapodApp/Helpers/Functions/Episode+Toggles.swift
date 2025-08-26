@@ -77,8 +77,7 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     guard let context = episode.managedObjectContext else { return }
     
     if !episode.isQueued {
-        LogManager.shared.warning("⚠️ Episode not in queue: \(episode.title?.prefix(30) ?? "Episode")")
-        return
+        LogManager.shared.warning("⚠️ Episode not marked as queued in Core Data, but forcing removal from UI: \(episode.title?.prefix(30) ?? "Episode")")
     }
     
     // 🔥 Immediate change for UI feedback

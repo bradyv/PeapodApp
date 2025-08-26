@@ -381,6 +381,8 @@ class EpisodeRefresher {
             print("ℹ️ \(podcast.title ?? "Podcast"): No changes to save")
         }
         
+        resolvePlaybackConflictsAfterRefresh(for: podcast, context: context)
+
         completion?()
     }
     
@@ -423,56 +425,12 @@ class EpisodeRefresher {
         context: NSManagedObjectContext
     ) -> Episode? {
         
-        let title = item.title
-        let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let audioUrl = forceHTTPS(item.enclosure?.attributes?.url)
-        let airDate = item.pubDate
-        
-        // Strategy 1: Match by audio URL (most reliable)
-        if let audioUrl = audioUrl {
-            if let existing = existingEpisodes[audioUrl] {
-                return existing
-            }
+        guard let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            LogManager.shared.warning("Episode has no GUID, skipping: \(item.title ?? "Unknown")")
+            return nil
         }
         
-        // Strategy 2: Match by GUID
-        if let guid = guid {
-            if let existing = existingEpisodes[guid] {
-                return existing
-            }
-        }
-        
-        // Strategy 3: Match by title + air date
-        if let title = title, let airDate = airDate {
-            let titleDateKey = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
-            if let existing = existingEpisodes[titleDateKey] {
-                return existing
-            }
-        }
-        
-        // Strategy 4: FALLBACK - Direct database query using podcastId
-        if let guid = guid {
-            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcastId == %@", guid, podcast.id ?? "")
-            fetchRequest.fetchLimit = 1
-            
-            if let existing = try? context.fetch(fetchRequest).first {
-                return existing
-            }
-        }
-        
-        // Strategy 5: LAST RESORT - Match by title alone using podcastId
-        if let title = title {
-            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "title == %@ AND podcastId == %@", title, podcast.id ?? "")
-            fetchRequest.fetchLimit = 1
-            
-            if let existing = try? context.fetch(fetchRequest).first {
-                return existing
-            }
-        }
-        
-        return nil
+        return existingEpisodes[guid]
     }
     
     // 🚀 Process a batch of episodes
@@ -551,6 +509,76 @@ class EpisodeRefresher {
         }
         
         return newEpisodesCount
+    }
+    
+    private static func resolvePlaybackConflictsAfterRefresh(for podcast: Podcast, context: NSManagedObjectContext) {
+        guard let podcastId = podcast.id else { return }
+        
+        // Get all current episodes for this podcast
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcastId)
+        
+        let currentEpisodes = (try? context.fetch(episodeRequest)) ?? []
+        let currentEpisodeIds = Set(currentEpisodes.compactMap { $0.id })
+        
+        // Find playback records that might reference old episode IDs for this podcast
+        // We need to find a way to identify which playback records belong to this podcast
+        // Since Playback doesn't have podcastId, we'll get all playback records and check
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        let allPlaybacks = (try? context.fetch(playbackRequest)) ?? []
+        
+        var conflictsResolved = 0
+        
+        for playback in allPlaybacks {
+            guard let episodeId = playback.episodeId else { continue }
+            
+            // If this playback record points to a non-existent episode
+            if !currentEpisodeIds.contains(episodeId) {
+                // Check if we can find an episode with the same GUID but different ID
+                // This handles cases where episode ID changed but GUID stayed the same
+                
+                // Try to extract GUID from old episode ID (if it follows your pattern)
+                // This assumes your episode.id is set to the GUID in updateEpisodeAttributes
+                let oldGuid = episodeId
+                
+                // Find current episode with matching GUID
+                if let matchingEpisode = currentEpisodes.first(where: { $0.guid == oldGuid }) {
+                    LogManager.shared.info("Resolving playback conflict: \(oldGuid) -> \(matchingEpisode.id ?? "unknown")")
+                    
+                    // Transfer playback state to the current episode
+                    if let existingPlayback = matchingEpisode.playbackState {
+                        // Merge the states - keep the most permissive values
+                        existingPlayback.isQueued = existingPlayback.isQueued || playback.isQueued
+                        existingPlayback.isPlayed = existingPlayback.isPlayed || playback.isPlayed
+                        existingPlayback.isFav = existingPlayback.isFav || playback.isFav
+                        existingPlayback.playbackPosition = max(existingPlayback.playbackPosition, playback.playbackPosition)
+                        existingPlayback.queuePosition = playback.isQueued ? playback.queuePosition : existingPlayback.queuePosition
+                        
+                        // Keep the more recent dates
+                        if let playbackPlayedDate = playback.playedDate {
+                            existingPlayback.playedDate = max(existingPlayback.playedDate ?? Date.distantPast, playbackPlayedDate)
+                        }
+                        if let playbackFavDate = playback.favDate {
+                            existingPlayback.favDate = max(existingPlayback.favDate ?? Date.distantPast, playbackFavDate)
+                        }
+                    } else {
+                        // No existing playback, so update the episode ID
+                        playback.episodeId = matchingEpisode.id
+                    }
+                    
+                    // Delete the orphaned playback record if we merged states
+                    if matchingEpisode.playbackState != playback {
+                        context.delete(playback)
+                    }
+                    
+                    conflictsResolved += 1
+                }
+            }
+        }
+        
+        if conflictsResolved > 0 {
+            LogManager.shared.info("Resolved \(conflictsResolved) playback conflicts for \(podcast.title ?? "Unknown")")
+        }
     }
 
     private static func hasEpisodeChanged(episode: Episode, item: RSSFeedItem, podcast: Podcast) -> Bool {
@@ -814,6 +842,8 @@ class EpisodeRefresher {
         if context.hasChanges {
             saveContextIfNeeded(context: context)
         }
+        
+        resolvePlaybackConflictsAfterRefresh(for: podcast, context: context)
         
         // Check if there are more episodes to load
         let hasMore = unloadedItems.count > batchItems.count

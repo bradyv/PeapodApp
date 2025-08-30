@@ -51,16 +51,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         didSet {
             if playbackState != oldValue {
                 updateNowPlayingInfo()
-                
-//                LogManager.shared.info("🎯 State: episode=\(playbackState.episode?.title?.prefix(20) ?? "nil"), pos=\(String(format: "%.1f", playbackState.position)), playing=\(playbackState.isPlaying), loading=\(playbackState.isLoading)")
             }
         }
     }
     
-    // MARK: - State Intents
+    // MARK: - Simplified State Intent
     private var userInitiatedPause = false
-    private var wasInterruptedByRouteChange = false
-    private var lastRouteChangeReason: AVAudioSession.RouteChangeReason?
     
     // MARK: - Computed Properties (derived from playbackState)
     var currentEpisode: Episode? { playbackState.episode }
@@ -75,7 +71,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private var positionSaveTimer: Timer?
     private var lastSavedPosition: Double = 0
     private let queueLock = NSLock()
-    private var wasPlayingBeforeBackground = false
     private var cachedArtwork: MPMediaItemArtwork?
     private var positionUpdateWorkItem: DispatchWorkItem?
     
@@ -127,32 +122,25 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private func clearState() {
-        LogManager.shared.info("🔄 Clearing episode from state: \(playbackState.episode?.title?.prefix(20) ?? "nil") -> nil")
+        LogManager.shared.info("Clearing episode from state: \(playbackState.episode?.title?.prefix(20) ?? "nil") -> nil")
         playbackState = PlaybackState.idle
-    }
-    
-    private func updateDerivedState() {
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
-        }
     }
     
     // MARK: - Core Playback Control
     func togglePlayback(for episode: Episode) {
         guard let episodeID = episode.id else { return }
         
-        LogManager.shared.info("🎮 Toggle playback for: \(episode.title?.prefix(30) ?? "Episode")")
+        LogManager.shared.info("Toggle playback for: \(episode.title?.prefix(30) ?? "Episode")")
         
         // Handle current episode
         if let currentEpisode = playbackState.episode, currentEpisode.id == episodeID {
             if playbackState.isPlaying {
                 pause() // This sets userInitiatedPause = true
             } else if playbackState.isLoading {
-                LogManager.shared.info("⏳ Already loading - ignoring")
+                LogManager.shared.info("Already loading - ignoring")
             } else {
                 // User explicitly wants to resume
                 userInitiatedPause = false
-                wasInterruptedByRouteChange = false
                 resume()
             }
             return
@@ -160,25 +148,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Start new episode (user explicit action)
         userInitiatedPause = false
-        wasInterruptedByRouteChange = false
         startPlayback(for: episode)
-    }
-    
-    private func shouldAutoResume() -> Bool {
-        // Never auto-resume if user explicitly paused
-        if userInitiatedPause {
-            return false
-        }
-        
-        // Only consider auto-resume for system interruptions, not route changes
-        if wasInterruptedByRouteChange {
-            return false
-        }
-        
-        // Could add user preference here
-        // return UserDefaults.standard.bool(forKey: "autoResumeAfterInterruption")
-        
-        return false // For now, never auto-resume
     }
     
     private func startPlayback(for episode: Episode) {
@@ -186,7 +156,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
               let audioURL = episode.audio,
               !audioURL.isEmpty,
               let url = URL(string: audioURL) else {
-            LogManager.shared.error("❌ Invalid episode data")
+            LogManager.shared.error("Invalid episode data")
             return
         }
         
@@ -226,7 +196,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             
             // Set up observations
             self.setupPlayerObservations(for: episodeID)
-            self.configureAudioSession()
             
             // Move to front of queue
             self.moveEpisodeToFrontOfQueue(episode)
@@ -278,8 +247,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func resume() {
         guard let player = player else {
-            // Don't auto-restart unless user explicitly requested it
-            LogManager.shared.warning("⚠️ No player available - user must explicitly restart")
+            LogManager.shared.warning("No player available - user must explicitly restart")
             return
         }
         
@@ -287,16 +255,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         if let currentItem = player.currentItem, currentItem.status == .readyToPlay {
             // Reset user pause flag when user explicitly resumes
             userInitiatedPause = false
-            wasInterruptedByRouteChange = false
-            
-            // Ensure audio session is properly configured before resuming
-            configureAudioSession()
             
             player.playImmediately(atRate: playbackSpeed)
             updateState(isPlaying: true, isLoading: false)
         } else {
             // Player item is invalid, but don't auto-restart
-            LogManager.shared.warning("⚠️ Player item invalid - user must restart manually")
+            LogManager.shared.warning("Player item invalid - user must restart manually")
             if let episode = playbackState.episode {
                 // Just clear the state, don't restart
                 updateState(isPlaying: false, isLoading: false)
@@ -320,7 +284,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Clear system now playing
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         
-        LogManager.shared.info("🛑 Player stopped and state cleared")
+        LogManager.shared.info("Player stopped and state cleared")
     }
     
     // MARK: - Player Observations
@@ -331,7 +295,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         playerObservations.forEach { $0.invalidate() }
         playerObservations.removeAll()
         
-        // Rate observer with enhanced logic
+        // Rate observer - simplified logic
         let rateObserver = player.observe(\.rate, options: [.new, .old]) { [weak self] _, change in
             guard let self = self else { return }
             
@@ -344,22 +308,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 
                 if newRate > 0 && oldRate == 0 {
                     // Started playing
-                    LogManager.shared.info("🎵 Audio started playing")
+                    LogManager.shared.info("Audio started playing")
                     self.updateState(isPlaying: true, isLoading: false)
-                    
-                    // Verify we can actually hear audio
-                    self.verifyAudioOutput()
-                    
                 } else if newRate == 0 && oldRate > 0 {
                     // Paused (could be system or user)
-                    LogManager.shared.info("⏸️ Audio paused")
+                    LogManager.shared.info("Audio paused")
                     self.updateState(isPlaying: false, isLoading: false)
                 }
             }
         }
         playerObservations.append(rateObserver)
         
-        // Time observer (for position updates) - FIXED
+        // Time observer (for position updates)
         let interval = UIApplication.shared.applicationState == .background ? 3.0 : 1.0
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: interval, preferredTimescale: 10),
@@ -387,13 +347,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 
                 // Episode completion detection
                 if isNearEnd && hasValidDuration && playerRate == 0 && self.playbackState.isPlaying {
-                    LogManager.shared.info("🏁 Background episode completion detected")
+                    LogManager.shared.info("Background episode completion detected")
                     self.handleEpisodeEnd()
                     return
                 }
                 
                 if isNearEnd && hasValidDuration && playerRate > 0 {
-                    LogManager.shared.info("🏁 Foreground episode ending detected")
+                    LogManager.shared.info("Foreground episode ending detected")
                     self.handleEpisodeEnd()
                     return
                 }
@@ -418,10 +378,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     
                     switch item.status {
                     case .failed:
-                        LogManager.shared.error("❌ Player item failed: \(item.error?.localizedDescription ?? "unknown")")
+                        LogManager.shared.error("Player item failed: \(item.error?.localizedDescription ?? "unknown")")
                         self.handlePlayerError()
                     case .readyToPlay:
-                        LogManager.shared.info("✅ Player ready")
+                        LogManager.shared.info("Player ready")
                         // Update duration if needed
                         let duration = item.asset.duration.seconds
                         if duration.isFinite && duration > 0 {
@@ -431,7 +391,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                             if let episode = self.playbackState.episode, episode.actualDuration <= 0 {
                                 episode.actualDuration = duration
                                 try? episode.managedObjectContext?.save()
-                                LogManager.shared.info("✅ Updated actual duration: \(duration)")
+                                LogManager.shared.info("Updated actual duration: \(duration)")
                             }
                         }
                     default:
@@ -441,7 +401,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
             playerObservations.append(statusObserver)
             
-            // ADD: Player item ended notification observer
+            // Player item ended notification observer
             NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
                 object: currentItem,
@@ -450,14 +410,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 guard let self = self else { return }
                 guard self.playbackState.episodeID == episodeID else { return }
                 
-                LogManager.shared.info("🏁 AVPlayerItemDidPlayToEndTime notification received")
+                LogManager.shared.info("AVPlayerItemDidPlayToEndTime notification received")
                 // Small delay to ensure any final time updates are processed
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     self.handleEpisodeEnd()
                 }
             }
             
-            // ADD: Player stalled notification (backup detection)
+            // Player stalled notification (backup detection)
             NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemPlaybackStalled,
                 object: currentItem,
@@ -471,32 +431,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 let duration = self.playbackState.duration
                 
                 if duration > 0 && currentTime >= (duration - 10.0) && duration > 10 {
-                    LogManager.shared.info("🏁 Player stalled near end - checking for completion: pos=\(currentTime), duration=\(duration)")
+                    LogManager.shared.info("Player stalled near end - checking for completion: pos=\(currentTime), duration=\(duration)")
                     
                     // Wait a moment and check if we're actually at the end
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         let finalTime = self.player?.currentTime().seconds ?? 0
                         if finalTime >= (duration - 5.0) {
-                            LogManager.shared.info("🏁 Confirmed episode completion via stall detection")
+                            LogManager.shared.info("Confirmed episode completion via stall detection")
                             self.handleEpisodeEnd()
                         }
                     }
                 }
             }
-        }
-    }
-    
-    private func verifyAudioOutput() {
-        let session = AVAudioSession.sharedInstance()
-        let route = session.currentRoute
-        
-        if route.outputs.isEmpty {
-            LogManager.shared.warning("⚠️ No audio output route available")
-            player?.pause()
-            updateState(isPlaying: false, isLoading: false)
-        } else {
-            let outputs = route.outputs.map { $0.portType.rawValue }
-            LogManager.shared.info("🔊 Audio output verified: \(outputs)")
         }
     }
 
@@ -519,7 +465,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         lastSavedPosition = position
         episode.playbackPosition = position
         try? episode.managedObjectContext?.save()
-        LogManager.shared.info("💾 Saved position immediately: \(String(format: "%.1f", position))")
+        LogManager.shared.info("Saved position immediately: \(String(format: "%.1f", position))")
     }
     
     private func savePositionToDatabase(for episode: Episode, position: Double) {
@@ -534,11 +480,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                         episodeInBackground.playbackPosition = position
                         if backgroundContext.hasChanges {
                             try backgroundContext.save()
-                            LogManager.shared.info("💾 Background saved position: \(String(format: "%.1f", position))")
+                            LogManager.shared.info("Background saved position: \(String(format: "%.1f", position))")
                         }
                     }
                 } catch {
-                    LogManager.shared.error("❌ Failed to save position: \(error)")
+                    LogManager.shared.error("Failed to save position: \(error)")
                 }
             }
         }
@@ -597,7 +543,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             DispatchQueue.main.async {
                 self?.isSeekingManually = false
                 if !completed {
-                    LogManager.shared.warning("⚠️ Seek failed")
+                    LogManager.shared.warning("Seek failed")
                 }
             }
         }
@@ -637,17 +583,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
-    
     private func handleEpisodeEnd() {
         guard let episode = playbackState.episode else { return }
         
-        LogManager.shared.info("🏁 Episode finished: \(episode.title?.prefix(30) ?? "Episode")")
+        LogManager.shared.info("Episode finished: \(episode.title?.prefix(30) ?? "Episode")")
         
         let context = episode.managedObjectContext ?? viewContext
         let wasPlayed = episode.isPlayed
-        
-        // DEBUG: Check episode queue status before removal
-        LogManager.shared.info("🔍 Episode queue status before completion: isQueued=\(episode.isQueued), position=\(episode.queuePosition)")
         
         // CRITICAL: Cancel any pending position saves FIRST and reset position immediately
         positionSaveTimer?.invalidate()
@@ -669,55 +611,38 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Remove from queue in same transaction if not already played
         if !wasPlayed {
-            LogManager.shared.info("🗑️ Removing finished episode from queue")
+            LogManager.shared.info("Removing finished episode from queue")
             
-            // DEBUG: Check queue before removal
-            let queueBefore = fetchQueuedEpisodes()
-            LogManager.shared.info("📊 Queue before removal: \(queueBefore.count) episodes")
-            for (index, ep) in queueBefore.enumerated() {
-                LogManager.shared.info("   \(index): \(ep.title?.prefix(20) ?? "No title") - \(ep.id?.prefix(8) ?? "no-id")")
-            }
-            
-            // 🔥 UPDATED: Use async removal with immediate UI feedback
             Task { @MainActor in
                 removeFromQueue(episode)
             }
-            
-            // DEBUG: Check queue after removal
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                let queueAfter = fetchQueuedEpisodes()
-                LogManager.shared.info("📊 Queue after removal: \(queueAfter.count) episodes")
-                for (index, ep) in queueAfter.enumerated() {
-                    LogManager.shared.info("   \(index): \(ep.title?.prefix(20) ?? "No title") - \(ep.id?.prefix(8) ?? "no-id")")
-                }
-            }
         } else {
-            LogManager.shared.info("⭐️ Episode was already played - not removing from queue")
+            LogManager.shared.info("Episode was already played - not removing from queue")
         }
         
         // Single save for all changes
         do {
             try context.save()
-            LogManager.shared.info("✅ Episode marked as played and saved with position reset to 0")
+            LogManager.shared.info("Episode marked as played and saved with position reset to 0")
         } catch {
-            LogManager.shared.error("⚠️ Failed to save episode completion: \(error)")
+            LogManager.shared.error("Failed to save episode completion: \(error)")
         }
         
         // Clear player state AFTER saving (only if not already cleared by removeFromQueue)
         if playbackState.episode != nil {
-            LogManager.shared.info("🔥 Clearing player state after episode completion")
+            LogManager.shared.info("Clearing player state after episode completion")
             clearState()
             cleanupPlayer()
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         } else {
-            LogManager.shared.info("🔥 Player state already cleared by queue removal")
+            LogManager.shared.info("Player state already cleared by queue removal")
         }
         
         // Check for autoplay AFTER clearing state
         if autoplayNext {
             let queuedEpisodes = fetchQueuedEpisodes()
             if let nextEpisode = queuedEpisodes.first {
-                LogManager.shared.info("🔄 Auto-playing next episode: \(nextEpisode.title?.prefix(30) ?? "Next")")
+                LogManager.shared.info("Auto-playing next episode: \(nextEpisode.title?.prefix(30) ?? "Next")")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.startPlayback(for: nextEpisode)
                 }
@@ -733,7 +658,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Try to recover once
         if let episode = playbackState.episode {
             let savedPosition = episode.playbackPosition
-            LogManager.shared.info("🔄 Attempting error recovery at position \(savedPosition)")
+            LogManager.shared.info("Attempting error recovery at position \(savedPosition)")
             
             // Reset state and try again
             updateState(position: savedPosition, isPlaying: false, isLoading: true)
@@ -831,7 +756,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             positionSaveTimer = nil
             
             // Clear state immediately without saving current position
-            LogManager.shared.info("🛑 Stopping player for manual mark as played")
+            LogManager.shared.info("Stopping player for manual mark as played")
             clearState()
             cleanupPlayer()
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -839,9 +764,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Remove from queue if episode was just marked as played (not unmarked)
         if !wasPlayed && episode.isPlayed {
-            LogManager.shared.info("🗑️ Removing manually marked episode from queue")
+            LogManager.shared.info("Removing manually marked episode from queue")
             
-            // 🔥 UPDATED: Use async removal with immediate UI feedback
             Task { @MainActor in
                 removeFromQueue(episode)
             }
@@ -854,9 +778,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         do {
             try context.save()
-            LogManager.shared.info("✅ Manual mark as played completed")
+            LogManager.shared.info("Manual mark as played completed")
         } catch {
-            LogManager.shared.error("⚠️ Failed to save manual mark as played: \(error)")
+            LogManager.shared.error("Failed to save manual mark as played: \(error)")
         }
         
         DispatchQueue.main.async {
@@ -891,7 +815,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     }
                 }
             } catch {
-                LogManager.shared.warning("⚠️ Failed to load actual duration: \(error)")
+                LogManager.shared.warning("Failed to load actual duration: \(error)")
             }
         }
     }
@@ -946,28 +870,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         return pretty ? formatDuration(seconds: seconds) : formatView(seconds: seconds)
     }
     
-    // MARK: - Audio Session & Setup
-    private func configureAudioSession() {
-        // Only verify, don't reconfigure since it's set globally
-        let session = AVAudioSession.sharedInstance()
-        let currentRoute = session.currentRoute
-        
-        if currentRoute.outputs.isEmpty {
-            LogManager.shared.warning("No audio output available")
-            if playbackState.isPlaying {
-                updateState(isPlaying: false, isLoading: false)
-            }
-        } else {
-            LogManager.shared.info("Audio session verified: \\(currentRoute.outputs.map { $0.portType.rawValue })")
-        }
-    }
-    
+    // MARK: - Simplified Notifications Setup
     private func setupNotifications() {
         NotificationCenter.default.addObserver(self, selector: #selector(handleAudioInterruption), name: AVAudioSession.interruptionNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(savePlaybackOnExit), name: UIApplication.willTerminateNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(handleAudioRouteChange), name: AVAudioSession.routeChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(appWillEnterForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
     }
     
     @objc private func handleAudioInterruption(notification: Notification) {
@@ -977,24 +884,22 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         switch type {
         case .began:
-            LogManager.shared.info("🔇 Audio interruption began")
-            wasInterruptedByRouteChange = false // This is a different type of interruption
-            userInitiatedPause = false
-            
+            LogManager.shared.info("Audio interruption began")
+            // Don't set userInitiatedPause = false here
             // Save position immediately
             if let episode = playbackState.episode {
                 savePositionImmediately(for: episode, position: playbackState.position)
             }
             
         case .ended:
-            LogManager.shared.info("🔊 Audio interruption ended")
+            LogManager.shared.info("Audio interruption ended")
             
-            // Check if we should resume
+            // Only auto-resume if user didn't explicitly pause before the interruption
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
                 if options.contains(.shouldResume) && !userInitiatedPause {
-                    LogManager.shared.info("🔄 System suggests resume, but letting user decide")
-                    // Still don't auto-resume - respect user preference
+                    LogManager.shared.info("System suggests resume and user didn't pause - resuming")
+                    resume()
                 }
             }
             
@@ -1003,56 +908,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
-    @objc private func handleAudioRouteChange(notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
-        
-        lastRouteChangeReason = reason
-        
-        switch reason {
-        case .oldDeviceUnavailable:
-            LogManager.shared.info("🔌 Audio device disconnected")
-            wasInterruptedByRouteChange = true
-            userInitiatedPause = false // This wasn't user-initiated
-            
-            // Save position but let the system handle pausing
-            if let episode = playbackState.episode {
-                savePositionImmediately(for: episode, position: playbackState.position)
-            }
-            
-        case .newDeviceAvailable:
-            LogManager.shared.info("🔌 Audio device connected")
-            // Don't auto-resume - let user decide
-            
-        default:
-            LogManager.shared.info("🔄 Audio route changed: \(reason)")
-            break
-        }
-    }
-    
     @objc private func appDidEnterBackground() {
-        // Save current state without changing pause flags
+        // Save current state
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
         }
         
-        LogManager.shared.info("📱 App backgrounded - was playing: \(playbackState.isPlaying)")
-    }
-
-    @objc private func appWillEnterForeground() {
-        LogManager.shared.info("📱 App foregrounding")
-        
-        // FIXED: Don't auto-resume based on background state
-        // Let the user explicitly choose to resume
-        
-        // Only log the state for debugging
-        if let episode = playbackState.episode {
-            LogManager.shared.info("📱 Current episode: \(episode.title?.prefix(30) ?? "Unknown")")
-            LogManager.shared.info("📱 Was interrupted by route change: \(wasInterruptedByRouteChange)")
-            LogManager.shared.info("📱 User initiated pause: \(userInitiatedPause)")
-            LogManager.shared.info("📱 Last route change: \(lastRouteChangeReason?.rawValue ?? 0)")
-        }
+        LogManager.shared.info("App backgrounded - was playing: \(playbackState.isPlaying)")
     }
     
     @objc private func savePlaybackOnExit() {
@@ -1075,7 +937,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 } else {
                     // User explicitly pressed play - restart is OK here
                     self.userInitiatedPause = false
-                    self.wasInterruptedByRouteChange = false
                     self.startPlayback(for: episode)
                 }
             }
@@ -1173,12 +1034,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         queueLock.lock()
         defer { queueLock.unlock() }
         
-        // 🔥 UPDATED: Immediate UI feedback
         episode.objectWillChange.send()
         
         // Ensure episode is queued
         if !episode.isQueued {
-            LogManager.shared.info("🔧 Adding episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+            LogManager.shared.info("Adding episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
             episode.isQueued = true
         }
         
@@ -1203,16 +1063,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         do {
             try context.save()
-            LogManager.shared.info("✅ Moved episode to front of queue: \(episode.title?.prefix(30) ?? "Episode")")
+            LogManager.shared.info("Moved episode to front of queue: \(episode.title?.prefix(30) ?? "Episode")")
             
-            // 🔥 UPDATED: Notify EpisodesViewModel if available
             Task { @MainActor in
-                // Try to find EpisodesViewModel and update it
                 NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
             }
             
         } catch {
-            LogManager.shared.error("⚠️ Failed to move episode to front: \(error)")
+            LogManager.shared.error("Failed to move episode to front: \(error)")
             context.rollback()
         }
     }
@@ -1224,7 +1082,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         if queuedEpisodes.isEmpty {
             // Queue is empty - check if current episode should be cleared
             if let currentEpisode = playbackState.episode, !currentEpisode.isQueued {
-                LogManager.shared.warning("🗑️ Queue empty and current episode not queued - clearing player state")
+                LogManager.shared.warning("Queue empty and current episode not queued - clearing player state")
                 stop()
             }
         }
@@ -1264,13 +1122,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         do {
             try context.save()
-            LogManager.shared.info("✅ Removed \(episodes.count) episodes from queue")
+            LogManager.shared.info("Removed \(episodes.count) episodes from queue")
             
-            // Notify views
             NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
             
         } catch {
-            LogManager.shared.error("⚠️ Error removing multiple episodes from queue: \(error)")
+            LogManager.shared.error("Error removing multiple episodes from queue: \(error)")
             context.rollback()
         }
         
@@ -1281,7 +1138,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
 
-    /// 🔥 NEW: Optimized queue reordering for drag/drop operations
     @MainActor
     func reorderQueue(episodes: [Episode]) {
         guard !episodes.isEmpty else { return }
@@ -1298,25 +1154,22 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         do {
             try context.save()
-            LogManager.shared.info("✅ Reordered queue with \(episodes.count) episodes")
+            LogManager.shared.info("Reordered queue with \(episodes.count) episodes")
             
-            // Notify views
             NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
             
         } catch {
-            LogManager.shared.error("⚠️ Error reordering queue: \(error)")
+            LogManager.shared.error("Error reordering queue: \(error)")
             context.rollback()
         }
     }
 
-    /// 🔥 NEW: Helper function to update queue position for episode with immediate UI feedback
     func updateEpisodeQueuePosition(_ episode: Episode, to position: Int) {
         guard let context = episode.managedObjectContext else { return }
         
         queueLock.lock()
         defer { queueLock.unlock() }
         
-        // Immediate UI feedback
         episode.objectWillChange.send()
         
         // Ensure episode is in the queue
@@ -1341,15 +1194,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         do {
             try context.save()
-            LogManager.shared.info("✅ Updated episode queue position: \(episode.title ?? "Episode") to position \(position)")
+            LogManager.shared.info("Updated episode queue position: \(episode.title ?? "Episode") to position \(position)")
             
-            // Notify views of queue change
             Task { @MainActor in
                 NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
             }
             
         } catch {
-            LogManager.shared.error("⚠️ Error updating episode queue position: \(error)")
+            LogManager.shared.error("Error updating episode queue position: \(error)")
             context.rollback()
         }
     }

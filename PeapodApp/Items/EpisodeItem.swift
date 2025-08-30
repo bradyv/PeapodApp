@@ -260,23 +260,23 @@ struct EpisodeItem: View {
         }
         .contentShape(Rectangle())
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            // Cancel any previous work item
-            workItem?.cancel()
-            // Create a new work item
-            let item = DispatchWorkItem {
-                Task.detached(priority: .background) {
-                    await player.writeActualDuration(for: episode)
-                }
-            }
-            workItem = item
-            // Schedule after 0.5 seconds (adjust as needed)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: item)
-        }
-        .onDisappear {
-            // Cancel if the user scrolls away before debounce interval
-            workItem?.cancel()
-        }
+//        .onAppear {
+//            // Cancel any previous work item
+//            workItem?.cancel()
+//            // Create a new work item
+//            let item = DispatchWorkItem {
+//                Task.detached(priority: .background) {
+//                    await player.writeActualDuration(for: episode)
+//                }
+//            }
+//            workItem = item
+//            // Schedule after 0.5 seconds (adjust as needed)
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: item)
+//        }
+//        .onDisappear {
+//            // Cancel if the user scrolls away before debounce interval
+//            workItem?.cancel()
+//        }
     }
 }
 

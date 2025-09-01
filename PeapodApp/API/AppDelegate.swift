@@ -48,7 +48,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         // Schedule the first cleanup
-//        scheduleWeeklyCleanup()
+        scheduleWeeklyCleanup()
         
 //        debugPerformCleanupNow()
         

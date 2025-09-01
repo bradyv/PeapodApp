@@ -11,13 +11,20 @@ import OSLog
 
 class LogManager {
     static let shared = LogManager()
-    private var logFileHandle: FileHandle?
+    
+    // MARK: - Thread-Safe Properties
+    private var _logFileHandle: FileHandle?
     private let queue = DispatchQueue(label: "fm.peapod.logging", qos: .utility)
     private let logger = Logger(subsystem: "fm.peapod.app", category: "LogManager")
     
+    // State management
+    private var isSettingUp = false
+    private var setupComplete = false
+    private let enableConsoleCapture = false // Set to true if you want console capture
+    
     // Configuration
-    private let maxLogFileSize: Int64 = 1 * 1024 * 1024 // 5MB per file
-    private let maxTotalLogSize: Int64 = 5 * 1024 * 1024 // 20MB total
+    private let maxLogFileSize: Int64 = 1 * 1024 * 1024 // 1MB per file
+    private let maxTotalLogSize: Int64 = 5 * 1024 * 1024 // 5MB total
     private let maxLogFiles = 3 // Keep 3 rotated logs
     private let flushInterval: TimeInterval = 2.0 // Force flush every 2 seconds
     
@@ -31,33 +38,90 @@ class LogManager {
     init() {
         setupLogFile()
         setupPeriodicFlush()
-        setupConsoleCapture()
+        if enableConsoleCapture {
+            setupConsoleCapture()
+        }
     }
     
     deinit {
         flushTimer?.invalidate()
-        logFileHandle?.closeFile()
+        _logFileHandle?.closeFile()
     }
 
-    // MARK: - Enhanced Logging Setup
+    // MARK: - Thread-Safe File Handle Management
+    
+    private var safeLogFileHandle: FileHandle? {
+        // Only return handle if setup is complete and handle is valid
+        guard setupComplete, !isSettingUp, let handle = _logFileHandle else { return nil }
+        return handle
+    }
     
     private func setupLogFile() {
         queue.async {
+            self.isSettingUp = true
+            defer {
+                self.isSettingUp = false
+                self.setupComplete = true
+            }
+            
             self.rotateLogIfNeeded()
             self.cleanupOldLogs()
+            
+            // Close any existing handle first
+            self._logFileHandle?.closeFile()
+            self._logFileHandle = nil
             
             // Create file if it doesn't exist
             if !FileManager.default.fileExists(atPath: self.logFileURL.path) {
                 FileManager.default.createFile(atPath: self.logFileURL.path, contents: nil, attributes: nil)
             }
             
-            // Open file handle for writing
+            // Open file handle for writing with error handling
             do {
-                self.logFileHandle = try FileHandle(forWritingTo: self.logFileURL)
-                self.logFileHandle?.seekToEndOfFile()
-                self.writeToLog("🟢 Enhanced logging started at \(Date())\n")
+                let handle = try FileHandle(forWritingTo: self.logFileURL)
+                handle.seekToEndOfFile()
+                
+                // Only assign if successful
+                self._logFileHandle = handle
+                self.writeToLogUnsafe("🟢 Enhanced logging started at \(Date())\n")
             } catch {
-                LogManager.shared.error("❌ Failed to open log file: \(error)")
+                // Fallback: try creating the file again
+                FileManager.default.createFile(atPath: self.logFileURL.path, contents: nil, attributes: nil)
+                do {
+                    let handle = try FileHandle(forWritingTo: self.logFileURL)
+                    handle.seekToEndOfFile()
+                    self._logFileHandle = handle
+                    self.writeToLogUnsafe("🟢 Enhanced logging started (after retry) at \(Date())\n")
+                } catch {
+                    Swift.print("❌ Critical: Failed to open log file after retry: \(error)")
+                    // File logging will be disabled, but app continues
+                }
+            }
+        }
+    }
+    
+    private func recreateFileHandle() {
+        // Must be called on queue
+        guard !isSettingUp else { return }
+        
+        _logFileHandle?.closeFile()
+        _logFileHandle = nil
+        
+        do {
+            let handle = try FileHandle(forWritingTo: logFileURL)
+            handle.seekToEndOfFile()
+            _logFileHandle = handle
+            writeToLogUnsafe("🔄 File handle recreated\n")
+        } catch {
+            Swift.print("❌ Failed to recreate file handle: \(error)")
+        }
+    }
+    
+    private func validateLogState() {
+        queue.async {
+            // Check if log file exists but handle is nil
+            if FileManager.default.fileExists(atPath: self.logFileURL.path) && self._logFileHandle == nil {
+                self.recreateFileHandle()
             }
         }
     }
@@ -69,33 +133,47 @@ class LogManager {
     }
     
     private func setupConsoleCapture() {
-        // Override print function to capture all console output
-        // This is more reliable than freopen
-        
-        // Store original stderr
+        // Make console capture optional and more robust
         let originalStderr = dup(STDERR_FILENO)
+        guard originalStderr != -1 else {
+            Swift.print("❌ Failed to duplicate stderr")
+            return
+        }
         
-        // Create pipe for capturing stderr
         var pipe: [Int32] = [0, 0]
-        if Darwin.pipe(&pipe) == 0 {
-            // Redirect stderr to our pipe
-            dup2(pipe[1], STDERR_FILENO)
+        guard Darwin.pipe(&pipe) == 0 else {
+            Swift.print("❌ Failed to create pipe")
+            close(originalStderr)
+            return
+        }
+        
+        guard dup2(pipe[1], STDERR_FILENO) != -1 else {
+            Swift.print("❌ Failed to redirect stderr")
+            close(pipe[0])
             close(pipe[1])
+            close(originalStderr)
+            return
+        }
+        
+        close(pipe[1])
+        
+        DispatchQueue.global(qos: .utility).async {
+            defer {
+                close(pipe[0])
+                close(originalStderr)
+            }
             
-            // Read from pipe in background
-            DispatchQueue.global(qos: .utility).async {
-                let fileHandle = FileHandle(fileDescriptor: pipe[0], closeOnDealloc: true)
+            let fileHandle = FileHandle(fileDescriptor: pipe[0], closeOnDealloc: false)
+            
+            while true {
+                let data = fileHandle.availableData
+                if data.isEmpty { break }
                 
-                while true {
-                    let data = fileHandle.availableData
-                    if data.isEmpty { break }
+                if let output = String(data: data, encoding: .utf8) {
+                    self.writeToLog(output)
                     
-                    if let output = String(data: data, encoding: .utf8) {
-                        self.writeToLog(output)
-                        
-                        // Also write to original stderr so we can still see logs in Xcode
-                        write(originalStderr, output, output.utf8.count)
-                    }
+                    // Write to original stderr
+                    write(originalStderr, output, output.utf8.count)
                 }
             }
         }
@@ -122,21 +200,38 @@ class LogManager {
         }
     }
     
+    // Unsafe version for internal use when we know we're on the queue
+    private func writeToLogUnsafe(_ message: String) {
+        guard let data = message.data(using: .utf8),
+              let handle = self._logFileHandle else { return }
+        
+        do {
+            handle.write(data)
+            // Check rotation after successful write
+            if arc4random_uniform(100) == 0 { // Check occasionally to avoid overhead
+                self.rotateLogIfNeeded()
+            }
+        } catch {
+            Swift.print("❌ Write error: \(error)")
+            // Handle could be invalid, try to recreate
+            self.recreateFileHandle()
+        }
+    }
+    
     private func writeToLog(_ message: String) {
         queue.async {
-            guard let data = message.data(using: .utf8),
-                  let handle = self.logFileHandle else { return }
-            
-            handle.write(data)
-            
-            // Check if we need to rotate after writing
-            self.rotateLogIfNeeded()
+            self.writeToLogUnsafe(message)
         }
     }
     
     func forceFlush() {
         queue.async {
-            self.logFileHandle?.synchronizeFile()
+            do {
+                self._logFileHandle?.synchronizeFile()
+            } catch {
+                Swift.print("❌ Flush error: \(error)")
+                self.recreateFileHandle()
+            }
         }
     }
     
@@ -163,14 +258,23 @@ class LogManager {
     func startLogging() {
         // Keep for compatibility, but enhanced logging is already started
         log("Legacy startLogging() called", level: .info)
+        validateLogState()
     }
 
     func clearLog() {
         queue.async {
-            self.logFileHandle?.closeFile()
+            self._logFileHandle?.closeFile()
+            self._logFileHandle = nil
             try? FileManager.default.removeItem(at: self.logFileURL)
-            self.setupLogFile()
-            self.log("Log cleared by user", level: .info)
+            
+            // Recreate file and handle
+            FileManager.default.createFile(atPath: self.logFileURL.path, contents: nil, attributes: nil)
+            do {
+                self._logFileHandle = try FileHandle(forWritingTo: self.logFileURL)
+                self.writeToLogUnsafe("Log cleared by user\n")
+            } catch {
+                Swift.print("❌ Failed to recreate log after clear: \(error)")
+            }
         }
     }
 
@@ -185,8 +289,9 @@ class LogManager {
         guard let fileSize = getFileSize(at: logFileURL),
               fileSize > maxLogFileSize else { return }
         
-        // Close current handle
-        logFileHandle?.closeFile()
+        // Close and nil the handle atomically
+        _logFileHandle?.closeFile()
+        _logFileHandle = nil
         
         // Create timestamped backup
         let formatter = DateFormatter()
@@ -201,13 +306,18 @@ class LogManager {
         do {
             try FileManager.default.moveItem(at: logFileURL, to: rotatedURL)
             
-            // Create new log file and reopen handle
+            // Create new log file
             FileManager.default.createFile(atPath: logFileURL.path, contents: nil, attributes: nil)
-            logFileHandle = try FileHandle(forWritingTo: logFileURL)
             
-            writeToLog("🔄 Log rotated from \(rotatedURL.lastPathComponent)\n")
+            // Recreate handle
+            let newHandle = try FileHandle(forWritingTo: logFileURL)
+            _logFileHandle = newHandle
+            
+            writeToLogUnsafe("📄 Log rotated from \(rotatedURL.lastPathComponent)\n")
         } catch {
-            LogManager.shared.error("❌ Failed to rotate log: \(error)")
+            Swift.print("❌ Failed to rotate log: \(error)")
+            // Try to recreate handle for current file
+            recreateFileHandle()
         }
     }
     
@@ -237,7 +347,7 @@ class LogManager {
                     let filesToDelete = Array(logFiles.dropFirst(self.maxLogFiles))
                     for fileURL in filesToDelete {
                         try fileManager.removeItem(at: fileURL)
-                        self.writeToLog("🧹 Deleted excess log: \(fileURL.lastPathComponent)\n")
+                        self.writeToLogUnsafe("🧹 Deleted excess log: \(fileURL.lastPathComponent)\n")
                     }
                 }
                 
@@ -251,13 +361,13 @@ class LogManager {
                         if let fileSize = self.getFileSize(at: fileURL) {
                             try fileManager.removeItem(at: fileURL)
                             currentSize -= fileSize
-                            self.writeToLog("🧹 Deleted oversized log: \(fileURL.lastPathComponent)\n")
+                            self.writeToLogUnsafe("🧹 Deleted oversized log: \(fileURL.lastPathComponent)\n")
                         }
                     }
                 }
                 
             } catch {
-                self.writeToLog("❌ Failed to cleanup logs: \(error)\n")
+                self.writeToLogUnsafe("❌ Failed to cleanup logs: \(error)\n")
             }
         }
     }
@@ -278,11 +388,11 @@ class LogManager {
                        let modifiedDate = attrs.contentModificationDate,
                        modifiedDate < expirationDate {
                         try fileManager.removeItem(at: fileURL)
-                        self.writeToLog("🧹 Deleted old log: \(fileURL.lastPathComponent)\n")
+                        self.writeToLogUnsafe("🧹 Deleted old log: \(fileURL.lastPathComponent)\n")
                     }
                 }
             } catch {
-                self.writeToLog("❌ Failed to clean up old logs: \(error.localizedDescription)\n")
+                self.writeToLogUnsafe("❌ Failed to clean up old logs: \(error.localizedDescription)\n")
             }
         }
     }
@@ -402,6 +512,7 @@ extension LogManager {
             queue: .main
         ) { _ in
             self.log("App became active", level: .info)
+            self.validateLogState()
         }
         
         // Log when app will terminate
@@ -418,16 +529,21 @@ extension LogManager {
 
 // MARK: - Convenience Functions for Migration
 extension LogManager {
-    // Replace print statements with these for better logging
-    static func print(_ items: Any..., separator: String = " ") {
-        let message = items.map { "\($0)" }.joined(separator: separator)
+    // These can be used to replace print statements in your code if desired
+    // Usage: LogManager.logInfo("message") instead of print("message")
+    static func logInfo(_ message: String) {
         shared.info(message)
-        Swift.print(message) // Also print to console for development
     }
     
-    static func debugPrint(_ items: Any..., separator: String = " ") {
-        let message = items.map { "\($0)" }.joined(separator: separator)
+    static func logDebug(_ message: String) {
         shared.debug(message)
-        Swift.print(message)
+    }
+    
+    static func logWarning(_ message: String) {
+        shared.warning(message)
+    }
+    
+    static func logError(_ message: String) {
+        shared.error(message)
     }
 }

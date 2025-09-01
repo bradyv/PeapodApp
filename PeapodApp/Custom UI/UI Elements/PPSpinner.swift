@@ -24,6 +24,6 @@ struct PPSpinner: View {
                 .frame(width: size, height: size)
                 .onAppear { self.isAnimating = true }
         }
-        .frame(width: 20, height: 20)
+        .frame(width: 18, height: 18)
     }
 }

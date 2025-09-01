@@ -64,8 +64,8 @@ struct ContentView: View {
                             LatestEpisodesView(mini: true, maxItems: 3)
                         }
                     }
-                    .background(Color.background)
                     .scrollEdgeEffectStyle(.soft, for: .all)
+                    .background(Color.background)
                     .navigationTitle("Listen")
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {

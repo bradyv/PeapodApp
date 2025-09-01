@@ -114,6 +114,26 @@ struct PodcastDetailView: View {
                                         .onTapGesture {
                                             selectedEpisode = latestEpisode
                                         }
+                                        .contextMenu {
+                                            Button {
+                                                withAnimation {
+                                                    if latestEpisode.isQueued {
+                                                        removeFromQueue(latestEpisode, episodesViewModel: episodesViewModel)
+                                                    } else {
+                                                        toggleQueued(latestEpisode, episodesViewModel: episodesViewModel)
+                                                    }
+                                                }
+                                            } label: {
+                                                Label(latestEpisode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: latestEpisode.isQueued ? "archivebox" : "text.append")
+                                            }
+                                            Button {
+                                                withAnimation {
+                                                    toggleFav(latestEpisode, episodesViewModel: episodesViewModel)
+                                                }
+                                            } label: {
+                                                Label(latestEpisode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: latestEpisode.isFav ? "heart.slash" : "heart")
+                                            }
+                                        }
                                 }
                                 .padding()
                             }
@@ -150,15 +170,39 @@ struct PodcastDetailView: View {
                         
                         LazyVStack(alignment: .leading) {
                             ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
-                                EpisodeItem(episode: episode, showActions: true)
+                                EpisodeItem(episode: episode, showActions: false)
                                     .lineLimit(3)
                                     .padding(.bottom, 24)
                                     .onTapGesture {
                                         selectedEpisode = episode
                                     }
                                     .environmentObject(episodesViewModel)
+                                    .contextMenu {
+                                        Button {
+                                            withAnimation {
+                                                if episode.isQueued {
+                                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                                                } else {
+                                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
+                                                }
+                                            }
+                                        } label: {
+                                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                                        }
+                                        Button {
+                                            withAnimation {
+                                                toggleFav(episode, episodesViewModel: episodesViewModel)
+                                            }
+                                        } label: {
+                                            Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                                        }
+                                    }
                             }
                         }
+                        
+                        Divider()
+                        
+                        Spacer().frame(height:24)
                         
                         VStack(spacing:8) {
                             Text("About")
@@ -168,10 +212,10 @@ struct PodcastDetailView: View {
                             Text(parseHtml(podcast.podcastDescription ?? "Podcast description"))
                                 .textBody()
                                 .lineLimit(nil)
-                                .frame(maxWidth:.infinity)
-                                .transition(.opacity)
-                                .animation(.easeOut(duration: 0.15), value: showFullDescription)
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                        
                         }
+                        .frame(maxWidth:.infinity, alignment:.leading)
                     }
 //                    .if(blockFeed, transform: { $0.blur(radius:16) })
                 }

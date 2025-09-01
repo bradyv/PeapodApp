@@ -11,10 +11,10 @@ import CoreData
 struct PodcastEpisodeSearchView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     var podcast: Podcast
     @Binding var showSearch: Bool
     @Binding var selectedEpisode: Episode?
-
     @State private var episodes: [Episode] = []
     @State private var query = ""
     @State private var hasMoreEpisodes = true
@@ -64,11 +64,31 @@ struct PodcastEpisodeSearchView: View {
                 } else {
                     LazyVStack(alignment: .leading) {
                         ForEach(filteredEpisodes, id: \.id) { episode in
-                            EpisodeItem(episode: episode, showActions: true)
+                            EpisodeItem(episode: episode, showActions: false)
                                 .lineLimit(3)
                                 .padding(.bottom, 24)
                                 .onTapGesture {
                                     selectedEpisode = episode
+                                }
+                                .contextMenu {
+                                    Button {
+                                        withAnimation {
+                                            if episode.isQueued {
+                                                removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                                            } else {
+                                                toggleQueued(episode, episodesViewModel: episodesViewModel)
+                                            }
+                                        }
+                                    } label: {
+                                        Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                                    }
+                                    Button {
+                                        withAnimation {
+                                            toggleFav(episode, episodesViewModel: episodesViewModel)
+                                        }
+                                    } label: {
+                                        Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                                    }
                                 }
                         }
                         
@@ -139,7 +159,7 @@ struct PodcastEpisodeSearchView: View {
             .contentMargins(16, for: .scrollContent)
         }
         .background(Color.background)
-        .searchable(text: $query, isPresented: $showSearch, placement: .navigationBarDrawer(displayMode: .always), prompt: "Find an episode of \(podcast.title ?? "this podcast")")
+        .searchable(text: $query, isPresented: $showSearch, placement: .toolbar, prompt: "Find an episode of \(podcast.title ?? "this podcast")")
         .navigationTitle(podcast.title ?? "Episodes")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedEpisode) { episode in

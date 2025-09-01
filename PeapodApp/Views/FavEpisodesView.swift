@@ -83,15 +83,33 @@ struct FavEpisodesView: View {
     private var episodesList: some View {
         LazyVStack(alignment: .leading) {
             ForEach(displayedEpisodes, id: \.id) { episode in
-                FadeInView(delay: mini ? 0 : 0.3) {
-                    EpisodeItem(episode: episode, showActions: true)
-                        .lineLimit(3)
-                        .padding(.bottom, 24)
-                        .padding(.horizontal)
-                        .onTapGesture {
-                            selectedEpisode = episode
+                EpisodeItem(episode: episode, showActions: false)
+                    .lineLimit(3)
+                    .padding(.bottom, 24)
+                    .padding(.horizontal)
+                    .onTapGesture {
+                        selectedEpisode = episode
+                    }
+                    .contextMenu {
+                        Button {
+                            withAnimation {
+                                if episode.isQueued {
+                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                                } else {
+                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
+                                }
+                            }
+                        } label: {
+                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
-                }
+                        Button {
+                            withAnimation {
+                                toggleFav(episode, episodesViewModel: episodesViewModel)
+                            }
+                        } label: {
+                            Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                        }
+                    }
             }
         }
     }

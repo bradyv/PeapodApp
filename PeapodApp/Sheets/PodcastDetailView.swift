@@ -124,7 +124,7 @@ struct PodcastDetailView: View {
                                                     }
                                                 }
                                             } label: {
-                                                Label(latestEpisode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: latestEpisode.isQueued ? "archivebox" : "text.append")
+                                                Label(latestEpisode.isQueued ? "Archive" : "Add to Up Next", systemImage: latestEpisode.isQueued ? "archivebox" : "text.append")
                                             }
                                             Button {
                                                 withAnimation {
@@ -187,7 +187,7 @@ struct PodcastDetailView: View {
                                                 }
                                             }
                                         } label: {
-                                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                                            Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                                         }
                                         Button {
                                             withAnimation {

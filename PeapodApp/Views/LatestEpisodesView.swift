@@ -214,7 +214,7 @@ struct LatestEpisodesView: View {
                                 }
                             }
                         } label: {
-                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                            Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
                         Button {
                             withAnimation {

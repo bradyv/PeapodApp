@@ -1,24 +1,25 @@
 //
 //  EpisodeItem.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-02.
 //
 
 import SwiftUI
+import Pow
 
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
-    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
     @ObservedObject var episode: Episode
-    @ObservedObject var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedPodcast: Podcast? = nil
     @State private var selectedEpisode: Episode? = nil
+    @State private var workItem: DispatchWorkItem?
     var showActions: Bool = false
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
-    var savedView: Bool = false
-    var namespace: Namespace.ID
+    @State private var favoriteCount = 0
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -39,13 +40,13 @@ struct EpisodeItem: View {
             HStack {
                 HStack {
                     ZStack(alignment:.bottomTrailing) {
-                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 4)
+                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
                         
                         if episode.isPlayed && !displayedInQueue {
                             ZStack {
                                 Image(systemName:"checkmark.circle.fill")
                                     .foregroundStyle(Color.accentColor)
-                                    .textDetail()
+                                    .textMini()
                             }
                             .background(Color.background)
                             .clipShape(Circle())
@@ -53,7 +54,7 @@ struct EpisodeItem: View {
                                 Circle()
                                     .stroke(Color.background, lineWidth: 1)
                             )
-                            .offset(x:5,y:5)
+                            .offset(x:5)
                         }
                     }
                     
@@ -66,13 +67,8 @@ struct EpisodeItem: View {
                     selectedPodcast = episode.podcast
                 }
                 .sheet(item: $selectedPodcast) { podcast in
-                    if podcast.isSubscribed {
-                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "", namespace: namespace)
-                            .modifier(PPSheet())
-                    } else {
-                        PodcastDetailLoaderView(feedUrl: episode.podcast?.feedUrl ?? "", namespace:namespace)
-                            .modifier(PPSheet())
-                    }
+                    PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+                        .modifier(PPSheet())
                 }
                 
                 Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
@@ -128,7 +124,7 @@ struct EpisodeItem: View {
             
             // Episode Actions
             if showActions {
-                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
+                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
                 
                 HStack {
                     // ▶️ Playback Button
@@ -149,7 +145,7 @@ struct EpisodeItem: View {
                     }
                     .buttonStyle(
                         PPButton(
-                            type: .filled,
+                            type: displayedInQueue ? .filled : .transparent,
                             colorStyle: .monochrome,
                             hierarchical: false,
                             customColors: displayedInQueue ?
@@ -163,32 +159,31 @@ struct EpisodeItem: View {
                         if displayedInQueue {
                             Button(action: {
                                 withAnimation {
-                                    toggleSaved(episode)
+                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
                                 }
                             }) {
-                                Label("Play Later", systemImage: "arrowshape.bounce.right")
+                                Label("Archive", systemImage: "archivebox")
                             }
                             .buttonStyle(
                                 PPButton(
                                     type: .transparent,
                                     colorStyle: .monochrome,
-                                    customColors: ButtonCustomColors(
-                                        foreground: .white,
-                                        background: .white.opacity(0.15)
-                                    )
+                                    customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
                                 )
                             )
+                            
                         } else {
                             Button(action: {
                                 withAnimation {
                                     if episode.isQueued {
-                                        removeFromQueue(episode)
+                                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
                                     } else {
-                                        toggleQueued(episode)
+                                        toggleQueued(episode, episodesViewModel: episodesViewModel)
                                     }
                                 }
                             }) {
-                                Label(episode.isQueued ? "Queued" : "Up Next", systemImage: episode.isQueued ? "text.badge.checkmark" : "text.append")
+                                Label("Up Next", systemImage: episode.isQueued ? "checkmark" : "text.append")
+                                    .contentTransition(.symbolEffect(.replace))
                             }
                             .buttonStyle(PPButton(type: .transparent, colorStyle: episode.isQueued ? .tinted : .monochrome))
                         }
@@ -205,35 +200,83 @@ struct EpisodeItem: View {
                             PPButton(
                                 type: .transparent,
                                 colorStyle: .monochrome,
-                                customColors: displayedInQueue ?
-                                ButtonCustomColors(foreground: .white, background: .white.opacity(0.15)) :
-                                    nil
+                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : Color.heading, background: displayedInQueue ? Color.white.opacity(0.15) : Color.heading.opacity(0.15))
                             )
                         )
                     }
                     
                     Spacer()
                     
-                    EpisodeContextMenu(episode: episode, displayedInQueue: displayedInQueue, namespace: namespace)
+                    if displayedInQueue {
+                        Button(action: {
+                            withAnimation {
+                                let wasFavorite = episode.isFav
+                                toggleFav(episode, episodesViewModel: episodesViewModel)
+                                
+                                // Only increment counter when favoriting (not unfavoriting)
+                                if !wasFavorite && episode.isFav {
+                                    favoriteCount += 1
+                                }
+                            }
+                        }) {
+                            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                        }
+                        .buttonStyle(
+                            PPButton(
+                                type: .transparent,
+                                colorStyle: .monochrome,
+                                iconOnly: true,
+                                customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
+                            )
+                        )
+                        .changeEffect(
+                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                              Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                            }, value: favoriteCount)
+                    } else {
+                        Button(action: {
+                            withAnimation {
+                                let wasFavorite = episode.isFav
+                                toggleFav(episode, episodesViewModel: episodesViewModel)
+                                
+                                // Only increment counter when favoriting (not unfavoriting)
+                                if !wasFavorite && episode.isFav {
+                                    favoriteCount += 1
+                                }
+                            }
+                        }) {
+                            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                        }
+                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
+                        .changeEffect(
+                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                              Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                            }, value: favoriteCount)
+                    }
                 }
             }
         }
         .contentShape(Rectangle())
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            // Background tasks only
-            Task.detached(priority: .background) {
-                await player.writeActualDuration(for: episode)
-                await ColorTintManager.applyTintIfNeeded(to: episode, in: context)
-            }
-        }
-        .onTapGesture {
-            selectedEpisode = episode
-        }
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
-                .modifier(PPSheet())
-        }
+//        .onAppear {
+//            // Cancel any previous work item
+//            workItem?.cancel()
+//            // Create a new work item
+//            let item = DispatchWorkItem {
+//                Task.detached(priority: .background) {
+//                    await player.writeActualDuration(for: episode)
+//                }
+//            }
+//            workItem = item
+//            // Schedule after 0.5 seconds (adjust as needed)
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: item)
+//        }
+//        .onDisappear {
+//            // Cancel if the user scrolls away before debounce interval
+//            workItem?.cancel()
+//        }
     }
 }
 
@@ -306,8 +349,4 @@ struct EmptyEpisodeItem: View {
         }
         .padding(.bottom, 24)
     }
-}
-
-#Preview {
-    EmptyEpisodeItem()
 }

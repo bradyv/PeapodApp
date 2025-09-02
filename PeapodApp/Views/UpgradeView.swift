@@ -1,6 +1,6 @@
 //
 //  UpgradeView.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-05-26.
 //
@@ -163,17 +163,6 @@ struct UpgradeView: View {
                 Text(isPurchasing ? "Processing..." : "Subscribe")
             }
             .frame(maxWidth: .infinity)
-            .foregroundStyle(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(hex: "#3CA4F4") ?? .blue,
-                        Color(hex: "#9D93C5") ?? .purple,
-                        Color(hex: "#E98D64") ?? .orange
-                    ]),
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
         }
         .buttonStyle(ShadowButton())
         .disabled(isPurchasing)
@@ -195,7 +184,6 @@ struct UpgradeView: View {
     
     private var backgroundView: some View {
         GeometryReader { geometry in
-            Color(hex: "#C9C9C9")
             Image("pro-pattern")
                 .resizable()
                 .aspectRatio(contentMode: .fill)

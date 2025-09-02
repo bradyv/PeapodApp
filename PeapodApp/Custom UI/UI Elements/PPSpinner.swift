@@ -1,6 +1,6 @@
 //
 //  PPSpinner.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-13.
 //
@@ -24,6 +24,6 @@ struct PPSpinner: View {
                 .frame(width: size, height: size)
                 .onAppear { self.isAnimating = true }
         }
-        .frame(width: 20, height: 20)
+        .frame(width: 18, height: 18)
     }
 }

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PPProgress: View {
-    @ObservedObject var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     @Binding var value: Double
     let range: ClosedRange<Double>
     let onEditingChanged: (Bool) -> Void
@@ -52,6 +52,7 @@ struct PPProgress: View {
                         .frame(width: max(isQQ || !isDraggable ? 4 : 6, progressWidth),
                                height: isDragging ? 12 : (isQQ || !isDraggable ? 4 : 6))
                         .animation(.easeInOut(duration: 0.2), value: isDragging)
+                        .opacity(progressWidth > 0 ? 1 : 0)
 
                     // Timestamp Display
                     if isDragging && isDraggable {

@@ -1,6 +1,6 @@
 //
 //  PodcastFetcher.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-27.
 //
@@ -122,6 +122,25 @@ enum PodcastAPI {
     }
 }
 
+func fetchOrCreatePodcast(feedUrl: String, context: NSManagedObjectContext, title: String? = nil, author: String? = nil) -> Podcast {
+    let normalizedUrl = feedUrl.normalizeURL()
+    
+    let request = Podcast.fetchRequest()
+    request.predicate = NSPredicate(format: "feedUrl == %@", normalizedUrl)
+    request.fetchLimit = 1
+
+    if let existing = try? context.fetch(request).first {
+        return existing
+    } else {
+        let podcast = Podcast(context: context)
+        podcast.feedUrl = normalizedUrl
+        podcast.id = UUID().uuidString
+        podcast.title = title
+        podcast.author = author
+        return podcast
+    }
+}
+
 struct SearchResponse: Codable {
     let results: [PodcastResult]
 }
@@ -181,8 +200,13 @@ enum PodcastLoader {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     DispatchQueue.main.async {
-                        let podcast = createOrUpdatePodcast(from: rss, feedUrl: feedUrl, context: context)
-                        completion(podcast)
+                        // 🆕 FIXED: Create podcast metadata only, then use EpisodeRefresher for episodes
+                        let podcast = createPodcastMetadataOnly(from: rss, feedUrl: feedUrl, context: context)
+                        
+                        // 🆕 Use the new loadInitialEpisodes method specifically for new podcasts
+                        EpisodeRefresher.loadInitialEpisodes(for: podcast, context: context) {
+                            completion(podcast)
+                        }
                     }
                 } else {
                     completion(nil)
@@ -199,94 +223,50 @@ enum PodcastLoader {
         guard let urlString = urlString else { return nil }
         return urlString.replacingOccurrences(of: "http://", with: "https://")
     }
-    
 
-    
-    static func createOrUpdatePodcast(from rss: RSSFeed, feedUrl: String, context: NSManagedObjectContext) -> Podcast {
+    // 🆕 NEW: Create podcast metadata only, no episodes
+    private static func createPodcastMetadataOnly(from rss: RSSFeed, feedUrl: String, context: NSManagedObjectContext) -> Podcast {
         let podcast = fetchOrCreatePodcast(feedUrl: feedUrl, context: context, title: rss.title, author: rss.iTunes?.iTunesAuthor)
 
         // Convert HTTP to HTTPS for podcast images
-        podcast.image = podcast.image ??
-                        forceHTTPS(rss.image?.url) ??
-                        forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
-                        forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
+        if podcast.image == nil {
+            podcast.image = forceHTTPS(rss.image?.url) ??
+                           forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
+                           forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
+        }
 
-        podcast.podcastDescription = podcast.podcastDescription ?? rss.description ??
-                                      rss.iTunes?.iTunesSummary ??
-                                      rss.items?.first?.iTunes?.iTunesSummary ??
-                                      rss.items?.first?.description
+        if podcast.podcastDescription == nil {
+            podcast.podcastDescription = rss.description ??
+                                        rss.iTunes?.iTunesSummary ??
+                                        rss.items?.first?.iTunes?.iTunesSummary ??
+                                        rss.items?.first?.description
+        }
 
         if podcast.isInserted {
             podcast.isSubscribed = false
         }
 
-        let existingEpisodes = (podcast.episode as? Set<Episode>) ?? []
-        var existingEpisodesByGuid: [String: Episode] = [:]
-        var existingEpisodesByTitleAndDate: [String: Episode] = [:]
-
-        for episode in existingEpisodes {
-            if let guid = episode.guid {
-                existingEpisodesByGuid[guid] = episode
-            } else if let title = episode.title, let airDate = episode.airDate {
-                let key = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
-                existingEpisodesByTitleAndDate[key] = episode
-            }
-        }
-
-        for item in rss.items ?? [] {
-            guard let title = item.title else { continue }
-
-            var existingEpisode: Episode?
-
-            if let guid = item.guid?.value {
-                existingEpisode = existingEpisodesByGuid[guid]
-            } else if let pubDate = item.pubDate {
-                let key = "\(title.lowercased())_\(pubDate.timeIntervalSince1970)"
-                existingEpisode = existingEpisodesByTitleAndDate[key]
-            }
-
-            let episode = existingEpisode ?? Episode(context: context)
-
-            if existingEpisode == nil {
-                episode.id = UUID().uuidString
-                episode.podcast = podcast
-            }
-
-            episode.guid = item.guid?.value
-            episode.title = title
-            
-            // Convert HTTP to HTTPS for audio URLs
-            episode.audio = forceHTTPS(item.enclosure?.attributes?.url)
-            
-            episode.episodeDescription = item.content?.contentEncoded ?? item.iTunes?.iTunesSummary ?? item.description
-            episode.airDate = item.pubDate
-            
-            if let durationString = item.iTunes?.iTunesDuration {
-                episode.duration = Double(durationString)
-            }
-            
-            // Convert HTTP to HTTPS for episode images
-            episode.episodeImage = forceHTTPS(item.iTunes?.iTunesImage?.attributes?.href) ?? podcast.image
-        }
-
+        // Save the podcast metadata
         try? context.save()
         return podcast
     }
     
     private static func fetchOrCreatePodcast(feedUrl: String, context: NSManagedObjectContext, title: String?, author: String?) -> Podcast {
+        let normalizedUrl = feedUrl.normalizeURL()
+        
         let request = Podcast.fetchRequest()
-        request.predicate = NSPredicate(format: "feedUrl == %@", feedUrl)
+        request.predicate = NSPredicate(format: "feedUrl == %@", normalizedUrl)
         request.fetchLimit = 1
 
-        if let existing = (try? context.fetch(request))?.first {
+        if let existing = try? context.fetch(request).first {
             return existing
         } else {
-            let newPodcast = Podcast(context: context)
-            newPodcast.id = UUID().uuidString
-            newPodcast.feedUrl = feedUrl
-            newPodcast.title = title
-            newPodcast.author = author
-            return newPodcast
+            let podcast = Podcast(context: context)
+            podcast.feedUrl = normalizedUrl
+            podcast.id = UUID().uuidString
+            podcast.title = title
+            podcast.author = author
+            return podcast
         }
     }
 }

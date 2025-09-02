@@ -9,21 +9,20 @@ import SwiftUI
 import BackgroundTasks
 import FirebaseCore
 import FirebaseMessaging
+import Kingfisher
 
 @main
 struct Peapod: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var toastManager = ToastManager()
-    @StateObject private var nowPlayingManager = NowPlayingVisibilityManager()
     @StateObject private var appStateManager = AppStateManager()
     @StateObject private var userManager = UserManager.shared
-    @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
-    @AppStorage("didFlushTints") private var didFlushTints: Bool = false
-    @AppStorage("hasRunOneTimeSplashMark") private var hasRunOneTimeSplashMark = false
+    @StateObject private var audioPlayer = AudioPlayerManager.shared
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
-    var appTheme: AppTheme {
-       AppTheme(rawValue: appThemeRawValue) ?? .system
+    // Get the episodes view model from AppDelegate instead of creating a new one
+    private var episodesViewModel: EpisodesViewModel {
+        appDelegate.episodesViewModel
     }
     
     init() {
@@ -36,49 +35,13 @@ struct Peapod: App {
 
     var body: some Scene {
         WindowGroup {
-            MainContainerView()
+            ContentView()
                 .environmentObject(appStateManager)
-                .environmentObject(nowPlayingManager)
                 .environmentObject(toastManager)
                 .environmentObject(userManager)
+                .environmentObject(audioPlayer)
+                .environmentObject(episodesViewModel) // This is now coming from AppDelegate
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .preferredColorScheme(preferredColorScheme(for: appTheme))
-                .onAppear {
-                    // Perform one-time setup
-                    runOneTimeSetupIfNeeded()
-                    
-                    // Start splash sequence
-                    appStateManager.startSplashSequence()
-                }
-        }
-    }
-    
-    private func runOneTimeSetupIfNeeded() {
-        let context = PersistenceController.shared.container.viewContext
-        
-        // Run data migrations and cleanup
-        runDeduplicationOnceIfNeeded(context: context)
-        appDelegate.scheduleEpisodeCleanup()
-        if !hasRunOneTimeSplashMark {
-            oneTimeSplashMark(context: context)
-            hasRunOneTimeSplashMark = true
-        }
-        migrateMissingEpisodeGUIDs(context: context)
-        
-        // Setup queues and other required data
-        ensureQueuePlaylistExists(context: context)
-        migrateOldQueueToPlaylist(context: context)
-        if !didFlushTints {
-            resetAllTints(in: context)
-            didFlushTints = true
-        }
-    }
-    
-    private func preferredColorScheme(for theme: AppTheme) -> ColorScheme? {
-        switch theme {
-        case .system: return nil
-        case .dark: return .dark
-        case .light: return .light
         }
     }
 }

@@ -59,20 +59,6 @@ struct ShadowButton: ButtonStyle {
             transform: {
             $0.shadow(color: filled ? Color.accentColor.opacity(0.25) : .black.opacity(0.05), radius: 3, x: 0, y: 2)
         })
-        .if(!borderless && !iconOnly,
-            transform: {
-            $0.overlay(
-                Capsule()
-                .stroke(.black.opacity(0.1), lineWidth: 1)
-            )
-        })
-        .if(!borderless && iconOnly,
-            transform: {
-            $0.overlay(
-                Circle()
-                .stroke(.black.opacity(0.1), lineWidth: 1)
-            )
-        })
         .scaleEffect(isPressed ? 0.95 : 1)
         .animation(.easeOut(duration: 0.2), value: isPressed)
     }
@@ -135,13 +121,6 @@ struct PPButton: ButtonStyle {
         .foregroundColor(peapodPlus ? Color.white : effectiveForeground)
         .textBodyEmphasis()
         .clipShape(Capsule())
-        .overlay {
-            if iconOnly {
-                Circle().stroke(Color.heading.opacity(0.15), lineWidth: 1)
-            } else {
-                Capsule().stroke(Color.heading.opacity(0.15), lineWidth: 1)
-            }
-        }
         .scaleEffect(isPressed ? 0.95 : 1)
         .animation(.easeOut(duration: 0.2), value: isPressed)
     }
@@ -176,11 +155,22 @@ struct PPButton: ButtonStyle {
     private var foregroundColor: Color {
         switch (type, colorStyle) {
         case (.filled, _):
-            return .background
+            return .white
         case (.transparent, .tinted):
             return .accentColor
         case (.transparent, .monochrome):
             return .heading
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func ifLet<T, Content: View>(_ value: T?, transform: (Self, T) -> Content) -> some View {
+        if let value = value {
+            transform(self, value)
+        } else {
+            self
         }
     }
 }
@@ -198,60 +188,4 @@ extension ButtonStyle where Self == NoHighlight {
   static var noHighlight: NoHighlight {
     get { NoHighlight() }
   }
-}
-
-struct PPButtonTest: View {
-    
-    var body: some View {
-        VStack {
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(ShadowButton(iconOnly: true, filled: false))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(ShadowButton(iconOnly: true, filled: true))
-            
-            Button("Close", systemImage: "xmark") {
-            }
-            .buttonStyle(ShadowButton(filled: true))
-            
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.tinted, iconOnly: true))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.filled, colorStyle:.monochrome, iconOnly: true))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.tinted, iconOnly: true))
-            
-            Button("Dismiss", systemImage: "chevron.down") {
-            }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
-        }
-    }
-}
-
-#Preview {
-    PPButtonTest()
 }

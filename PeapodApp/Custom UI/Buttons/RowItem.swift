@@ -1,6 +1,6 @@
 //
 //  RowItem.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-14.
 //
@@ -12,13 +12,15 @@ struct RowItem<Accessory: View>: View {
     let label: String
     let tint: Color?
     var framedIcon: Bool = false
+    var showDivider: Bool = true
     @ViewBuilder var accessory: () -> Accessory
 
-    init(icon: String, label: String, tint: Color = Color.text, framedIcon: Bool = false, @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
+    init(icon: String, label: String, tint: Color = Color.text, framedIcon: Bool = false, showDivider: Bool = true, @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
         self.icon = icon
         self.label = label
         self.tint = tint
         self.framedIcon = framedIcon
+        self.showDivider = showDivider
         self.accessory = accessory
     }
 
@@ -36,6 +38,7 @@ struct RowItem<Accessory: View>: View {
                     .frame(width:30,height:30)
                     .background(tint)
                     .clipShape(RoundedRectangle(cornerRadius:8))
+                    .glassEffect(in: .rect(cornerRadius:8))
                 } else {
                     Image(systemName: icon)
                         .frame(width: 24)
@@ -58,7 +61,10 @@ struct RowItem<Accessory: View>: View {
                 }
             }
             .padding(.vertical, 2)
-            Divider()
+            
+            if showDivider {
+                Divider()
+            }
         }
         .contentShape(Rectangle())
     }

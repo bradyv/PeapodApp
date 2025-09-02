@@ -1,6 +1,6 @@
 //
 //  SubscriptionSyncService.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-05-24.
 //
@@ -27,7 +27,7 @@ class SubscriptionSyncService {
         
         do {
             let subscribedPodcasts = try context.fetch(request)
-            let feedUrls = subscribedPodcasts.compactMap { $0.feedUrl }
+            let feedUrls = subscribedPodcasts.compactMap { $0.feedUrl?.normalizeURL() }
             
             let cleanUserID = getUserID()
             
@@ -59,9 +59,9 @@ class SubscriptionSyncService {
         guard let bundleId = Bundle.main.bundleIdentifier else { return "unknown" }
         
         switch bundleId {
-        case "com.bradyv.Peapod.Debug":
+        case "fm.peapod.debug":
             return "debug"
-        case "com.bradyv.Peapod.Dev":
+        case "fm.peapod":
             return "dev"
         default:
             return "prod"

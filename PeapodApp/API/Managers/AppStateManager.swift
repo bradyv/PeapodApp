@@ -1,6 +1,6 @@
 //
 //  AppStateManager.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-05-03.
 //
@@ -9,46 +9,56 @@ import SwiftUI
 
 class AppStateManager: ObservableObject {
     enum AppState {
-        case splash
         case onboarding
-        case requestNotifications
         case main
     }
     
-    @Published var currentState: AppState = .splash
-    @AppStorage("showOnboarding") private var showOnboarding: Bool = true
+    enum OnboardingStep {
+        case welcome
+        case importOPML
+        case selectPodcasts
+        case requestNotifications
+    }
     
-    func startSplashSequence() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            withAnimation(.easeInOut(duration: 0.6)) {
-                self.currentState = self.showOnboarding ? .onboarding : .main
-            }
+    @AppStorage("showOnboarding") private var showOnboarding: Bool = true
+    @Published var currentOnboardingStep: OnboardingStep = .welcome
+    
+    // Initialize with the correct state immediately
+    @Published var currentState: AppState
+    
+    init() {
+        let shouldShowOnboarding = UserDefaults.standard.object(forKey: "showOnboarding") as? Bool ?? true
+        currentState = shouldShowOnboarding ? .onboarding : .main
+    }
+    
+    func beginOnboarding() {
+        withAnimation(.easeInOut(duration: 0.6)) {
+            self.currentOnboardingStep = .selectPodcasts
+        }
+    }
+    
+    func importPodcasts() {
+        withAnimation(.easeInOut(duration: 0.6)) {
+            self.currentOnboardingStep = .importOPML
         }
     }
     
     func completeOnboarding() {
-        showOnboarding = false
-        
         // Check if user has subscribed to any podcasts
         let context = PersistenceController.shared.container.viewContext
         let subscribedCount = (try? Podcast.totalSubscribedCount(in: context)) ?? 0
+        showOnboarding = false
         
         if subscribedCount > 0 {
-            // User has subscriptions, ask about notifications
-            withAnimation(.easeInOut(duration: 0.6)) {
-                currentState = .requestNotifications
-            }
+            currentOnboardingStep = .requestNotifications
         } else {
-            // No subscriptions, go straight to main
-            withAnimation(.easeInOut(duration: 0.6)) {
-                currentState = .main
-            }
+            currentState = .main
         }
+        
+        EpisodeRefresher.refreshAllSubscribedPodcasts(context: context)
     }
     
     func completeNotificationRequest() {
-        withAnimation(.easeInOut(duration: 0.6)) {
-            currentState = .main
-        }
+        currentState = .main
     }
 }

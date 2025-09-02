@@ -1,6 +1,6 @@
 //
 //  QueueView.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-02.
 //
@@ -10,23 +10,21 @@ import Kingfisher
 
 struct QueueView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @ObservedObject private var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @State private var selectedEpisode: Episode? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
-    
-    var namespace: Namespace.ID
+    @Binding var selectedTab: ContentView.Tabs
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading) {
             Text("Up Next")
-                .titleSerif()
-                .padding(.leading)
-                .padding(.bottom, 4)
-
-            VStack(spacing: 0) {
+                .titleSerifMini()
+                .padding(.leading).padding(.top)
+            
+            VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
                         LazyHStack(alignment: .top, spacing: 8) {
@@ -50,19 +48,43 @@ struct QueueView: View {
                                         Text("Nothing up next")
                                             .titleCondensed()
                                         
-                                        Text(subscriptions.isEmpty ? "Add some podcasts to get started." : "New episodes are automatically added.")
+                                        Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New releases are automatically added.")
                                             .textBody()
                                         
-                                        if !episodesViewModel.saved.isEmpty {
-                                            let items = Array(episodesViewModel.saved.prefix(3).enumerated().reversed())
+                                        if subscriptions.isEmpty {
+                                            VStack {
+                                                Button {
+                                                    selectedTab = .search
+                                                } label: {
+                                                    Label("Find a Podcast", systemImage: "plus.magnifyingglass")
+                                                        .padding(.vertical,4)
+                                                        .foregroundStyle(.white)
+                                                        .textBodyEmphasis()
+                                                }
+                                                .buttonStyle(.glassProminent)
+                                                
+                                                Button {
+                                                    //
+                                                } label: {
+                                                    Label("Import OPML", systemImage: "tray.and.arrow.down")
+                                                        .padding(.vertical,4)
+                                                        .foregroundStyle(Color.accentColor)
+                                                        .textBodyEmphasis()
+                                                }
+                                            }
+                                        }
+                                        
+                                        // UPDATED: Change from episodesViewModel.saved to episodesViewModel.favs
+                                        if !episodesViewModel.favs.isEmpty {
+                                            let items = Array(episodesViewModel.favs.prefix(3).enumerated().reversed())
                                             Button(action: {
                                                 for (_, episode) in items {
                                                     withAnimation {
-                                                        toggleQueued(episode)
+                                                        toggleQueued(episode, episodesViewModel: episodesViewModel)
                                                     }
                                                 }
                                             }) {
-                                                HStack(spacing: episodesViewModel.saved.count > 2 ? 12 : 8) {
+                                                HStack(spacing: 16) {
                                                     let customOffsets: [(x: CGFloat, y: CGFloat)] = [
                                                         (x: 2, y: -5),   // back
                                                         (x: 8, y: 0),  // middle
@@ -91,7 +113,8 @@ struct QueueView: View {
                                                         }
                                                     }
                                                     
-                                                    Text("Add from Play Later")
+                                                    Text("Add from Favorites")
+                                                        .foregroundStyle(Color.background)
                                                 }
                                             }
                                             .buttonStyle(PPButton(type: .filled, colorStyle: .monochrome))
@@ -104,7 +127,10 @@ struct QueueView: View {
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
                                 ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
-                                    QueueItemView(episode: episode, index: index, namespace: namespace) {
+                                    QueueItemView(episode: episode, index: index) {
+                                        selectedEpisode = episode
+                                    }
+                                    .onTapGesture {
                                         selectedEpisode = episode
                                     }
                                 }
@@ -161,43 +187,45 @@ struct QueueView: View {
                     }
                 }
                 
-                if episodesViewModel.queue.count > 1 {
-                    GeometryReader { geo in
-                        HStack(spacing: 8) {
-                            Spacer()
-                            ForEach(episodesViewModel.queue.indices, id: \.self) { index in
-                                let isCurrent = index == Int(scrollOffset)
-                                
-                                VStack {
-                                    Capsule()
-                                        .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
-                                        .frame(width: isCurrent ? 18 : 6, height: 6)
-                                        .contentShape(Circle())
-                                        .transition(.opacity)
-                                        .animation(.easeOut(duration: 0.3), value: isCurrent)
-                                }
-                                .frame(height: 44)
-                                .fixedSize()
-                                .onTapGesture {
-                                    if let id = episodesViewModel.queue[index].id {
-                                        withAnimation {
-                                            scrollTarget = id
-                                        }
+                GeometryReader { geo in
+                    HStack(spacing: 8) {
+                        Spacer()
+                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
+                            let isCurrent = index == Int(scrollOffset)
+                            
+                            VStack {
+                                Capsule()
+                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
+                                    .frame(width: isCurrent ? 18 : 6, height: 6)
+                                    .contentShape(Circle())
+                                    .transition(.opacity)
+                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
+                            }
+                            .frame(height: 44)
+                            .fixedSize()
+                            .onTapGesture {
+                                if let id = episodesViewModel.queue[index].id {
+                                    withAnimation {
+                                        scrollTarget = id
                                     }
                                 }
                             }
-                            Spacer()
                         }
-                        .frame(maxWidth: geo.size.width, alignment: .leading)
-                        .clipped()
-                        .padding(.horizontal)
-                        .contentShape(Rectangle())
+                        Spacer()
                     }
+                    .frame(maxWidth: geo.size.width, alignment: .leading)
+                    .clipped()
+                    .padding(.horizontal)
+                    .contentShape(Rectangle())
+                    .opacity(episodesViewModel.queue.count > 1 ? 1 : 0)
                 }
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 24)
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode)
+                .modifier(PPSheet())
+        }
     }
 }
 
@@ -209,17 +237,14 @@ private struct ScrollOffsetKey: PreferenceKey {
 }
 
 struct QueueItemView: View {
-    @EnvironmentObject var episodeSelectionManager: EpisodeSelectionManager
-    @ObservedObject private var player = AudioPlayerManager.shared
+    @EnvironmentObject var player: AudioPlayerManager
     let episode: Episode
     let index: Int
-    var namespace: Namespace.ID
     var onSelect: () -> Void
     @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
-        QueueItem(episode: episode, namespace: namespace)
-            .matchedTransitionSource(id: episode.id, in: namespace)
+        QueueItem(episode: episode)
             .id(episode.id)
             .lineLimit(3)
             .background(
@@ -233,13 +258,6 @@ struct QueueItemView: View {
                 content
                     .opacity(phase.isIdentity ? 1 : 0.5)
                     .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
-            }
-            .onTapGesture {
-                selectedEpisode = episode
-            }
-            .sheet(item: $selectedEpisode) { episode in
-                EpisodeView(episode: episode, namespace:namespace)
-                    .modifier(PPSheet())
             }
     }
 }

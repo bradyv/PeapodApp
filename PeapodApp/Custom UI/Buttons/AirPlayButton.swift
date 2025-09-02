@@ -21,7 +21,8 @@ struct AirPlayButton: View {
             }) {
                 Image(systemName: currentRouteIcon)
             }
-            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+            .buttonStyle(.glass)
+            .labelStyle(.iconOnly)
 
             // Keep AVRoutePickerView in the view hierarchy, hidden but functional
             UIViewRepresentableWrapper(view: routePickerView)

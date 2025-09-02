@@ -1,5 +1,5 @@
 {
-  "originHash" : "78013246809f44b789c2aa955ee2dde9e4c52dda837591446297697c359e12f6",
+  "originHash" : "b064976851adc08e11556f8c9902422a6900a978dbdfc7df8a93f49e82144128",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -17,15 +17,6 @@
       "state" : {
         "revision" : "61b85103a1aeed8218f17c794687781505fbbef5",
         "version" : "11.2.0"
-      }
-    },
-    {
-      "identity" : "colorthiefswift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/yamoridon/ColorThiefSwift",
-      "state" : {
-        "revision" : "ac04a95acca965f8030a01293c31621b2a812c39",
-        "version" : "0.5.0"
       }
     },
     {
@@ -119,15 +110,6 @@
       }
     },
     {
-      "identity" : "lottie-spm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/airbnb/lottie-spm.git",
-      "state" : {
-        "revision" : "04f2fd18cc9404a0a0917265a449002674f24ec9",
-        "version" : "4.5.2"
-      }
-    },
-    {
       "identity" : "nanopb",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/firebase/nanopb.git",
@@ -137,21 +119,21 @@
       }
     },
     {
+      "identity" : "pow",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/EmergeTools/Pow",
+      "state" : {
+        "revision" : "a504eb6d144bcf49f4f33029a2795345cb39e6b4",
+        "version" : "1.0.5"
+      }
+    },
+    {
       "identity" : "promises",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/promises.git",
       "state" : {
         "revision" : "540318ecedd63d883069ae7f1ed811a2df00b6ac",
         "version" : "2.4.0"
-      }
-    },
-    {
-      "identity" : "rive-ios",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/rive-app/rive-ios",
-      "state" : {
-        "revision" : "4d69c927b8c5b599f2caa58e818290bb7ceebce7",
-        "version" : "6.8.1"
       }
     },
     {

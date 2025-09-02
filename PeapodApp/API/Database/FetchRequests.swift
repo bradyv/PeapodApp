@@ -1,6 +1,6 @@
 //
 //  FetchRequests.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-28.
 //
@@ -9,161 +9,89 @@ import SwiftUI
 import CoreData
 
 extension Episode {
+    // Queue episodes: use helper function instead of direct fetch
     static func queueFetchRequest() -> NSFetchRequest<Episode> {
+        // This will be replaced by getQueuedEpisodes(context:)
         let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "playlist.name == %@", "Queue")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.queuePosition, ascending: true)]
-        request.fetchBatchSize = 20
+        request.predicate = NSPredicate(format: "FALSEPREDICATE") // Empty result, use helper function
         return request
     }
     
+    // Latest episodes from subscribed podcasts
     static func latestEpisodesRequest() -> NSFetchRequest<Episode> {
         let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES")
+        // Note: This should be used with context-specific podcast ID fetching
+        request.predicate = NSPredicate(format: "TRUEPREDICATE") // Placeholder - use helper function
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
         request.fetchBatchSize = 20
         return request
     }
     
-    static func unplayedEpisodesRequest() -> NSFetchRequest<Episode> {
+    // Unplayed episodes: need to check if NOT in "Played" using boolean approach
+    static func unplayedEpisodesRequest(context: NSManagedObjectContext) -> NSFetchRequest<Episode> {
+        let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
+        
         let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "podcast != nil AND podcast.isSubscribed == YES AND isPlayed == NO AND playbackPosition == 0 AND nowPlaying = NO")
+        
+        guard !subscribedPodcastIds.isEmpty else {
+            request.predicate = NSPredicate(format: "FALSEPREDICATE")
+            return request
+        }
+        
+        // Get played episode IDs using boolean approach
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        playbackRequest.predicate = NSPredicate(format: "isPlayed == YES")
+        let playedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
+        let playedIds = playedPlaybackStates.compactMap { $0.episodeId }
+        
+        let subscribedPredicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
+        
+        if playedIds.isEmpty {
+            // No played episodes, so all subscribed episodes are unplayed
+            request.predicate = subscribedPredicate
+        } else {
+            // Exclude played episodes
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                subscribedPredicate,
+                NSPredicate(format: "NOT (id IN %@)", playedIds)
+            ])
+        }
+        
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
         request.fetchBatchSize = 20
         return request
     }
     
-    static func savedEpisodesRequest() -> NSFetchRequest<Episode> {
+    // Old episodes: episodes from unsubscribed podcasts that aren't saved in any boolean state
+    static func oldEpisodesRequest(context: NSManagedObjectContext) -> NSFetchRequest<Episode> {
+        let unsubscribedPodcastIds = getUnsubscribedPodcastIds(context: context)
+        
+        // Get all episode IDs that have ANY playback state (queued, played, or favorited)
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        playbackRequest.predicate = NSPredicate(format: "isQueued == YES OR isPlayed == YES OR isFav == YES")
+        let savedPlaybackStates = (try? context.fetch(playbackRequest)) ?? []
+        let savedEpisodeIds = savedPlaybackStates.compactMap { $0.episodeId }
+        
         let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "isSaved == YES")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.savedDate, ascending: false)]
-        request.fetchBatchSize = 20
-        return request
-    }
-    
-    static func favEpisodesRequest() -> NSFetchRequest<Episode> {
-        let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "isFav == YES")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.favDate, ascending: false)]
-        request.fetchBatchSize = 20
-        return request
-    }
-    
-    static func oldEpisodesRequest() -> NSFetchRequest<Episode> {
-        let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "(podcast = nil OR podcast.isSubscribed != YES) AND isSaved == NO AND isPlayed == NO")
+        
+        guard !unsubscribedPodcastIds.isEmpty else {
+            request.predicate = NSPredicate(format: "FALSEPREDICATE")
+            return request
+        }
+        
+        let unsubscribedPredicate = NSPredicate(format: "podcastId IN %@", unsubscribedPodcastIds)
+        
+        if savedEpisodeIds.isEmpty {
+            request.predicate = unsubscribedPredicate
+        } else {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                unsubscribedPredicate,
+                NSPredicate(format: "NOT (id IN %@)", savedEpisodeIds)
+            ])
+        }
+        
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.id, ascending: true)]
         request.fetchBatchSize = 20
-        return request
-    }
-    
-    // Moved from ActivityView.swift
-    static func recentlyPlayedRequest(limit: Int = 5) -> NSFetchRequest<Episode> {
-        let request = NSFetchRequest<Episode>(entityName: "Episode")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.playedDate, ascending: false)]
-        request.predicate = NSPredicate(format: "isPlayed == YES")
-        request.fetchLimit = limit
-        return request
-    }
-    
-    // NEW: Get the longest played episode
-    static func longestPlayedEpisodeRequest() -> NSFetchRequest<Episode> {
-        let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "isPlayed == YES")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.actualDuration, ascending: false)]
-        request.fetchLimit = 1
-        return request
-    }
-    
-    // NEW: Get played episodes grouped by day of week (for analysis)
-    static func playedEpisodesByDayRequest() -> NSFetchRequest<Episode> {
-        let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "isPlayed == YES AND playedDate != nil")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.playedDate, ascending: true)]
-        return request
-    }
-    
-    // NEW: Helper function to get most popular listening day
-    static func mostPopularListeningDay(in context: NSManagedObjectContext) throws -> (dayOfWeek: Int, count: Int)? {
-        let request = Episode.playedEpisodesByDayRequest()
-        let episodes = try context.fetch(request)
-        
-        var dayCount: [Int: Int] = [:]
-        let calendar = Calendar.current
-        
-        for episode in episodes {
-            guard let playedDate = episode.playedDate else { continue }
-            let dayOfWeek = calendar.component(.weekday, from: playedDate)
-            dayCount[dayOfWeek, default: 0] += 1
-        }
-        
-        guard let maxDay = dayCount.max(by: { $0.value < $1.value }) else {
-            return nil
-        }
-        
-        return (dayOfWeek: maxDay.key, count: maxDay.value)
-    }
-    
-    static func getWeeklyListeningData(in context: NSManagedObjectContext) throws -> [WeeklyListeningData] {
-        let request = Episode.playedEpisodesByDayRequest()
-        let episodes = try context.fetch(request)
-        
-        var dayCount: [Int: Int] = [:]
-        let calendar = Calendar.current
-        
-        // Count episodes for each day of the week
-        for episode in episodes {
-            guard let playedDate = episode.playedDate else { continue }
-            let dayOfWeek = calendar.component(.weekday, from: playedDate)
-            dayCount[dayOfWeek, default: 0] += 1
-        }
-        
-        // Find the maximum count for percentage calculation
-        let maxCount = dayCount.values.max() ?? 1
-        
-        // Create data for all 7 days (1 = Sunday, 7 = Saturday)
-        let dayAbbreviations = ["S", "M", "T", "W", "T", "F", "S"] // Sun, Mon, Tue, Wed, Thu, Fri, Sat
-        
-        var weeklyData: [WeeklyListeningData] = []
-        
-        for day in 1...7 {
-            let count = dayCount[day] ?? 0
-            let percentage = maxCount > 0 ? Double(count) / Double(maxCount) : 0.0
-            
-            weeklyData.append(WeeklyListeningData(
-                dayOfWeek: day,
-                count: count,
-                percentage: percentage,
-                dayAbbreviation: dayAbbreviations[day - 1]
-            ))
-        }
-        
-        return weeklyData
-    }
-
-    
-    // NEW: Helper function to get day name from weekday number
-    static func dayName(from weekday: Int) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        let dayNames = formatter.weekdaySymbols!
-        // weekday is 1-based (1 = Sunday), array is 0-based
-        return dayNames[weekday - 1]
-    }
-    
-    // NEW: Count total episodes in database
-    static func totalEpisodeCount(in context: NSManagedObjectContext) throws -> Int {
-        let request = NSFetchRequest<Episode>(entityName: "Episode")
-        request.resultType = .countResultType
-        return try context.count(for: request)
-    }
-    
-    // NEW: Repeat listens
-    static func topPlayedEpisodesRequest(limit: Int = 3) -> NSFetchRequest<Episode> {
-        let request = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "playCount > 1")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.playCount, ascending: false)]
-        request.fetchLimit = limit
         return request
     }
 }
@@ -250,10 +178,6 @@ extension Podcast {
         let hours = playedSeconds / 3600
         let rounded = (hours * 10).rounded() / 10  // round to 1 decimal place
 
-        if rounded < 0.1 {
-            return "Under 1 hour"
-        }
-
         if rounded == floor(rounded) {
             let whole = Int(rounded)
             return "\(whole) " + (whole == 1 ? "hour" : "hours")
@@ -279,25 +203,50 @@ extension User {
     }
 }
 
+// MARK: - Helper Functions for Predicates
+
+func getSubscribedPodcastIds(context: NSManagedObjectContext) -> [String] {
+    let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+    request.predicate = NSPredicate(format: "isSubscribed == YES")
+    
+    do {
+        let podcasts = try context.fetch(request)
+        return podcasts.compactMap { $0.id }
+    } catch {
+        LogManager.shared.error("Error fetching subscribed podcast IDs: \(error)")
+        return []
+    }
+}
+
+func getUnsubscribedPodcastIds(context: NSManagedObjectContext) -> [String] {
+    let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+    request.predicate = NSPredicate(format: "isSubscribed == NO")
+    
+    do {
+        let podcasts = try context.fetch(request)
+        return podcasts.compactMap { $0.id }
+    } catch {
+        LogManager.shared.error("Error fetching unsubscribed podcast IDs: \(error)")
+        return []
+    }
+}
+
 // MARK: - App Statistics Helper
 
 struct AppStatistics {
     let podcastCount: Int
-    let episodeCount: Int
     let totalPlayedSeconds: Double
     let subscribedCount: Int
     let playCount: Int
     
     static func load(from context: NSManagedObjectContext) async throws -> AppStatistics {
         let podcasts = try Podcast.totalPodcastCount(in: context)
-        let episodes = try Episode.totalEpisodeCount(in: context)
         let playedSeconds = try await Podcast.totalPlayedDuration(in: context)
         let subscribed = try Podcast.totalSubscribedCount(in: context)
         let plays = try Podcast.totalPlayCount(in: context)
         
         return AppStatistics(
             podcastCount: podcasts,
-            episodeCount: episodes,
             totalPlayedSeconds: playedSeconds,
             subscribedCount: subscribed,
             playCount: plays

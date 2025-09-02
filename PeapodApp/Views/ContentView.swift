@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-03-31.
 //
@@ -10,91 +10,133 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var appStateManager: AppStateManager
     @EnvironmentObject var toastManager: ToastManager
-    @EnvironmentObject var nowPlayingManager: NowPlayingVisibilityManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @EnvironmentObject var player: AudioPlayerManager
     @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
-    @StateObject private var episodesViewModel: EpisodesViewModel = EpisodesViewModel.placeholder()
-    @State private var showSettings = false
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
+    @State private var query = ""
+    @State private var selectedTab: Tabs = .listen
+    @State private var queue: [Episode] = []
+    @State private var episodeID = UUID()
+    @State private var rotateTrigger = false
     
-    var namespace: Namespace.ID
+    private var firstQueueEpisode: Episode? {
+        queue.first
+    }
+    
+    enum Tabs: Hashable {
+        case listen
+        case library
+        case search
+    }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .topTrailing) {
-                MainBackground()
-                
-                ScrollView {
-                    QueueView(namespace: namespace)
-                    LibraryView(namespace: namespace)
-                    SubscriptionsView(namespace: namespace)
-                    
-                    Spacer().frame(height: 96)
+        switch appStateManager.currentState {
+        case .onboarding:
+            WelcomeView(
+                completeOnboarding: {
+                    appStateManager.completeOnboarding()
                 }
-                .maskEdge(.top)
-                .maskEdge(.bottom)
-                .scrollDisabled(subscriptions.isEmpty)
-                .refreshable {
-                    refreshPodcasts(source: "pull-to-refresh")
-                }
-                
-                VStack(alignment: .trailing) {
-                    NavigationLink {
-                        PPPopover(showBg: true) {
-                            SettingsView(namespace: namespace)
-                        }
-                    } label: {
-                        Label("Settings", systemImage: "person.crop.circle")
-                    }
-                    .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal)
-            }
-            .background(
-                EllipticalGradient(
-                    stops: [
-                        Gradient.Stop(color: Color.surface, location: 0.00),
-                        Gradient.Stop(color: Color.background, location: 1.00),
-                    ],
-                    center: UnitPoint(x: 0, y: 0)
-                )
             )
+            .transition(.opacity)
+            
+        case .main:
+            Peapod
+                .transition(.opacity)
         }
-        .environmentObject(episodesViewModel)
-        // Track subscription changes for backend sync
-        .onChange(of: subscriptions.count) { oldCount, newCount in
-            if oldCount != newCount {
-                // Delay sync to allow Core Data to settle
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+    }
+    
+    @ViewBuilder
+    var Peapod: some View {
+        TabView(selection: $selectedTab) {
+            Tab("Listen", systemImage: "play.square.stack", value: .listen) {
+                NavigationStack {
+                    ZStack {
+                        MainBackground()
+                        
+                        ScrollView {
+                            QueueView(selectedTab: $selectedTab)
+                            LatestEpisodesView(mini: true, maxItems: 3)
+                        }
+                    }
+                    .scrollEdgeEffectStyle(.soft, for: .all)
+                    .background(Color.background)
+                    .navigationTitle("Listen")
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            NavigationLink {
+                                SettingsView()
+                            } label: {
+                                Label("Settings", systemImage: "person.crop.circle")
+                            }
+                            .labelStyle(.iconOnly)
+                        }
+                    }
                 }
-            }
-        }
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode, namespace:namespace)
-                .modifier(PPSheet())
-        }
-        .overlay {
-            if nowPlayingManager.isVisible {
-                NowPlaying(namespace: namespace)
-            }
-        }
-        .onAppear {
-            if episodesViewModel.context == nil { // not yet initialized properly
-                episodesViewModel.setup(context: context)
             }
             
+            Tab("Library", systemImage: "circle.grid.3x3", value: .library) {
+                NavigationStack {
+                    ScrollView {
+                        SubscriptionsView()
+                        FavEpisodesView(mini: true, maxItems: 3)
+                    }
+                    .background(Color.background)
+                    .scrollEdgeEffectStyle(.soft, for: .all)
+                    .navigationTitle("Library")
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            NavigationLink {
+                               SettingsView()
+                           } label: {
+                               Label("Settings", systemImage: "person.crop.circle")
+                           }
+                           .labelStyle(.iconOnly)
+                        }
+                    }
+                }
+            }
+            
+            Tab("Search", systemImage: "plus.magnifyingglass", value: .search, role: .search) {
+                NavigationStack {
+                    PodcastSearchView(searchQuery: $query)
+                        .searchable(text: $query, prompt: "Find a Podcast")
+                        .navigationTitle("Find a Podcast")
+                        .toolbar {
+                            ToolbarItem(placement: .primaryAction) {
+                                NavigationLink {
+                                   SettingsView()
+                               } label: {
+                                   Label("Settings", systemImage: "person.crop.circle")
+                               }
+                               .labelStyle(.iconOnly)
+                            }
+                        }
+                }
+                .scrollEdgeEffectStyle(.soft, for: .all)
+            }
+        }
+        .tabViewBottomAccessory {
+            NowPlayingBar
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode)
+                .modifier(PPSheet())
+        }
+        .onAppear {
             checkPendingNotification()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .active {
                 // Clear badge when app becomes active
-                UIApplication.shared.applicationIconBadgeNumber = 0
+                UNUserNotificationCenter.current().setBadgeCount(0)
+                UNUserNotificationCenter.current().removeAllDeliveredNotifications()
                 
                 // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
                 let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
@@ -121,6 +163,107 @@ struct ContentView: View {
             }
         }
         .toast()
+    }
+    
+    @ViewBuilder
+    var NowPlayingBar: some View {
+        
+        Group {
+            if let episode = firstQueueEpisode {
+                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
+                HStack {
+                    HStack {
+                        ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
+                        
+                        VStack(alignment:.leading) {
+                            Text(episode.podcast?.title ?? "Podcast title")
+                                .textDetail()
+                                .lineLimit(1)
+                            
+                            Text(episode.title ?? "Episode title")
+                                .textBody()
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedEpisode = episode
+                    }
+                    
+                    HStack {
+                        Button(action: {
+                            player.togglePlayback(for: episode)
+                            print("Playing episode")
+                        }) {
+                            if player.isLoading {
+                                PPSpinner(color: Color.heading)
+                            } else {
+                                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                        }
+                        
+                        Button(action: {
+                            rotateTrigger.toggle()
+                            player.skipForward(seconds: player.forwardInterval)
+                            print("Seeking forward")
+                        }) {
+                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                                .symbolEffect(.rotate.byLayer, options: .nonRepeating.speed(10), value: rotateTrigger)
+                        }
+                        .disabled(!player.isPlaying)
+                    }
+                }
+                .padding(.leading,4)
+                .padding(.trailing, 8)
+                .frame(maxWidth:.infinity, alignment:.leading)
+            } else {
+                HStack {
+                    Text("Nothing up next")
+                        .textBody()
+                        .frame(maxWidth:.infinity, alignment: .leading)
+
+                    ZStack {
+                        HStack {
+                            Button(action: {
+                            }) {
+                                Image(systemName: "play.fill")
+                            }
+                            .disabled(player.isPlaying)
+                            
+                            Button(action: {
+                            }) {
+                                Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                            }
+                            .disabled(!player.isPlaying)
+                        }
+                        .opacity(0)
+                        
+                        Image("peapod-mark")
+                            .resizable()
+                            .frame(width:29, height:22)
+                    }
+                }
+                .padding(.leading,16).padding(.trailing, 8)
+                .frame(maxWidth:.infinity, alignment:.leading)
+            }
+        }
+        .id(episodeID)
+        .onChange(of: firstQueueEpisode?.id) { _ in
+            episodeID = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            // Refresh queue when Core Data changes
+            loadQueue()
+        }
+        .onAppear {
+            loadQueue()
+        }
+    }
+    
+    private func loadQueue() {
+        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
     }
     
     // 🚀 UPDATED: Unified refresh method with source tracking and debouncing
@@ -156,7 +299,7 @@ struct ContentView: View {
             forceRefreshPodcasts()
             
             // Delay opening the episode to allow refresh to complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 // Try to find the episode by the Firebase episode ID format
                 self.findEpisodeByFirebaseId(pendingID)
             }
@@ -210,4 +353,5 @@ struct ContentView: View {
             LogManager.shared.error("❌ Error searching for episode: \(error)")
         }
     }
+
 }

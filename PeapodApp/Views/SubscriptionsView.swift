@@ -1,6 +1,6 @@
 //
 //  SubscriptionsView.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-02.
 //
@@ -13,40 +13,15 @@ struct SubscriptionsView: View {
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     @State private var selectedPodcast: Podcast? = nil
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack(alignment:.leading) {
-            if !subscriptions.isEmpty {
-                Text("My Shows")
-                    .headerSection()
-            }
+            Text("Following")
+                .titleSerifMini()
             
             ZStack(alignment: .topLeading) {
                 // Actual grid with Add button + (possibly empty) real subscriptions
                 LazyVGrid(columns: columns, spacing: 16) {
-                    // Always-visible Add button
-                    NavigationLink {
-                        PPPopover(showDismiss: false, pushView: false) {
-                            PodcastSearchView(namespace:namespace)
-                        }
-                        .navigationTransition(.zoom(sourceID: "ppsearch", in: namespace))
-                    } label: {
-                        VStack {
-                            Image(systemName: "plus.magnifyingglass")
-                                .symbolRenderingMode(.hierarchical)
-                            Text("Add a podcast")
-                                .textDetailEmphasis()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .aspectRatio(1, contentMode: .fit)
-                        .background(Color.surface)
-                        .foregroundStyle(Color.heading)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.surface, lineWidth: 1))
-                        .matchedTransitionSource(id: "ppsearch", in: namespace)
-                    }
-
                     // Real podcasts - optimized for scroll performance
                     if !subscriptions.isEmpty {
                         ForEach(subscriptions, id: \.objectID) { podcast in
@@ -61,31 +36,40 @@ struct SubscriptionsView: View {
                 if subscriptions.isEmpty {
                     LazyVGrid(columns: columns, spacing: 16) {
                         // Add empty placeholder to maintain grid offset (position 0)
-                        Color.clear
-                            .aspectRatio(1, contentMode: .fit)
-
-                        ForEach(0..<5, id: \.self) { _ in
+                        ForEach(0..<6, id: \.self) { _ in
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color.surface)
                                 .aspectRatio(1, contentMode: .fit)
                                 .opacity(0.5)
+                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.surface.opacity(0.5), lineWidth: 1))
                         }
                     }
                     .mask(
                         LinearGradient(
                             gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
                     )
                     .allowsHitTesting(false) // So the overlay doesn't block taps on the real button
+                    
+                    VStack {
+                        Spacer()
+                        Text("Library is empty")
+                            .titleCondensed()
+                        
+                        Text("Follow some podcasts to get started.")
+                            .textBody()
+                        Spacer()
+                    }
+                    .frame(maxWidth:.infinity)
                 }
             }
         }
         .frame(maxWidth:.infinity)
         .padding()
         .sheet(item: $selectedPodcast) { podcast in
-            PodcastDetailView(feedUrl: podcast.feedUrl ?? "", namespace:namespace)
+            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                 .modifier(PPSheet())
         }
     }
@@ -98,17 +82,11 @@ struct PodcastGridItem: View {
     
     var body: some View {
         Button(action: onTap) {
-            KFImage(URL(string: podcast.image ?? ""))
-                .placeholder {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.surface)
-                }
+            KFImage(URL(string:podcast.image ?? ""))
                 .resizable()
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.border, lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 24))
         }
-        .buttonStyle(PlainButtonStyle())
-        .drawingGroup() // Render as single composited layer
+        .glassEffect(in: .rect(cornerRadius: 24))
     }
 }

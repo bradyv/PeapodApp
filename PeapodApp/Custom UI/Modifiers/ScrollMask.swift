@@ -19,11 +19,6 @@ struct ScrollMask: View {
             endPoint: gradientEndPoint(for: edge),
             curve: .easeInOut
         )
-//        LinearGradient(
-//            gradient: Gradient(colors: [.black, .black.opacity(0)]),
-//            startPoint: gradientStartPoint(for: edge),
-//            endPoint: gradientEndPoint(for: edge)
-//        )
         .frame(
             width: edge.isHorizontal ? 32 : nil,
             height: edge.isHorizontal ? nil : 96

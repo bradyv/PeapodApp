@@ -1,6 +1,6 @@
 //
 //  RequestNotificationsView.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-05-30.
 //
@@ -10,7 +10,6 @@ import UserNotifications
 
 struct RequestNotificationsView: View {
     let onComplete: () -> Void
-    var namespace: Namespace.ID
     
     var body: some View {
         VStack {
@@ -22,29 +21,24 @@ struct RequestNotificationsView: View {
             Button(action: {
                 requestNotificationPermission()
             }) {
-                Text("Notify Me")
+                Label("Notify Me", systemImage: "bell.badge")
                     .frame(maxWidth:.infinity)
+                    .padding(.vertical,4)
+                    .foregroundStyle(.white)
+                    .textBodyEmphasis()
             }
-            .buttonStyle(
-                PPButton(
-                    type: .filled,
-                    colorStyle: .monochrome,
-                    customColors: ButtonCustomColors(foreground: Color.background, background: Color.heading)
-                )
-            )
+            .buttonStyle(.glassProminent)
+            .labelStyle(.titleOnly)
             
             Button(action: {
                 skipNotifications()
             }) {
-                Text("Maybe Later")
+                Label("Maybe Later", systemImage:"chevron.right")
+                    .labelStyle(.titleOnly)
                     .frame(maxWidth:.infinity)
+                    .padding(.vertical,4)
             }
-            .buttonStyle(
-                PPButton(
-                    type:.transparent,
-                    colorStyle:.monochrome
-                )
-            )
+            .buttonStyle(PPButton(type:.transparent, colorStyle: .monochrome))
         }
         .padding()
         .background(

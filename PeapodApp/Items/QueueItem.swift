@@ -1,6 +1,6 @@
 //
 //  QueueItem.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-02.
 //
@@ -10,8 +10,7 @@ import Kingfisher
 
 struct QueueItem: View {
     @ObservedObject var episode: Episode
-    @ObservedObject private var player = AudioPlayerManager.shared
-    var namespace: Namespace.ID
+    @EnvironmentObject var player: AudioPlayerManager
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -39,7 +38,7 @@ struct QueueItem: View {
                 Spacer()
             }
             
-            EpisodeItem(episode: episode, showActions: true, displayedInQueue: true, namespace: namespace)
+            EpisodeItem(episode: episode, showActions: true, displayedInQueue: true)
                 .lineLimit(3)
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -54,8 +53,8 @@ struct QueueItem: View {
                 .opacity(0.5)
         )
         .background(Color.black)
+        .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.white, lineWidth: 1).blendMode(.overlay))
         .clipShape(RoundedRectangle(cornerRadius: 32))
-        .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.border, lineWidth: 1))
     }
 }
 

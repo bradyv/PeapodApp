@@ -1,6 +1,6 @@
 //
 //  SubscriptionManager.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-05-26.
 //
@@ -75,10 +75,10 @@ class SubscriptionManager: ObservableObject {
             lifetimePurchaseDate = lifetimeData
         }
         
-        print("📱 Loaded subscription status from UserDefaults:")
-        print("   Subscriber: \(isSubscriberLocal)")
-        print("   Lifetime: \(hasLifetimeAccessLocal)")
-        print("   Environment: \(currentEnvironment)")
+//        print("📱 Loaded subscription status from UserDefaults:")
+//        print("   Subscriber: \(isSubscriberLocal)")
+//        print("   Lifetime: \(hasLifetimeAccessLocal)")
+//        print("   Environment: \(currentEnvironment)")
     }
     
     private func saveSubscriptionStatusToUserDefaults() {

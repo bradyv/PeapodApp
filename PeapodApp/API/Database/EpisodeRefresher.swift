@@ -1,6 +1,6 @@
 //
 //  EpisodeRefresher.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-04.
 //
@@ -30,8 +30,8 @@ class EpisodeRefresher {
         return urlString.replacingOccurrences(of: "http://", with: "https://")
     }
     
-    static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
-        LogManager.shared.info("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown")")
+    static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, limitToRecent: Bool = false, completion: (() -> Void)? = nil) {
+        LogManager.shared.info("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown") \(limitToRecent ? "(limited to recent episodes)" : "(full feed)")")
         
         guard let feedUrl = podcast.feedUrl else {
             LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
@@ -68,18 +68,90 @@ class EpisodeRefresher {
         
         defer { lock.unlock() }
         
-        // 🚀 Step 1: Check headers first
-        checkFeedHeaders(url: url, podcast: podcast) { shouldRefresh, cachedEntry in
-            if !shouldRefresh {
-                LogManager.shared.info("⚡ \(podcast.title ?? "Podcast"): No changes detected via headers, skipping")
-                completion?()
-                return
+        // Skip header check if we're doing a full refresh (limitToRecent = false)
+        // This ensures we always fetch the complete feed when explicitly requested
+        if limitToRecent {
+            // 🚀 Step 1: Check headers first
+            checkFeedHeaders(url: url, podcast: podcast) { shouldRefresh, cachedEntry in
+                if !shouldRefresh {
+                    LogManager.shared.info("⚡ \(podcast.title ?? "Podcast"): No changes detected via headers, skipping")
+                    completion?()
+                    return
+                }
+                
+                LogManager.shared.info("🔄 \(podcast.title ?? "Podcast"): Changes detected, downloading feed...")
+                
+                // 🚀 Step 2: Only download and parse if headers indicate changes
+                downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: cachedEntry, limitToRecent: limitToRecent, completion: completion)
             }
-            
-            LogManager.shared.info("🔄 \(podcast.title ?? "Podcast"): Changes detected, downloading feed...")
-            
-            // 🚀 Step 2: Only download and parse if headers indicate changes
-            downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: cachedEntry, completion: completion)
+        } else {
+            // Force full refresh without header checks
+            downloadAndParseFeed(url: url, podcast: podcast, context: context, cacheEntry: nil, limitToRecent: limitToRecent, completion: completion)
+        }
+    }
+    
+    static func loadInitialEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
+        LogManager.shared.info("🆕 Loading initial episodes (limited to 25) for: \(podcast.title ?? "Unknown")")
+        
+        guard let feedUrl = podcast.feedUrl else {
+            LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
+            completion?()
+            return
+        }
+        
+        let httpsUrl = forceHTTPS(feedUrl) ?? feedUrl
+        
+        guard let url = URL(string: httpsUrl) else {
+            LogManager.shared.error("❌ Invalid feed URL for: \(podcast.title ?? "Unknown")")
+            completion?()
+            return
+        }
+        
+        let podcastId = podcast.id as NSString? ?? "unknown" as NSString
+        var lock: NSLock
+        
+        objc_sync_enter(podcastRefreshLocks)
+        if let existingLock = podcastRefreshLocks.object(forKey: podcastId) {
+            lock = existingLock
+        } else {
+            lock = NSLock()
+            podcastRefreshLocks.setObject(lock, forKey: podcastId)
+        }
+        objc_sync_exit(podcastRefreshLocks)
+        
+        guard lock.try() else {
+            print("⏩ Skipping initial load for \(podcast.title ?? "podcast"), already in progress")
+            completion?()
+            return
+        }
+        
+        defer { lock.unlock() }
+        
+        // Force download without header checks, with strict limiting for initial load
+        FeedParser(URL: url).parseAsync { result in
+            switch result {
+            case .success(let feed):
+                if let rss = feed.rssFeed {
+                    context.perform {
+                        // Process episodes with strict limiting for initial load
+                        processEpisodesInBatches(
+                            rss: rss,
+                            podcast: podcast,
+                            context: context,
+                            limitToRecent: true, // FORCE limiting for initial load
+                            completion: {
+                                LogManager.shared.info("✅ Completed initial load for: \(podcast.title ?? "Unknown")")
+                                completion?()
+                            }
+                        )
+                    }
+                } else {
+                    completion?()
+                }
+            case .failure(let error):
+                LogManager.shared.error("❌ Failed to parse feed for initial load \(podcast.title ?? "podcast"): \(error)")
+                completion?()
+            }
         }
     }
     
@@ -176,24 +248,25 @@ class EpisodeRefresher {
         return true
     }
     
-    // 🚀 Download and parse feed (only called when headers indicate changes)
-    private static func downloadAndParseFeed(url: URL, podcast: Podcast, context: NSManagedObjectContext, cacheEntry: FeedCacheEntry?, completion: (() -> Void)?) {
+    // 🚀 Download and parse feed (only called when headers indicate changes or forced)
+    private static func downloadAndParseFeed(url: URL, podcast: Podcast, context: NSManagedObjectContext, cacheEntry: FeedCacheEntry?, limitToRecent: Bool, completion: (() -> Void)?) {
         
         FeedParser(URL: url).parseAsync { result in
             switch result {
             case .success(let feed):
                 if let rss = feed.rssFeed {
                     context.perform {
-                        // Update cache after successful parsing
+                        // Update cache after successful parsing (only if we have cache entry)
                         if let cacheEntry = cacheEntry {
                             saveCacheEntry(cacheEntry)
                         }
                         
-                        // Process episodes in batches
+                        // Process episodes in batches with limit option
                         processEpisodesInBatches(
                             rss: rss,
                             podcast: podcast,
                             context: context,
+                            limitToRecent: limitToRecent,
                             completion: {
                                 LogManager.shared.info("✅ Completed refresh for: \(podcast.title ?? "Unknown")")
                                 completion?()
@@ -241,11 +314,12 @@ class EpisodeRefresher {
         saveCacheEntry(entry)
     }
     
-    // 🚀 NEW: Process episodes in batches to reduce memory usage and saves
+    // 🚀 MODIFIED: Process episodes in batches with optional limit
     private static func processEpisodesInBatches(
         rss: RSSFeed,
         podcast: Podcast,
         context: NSManagedObjectContext,
+        limitToRecent: Bool = false,
         completion: (() -> Void)?
     ) {
         // Update podcast metadata first
@@ -257,18 +331,25 @@ class EpisodeRefresher {
             return
         }
         
+        // 🆕 Limit episodes to most recent 50 if requested
+        let episodesToProcess = limitToRecent ? Array(items.prefix(25)) : items
+        
+        if limitToRecent {
+            LogManager.shared.info("📦 Processing recent \(episodesToProcess.count) episodes out of \(items.count) total for: \(podcast.title ?? "Unknown")")
+        }
+        
         // 🚀 Pre-fetch all existing episodes to avoid repeated database queries
         let existingEpisodes = fetchAllExistingEpisodes(for: podcast, context: context)
         
         var totalNewEpisodes = 0
-        let totalItems = items.count
+        let totalItems = episodesToProcess.count
         
         // Process items in larger batches to reduce save frequency
         let batchSize = 100 // Increased from 50
         
         for i in stride(from: 0, to: totalItems, by: batchSize) {
             let endIndex = min(i + batchSize, totalItems)
-            let batch = Array(items[i..<endIndex])
+            let batch = Array(episodesToProcess[i..<endIndex])
             
             let batchNewEpisodes = processBatch(
                 items: batch,
@@ -300,6 +381,8 @@ class EpisodeRefresher {
             print("ℹ️ \(podcast.title ?? "Podcast"): No changes to save")
         }
         
+        resolvePlaybackConflictsAfterRefresh(for: podcast, context: context)
+
         completion?()
     }
     
@@ -309,7 +392,7 @@ class EpisodeRefresher {
         context: NSManagedObjectContext
     ) -> [String: Episode] {
         let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "podcast == %@", podcast)
+        fetchRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
         
         var episodeMap: [String: Episode] = [:]
         
@@ -342,62 +425,12 @@ class EpisodeRefresher {
         context: NSManagedObjectContext
     ) -> Episode? {
         
-        let title = item.title
-        let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let audioUrl = forceHTTPS(item.enclosure?.attributes?.url) // Convert to HTTPS for matching
-        let airDate = item.pubDate
-        
-        // Strategy 1: Match by audio URL (most reliable)
-        if let audioUrl = audioUrl {
-            if let existing = existingEpisodes[audioUrl] {
-//                print("🎯 Found existing episode by audio URL: \(existing.title ?? "Unknown")")
-                return existing
-            }
+        guard let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            LogManager.shared.warning("Episode has no GUID, skipping: \(item.title ?? "Unknown")")
+            return nil
         }
         
-        // Strategy 2: Match by GUID
-        if let guid = guid {
-            if let existing = existingEpisodes[guid] {
-//                print("🎯 Found existing episode by GUID: \(existing.title ?? "Unknown")")
-                return existing
-            }
-        }
-        
-        // Strategy 3: Match by title + air date
-        if let title = title, let airDate = airDate {
-            let titleDateKey = "\(title.lowercased())_\(airDate.timeIntervalSince1970)"
-            if let existing = existingEpisodes[titleDateKey] {
-//                print("🎯 Found existing episode by title+date: \(existing.title ?? "Unknown")")
-                return existing
-            }
-        }
-        
-        // Strategy 4: FALLBACK - Direct database query for extra safety
-        // This catches cases where the pre-fetch might have missed something
-        if let guid = guid {
-            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcast == %@", guid, podcast)
-            fetchRequest.fetchLimit = 1
-            
-            if let existing = try? context.fetch(fetchRequest).first {
-//                print("🎯 Found existing episode via fallback database query: \(existing.title ?? "Unknown")")
-                return existing
-            }
-        }
-        
-        // Strategy 5: LAST RESORT - Match by title alone (for episodes with inconsistent GUIDs)
-        if let title = title {
-            let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "title == %@ AND podcast == %@", title, podcast)
-            fetchRequest.fetchLimit = 1
-            
-            if let existing = try? context.fetch(fetchRequest).first {
-//                print("🎯 Found existing episode by title match: \(existing.title ?? "Unknown")")
-                return existing
-            }
-        }
-        
-        return nil
+        return existingEpisodes[guid]
     }
     
     // 🚀 Process a batch of episodes
@@ -405,10 +438,13 @@ class EpisodeRefresher {
         items: [RSSFeedItem],
         podcast: Podcast,
         existingEpisodes: [String: Episode],
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        skipQueueing: Bool = false // 🆕 Add parameter to skip queueing old episodes
     ) -> Int {
         var newEpisodesCount = 0
         var updatedEpisodesCount = 0
+        var newestNewEpisode: Episode? = nil
+        var newestAirDate: Date? = nil
         
         for item in items {
             guard let title = item.title else { continue }
@@ -432,28 +468,119 @@ class EpisodeRefresher {
             } else {
                 // Create new episode
                 let episode = Episode(context: context)
-                episode.id = UUID().uuidString
-                episode.podcast = podcast
+                episode.podcastId = podcast.id
                 updateEpisodeAttributes(episode: episode, item: item, podcast: podcast)
+                episode.id = episode.guid?.trimmingCharacters(in: .whitespacesAndNewlines)
                 newEpisodesCount += 1
                 
                 print("🆕 Created new episode: \(title)")
                 
-                // Queue new episodes if subscribed
-                if podcast.isSubscribed {
-                    toggleQueued(episode)
+                // 🆕 Track the newest episode by air date
+                if podcast.isSubscribed && !skipQueueing {
+                    if let airDate = item.pubDate {
+                        if newestAirDate == nil || airDate > newestAirDate! {
+                            newestAirDate = airDate
+                            newestNewEpisode = episode
+                        }
+                    } else if newestNewEpisode == nil {
+                        // If no air date, use the first episode as fallback
+                        newestNewEpisode = episode
+                    }
                 }
+            }
+        }
+        
+        // 🆕 Only queue the newest episode (if subscribed and not skipping)
+        if let newestEpisode = newestNewEpisode {
+            if newestEpisode.isPlayed {
+                LogManager.shared.info("📥 Skipping queueing for played episode: \(newestEpisode.title ?? "Unknown")")
+            } else {
+                newestEpisode.isQueued = true
+                LogManager.shared.info("📥 Queued newest episode: \(newestEpisode.title ?? "Unknown")")
             }
         }
         
         // ✅ Only log summary if there were actual changes
         if newEpisodesCount > 0 || updatedEpisodesCount > 0 {
             print("📊 \(podcast.title ?? "Podcast"): \(newEpisodesCount) new, \(updatedEpisodesCount) updated")
+            if let newestEpisode = newestNewEpisode {
+                print("📥 Queued newest: \(newestEpisode.title ?? "Unknown")")
+            }
         }
         
         return newEpisodesCount
     }
     
+    private static func resolvePlaybackConflictsAfterRefresh(for podcast: Podcast, context: NSManagedObjectContext) {
+        guard let podcastId = podcast.id else { return }
+        
+        // Get all current episodes for this podcast
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcastId)
+        
+        let currentEpisodes = (try? context.fetch(episodeRequest)) ?? []
+        let currentEpisodeIds = Set(currentEpisodes.compactMap { $0.id })
+        
+        // Find playback records that might reference old episode IDs for this podcast
+        // We need to find a way to identify which playback records belong to this podcast
+        // Since Playback doesn't have podcastId, we'll get all playback records and check
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        let allPlaybacks = (try? context.fetch(playbackRequest)) ?? []
+        
+        var conflictsResolved = 0
+        
+        for playback in allPlaybacks {
+            guard let episodeId = playback.episodeId else { continue }
+            
+            // If this playback record points to a non-existent episode
+            if !currentEpisodeIds.contains(episodeId) {
+                // Check if we can find an episode with the same GUID but different ID
+                // This handles cases where episode ID changed but GUID stayed the same
+                
+                // Try to extract GUID from old episode ID (if it follows your pattern)
+                // This assumes your episode.id is set to the GUID in updateEpisodeAttributes
+                let oldGuid = episodeId
+                
+                // Find current episode with matching GUID
+                if let matchingEpisode = currentEpisodes.first(where: { $0.guid == oldGuid }) {
+                    LogManager.shared.info("Resolving playback conflict: \(oldGuid) -> \(matchingEpisode.id ?? "unknown")")
+                    
+                    // Transfer playback state to the current episode
+                    if let existingPlayback = matchingEpisode.playbackState {
+                        // Merge the states - keep the most permissive values
+                        existingPlayback.isQueued = existingPlayback.isQueued || playback.isQueued
+                        existingPlayback.isPlayed = existingPlayback.isPlayed || playback.isPlayed
+                        existingPlayback.isFav = existingPlayback.isFav || playback.isFav
+                        existingPlayback.playbackPosition = max(existingPlayback.playbackPosition, playback.playbackPosition)
+                        existingPlayback.queuePosition = playback.isQueued ? playback.queuePosition : existingPlayback.queuePosition
+                        
+                        // Keep the more recent dates
+                        if let playbackPlayedDate = playback.playedDate {
+                            existingPlayback.playedDate = max(existingPlayback.playedDate ?? Date.distantPast, playbackPlayedDate)
+                        }
+                        if let playbackFavDate = playback.favDate {
+                            existingPlayback.favDate = max(existingPlayback.favDate ?? Date.distantPast, playbackFavDate)
+                        }
+                    } else {
+                        // No existing playback, so update the episode ID
+                        playback.episodeId = matchingEpisode.id
+                    }
+                    
+                    // Delete the orphaned playback record if we merged states
+                    if matchingEpisode.playbackState != playback {
+                        context.delete(playback)
+                    }
+                    
+                    conflictsResolved += 1
+                }
+            }
+        }
+        
+        if conflictsResolved > 0 {
+            LogManager.shared.info("Resolved \(conflictsResolved) playback conflicts for \(podcast.title ?? "Unknown")")
+        }
+    }
+
     private static func hasEpisodeChanged(episode: Episode, item: RSSFeedItem, podcast: Podcast) -> Bool {
         let newGuid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
         let newTitle = item.title
@@ -490,10 +617,14 @@ class EpisodeRefresher {
     
     // 🚀 Update podcast metadata separately
     private static func updatePodcastMetadata(rss: RSSFeed, podcast: Podcast) {
-        if podcast.image == nil {
-            podcast.image = forceHTTPS(rss.image?.url) ??
+        // Always check for updated artwork
+        let newArtworkUrl = forceHTTPS(rss.image?.url) ??
                            forceHTTPS(rss.iTunes?.iTunesImage?.attributes?.href) ??
                            forceHTTPS(rss.items?.first?.iTunes?.iTunesImage?.attributes?.href)
+        
+        if let newUrl = newArtworkUrl, newUrl != podcast.image {
+            LogManager.shared.info("🎨 Updated artwork for \(podcast.title ?? "podcast"): \(newUrl)")
+            podcast.image = newUrl
         }
         
         if podcast.podcastDescription == nil {
@@ -545,7 +676,8 @@ class EpisodeRefresher {
                 DispatchQueue.global(qos: .utility).async {
                     semaphore.wait()
                     
-                    refreshPodcastEpisodes(for: podcast, context: backgroundContext) {
+                    // Use limitToRecent: true for regular background refreshes
+                    refreshPodcastEpisodes(for: podcast, context: backgroundContext, limitToRecent: true) {
                         // Track if we actually refreshed or skipped
                         // This would need to be passed back from refreshPodcastEpisodes if you want exact counts
                         semaphore.signal()
@@ -581,6 +713,145 @@ class EpisodeRefresher {
         }
     }
     
+    static func loadNextBatchOfEpisodes(
+        for podcast: Podcast,
+        context: NSManagedObjectContext,
+        completion: @escaping (Int, Bool) -> Void // (newEpisodesAdded, hasMoreToLoad)
+    ) {
+        LogManager.shared.info("📦 Loading next batch for: \(podcast.title ?? "Unknown")")
+        
+        guard let feedUrl = podcast.feedUrl else {
+            LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
+            completion(0, false)
+            return
+        }
+        
+        let httpsUrl = forceHTTPS(feedUrl) ?? feedUrl
+        
+        guard let url = URL(string: httpsUrl) else {
+            LogManager.shared.error("❌ Invalid feed URL for: \(podcast.title ?? "Unknown")")
+            completion(0, false)
+            return
+        }
+        
+        let podcastId = podcast.id as NSString? ?? "unknown" as NSString
+        var lock: NSLock
+        
+        objc_sync_enter(podcastRefreshLocks)
+        if let existingLock = podcastRefreshLocks.object(forKey: podcastId) {
+            lock = existingLock
+        } else {
+            lock = NSLock()
+            podcastRefreshLocks.setObject(lock, forKey: podcastId)
+        }
+        objc_sync_exit(podcastRefreshLocks)
+        
+        guard lock.try() else {
+            print("⏩ Skipping batch load for \(podcast.title ?? "podcast"), already in progress")
+            completion(0, false)
+            return
+        }
+        
+        defer { lock.unlock() }
+        
+        FeedParser(URL: url).parseAsync { result in
+            switch result {
+            case .success(let feed):
+                if let rss = feed.rssFeed {
+                    context.perform {
+                        processNextBatchByGUID(
+                            rss: rss,
+                            podcast: podcast,
+                            context: context,
+                            completion: completion
+                        )
+                    }
+                } else {
+                    completion(0, false)
+                }
+            case .failure(let error):
+                LogManager.shared.error("❌ Failed to parse feed for batch load \(podcast.title ?? "podcast"): \(error)")
+                completion(0, false)
+            }
+        }
+    }
+
+    // 🆕 Process next batch by excluding already-loaded GUIDs
+    private static func processNextBatchByGUID(
+        rss: RSSFeed,
+        podcast: Podcast,
+        context: NSManagedObjectContext,
+        completion: @escaping (Int, Bool) -> Void
+    ) {
+        guard let items = rss.items, !items.isEmpty else {
+            completion(0, false)
+            return
+        }
+        
+        // Get all currently loaded episodes for this podcast using podcastId
+        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+        
+        let existingEpisodes = (try? context.fetch(fetchRequest)) ?? []
+        let loadedGUIDs = Set(existingEpisodes.compactMap { $0.guid?.trimmingCharacters(in: .whitespacesAndNewlines) })
+        let loadedAudioURLs = Set(existingEpisodes.compactMap { $0.audio })
+        
+        LogManager.shared.info("📊 Current episodes: \(existingEpisodes.count), Total available: \(items.count)")
+        LogManager.shared.info("🔑 Loaded GUIDs: \(loadedGUIDs.count), Loaded audio URLs: \(loadedAudioURLs.count)")
+        
+        // Filter items to only those we haven't loaded yet
+        let unloadedItems = items.filter { item in
+            // Check GUID first (most reliable)
+            if let guid = item.guid?.value?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                return !loadedGUIDs.contains(guid)
+            }
+            
+            // Fallback: check audio URL if no GUID
+            if let audioURL = forceHTTPS(item.enclosure?.attributes?.url) {
+                return !loadedAudioURLs.contains(audioURL)
+            }
+            
+            // If no GUID or audio URL, consider it unloaded (rare case)
+            return true
+        }
+        
+        // Take the next 50 episodes
+        let batchItems = Array(unloadedItems.prefix(50))
+        
+        guard !batchItems.isEmpty else {
+            LogManager.shared.info("✅ No more episodes to load for \(podcast.title ?? "podcast")")
+            completion(0, false)
+            return
+        }
+        
+        LogManager.shared.info("📦 Processing next \(batchItems.count) unloaded episodes")
+        
+        // Pre-fetch existing episodes for duplicate checking
+        let existingEpisodeMap = fetchAllExistingEpisodes(for: podcast, context: context)
+        
+        // Process the batch
+        let newEpisodesCount = processBatch(
+            items: batchItems,
+            podcast: podcast,
+            existingEpisodes: existingEpisodeMap,
+            context: context,
+            skipQueueing: true
+        )
+        
+        // Save changes
+        if context.hasChanges {
+            saveContextIfNeeded(context: context)
+        }
+        
+        resolvePlaybackConflictsAfterRefresh(for: podcast, context: context)
+        
+        // Check if there are more episodes to load
+        let hasMore = unloadedItems.count > batchItems.count
+        
+        LogManager.shared.info("✅ Loaded \(newEpisodesCount) new episodes. Has more: \(hasMore)")
+        completion(newEpisodesCount, hasMore)
+    }
+
     // 🆕 Force refresh for push notifications - restored method
     static func forceRefreshForNotification(completion: (() -> Void)? = nil) {
         let lastNotificationRefreshKey = "lastNotificationRefresh"
@@ -599,6 +870,14 @@ class EpisodeRefresher {
         LogManager.shared.info("🔔 Force smart refreshing for notification")
         let context = PersistenceController.shared.container.newBackgroundContext()
         refreshAllSubscribedPodcasts(context: context, completion: completion)
+    }
+
+    // 🆕 NEW METHOD: Fetch all remaining episodes for a podcast
+    static func fetchAllRemainingEpisodes(for podcast: Podcast, context: NSManagedObjectContext, completion: (() -> Void)? = nil) {
+        LogManager.shared.info("📚 Fetching all remaining episodes for: \(podcast.title ?? "Unknown")")
+        
+        // Force a full refresh without header checks and without limiting episodes
+        refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: false, completion: completion)
     }
 }
 

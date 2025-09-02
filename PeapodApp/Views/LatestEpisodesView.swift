@@ -1,6 +1,6 @@
 //
 //  LatestEpisodes.swift
-//  PeapodApp
+//  Peapod
 //
 //  Created by Brady Valentino on 2025-04-04.
 //
@@ -14,7 +14,14 @@ struct LatestEpisodesView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var showAll = true
     @State private var selectedPodcast: Podcast? = nil
-    var namespace: Namespace.ID
+    
+    let mini: Bool
+    let maxItems: Int?
+    
+    init(mini: Bool = false, maxItems: Int? = nil) {
+        self.mini = mini
+        self.maxItems = maxItems
+    }
     
     // Computed property to get unique podcasts
     private var uniquePodcasts: [Podcast] {
@@ -27,132 +34,218 @@ struct LatestEpisodesView: View {
     private var filteredEpisodes: [Episode] {
         let episodes = showAll ? episodesViewModel.latest : episodesViewModel.unplayed
         
+        let baseEpisodes: [Episode]
         if let selectedPodcast = selectedPodcast {
-            return episodes.filter { $0.podcast?.id == selectedPodcast.id }
+            baseEpisodes = episodes.filter { $0.podcast?.id == selectedPodcast.id }
         } else {
-            return episodes
+            baseEpisodes = episodes
         }
+        
+        if let maxItems = maxItems {
+            return Array(baseEpisodes.prefix(maxItems))
+        }
+        return baseEpisodes
     }
     
     var body: some View {
-        ScrollView {
-            Spacer().frame(height:24)
-            FadeInView(delay: 0.1) {
-                HStack {
-                    Text("Most Recent")
-                        .titleSerif()
-                    
-                    Spacer()
-                }
-                .padding(.horizontal).padding(.top,24)
+        Group {
+            if mini {
+                miniView
+            } else {
+                fullView
             }
+        }
+        .sheet(item: $selectedEpisode) { episode in
+            EpisodeView(episode: episode)
+                .modifier(PPSheet())
+        }
+    }
+    
+    @ViewBuilder
+    private var miniView: some View {
+        VStack {
+            Spacer().frame(height: 44)
             
-            FadeInView(delay: 0.2) {
-                ZStack {
-                    VStack {
-                        Spacer()
-                        Divider()
-                            .frame(height:1)
-                            .background(Color.surface)
+            if !episodesViewModel.latest.isEmpty {
+                NavigationLink {
+                    LatestEpisodesView(mini: false)
+                        .navigationTitle("Recent Releases")
+                } label: {
+                    HStack(alignment: .center) {
+                        Text("Recent Releases")
+                            .titleSerifMini()
+                            .padding(.leading)
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
                     }
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing:16) {
-                            VStack {
-                                Button {
-                                    withAnimation {
-                                        selectedPodcast = nil
-                                    }
-                                } label: {
-                                    VStack {
-                                        Text("All Podcasts")
-                                            .foregroundStyle(Color.heading)
-                                            .textBody()
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                Divider()
-                                    .frame(height:1)
-                                    .background(Color.heading)
-                                    .opacity(selectedPodcast == nil ? 1 : 0)
-                            }
-                            .opacity(selectedPodcast == nil ? 1 : 0.5)
-                            
-                            // Show unique podcasts
-                            ForEach(uniquePodcasts, id: \.id) { podcast in
-                                VStack {
-                                    Button {
-                                        withAnimation {
-                                            if selectedPodcast?.id == podcast.id {
-                                                // Deselect if tapping the same podcast
-                                                selectedPodcast = nil
-                                            } else {
-                                                selectedPodcast = podcast
-                                            }
-                                        }
-                                    } label: {
-                                        VStack {
-                                            ArtworkView(url: podcast.image ?? "", size: 24, cornerRadius: 4)
-                                        }
-                                    }
-                                    
-                                    Divider()
-                                        .frame(height:1)
-                                        .background(Color.heading)
-                                        .opacity(selectedPodcast?.id == podcast.id ? 1 : 0)
-                                }
-                                .opacity(selectedPodcast?.id == podcast.id ? 1 : 0.5)
-                            }
-                        }
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal)
                 
-                Spacer().frame(height:24)
+                episodesList
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var fullView: some View {
+        ScrollView {
+            if !mini {
+                podcastFilter
+                Spacer().frame(height: 24)
             }
             
             if filteredEpisodes.isEmpty {
-                VStack(spacing: 16) {
-                    Spacer().frame(height: 50)
-                    Image(systemName: "rectangle.stack.badge.xmark")
-                        .font(.title)
-                        .foregroundColor(.gray)
-                    Text("No episodes found")
-                        .foregroundColor(.gray)
-                    
-                    Button {
-                        selectedPodcast = nil
-                    } label: {
-                        Text("Show all episodes")
-                            .foregroundColor(.accentColor)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 40)
+                emptyState
             } else {
-                LazyVStack(alignment: .leading) {
-                    ForEach(filteredEpisodes, id: \.id) { episode in
-                        EpisodeItem(episode: episode, showActions: true, namespace: namespace)
-                            .lineLimit(3)
-                            .padding(.bottom, 24)
-                            .padding(.horizontal)
-                            .animation(.easeOut(duration: 0.2), value: showAll)
+                episodesList
+            }
+        }
+        .navigationTitle(showAll ? "Recent Releases" : "Unplayed")
+        .background(Color.background)
+        .toolbar {
+            if !mini {
+                ToolbarItem {
+                    Button(action: {
+                        showAll.toggle()
+                    }) {
+                        Label("Filter", systemImage: "line.3.horizontal.decrease")
                     }
+                    .if(!showAll, transform: { $0.buttonStyle(.glassProminent) })
                 }
             }
         }
-        .onAppear {
-            episodesViewModel.fetchLatest()
-        }
+        .scrollEdgeEffectStyle(.soft, for: .all)
         .toast()
-        .maskEdge(.top)
-        .maskEdge(.bottom)
         .refreshable {
-            EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                toastManager.show(message: "Peapod is up to date", icon: "sparkles")
-                LogManager.shared.info("✨ Refreshed latest episodes")
+            if !mini {
+                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
+                    toastManager.show(message: "Peapod is up to date", icon: "sparkles")
+                    LogManager.shared.info("✨ Refreshed latest episodes")
+                }
             }
         }
+    }
+    
+    @ViewBuilder
+    private var podcastFilter: some View {
+        FadeInView(delay: 0.2) {
+            ZStack {
+                VStack {
+                    Spacer()
+                    Divider()
+                        .frame(height: 1)
+                        .background(Color.surface)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        VStack {
+                            Button {
+                                withAnimation {
+                                    selectedPodcast = nil
+                                }
+                            } label: {
+                                VStack {
+                                    Text("All Podcasts")
+                                        .foregroundStyle(Color.heading)
+                                        .textBody()
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            Divider()
+                                .frame(height: 1)
+                                .background(Color.heading)
+                                .opacity(selectedPodcast == nil ? 1 : 0)
+                        }
+                        .opacity(selectedPodcast == nil ? 1 : 0.5)
+                        
+                        // Show unique podcasts
+                        ForEach(uniquePodcasts, id: \.id) { podcast in
+                            VStack {
+                                Button {
+                                    withAnimation {
+                                        if selectedPodcast?.id == podcast.id {
+                                            selectedPodcast = nil
+                                        } else {
+                                            selectedPodcast = podcast
+                                        }
+                                    }
+                                } label: {
+                                    VStack {
+                                        ArtworkView(url: podcast.image ?? "", size: 24, cornerRadius: 4)
+                                    }
+                                }
+                                
+                                Divider()
+                                    .frame(height: 1)
+                                    .background(Color.heading)
+                                    .opacity(selectedPodcast?.id == podcast.id ? 1 : 0)
+                            }
+                            .opacity(selectedPodcast?.id == podcast.id ? 1 : 0.5)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+    
+    @ViewBuilder
+    private var episodesList: some View {
+        LazyVStack(alignment: .leading) {
+            ForEach(filteredEpisodes, id: \.id) { episode in
+                EpisodeItem(episode: episode, showActions: false)
+                    .lineLimit(3)
+                    .padding(.bottom, 24)
+                    .padding(.horizontal)
+                    .animation(.easeOut(duration: 0.2), value: showAll)
+                    .onTapGesture {
+                        selectedEpisode = episode
+                    }
+                    .contextMenu {
+                        Button {
+                            withAnimation {
+                                if episode.isQueued {
+                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                                } else {
+                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
+                                }
+                            }
+                        } label: {
+                            Label(episode.isQueued ? "Remove from Up Next" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                        }
+                        Button {
+                            withAnimation {
+                                toggleFav(episode, episodesViewModel: episodesViewModel)
+                            }
+                        } label: {
+                            Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                        }
+                    }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Spacer().frame(height: 50)
+            Image(systemName: "rectangle.stack.badge.xmark")
+                .font(.title)
+                .foregroundColor(.gray)
+            Text("No episodes found")
+                .foregroundColor(.gray)
+            
+            Button {
+                selectedPodcast = nil
+            } label: {
+                Text("Show all episodes")
+                    .foregroundColor(.accentColor)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
     }
 }

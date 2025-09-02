@@ -15,7 +15,6 @@ struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject private var userManager = UserManager.shared
     @EnvironmentObject var player: AudioPlayerManager
-    @AppStorage("appTheme") private var appThemeRawValue: String = AppTheme.system.rawValue
     @AppStorage("appNotificationsEnabled") private var appNotificationsEnabled: Bool = false
     @State private var systemNotificationsGranted: Bool = false
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
@@ -34,21 +33,14 @@ struct SettingsView: View {
     
     enum SheetType: Identifiable {
         case upgrade
-        case appIcons
         case mail
         
         var id: Int {
             switch self {
             case .upgrade: return 0
-            case .appIcons: return 1
-            case .mail: return 2
+            case .mail: return 1
             }
         }
-    }
-
-    private var appTheme: AppTheme {
-        get { AppTheme(rawValue: appThemeRawValue) ?? .system }
-        set { appThemeRawValue = newValue.rawValue }
     }
     
     var body: some View {
@@ -320,35 +312,6 @@ struct SettingsView: View {
                                     .tint(.accentColor)
                                     .labelsHidden()
                                 }
-                            
-//                            let themeIcon = appTheme.icon
-//                            let themeLabel = appTheme.rawValue
-//                            RowItem(
-//                                icon: themeIcon,
-//                                label: "Theme",
-//                                tint: Color.cyan,
-//                                framedIcon: true,
-//                                showDivider: false) {
-//                                    Menu {
-//                                        ForEach(AppTheme.allCases) { theme in
-//                                            Button(action: {
-//                                                appThemeRawValue = theme.rawValue
-//                                            }) {
-//                                                HStack {
-//                                                    Text(theme.label.capitalized)
-//                                                    Image(systemName:theme.icon)
-//                                                        .symbolRenderingMode(.hierarchical)
-//                                                }
-//                                            }
-//                                        }
-//                                    } label: {
-//                                        HStack {
-//                                            Text(themeLabel.capitalized)
-//                                                .textBody()
-//                                            Image(systemName:"chevron.up.chevron.down")
-//                                        }
-//                                    }
-//                                }
                         }
                         .padding()
                         .background(Color.surface)
@@ -501,9 +464,6 @@ struct SettingsView: View {
                 switch sheetType {
                 case .upgrade:
                     UpgradeView()
-                        .modifier(PPSheet())
-                case .appIcons:
-                    AppIconView(selectedIconName: $selectedIconName)
                         .modifier(PPSheet())
                 case .mail:
                     MailView(

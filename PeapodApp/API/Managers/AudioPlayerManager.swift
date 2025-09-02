@@ -872,41 +872,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     // MARK: - Simplified Notifications Setup
     private func setupNotifications() {
-//        NotificationCenter.default.addObserver(self, selector: #selector(handleAudioInterruption), name: AVAudioSession.interruptionNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(savePlaybackOnExit), name: UIApplication.willTerminateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
     }
-    
-//    @objc private func handleAudioInterruption(notification: Notification) {
-//        guard let userInfo = notification.userInfo,
-//              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-//              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
-//        
-//        switch type {
-//        case .began:
-//            LogManager.shared.info("Audio interruption began")
-//            // Don't set userInitiatedPause = false here
-//            // Save position immediately
-//            if let episode = playbackState.episode {
-//                savePositionImmediately(for: episode, position: playbackState.position)
-//            }
-//            
-//        case .ended:
-//            LogManager.shared.info("Audio interruption ended")
-//            
-//            // Only auto-resume if user didn't explicitly pause before the interruption
-//            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
-//                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-//                if options.contains(.shouldResume) && !userInitiatedPause {
-//                    LogManager.shared.info("System suggests resume and user didn't pause - resuming")
-//                    resume()
-//                }
-//            }
-//            
-//        @unknown default:
-//            break
-//        }
-//    }
     
     @objc private func appDidEnterBackground() {
         // Save current state

@@ -251,12 +251,6 @@ enum PodcastLoader {
         return podcast
     }
     
-    // 🗑️ DEPRECATED: Remove this method - it's replaced by EpisodeRefresher
-    static func createOrUpdatePodcast(from rss: RSSFeed, feedUrl: String, context: NSManagedObjectContext, limitToRecent: Bool = false) -> Podcast {
-        // This method is deprecated - use createPodcastMetadataOnly + EpisodeRefresher instead
-        fatalError("This method is deprecated. Use createPodcastMetadataOnly + EpisodeRefresher.refreshPodcastEpisodes instead.")
-    }
-    
     private static func fetchOrCreatePodcast(feedUrl: String, context: NSManagedObjectContext, title: String?, author: String?) -> Podcast {
         let normalizedUrl = feedUrl.normalizeURL()
         

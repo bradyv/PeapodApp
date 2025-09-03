@@ -145,116 +145,62 @@ struct EpisodeItem: View {
                     }
                     .buttonStyle(
                         PPButton(
-                            type: displayedInQueue ? .filled : .transparent,
+                            type: .filled,
                             colorStyle: .monochrome,
                             hierarchical: false,
-                            customColors: displayedInQueue ?
-                            ButtonCustomColors(foreground: .black, background: .white) :
-                                nil
+                            customColors: ButtonCustomColors(foreground: .black, background: .white)
                         )
                     )
                     
                     // 📌 "Later" or Queue Toggle
-                    if !hasStarted {
-                        if displayedInQueue {
-                            Button(action: {
-                                withAnimation {
-                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                                }
-                            }) {
-                                Label("Archive", systemImage: "archivebox")
-                            }
-                            .buttonStyle(
-                                PPButton(
-                                    type: .transparent,
-                                    colorStyle: .monochrome,
-                                    customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
-                                )
-                            )
-                            
-                        } else {
-                            Button(action: {
-                                withAnimation {
-                                    if episode.isQueued {
-                                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                                    } else {
-                                        toggleQueued(episode, episodesViewModel: episodesViewModel)
-                                    }
-                                }
-                            }) {
-                                Label("Up Next", systemImage: episode.isQueued ? "checkmark" : "text.append")
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            .buttonStyle(PPButton(type: .transparent, colorStyle: episode.isQueued ? .tinted : .monochrome))
-                        }
-                    } else {
-                        // 🗑️ Remove / Archive / Mark as Played
-                        Button(action: {
-                            withAnimation {
+                    Button(action: {
+                        withAnimation {
+                            if hasStarted {
+                                removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                            } else {
                                 player.markAsPlayed(for: episode, manually: true)
                             }
-                        }) {
-                            Label("Mark as Played", systemImage: "checkmark.circle")
                         }
-                        .buttonStyle(
-                            PPButton(
-                                type: .transparent,
-                                colorStyle: .monochrome,
-                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : Color.heading, background: displayedInQueue ? Color.white.opacity(0.15) : Color.heading.opacity(0.15))
-                            )
-                        )
+                    }) {
+                        Label(hasStarted ? "Mark as Played" : "Archive", systemImage: hasStarted ? "checkmark.circle" : "archivebox")
+                            .contentTransition(.symbolEffect(.replace))
                     }
+                    .buttonStyle(
+                        PPButton(
+                            type: .transparent,
+                            colorStyle: .monochrome,
+                            customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
+                        )
+                    )
                     
                     Spacer()
                     
-                    if displayedInQueue {
-                        Button(action: {
-                            withAnimation {
-                                let wasFavorite = episode.isFav
-                                toggleFav(episode, episodesViewModel: episodesViewModel)
-                                
-                                // Only increment counter when favoriting (not unfavoriting)
-                                if !wasFavorite && episode.isFav {
-                                    favoriteCount += 1
-                                }
+                    Button(action: {
+                        withAnimation {
+                            let wasFavorite = episode.isFav
+                            toggleFav(episode, episodesViewModel: episodesViewModel)
+                            
+                            // Only increment counter when favoriting (not unfavoriting)
+                            if !wasFavorite && episode.isFav {
+                                favoriteCount += 1
                             }
-                        }) {
-                            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                         }
-                        .buttonStyle(
-                            PPButton(
-                                type: .transparent,
-                                colorStyle: .monochrome,
-                                iconOnly: true,
-                                customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
-                            )
-                        )
-                        .changeEffect(
-                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
-                              Image(systemName: "heart.fill")
-                                .foregroundStyle(.red)
-                            }, value: favoriteCount)
-                    } else {
-                        Button(action: {
-                            withAnimation {
-                                let wasFavorite = episode.isFav
-                                toggleFav(episode, episodesViewModel: episodesViewModel)
-                                
-                                // Only increment counter when favoriting (not unfavoriting)
-                                if !wasFavorite && episode.isFav {
-                                    favoriteCount += 1
-                                }
-                            }
-                        }) {
-                            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
-                        }
-                        .buttonStyle(PPButton(type: .transparent, colorStyle: .monochrome, iconOnly: true))
-                        .changeEffect(
-                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
-                              Image(systemName: "heart.fill")
-                                .foregroundStyle(.red)
-                            }, value: favoriteCount)
+                    }) {
+                        Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
                     }
+                    .buttonStyle(
+                        PPButton(
+                            type: .transparent,
+                            colorStyle: .monochrome,
+                            iconOnly: true,
+                            customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
+                        )
+                    )
+                    .changeEffect(
+                        .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                          Image(systemName: "heart.fill")
+                            .foregroundStyle(.red)
+                        }, value: favoriteCount)
                 }
             }
         }

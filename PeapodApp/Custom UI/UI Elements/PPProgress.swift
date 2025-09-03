@@ -42,14 +42,14 @@ struct PPProgress: View {
                 ZStack(alignment: .leading) {
                     // Background Track
                     Capsule()
-                        .fill(isQQ ? Color.black.opacity(0.15) : (isDraggable ? Color.surface : Color.background.opacity(0.1)))
+                        .fill(isQQ ? Color.white.opacity(0.15) : (isDraggable ? Color.surface : Color.background.opacity(0.1)))
                         .frame(height: isDragging ? 12 : (isQQ ? 4 : 6))
                         .animation(.easeInOut(duration: 0.2), value: isDragging)
 
                     // Progress Track
                     Capsule()
-                        .fill(isQQ ? Color.black : (isDraggable ? Color.heading : Color.background))
-                        .frame(width: max(isQQ || !isDraggable ? 4 : 6, progressWidth),
+                        .fill(isQQ ? Color.white : (isDraggable ? Color.heading : Color.background))
+                        .frame(width: max(isQQ || !isDraggable ? 6 : 6, progressWidth),
                                height: isDragging ? 12 : (isQQ || !isDraggable ? 4 : 6))
                         .animation(.easeInOut(duration: 0.2), value: isDragging)
                         .opacity(progressWidth > 0 ? 1 : 0)

@@ -89,6 +89,7 @@ struct EpisodeView: View {
                                 }
                             }) {
                                 Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                                    .contentTransition(.symbolEffect(.replace))
                             }
                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         }
@@ -99,6 +100,7 @@ struct EpisodeView: View {
                             }
                         }) {
                             Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
+                                .contentTransition(.symbolEffect(.replace))
                         }
                         .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         

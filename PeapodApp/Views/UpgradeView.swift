@@ -164,7 +164,6 @@ struct UpgradeView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(ShadowButton())
         .disabled(isPurchasing)
         .opacity(isPurchasing ? 0.6 : 1.0)
     }

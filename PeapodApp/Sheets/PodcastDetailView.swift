@@ -73,7 +73,7 @@ struct PodcastDetailView: View {
                             }) {
                                 Label("Delete Podcast", systemImage: "trash")
                             }
-                            .buttonStyle(ShadowButton())
+                            .buttonStyle(PPButton(type:.transparent, colorStyle: .monochrome))
                             .alert(
                                 "Delete Podcast",
                                 isPresented: $showConfirm,

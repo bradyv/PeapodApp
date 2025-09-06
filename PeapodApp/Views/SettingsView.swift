@@ -400,15 +400,15 @@ struct SettingsView: View {
                                 Button {
                                     LogManager.shared.clearLog()
                                 } label: {
-                                    RowItem(icon: "trash", label: "Clear Logs", tint: Color.orange)
+                                    RowItem(icon: "trash", label: "Clear Today's Logs", tint: Color.orange)
                                 }
                                 
-                                Button {
-                                    LogManager.shared.cleanupOldLogs()
-                                } label: {
-                                    RowItem(icon: "eraser", label: "Cleanup Old Logs", tint: Color.blue)
-                                }
-                                
+//                                Button {
+//                                    LogManager.shared.cleanupOldLogs()
+//                                } label: {
+//                                    RowItem(icon: "eraser", label: "Cleanup Old Logs", tint: Color.blue)
+//                                }
+//                                
                                 Button {
                                     subscribeViaURL(feedUrl: "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml")
                                 } label: {

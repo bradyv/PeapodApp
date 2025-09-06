@@ -175,55 +175,42 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func setupPlayer(url: URL, episode: Episode, startPosition: Double) async {
         guard let episodeID = episode.id else { return }
         
-        // Handle previous episode
-        let previousEpisode = await MainActor.run { self.playbackState.episode }
-        if let previousEpisode = previousEpisode, previousEpisode.id != episodeID {
-            await saveCurrentPosition()
-            await MainActor.run {
-                previousEpisode.nowPlaying = false
-                try? previousEpisode.managedObjectContext?.save()
-            }
-        }
-        
         await MainActor.run {
             // Clean up previous player
             self.cleanupPlayer()
             self.cachedArtwork = nil
             
-            // Create new player
+            // Create new player - let system handle everything else
             let playerItem = AVPlayerItem(url: url)
             self.player = AVPlayer(playerItem: playerItem)
             
-            // Set up observations
+            // Minimal observations only
             self.setupPlayerObservations(for: episodeID)
             
             // Move to front of queue
             self.moveEpisodeToFrontOfQueue(episode)
         }
         
-        // Wait for player to be ready
+        // Wait for ready state
         await waitForPlayerReady()
         
-        // Seek to saved position if needed
+        // Seek if needed
         if startPosition > 0 {
             await seekToPosition(startPosition)
         }
         
-        // Start playback
+        // Start playback - let system handle routing
         await MainActor.run {
-            self.player?.playImmediately(atRate: self.playbackSpeed)
+            self.player?.rate = self.playbackSpeed  // Use rate instead of playImmediately
             
-            // Update episode state
             episode.nowPlaying = true
-            
-            // Mark as unplayed if it was previously played
             if episode.isPlayed {
                 removeEpisodeFromPlaylist(episode, playlistName: "Played")
             }
             
             try? episode.managedObjectContext?.save()
             
-            // Defer metadata update slightly
+            // Update metadata
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 self.updateNowPlayingInfo()
             }
@@ -247,25 +234,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func resume() {
         guard let player = player else {
-            LogManager.shared.warning("No player available - user must explicitly restart")
+            // No player? User needs to restart
             return
         }
         
-        // Check if player item is still valid
-        if let currentItem = player.currentItem, currentItem.status == .readyToPlay {
-            // Reset user pause flag when user explicitly resumes
-            userInitiatedPause = false
-            
-            player.playImmediately(atRate: playbackSpeed)
-            updateState(isPlaying: true, isLoading: false)
-        } else {
-            // Player item is invalid, but don't auto-restart
-            LogManager.shared.warning("Player item invalid - user must restart manually")
-            if let episode = playbackState.episode {
-                // Just clear the state, don't restart
-                updateState(isPlaying: false, isLoading: false)
-            }
-        }
+        // Don't check player item status - just tell it to play
+        userInitiatedPause = false
+        player.rate = playbackSpeed
     }
     
     func stop() {
@@ -296,25 +271,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         playerObservations.removeAll()
         
         // Rate observer - simplified logic
-        let rateObserver = player.observe(\.rate, options: [.new, .old]) { [weak self] _, change in
+        let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] _, change in
             guard let self = self else { return }
             
             let newRate = change.newValue ?? 0
-            let oldRate = change.oldValue ?? 0
             
             DispatchQueue.main.async {
-                // Only update if this is still the current episode
                 guard self.playbackState.episodeID == episodeID else { return }
                 
-                if newRate > 0 && oldRate == 0 {
-                    // Started playing
-                    LogManager.shared.info("Audio started playing")
-                    self.updateState(isPlaying: true, isLoading: false)
-                } else if newRate == 0 && oldRate > 0 {
-                    // Paused (could be system or user)
-                    LogManager.shared.info("Audio paused")
-                    self.updateState(isPlaying: false, isLoading: false)
-                }
+                // Simple: just reflect what the system is doing
+                let isPlaying = newRate > 0
+                self.updateState(isPlaying: isPlaying, isLoading: false)
             }
         }
         playerObservations.append(rateObserver)
@@ -377,23 +344,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     guard self.playbackState.episodeID == episodeID else { return }
                     
                     switch item.status {
-                    case .failed:
-                        LogManager.shared.error("Player item failed: \(item.error?.localizedDescription ?? "unknown")")
-                        self.handlePlayerError()
                     case .readyToPlay:
-                        LogManager.shared.info("Player ready")
-                        // Update duration if needed
+                        // Update duration only
                         let duration = item.asset.duration.seconds
                         if duration.isFinite && duration > 0 {
                             self.updateState(duration: duration)
                             
-                            // Update episode's actual duration
                             if let episode = self.playbackState.episode, episode.actualDuration <= 0 {
                                 episode.actualDuration = duration
                                 try? episode.managedObjectContext?.save()
-                                LogManager.shared.info("Updated actual duration: \(duration)")
                             }
                         }
+                    case .failed:
+                        // Just log and stop - don't try to recover
+                        LogManager.shared.error("Player failed: \(item.error?.localizedDescription ?? "unknown")")
+                        self.updateState(isPlaying: false, isLoading: false)
                     default:
                         break
                     }
@@ -653,34 +618,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Final queue status check
         checkQueueStatusAfterRemoval()
     }
-
-    private func handlePlayerError() {
-        // Try to recover once
-        if let episode = playbackState.episode {
-            let savedPosition = episode.playbackPosition
-            LogManager.shared.info("Attempting error recovery at position \(savedPosition)")
-            
-            // Reset state and try again
-            updateState(position: savedPosition, isPlaying: false, isLoading: true)
-            
-            Task.detached(priority: .userInitiated) {
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // Wait 1 second
-                await MainActor.run {
-                    self.startPlayback(for: episode)
-                }
-            }
-        }
-    }
     
     private func cleanupPlayer() {
+        // Remove time observer
         timeObserver.map { player?.removeTimeObserver($0) }
         timeObserver = nil
         
+        // Remove property observers
         playerObservations.forEach { $0.invalidate() }
         playerObservations.removeAll()
         
+        // Stop player - don't force replaceCurrentItem
         player?.pause()
-        player?.replaceCurrentItem(with: nil)
+        player = nil
     }
     
     // MARK: - Public Getters (for compatibility)
@@ -986,6 +936,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func setPlaybackSpeed(_ speed: Float) {
         playbackSpeed = speed
+        // Only update rate if currently playing
+        if playbackState.isPlaying {
+            player?.rate = speed
+        }
     }
     
     func setForwardInterval(_ interval: Double) {

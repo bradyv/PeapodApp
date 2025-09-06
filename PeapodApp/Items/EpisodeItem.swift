@@ -148,30 +148,43 @@ struct EpisodeItem: View {
                             type: .filled,
                             colorStyle: .monochrome,
                             hierarchical: false,
-                            customColors: ButtonCustomColors(foreground: .black, background: .white)
+                            customColors: ButtonCustomColors(foreground: displayedInQueue ? .black : .heading, background: displayedInQueue ? .white : .surface)
                         )
                     )
                     
-                    // 📌 "Later" or Queue Toggle
-                    Button(action: {
-                        withAnimation {
-                            if hasStarted {
-                                removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                            } else {
+                    if hasStarted {
+                        Button(action: {
+                            withAnimation {
                                 player.markAsPlayed(for: episode, manually: true)
                             }
+                        }) {
+                            Label("Mark as Played", systemImage: "checkmark.circle")
+                                .contentTransition(.symbolEffect(.replace))
                         }
-                    }) {
-                        Label(hasStarted ? "Mark as Played" : "Archive", systemImage: hasStarted ? "checkmark.circle" : "archivebox")
-                            .contentTransition(.symbolEffect(.replace))
-                    }
-                    .buttonStyle(
-                        PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
+                        .buttonStyle(
+                            PPButton(
+                                type: .transparent,
+                                colorStyle: .monochrome,
+                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
+                            )
                         )
-                    )
+                    } else {
+                        Button(action: {
+                            withAnimation {
+                                removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                            }
+                        }) {
+                            Label("Archive", systemImage: "archivebox")
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .buttonStyle(
+                            PPButton(
+                                type: .transparent,
+                                colorStyle: .monochrome,
+                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
+                            )
+                        )
+                    }
                     
                     Spacer()
                     
@@ -193,7 +206,7 @@ struct EpisodeItem: View {
                             type: .transparent,
                             colorStyle: .monochrome,
                             iconOnly: true,
-                            customColors: ButtonCustomColors(foreground: Color.white, background: Color.white.opacity(0.15))
+                            customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
                         )
                     )
                     .changeEffect(

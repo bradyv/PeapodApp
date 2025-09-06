@@ -29,11 +29,12 @@ struct MailView: UIViewControllerRepresentable {
         vc.setSubject("Peapod Feedback")
         vc.setMessageBody(messageBody, isHTML: false)
 
-        // Attach ALL log files (current + rotated)
+        // Attach ALL daily log files (up to 5 days)
         let allLogFiles = LogManager.shared.getAllLogFiles()
-        for (index, logFileURL) in allLogFiles.enumerated() {
+        for logFileURL in allLogFiles {
             if let data = try? Data(contentsOf: logFileURL) {
-                let fileName = index == 0 ? "peapod-logs-current.txt" : "peapod-logs-\(index).txt"
+                // Use the actual filename for clarity (e.g., "peapod-2025-09-04.log")
+                let fileName = logFileURL.lastPathComponent
                 vc.addAttachmentData(data, mimeType: "text/plain", fileName: fileName)
             }
         }
@@ -54,8 +55,10 @@ func generateSupportMessageBody() -> String {
     let systemName = device.systemName
     let systemVersion = device.systemVersion
     
-    // Add log storage info for debugging
+    // Add log info for debugging
     let logSize = LogManager.shared.getTotalLogSize()
+    let logFiles = LogManager.shared.getAllLogFiles()
+    let logCount = logFiles.count
 
     return """
     Please describe the issue you're experiencing:
@@ -65,6 +68,6 @@ func generateSupportMessageBody() -> String {
     App Version: \(appVersion) (\(buildNumber))
     Device: \(deviceModel)
     OS: \(systemName) \(systemVersion)
-    Log Storage: \(logSize)
+    Log Files: \(logCount) files (\(logSize))
     """
 }

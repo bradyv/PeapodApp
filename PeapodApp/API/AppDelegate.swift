@@ -62,11 +62,23 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func configureGlobalAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay, .allowBluetoothHFP])
-            try session.setActive(true)
-            LogManager.shared.info("Global audio session configured successfully")
+            
+            // Use the most permissive configuration
+            try session.setCategory(
+                .playback,
+                mode: .default,  // Let system choose best mode
+                options: [
+                    .allowAirPlay,
+                    .allowBluetoothA2DP,
+                    .allowBluetoothHFP,
+                    .mixWithOthers  // Allow other apps to interrupt gracefully
+                ]
+            )
+            
+            // Don't force active - let the player activate when needed
+            LogManager.shared.info("Audio session configured - system will manage activation")
         } catch {
-            LogManager.shared.error("Failed to configure global audio session: \(error)")
+            LogManager.shared.error("Failed to configure audio session: \(error)")
         }
     }
 

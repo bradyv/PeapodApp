@@ -186,6 +186,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
+        UserDefaults.standard.set(episode.id, forKey: "lastPlayingEpisodeID")
+        
         // Get saved position and duration
         let savedPosition = episode.playbackPosition
         let duration = getActualDuration(for: episode)
@@ -859,9 +861,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Save current state
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
-            UserDefaults.standard.set(episode.id, forKey: "lastPlayingEpisodeID")
-        } else {
-            UserDefaults.standard.removeObject(forKey: "lastPlayingEpisodeID")
         }
         
         LogManager.shared.info("App backgrounded - was playing: \(playbackState.isPlaying)")
@@ -870,9 +869,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func savePlaybackOnExit() {
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
-            UserDefaults.standard.set(episode.id, forKey: "lastPlayingEpisodeID")
-        } else {
-            UserDefaults.standard.removeObject(forKey: "lastPlayingEpisodeID")
         }
     }
     

@@ -165,24 +165,30 @@ struct QueueView: View {
                     .scrollDisabled(episodesViewModel.queue.isEmpty)
                     .scrollIndicators(.hidden)
                     .contentMargins(.horizontal, 16, for: .scrollContent)
-                    .onChange(of: episodesViewModel.queue.first?.id) { oldID, newID in
-                        if let id = newID {
-                            DispatchQueue.main.async {
-                                withAnimation {
-                                    proxy.scrollTo(id, anchor: .leading)
-                                }
-                            }
-                        }
-                    }
+//                    .onChange(of: episodesViewModel.queue.first?.id) { oldID, newID in
+//                        if let id = newID {
+//                            DispatchQueue.main.async {
+//                                withAnimation {
+//                                    proxy.scrollTo(id, anchor: .leading)
+//                                }
+//                            }
+//                        }
+//                    } rmrf
                     // Auto-scroll to currently playing episode when it changes
                     .onChange(of: player.currentEpisode?.id) { _, newEpisodeID in
                         if let episodeID = newEpisodeID,
                            episodesViewModel.queue.contains(where: { $0.id == episodeID }) {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                 withAnimation(.easeInOut(duration: 0.5)) {
-                                    proxy.scrollTo(episodeID, anchor: .leading)
+                                    proxy.scrollTo(episodeID, anchor: .center)
                                 }
                             }
+                        }
+                    }
+                    .onAppear {
+                        if let episodeID = player.currentEpisode?.id,
+                           episodesViewModel.queue.contains(where: { $0.id == episodeID }) {
+                            proxy.scrollTo(episodeID, anchor: .center)
                         }
                     }
                 }

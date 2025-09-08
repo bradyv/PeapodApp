@@ -106,6 +106,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         primePlayer()
         configureRemoteTransportControls()
         setupNotifications()
+        restoreLastPlaybackState()
     }
     
     // MARK: - State Management
@@ -119,6 +120,31 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         )
         
         playbackState = newState
+    }
+    
+    private func restoreLastPlaybackState() {
+        guard let episodeID = UserDefaults.standard.string(forKey: "lastPlayingEpisodeID") else {
+            return
+        }
+
+        let context = PersistenceController.shared.container.viewContext
+        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", episodeID)
+        fetchRequest.fetchLimit = 1
+
+        do {
+            if let episode = try context.fetch(fetchRequest).first {
+                // Restore the state as paused
+                let savedPosition = episode.playbackPosition
+                let duration = getActualDuration(for: episode)
+                updateState(episode: episode, position: savedPosition, duration: duration, isPlaying: false, isLoading: false)
+                LogManager.shared.info("Restored last playing episode: \(episode.title?.prefix(30) ?? "Unknown")")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "lastPlayingEpisodeID")
+            }
+        } catch {
+            LogManager.shared.error("Error fetching last playing episode to restore state: \(error)")
+        }
     }
     
     private func clearState() {
@@ -188,7 +214,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self.setupPlayerObservations(for: episodeID)
             
             // Move to front of queue
-            self.moveEpisodeToFrontOfQueue(episode)
+//            self.moveEpisodeToFrontOfQueue(episode) rmrf
+            self.addEpisodeToQueueIfNeeded(episode)
         }
         
         // Wait for ready state
@@ -258,6 +285,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Clear system now playing
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        
+        UserDefaults.standard.removeObject(forKey: "lastPlayingEpisodeID")
         
         LogManager.shared.info("Player stopped and state cleared")
     }
@@ -830,6 +859,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Save current state
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
+            UserDefaults.standard.set(episode.id, forKey: "lastPlayingEpisodeID")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "lastPlayingEpisodeID")
         }
         
         LogManager.shared.info("App backgrounded - was playing: \(playbackState.isPlaying)")
@@ -838,6 +870,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @objc private func savePlaybackOnExit() {
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
+            UserDefaults.standard.set(episode.id, forKey: "lastPlayingEpisodeID")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "lastPlayingEpisodeID")
         }
     }
     
@@ -950,52 +985,82 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         backwardInterval = interval
     }
     
-    private func moveEpisodeToFrontOfQueue(_ episode: Episode) {
+    private func addEpisodeToQueueIfNeeded(_ episode: Episode) {
         guard let context = episode.managedObjectContext else { return }
-        
-        queueLock.lock()
-        defer { queueLock.unlock() }
-        
-        episode.objectWillChange.send()
-        
-        // Ensure episode is queued
-        if !episode.isQueued {
-            LogManager.shared.info("Adding episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
-            episode.isQueued = true
-        }
-        
-        // Get current queue order
-        let queue = getQueuedEpisodes(context: context)
-        
-        if queue.first?.id == episode.id {
-            // Already at front, just save to ensure consistency
-            try? context.save()
+
+        // If episode is already in the queue, do nothing.
+        if episode.isQueued {
             return
         }
-        
-        // Move to front: remove from current position and insert at 0
-        var reordered = queue.filter { $0.id != episode.id }
-        reordered.insert(episode, at: 0)
-        
-        // Update all positions with immediate UI feedback
-        for (index, ep) in reordered.enumerated() {
-            ep.objectWillChange.send()
-            ep.queuePosition = Int64(index)
-        }
-        
+
+        queueLock.lock()
+        defer { queueLock.unlock() }
+
+        // Add to the end of the queue.
+        let nextPosition = getNextQueuePosition(context: context)
+        episode.isQueued = true
+        episode.queuePosition = nextPosition
+        episode.objectWillChange.send()
+
         do {
             try context.save()
-            LogManager.shared.info("Moved episode to front of queue: \(episode.title?.prefix(30) ?? "Episode")")
-            
+            LogManager.shared.info("Appended episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+
             Task { @MainActor in
                 NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
             }
-            
         } catch {
-            LogManager.shared.error("Failed to move episode to front: \(error)")
+            LogManager.shared.error("Failed to append episode to queue: \(error)")
             context.rollback()
         }
     }
+    
+//    private func moveEpisodeToFrontOfQueue(_ episode: Episode) {
+//        guard let context = episode.managedObjectContext else { return }
+//        
+//        queueLock.lock()
+//        defer { queueLock.unlock() }
+//        
+//        episode.objectWillChange.send()
+//        
+//        // Ensure episode is queued
+//        if !episode.isQueued {
+//            LogManager.shared.info("Adding episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+//            episode.isQueued = true
+//        }
+//        
+//        // Get current queue order
+//        let queue = getQueuedEpisodes(context: context)
+//        
+//        if queue.first?.id == episode.id {
+//            // Already at front, just save to ensure consistency
+//            try? context.save()
+//            return
+//        }
+//        
+//        // Move to front: remove from current position and insert at 0
+//        var reordered = queue.filter { $0.id != episode.id }
+//        reordered.insert(episode, at: 0)
+//        
+//        // Update all positions with immediate UI feedback
+//        for (index, ep) in reordered.enumerated() {
+//            ep.objectWillChange.send()
+//            ep.queuePosition = Int64(index)
+//        }
+//        
+//        do {
+//            try context.save()
+//            LogManager.shared.info("Moved episode to front of queue: \(episode.title?.prefix(30) ?? "Episode")")
+//            
+//            Task { @MainActor in
+//                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+//            }
+//            
+//        } catch {
+//            LogManager.shared.error("Failed to move episode to front: \(error)")
+//            context.rollback()
+//        }
+//    } rmrf
 
     private func checkQueueStatusAfterRemoval() {
         // Check if queue is now empty and current episode should be cleared

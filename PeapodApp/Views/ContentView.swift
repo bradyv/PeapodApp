@@ -165,11 +165,14 @@ struct ContentView: View {
         .toast()
     }
     
+    private var nowPlayingEpisode: Episode? {
+        player.currentEpisode ?? queue.first
+    }
+    
     @ViewBuilder
     var NowPlayingBar: some View {
-        
         Group {
-            if let episode = firstQueueEpisode {
+            if let episode = nowPlayingEpisode {
                 let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
                     HStack {

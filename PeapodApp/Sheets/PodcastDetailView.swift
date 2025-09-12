@@ -27,6 +27,7 @@ struct PodcastDetailView: View {
     @State private var showSearch = false
     @State private var isLoading = true
     @State private var loadedPodcast: Podcast? = nil
+    @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
     
     var podcast: Podcast? { loadedPodcast ?? podcastResults.first }
@@ -253,6 +254,11 @@ struct PodcastDetailView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth:.infinity, maxHeight:.infinity)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
             }
         }
         .onAppear {

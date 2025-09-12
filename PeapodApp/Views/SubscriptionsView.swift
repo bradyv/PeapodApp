@@ -90,6 +90,6 @@ struct PodcastGridItem: View {
             .resizable()
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 24))
-        .glassEffect(in: .rect(cornerRadius: 24))
+            .glassEffect(in: .rect(cornerRadius: 24))
     }
 }

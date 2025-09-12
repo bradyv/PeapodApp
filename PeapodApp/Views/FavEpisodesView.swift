@@ -10,6 +10,7 @@ import SwiftUI
 struct FavEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedEpisode: Episode? = nil
+    @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
     
     let mini: Bool
@@ -34,10 +35,6 @@ struct FavEpisodesView: View {
             } else {
                 fullView
             }
-        }
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
         }
     }
     
@@ -69,6 +66,7 @@ struct FavEpisodesView: View {
                 .scrollIndicators(.hidden)
             }
         }
+        .scrollClipDisabled(true)
     }
     
     @ViewBuilder
@@ -85,6 +83,11 @@ struct FavEpisodesView: View {
         .listStyle(.plain)
         .background(Color.background)
         .scrollDisabled(episodesViewModel.favs.isEmpty)
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+            }
+        }
     }
     
     @ViewBuilder

@@ -14,6 +14,7 @@ struct LatestEpisodesView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var showAll = true
     @State private var selectedPodcast: Podcast? = nil
+    @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
     
     let mini: Bool
@@ -56,10 +57,6 @@ struct LatestEpisodesView: View {
                 fullView
             }
         }
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
-        }
     }
     
     @ViewBuilder
@@ -100,6 +97,11 @@ struct LatestEpisodesView: View {
         .navigationLinkIndicatorVisibility(.hidden)
         .listStyle(.plain)
         .background(Color.background)
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+            }
+        }
     }
     
     @ViewBuilder

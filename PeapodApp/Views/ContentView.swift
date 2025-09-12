@@ -89,60 +89,51 @@ struct ContentView: View {
     
     @ViewBuilder
     var HomeView: some View {
-        ZStack {
-            NavigationStack {
-                ZStack {
-                    MainBackground()
-                    
-                    ScrollView {
-                        VStack(spacing: 32) {
-                            QueueView(selectedTab: $selectedTab)
-                            LatestEpisodesView(mini:true, maxItems: 5)
-                            FavEpisodesView(mini: true, maxItems: 5)
-                            SubscriptionsRow()
-                        }
-                        
-                        Spacer().frame(height:70)
+        NavigationStack {
+            ZStack {
+                MainBackground()
+                
+                ScrollView {
+                    VStack(spacing: 32) {
+                        QueueView(selectedTab: $selectedTab)
+                        LatestEpisodesView(mini:true, maxItems: 5)
+                        FavEpisodesView(mini: true, maxItems: 5)
+                        SubscriptionsRow()
                     }
-                    
+                    .scrollClipDisabled(true)
                 }
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        NavigationLink {
-                            PodcastSearchView(searchQuery: $query)
-                                .searchable(text: $query, prompt: "Find a Podcast")
-                                .navigationTitle("Find a Podcast")
-                        } label: {
-                            Label("Search", systemImage: "magnifyingglass")
-                        }
-                        .labelStyle(.iconOnly)
+                
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        PodcastSearchView(searchQuery: $query)
+                            .searchable(text: $query, prompt: "Find a Podcast")
+                            .navigationTitle("Find a Podcast")
+                    } label: {
+                        Label("Search", systemImage: "magnifyingglass")
                     }
-                    
-                    ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink {
-                            SettingsView()
-                        } label: {
-                            Label("Settings", systemImage: "person.crop.circle")
-                        }
-                        .labelStyle(.iconOnly)
-                    }
+                    .labelStyle(.iconOnly)
                 }
-                .navigationDestination(item: $selectedEpisodeForNavigation) { episode in
-                    EpisodeView(episode: episode)
-                        .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Settings", systemImage: "person.crop.circle")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+                
+                ToolbarItem(placement: .bottomBar) {
+                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
                 }
             }
-//            
-//            VStack {
-//                Spacer()
-//                
-//                NowPlayingBar
-//                    .glassEffect()
-//                    .padding(.horizontal, 16)
-//            }
+            .navigationDestination(item: $selectedEpisodeForNavigation) { episode in
+                EpisodeView(episode: episode)
+                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+            }
         }
-        
-        
     }
     
     @ViewBuilder
@@ -215,9 +206,9 @@ struct ContentView: View {
                 .scrollEdgeEffectStyle(.soft, for: .all)
             }
         }
-        .tabViewBottomAccessory {
-            NowPlayingBar
-        }
+//        .tabViewBottomAccessory {
+//            NowPlayingBar
+//        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .sheet(item: $selectedEpisode) { episode in
             EpisodeView(episode: episode)
@@ -259,111 +250,111 @@ struct ContentView: View {
 //        .toast()
     }
     
-    @ViewBuilder
-    var NowPlayingBar: some View {
-        
-        Group {
-            if let episode = firstQueueEpisode {
-                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
-                HStack {
-                    Button {
-                        selectedEpisodeForNavigation = episode
-                    } label: {
-                        HStack {
-                            ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
-                            
-                            VStack(alignment:.leading) {
-                                Text(episode.podcast?.title ?? "Podcast title")
-                                    .textDetail()
-                                    .lineLimit(1)
-                                
-                                Text(episode.title ?? "Episode title")
-                                    .textBody()
-                                    .lineLimit(1)
-                            }
-                        }
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                    }
-//                    .onTapGesture {
-//                        selectedEpisode = episode
+//    @ViewBuilder
+//    var NowPlayingBar: some View {
+//        
+//        Group {
+//            if let episode = firstQueueEpisode {
+//                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
+//                HStack {
+//                    Button {
+//                        selectedEpisodeForNavigation = episode
+//                    } label: {
+//                        HStack {
+//                            ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
+//                            
+//                            VStack(alignment:.leading) {
+//                                Text(episode.podcast?.title ?? "Podcast title")
+//                                    .textDetail()
+//                                    .lineLimit(1)
+//                                
+//                                Text(episode.title ?? "Episode title")
+//                                    .textBody()
+//                                    .lineLimit(1)
+//                            }
+//                        }
+//                        .frame(maxWidth:.infinity, alignment: .leading)
+//                        .contentShape(Rectangle())
 //                    }
-                    
-                    HStack {
-                        Button(action: {
-                            player.togglePlayback(for: episode)
-                            print("Playing episode")
-                        }) {
-                            if player.isLoading {
-                                PPSpinner(color: Color.heading)
-                            } else {
-                                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                    .contentTransition(.symbolEffect(.replace))
-                                    .foregroundStyle(Color.heading)
-                            }
-                        }
-                        
-                        Button(action: {
-                            rotateTrigger.toggle()
-                            player.skipForward(seconds: player.forwardInterval)
-                            print("Seeking forward")
-                        }) {
-                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-                                .symbolEffect(.rotate.byLayer, options: .nonRepeating.speed(10), value: rotateTrigger)
-                                .foregroundStyle(player.isPlaying ? Color.heading : Color.surface)
-                        }
-                        .disabled(!player.isPlaying)
-                        .labelStyle(.iconOnly)
-                    }
-                }
-                .padding(8)
-                .frame(maxWidth:.infinity, alignment:.leading)
-            } else {
-                HStack {
-                    Text("Nothing up next")
-                        .textBody()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                    
-                    ZStack {
-                        HStack {
-                            Button(action: {
-                            }) {
-                                Image(systemName: "play.fill")
-                            }
-                            .disabled(player.isPlaying)
-                            
-                            Button(action: {
-                            }) {
-                                Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-                            }
-                            .disabled(!player.isPlaying)
-                            .labelStyle(.iconOnly)
-                        }
-                        .opacity(0)
-                        
-                        Image("peapod-mark")
-                            .resizable()
-                            .frame(width:29, height:22)
-                    }
-                }
-                .padding(.leading, 16)
-                .padding(.trailing,8)
-                .padding(.vertical,16)
-                .frame(maxWidth:.infinity, alignment:.leading)
-            }
-        }
-        .id(episodeID)
-        .onChange(of: firstQueueEpisode?.id) { _ in
-            episodeID = UUID()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
-            // Refresh queue when Core Data changes
-            loadQueue()
-        }
-        .onAppear {
-            loadQueue()
-        }
-    }
+////                    .onTapGesture {
+////                        selectedEpisode = episode
+////                    }
+//                    
+//                    HStack {
+//                        Button(action: {
+//                            player.togglePlayback(for: episode)
+//                            print("Playing episode")
+//                        }) {
+//                            if player.isLoading {
+//                                PPSpinner(color: Color.heading)
+//                            } else {
+//                                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+//                                    .contentTransition(.symbolEffect(.replace))
+//                                    .foregroundStyle(Color.heading)
+//                            }
+//                        }
+//                        
+//                        Button(action: {
+//                            rotateTrigger.toggle()
+//                            player.skipForward(seconds: player.forwardInterval)
+//                            print("Seeking forward")
+//                        }) {
+//                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+//                                .symbolEffect(.rotate.byLayer, options: .nonRepeating.speed(10), value: rotateTrigger)
+//                                .foregroundStyle(player.isPlaying ? Color.heading : Color.surface)
+//                        }
+//                        .disabled(!player.isPlaying)
+//                        .labelStyle(.iconOnly)
+//                    }
+//                }
+//                .padding(8)
+//                .frame(maxWidth:.infinity, alignment:.leading)
+//            } else {
+//                HStack {
+//                    Text("Nothing up next")
+//                        .textBody()
+//                        .frame(maxWidth:.infinity, alignment: .leading)
+//                    
+//                    ZStack {
+//                        HStack {
+//                            Button(action: {
+//                            }) {
+//                                Image(systemName: "play.fill")
+//                            }
+//                            .disabled(player.isPlaying)
+//                            
+//                            Button(action: {
+//                            }) {
+//                                Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+//                            }
+//                            .disabled(!player.isPlaying)
+//                            .labelStyle(.iconOnly)
+//                        }
+//                        .opacity(0)
+//                        
+//                        Image("peapod-mark")
+//                            .resizable()
+//                            .frame(width:29, height:22)
+//                    }
+//                }
+//                .padding(.leading, 16)
+//                .padding(.trailing,8)
+//                .padding(.vertical,16)
+//                .frame(maxWidth:.infinity, alignment:.leading)
+//            }
+//        }
+//        .id(episodeID)
+//        .onChange(of: firstQueueEpisode?.id) { _ in
+//            episodeID = UUID()
+//        }
+//        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+//            // Refresh queue when Core Data changes
+//            loadQueue()
+//        }
+//        .onAppear {
+//            loadQueue()
+//        }
+//    }
     
     private func loadQueue() {
         queue = fetchEpisodesInPlaylist(named: "Queue", context: context)

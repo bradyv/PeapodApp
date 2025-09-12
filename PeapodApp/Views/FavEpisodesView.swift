@@ -39,9 +39,8 @@ struct FavEpisodesView: View {
     
     @ViewBuilder
     private var miniView: some View {
-        VStack(spacing: 8) {
-            if !episodesViewModel.favs.isEmpty {
-                
+        if !episodesViewModel.favs.isEmpty {
+            VStack(spacing: 8) {
                 NavigationLink {
                     FavEpisodesView(mini: false)
                         .navigationTitle("Favorites")
@@ -64,8 +63,8 @@ struct FavEpisodesView: View {
                 .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)
             }
+            .scrollClipDisabled(true)
         }
-        .scrollClipDisabled(true)
     }
     
     @ViewBuilder

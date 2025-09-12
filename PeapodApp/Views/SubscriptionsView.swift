@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct SubscriptionsView: View {
+    @State private var selectedEpisodeForNavigation: Episode? = nil
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
@@ -29,6 +30,11 @@ struct SubscriptionsView: View {
         }
         .contentMargins(.horizontal, 16, for: .scrollContent)
         .background(Color.background)
+        .toolbar {
+            ToolbarItem(placement: .bottomBar) {
+                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+            }
+        }
     }
 }
 

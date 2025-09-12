@@ -170,11 +170,17 @@ struct EpisodeItem: View {
                         )
                     } else {
                         Button(action: {
-                            withAnimation {
-                                removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                            if episode.isQueued {
+                                withAnimation {
+                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                                }
+                            } else {
+                                withAnimation {
+                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
+                                }
                             }
                         }) {
-                            Label("Archive", systemImage: "archivebox")
+                            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         .buttonStyle(

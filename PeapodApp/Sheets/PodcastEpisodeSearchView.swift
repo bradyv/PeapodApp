@@ -14,7 +14,6 @@ struct PodcastEpisodeSearchView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     var podcast: Podcast
     @Binding var showSearch: Bool
-    @Binding var selectedEpisode: Episode?
     @State private var episodes: [Episode] = []
     @State private var query = ""
     @State private var hasMoreEpisodes = true
@@ -22,10 +21,9 @@ struct PodcastEpisodeSearchView: View {
     @FocusState private var isTextFieldFocused: Bool
     @Namespace private var namespace
 
-    init(podcast: Podcast, showSearch: Binding<Bool>, selectedEpisode: Binding<Episode?>) {
+    init(podcast: Podcast, showSearch: Binding<Bool>) {
         self.podcast = podcast
         self._showSearch = showSearch
-        self._selectedEpisode = selectedEpisode
     }
 
     var body: some View {
@@ -39,10 +37,6 @@ struct PodcastEpisodeSearchView: View {
         .searchable(text: $query, isPresented: $showSearch, placement: .toolbar, prompt: "Find an episode of \(podcast.title ?? "this podcast")")
         .navigationTitle(podcast.title ?? "Episodes")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
-        }
         .onAppear {
             loadEpisodesForPodcast()
             checkIfMoreEpisodesAvailable()

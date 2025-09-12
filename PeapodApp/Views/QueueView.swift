@@ -13,7 +13,6 @@ struct QueueView: View {
     @EnvironmentObject var player: AudioPlayerManager
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
-    @State private var selectedEpisode: Episode? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
     @Binding var selectedTab: ContentView.Tabs
@@ -132,14 +131,9 @@ struct QueueView: View {
                                         EpisodeView(episode: episode)
                                             .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                                     } label: {
-                                        QueueItemView(episode: episode, index: index) {
-                                            selectedEpisode = episode
-                                        }
-                                        .matchedTransitionSource(id: episode.id, in: namespace)
+                                        QueueItemView(episode: episode, index: index)
+                                            .matchedTransitionSource(id: episode.id, in: namespace)
                                     }
-//                                    .onTapGesture {
-//                                        selectedEpisode = episode
-//                                    }
                                 }
                             }
                         }
@@ -196,10 +190,6 @@ struct QueueView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
-        }
     }
 }
 
@@ -214,8 +204,6 @@ struct QueueItemView: View {
     @EnvironmentObject var player: AudioPlayerManager
     let episode: Episode
     let index: Int
-    var onSelect: () -> Void
-    @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
         QueueItem(episode: episode)

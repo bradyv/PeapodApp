@@ -85,38 +85,37 @@ struct NowPlayingBar: View {
                     }
                 }
                 .frame(maxWidth:.infinity, alignment:.leading)
+            } else {
+                HStack {
+                    Text("Nothing up next")
+                        .textBody()
+                        .frame(maxWidth:.infinity, alignment: .leading)
+                    
+                    ZStack {
+                        HStack {
+                            Button(action: {
+                            }) {
+                                Image(systemName: "play.fill")
+                            }
+                            .disabled(player.isPlaying)
+                            
+                            Button(action: {
+                            }) {
+                                Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
+                            }
+                            .disabled(!player.isPlaying)
+                            .labelStyle(.iconOnly)
+                        }
+                        .opacity(0)
+                        
+                        Image("peapod-mark")
+                            .resizable()
+                            .frame(width:29, height:22)
+                    }
+                }
+                .padding(.leading, 16)
+                .frame(maxWidth:.infinity, alignment:.leading)
             }
-//            } else {
-//                HStack {
-//                    Text("Nothing up next")
-//                        .textBody()
-//                        .frame(maxWidth:.infinity, alignment: .leading)
-//                    
-//                    ZStack {
-//                        HStack {
-//                            Button(action: {
-//                            }) {
-//                                Image(systemName: "play.fill")
-//                            }
-//                            .disabled(player.isPlaying)
-//                            
-//                            Button(action: {
-//                            }) {
-//                                Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-//                            }
-//                            .disabled(!player.isPlaying)
-//                            .labelStyle(.iconOnly)
-//                        }
-//                        .opacity(0)
-//                        
-//                        Image("peapod-mark")
-//                            .resizable()
-//                            .frame(width:29, height:22)
-//                    }
-//                }
-//                .padding(.leading, 16)
-//                .frame(maxWidth:.infinity, alignment:.leading)
-//            }
         }
         .frame(maxWidth:.infinity)
         .id(episodeID)

@@ -18,7 +18,6 @@ struct PodcastDetailView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
-    @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var showDebugTools = false
@@ -45,8 +44,6 @@ struct PodcastDetailView: View {
     var body: some View {
         Group {
             if let podcast = podcast {
-//                let badFeed = "https://feeds.megaphone.fm/GLT1412515089"
-//                let blockFeed = podcast.feedUrl == badFeed
                 ScrollView {
                     Color.clear
                         .frame(height: 1)
@@ -118,9 +115,6 @@ struct PodcastDetailView: View {
                                         EpisodeItem(episode: latestEpisode, showActions: true)
                                             .lineLimit(3)
                                     }
-//                                        .onTapGesture {
-//                                            selectedEpisode = latestEpisode
-//                                        }
                                 }
                                 .padding()
                             }
@@ -143,7 +137,7 @@ struct PodcastDetailView: View {
                         Spacer().frame(height:24)
                         
                         NavigationLink {
-                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
+                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch)
                         } label: {
                             HStack(alignment:.center) {
                                 Text("Episodes")
@@ -168,7 +162,6 @@ struct PodcastDetailView: View {
                             }
                             .scrollTargetLayout()
                         }
-//                        .contentMargins(.horizontal, 16, for: .scrollContent)
                         .scrollTargetBehavior(.viewAligned)
                         .scrollIndicators(.hidden)
                         
@@ -191,25 +184,7 @@ struct PodcastDetailView: View {
                         }
                         .frame(maxWidth:.infinity, alignment:.leading)
                     }
-//                    .if(blockFeed, transform: { $0.blur(radius:16) })
                 }
-//                .disabled(blockFeed)
-//                .overlay {
-//                    if blockFeed {
-//                        VStack(spacing:8) {
-//                            Text("Mics On, Misinformation Off")
-//                                .titleSerifMini()
-//                            
-//                            Text("Find a podcast that doesn’t spread misinformation or promote controversial, unverified content.")
-//                                .textBody()
-//                                .multilineTextAlignment(.center)
-//                                .padding(.horizontal,32)
-//                            
-//                            Text("You can do better.")
-//                                .textBody()
-//                        }
-//                    }
-//                }
                 .background {
                     let frame = UIScreen.main.bounds.width
                     SplashImage(image: podcast.image ?? "")
@@ -225,16 +200,11 @@ struct PodcastDetailView: View {
                         await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                     }
                 }
-//                .sheet(item: $selectedEpisode) { episode in
-//                    EpisodeView(episode: episode)
-//                        .modifier(PPSheet())
-//                }
                 .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem {
                         subscribeButton()
-//                            .disabled(blockFeed)
                     }
                 }
                 // 🔥 ADD: Listen for Core Data changes and refresh episodes

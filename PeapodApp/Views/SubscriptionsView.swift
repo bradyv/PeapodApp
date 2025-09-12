@@ -12,7 +12,6 @@ struct SubscriptionsView: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
-    @State private var selectedPodcast: Podcast? = nil
     
     var body: some View {
         ScrollView {
@@ -30,10 +29,6 @@ struct SubscriptionsView: View {
         }
         .contentMargins(.horizontal, 16, for: .scrollContent)
         .background(Color.background)
-        .sheet(item: $selectedPodcast) { podcast in
-            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                .modifier(PPSheet())
-        }
     }
 }
 
@@ -41,7 +36,6 @@ struct SubscriptionsRow: View {
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
-    @State private var selectedPodcast: Podcast? = nil
     
     var body: some View {
         let frame = (UIScreen.main.bounds.width - 90) / 3

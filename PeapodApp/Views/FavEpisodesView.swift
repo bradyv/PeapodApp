@@ -9,7 +9,6 @@ import SwiftUI
 
 struct FavEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @State private var selectedEpisode: Episode? = nil
     @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
     

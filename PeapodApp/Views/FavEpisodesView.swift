@@ -102,6 +102,15 @@ struct FavEpisodesView: View {
                         } label: {
                             Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
+                        .tint(.accentColor)
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            toggleFav(episode)
+                        } label: {
+                            Label(episode.isFav ? "Undo" : "Favorite", systemImage: episode.isFav ? "heart.slash" : "heart")
+                        }
+                        .tint(.red)
                     }
             }
         }

@@ -545,7 +545,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Peapod β";
+				INFOPLIST_KEY_CFBundleDisplayName = Peapod;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -585,7 +585,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Peapod β";
+				INFOPLIST_KEY_CFBundleDisplayName = Peapod;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -52,6 +52,7 @@ struct EpisodeCell: View {
                 }
                 
                 Text(episode.title ?? "Episode title")
+                    .foregroundStyle(Color.heading)
                     .textBody()
                     .lineLimit(1)
                 

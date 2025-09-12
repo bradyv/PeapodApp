@@ -191,9 +191,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self.moveEpisodeToFrontOfQueue(episode)
         }
         
-        // Wait for ready state
-        await waitForPlayerReady()
-        
         // Seek if needed
         if startPosition > 0 {
             await seekToPosition(startPosition)
@@ -527,14 +524,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     // MARK: - Helper Functions
     private func primePlayer() {
         self.player = AVPlayer()
-    }
-    
-    private func waitForPlayerReady() async {
-        guard let player = player, let currentItem = player.currentItem else { return }
-        
-        while currentItem.status == .unknown {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-        }
     }
     
     private func seekToPosition(_ position: Double) async {

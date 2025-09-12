@@ -20,6 +20,7 @@ struct EpisodeItem: View {
     var displayedInQueue: Bool = false
     var displayedFullscreen: Bool = false
     @State private var favoriteCount = 0
+    @Namespace private var namespace
     
     // Computed properties based on unified state
     private var isPlaying: Bool {
@@ -41,6 +42,7 @@ struct EpisodeItem: View {
                 HStack {
                     ZStack(alignment:.bottomTrailing) {
                         ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
+                            .matchedTransitionSource(id: episode.id, in: namespace)
                         
                         if episode.isPlayed && !displayedInQueue {
                             ZStack {
@@ -62,13 +64,6 @@ struct EpisodeItem: View {
                         .lineLimit(1)
                         .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
                         .textDetailEmphasis()
-                }
-                .onTapGesture {
-                    selectedPodcast = episode.podcast
-                }
-                .sheet(item: $selectedPodcast) { podcast in
-                    PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                        .modifier(PPSheet())
                 }
                 
                 Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))

@@ -22,7 +22,7 @@ struct QueueItem: View {
     }
     
     var body: some View {
-        let frame = UIScreen.main.bounds.width - 32
+        let frame = UIScreen.main.bounds.width - 48
         let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
         
         ZStack(alignment: .bottomLeading) {

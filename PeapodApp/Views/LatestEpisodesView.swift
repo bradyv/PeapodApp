@@ -14,6 +14,7 @@ struct LatestEpisodesView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var showAll = true
     @State private var selectedPodcast: Podcast? = nil
+    @Namespace private var namespace
     
     let mini: Bool
     let maxItems: Int?
@@ -63,9 +64,7 @@ struct LatestEpisodesView: View {
     
     @ViewBuilder
     private var miniView: some View {
-        VStack {
-            Spacer().frame(height: 44)
-            
+        VStack(spacing: 8) {
             if !episodesViewModel.latest.isEmpty {
                 NavigationLink {
                     LatestEpisodesView(mini: false)
@@ -82,49 +81,25 @@ struct LatestEpisodesView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
-                episodesList
+                ScrollView(.horizontal) {
+                    episodesCells
+                }
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollIndicators(.hidden)
             }
         }
     }
     
     @ViewBuilder
     private var fullView: some View {
-        ScrollView {
-            if !mini {
-                podcastFilter
-                Spacer().frame(height: 24)
-            }
-            
-            if filteredEpisodes.isEmpty {
-                emptyState
-            } else {
-                episodesList
-            }
+        List {
+            episodesList
+                .listRowBackground(Color.clear)
         }
-        .navigationTitle(showAll ? "Recent Releases" : "Unplayed")
+        .navigationLinkIndicatorVisibility(.hidden)
+        .listStyle(.plain)
         .background(Color.background)
-        .toolbar {
-            if !mini {
-                ToolbarItem {
-                    Button(action: {
-                        showAll.toggle()
-                    }) {
-                        Label("Filter", systemImage: "line.3.horizontal.decrease")
-                    }
-                    .if(!showAll, transform: { $0.buttonStyle(.glassProminent) })
-                }
-            }
-        }
-        .scrollEdgeEffectStyle(.soft, for: .all)
-        .toast()
-        .refreshable {
-            if !mini {
-                EpisodeRefresher.refreshAllSubscribedPodcasts(context: context) {
-                    toastManager.show(message: "Peapod is up to date", icon: "sparkles")
-                    LogManager.shared.info("✨ Refreshed latest episodes")
-                }
-            }
-        }
     }
     
     @ViewBuilder
@@ -194,38 +169,38 @@ struct LatestEpisodesView: View {
     
     @ViewBuilder
     private var episodesList: some View {
-        LazyVStack(alignment: .leading) {
-            ForEach(filteredEpisodes, id: \.id) { episode in
+        ForEach(filteredEpisodes, id: \.id) { episode in
+            NavigationLink {
+                EpisodeView(episode:episode)
+                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+            } label: {
                 EpisodeItem(episode: episode, showActions: false)
                     .lineLimit(3)
-                    .padding(.bottom, 24)
-                    .padding(.horizontal)
                     .animation(.easeOut(duration: 0.2), value: showAll)
-                    .onTapGesture {
-                        selectedEpisode = episode
-                    }
-                    .contextMenu {
+                    .swipeActions(edge: .trailing) {
                         Button {
-                            withAnimation {
-                                if episode.isQueued {
-                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                                } else {
-                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
-                                }
-                            }
+                            toggleQueued(episode)
                         } label: {
-                            Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                        }
-                        Button {
-                            withAnimation {
-                                toggleFav(episode, episodesViewModel: episodesViewModel)
-                            }
-                        } label: {
-                            Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
                     }
             }
         }
+    }
+    
+    @ViewBuilder
+    private var episodesCells: some View {
+        LazyHStack(spacing: 16) {
+            ForEach(filteredEpisodes, id: \.id) { episode in
+                NavigationLink {
+                    EpisodeView(episode:episode)
+                        .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                } label: {
+                    EpisodeCell(episode: episode)
+                }
+            }
+        }
+        .scrollTargetLayout()
     }
     
     @ViewBuilder

@@ -10,6 +10,7 @@ import SwiftUI
 struct FavEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedEpisode: Episode? = nil
+    @Namespace private var namespace
     
     let mini: Bool
     let maxItems: Int?
@@ -42,9 +43,8 @@ struct FavEpisodesView: View {
     
     @ViewBuilder
     private var miniView: some View {
-        VStack {
+        VStack(spacing: 8) {
             if !episodesViewModel.favs.isEmpty {
-                Spacer().frame(height: 24)
                 
                 NavigationLink {
                     FavEpisodesView(mini: false)
@@ -61,57 +61,65 @@ struct FavEpisodesView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
-                episodesList
+                ScrollView(.horizontal) {
+                    episodesCells
+                }
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollIndicators(.hidden)
             }
         }
     }
     
     @ViewBuilder
     private var fullView: some View {
-        ScrollView {
+        List {
             if episodesViewModel.favs.isEmpty {
                 emptyState
             } else {
                 episodesList
+                    .listRowBackground(Color.clear)
             }
         }
+        .navigationLinkIndicatorVisibility(.hidden)
+        .listStyle(.plain)
         .background(Color.background)
         .scrollDisabled(episodesViewModel.favs.isEmpty)
     }
     
     @ViewBuilder
     private var episodesList: some View {
-        LazyVStack(alignment: .leading) {
-            ForEach(displayedEpisodes, id: \.id) { episode in
+        ForEach(displayedEpisodes, id: \.id) { episode in
+            NavigationLink {
+                EpisodeView(episode:episode)
+                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+            } label: {
                 EpisodeItem(episode: episode, showActions: false)
                     .lineLimit(3)
-                    .padding(.bottom, 24)
-                    .padding(.horizontal)
-                    .onTapGesture {
-                        selectedEpisode = episode
-                    }
-                    .contextMenu {
+                    .swipeActions(edge: .trailing) {
                         Button {
-                            withAnimation {
-                                if episode.isQueued {
-                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                                } else {
-                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
-                                }
-                            }
+                            toggleQueued(episode)
                         } label: {
-                            Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                        }
-                        Button {
-                            withAnimation {
-                                toggleFav(episode, episodesViewModel: episodesViewModel)
-                            }
-                        } label: {
-                            Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                         }
                     }
             }
         }
+    }
+    
+    @ViewBuilder
+    private var episodesCells: some View {
+        LazyHStack(spacing: 16) {
+            ForEach(displayedEpisodes, id: \.id) { episode in
+                NavigationLink {
+                    EpisodeView(episode:episode)
+                        .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                } label: {
+                    EpisodeCell(episode: episode)
+                }
+            }
+        }
+        .scrollTargetLayout()
     }
     
     @ViewBuilder

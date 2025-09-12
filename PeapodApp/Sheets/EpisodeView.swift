@@ -51,20 +51,24 @@ struct EpisodeView: View {
                         .multilineTextAlignment(.center)
                     
                     HStack {
-                        HStack {
-                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
-                            
-                            Text(episode.podcast?.title ?? "Podcast title")
-                                .lineLimit(1)
-                                .textDetailEmphasis()
-                        }
-                        .onTapGesture {
-                            selectedPodcast = episode.podcast
-                        }
-                        .sheet(item: $selectedPodcast) { podcast in
+                        NavigationLink {
                             PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                                .modifier(PPSheet())
+                        } label: {
+                            HStack {
+                                ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
+                                
+                                Text(episode.podcast?.title ?? "Podcast title")
+                                    .lineLimit(1)
+                                    .textDetailEmphasis()
+                            }
                         }
+//                        .onTapGesture {
+//                            selectedPodcast = episode.podcast
+//                        }
+//                        .sheet(item: $selectedPodcast) { podcast in
+//                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+//                                .modifier(PPSheet())
+//                        }
                         
                         Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                             .textDetail()
@@ -75,6 +79,35 @@ struct EpisodeView: View {
                     
                     HStack {
                         let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                player.togglePlayback(for: episode)
+                            }
+                        }) {
+                            Group {
+                                HStack {
+                                    if isLoading {
+                                        PPSpinner(color: Color.white)
+                                            .transition(.scale.combined(with: .opacity))
+                                    } else {
+                                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                            .foregroundStyle(Color.white)
+                                            .textBody()
+                                            .transition(.scale.combined(with: .opacity))
+                                            .contentTransition(.symbolEffect(.replace))
+                                    }
+                                    
+                                    Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen Now")))
+                                        .foregroundStyle(.white)
+                                        .textBodyEmphasis()
+                                        .contentTransition(.interpolate)
+                                }
+                                .padding(.horizontal,8)
+                            }
+                            .animation(.easeInOut(duration: 0.2), value: isLoading)
+                            .animation(.easeInOut(duration: 0.2), value: isPlaying)
+                        }
+                        .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))
                         
                         if !hasStarted {
                             Button(action: {
@@ -92,17 +125,17 @@ struct EpisodeView: View {
                                     .contentTransition(.symbolEffect(.replace))
                             }
                             .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
-                        }
-                        
-                        Button(action: {
-                            withAnimation {
-                                player.markAsPlayed(for: episode, manually: true)
+                        } else {
+                            Button(action: {
+                                withAnimation {
+                                    player.markAsPlayed(for: episode, manually: true)
+                                }
+                            }) {
+                                Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
+                                    .contentTransition(.symbolEffect(.replace))
                             }
-                        }) {
-                            Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
-                                .contentTransition(.symbolEffect(.replace))
+                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         
                         Button(action: {
                             withAnimation {
@@ -197,39 +230,39 @@ struct EpisodeView: View {
         .coordinateSpace(name: "scroll")
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity)
-        .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        player.togglePlayback(for: episode)
-                    }
-                }) {
-                    Group {
-                        HStack {
-                            if isLoading {
-                                PPSpinner(color: Color.white)
-                                    .transition(.scale.combined(with: .opacity))
-                            } else {
-                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                    .foregroundStyle(Color.white)
-                                    .textBody()
-                                    .transition(.scale.combined(with: .opacity))
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            
-                            Text(isPlaying ? "Pause" : "Listen Now")
-                                .foregroundStyle(.white)
-                                .textBodyEmphasis()
-                                .contentTransition(.interpolate)
-                        }
-                        .padding(.horizontal,8)
-                    }
-                    .animation(.easeInOut(duration: 0.2), value: isLoading)
-                    .animation(.easeInOut(duration: 0.2), value: isPlaying)
-                }
-                .buttonStyle(.glassProminent)
-            }
-        }
+//        .toolbar {
+//            ToolbarItem(placement: .bottomBar) {
+//                Button(action: {
+//                    withAnimation(.easeInOut(duration: 0.3)) {
+//                        player.togglePlayback(for: episode)
+//                    }
+//                }) {
+//                    Group {
+//                        HStack {
+//                            if isLoading {
+//                                PPSpinner(color: Color.white)
+//                                    .transition(.scale.combined(with: .opacity))
+//                            } else {
+//                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+//                                    .foregroundStyle(Color.white)
+//                                    .textBody()
+//                                    .transition(.scale.combined(with: .opacity))
+//                                    .contentTransition(.symbolEffect(.replace))
+//                            }
+//                            
+//                            Text(isPlaying ? "Pause" : "Listen Now")
+//                                .foregroundStyle(.white)
+//                                .textBodyEmphasis()
+//                                .contentTransition(.interpolate)
+//                        }
+//                        .padding(.horizontal,8)
+//                    }
+//                    .animation(.easeInOut(duration: 0.2), value: isLoading)
+//                    .animation(.easeInOut(duration: 0.2), value: isPlaying)
+//                }
+//                .buttonStyle(.glassProminent)
+//            }
+//        }
         .task {
             // Configure and load your tips at app launch.
             do {

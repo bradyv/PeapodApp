@@ -58,14 +58,6 @@ struct PodcastSearchView: View {
                     }
                 }
                 
-//                ScrollView(.horizontal) {
-//                    LazyHStack {
-//                        ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
-//                            CuratedFeedView(url:podcast.artworkUrl600, description: "Lorem ipsum dolor sit amet.")
-//                        }
-//                    }
-//                }
-                
                 Spacer().frame(height:24)
                 
                 Text("Top Podcasts")

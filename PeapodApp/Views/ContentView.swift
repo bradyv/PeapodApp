@@ -24,6 +24,8 @@ struct ContentView: View {
     @State private var queue: [Episode] = []
     @State private var episodeID = UUID()
     @State private var rotateTrigger = false
+    @State private var selectedEpisodeForNavigation: Episode? = nil
+    @Namespace private var namespace
     
     private var firstQueueEpisode: Episode? {
         queue.first
@@ -46,9 +48,101 @@ struct ContentView: View {
             .transition(.opacity)
             
         case .main:
-            Peapod
+            HomeView
                 .transition(.opacity)
+                .onAppear {
+                    checkPendingNotification()
+                }
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    if newPhase == .active {
+                        // Clear badge when app becomes active
+                        UNUserNotificationCenter.current().setBadgeCount(0)
+                        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+                        
+                        // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
+                        let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+                        if timeSinceLastRefresh > 30 {
+                            LogManager.shared.info("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                            forceRefreshPodcasts()
+                        } else {
+                            LogManager.shared.info("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                        }
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
+                    if let id = notification.object as? String {
+                        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                        fetchRequest.predicate = NSPredicate(format: "id == %@", id)
+                        fetchRequest.fetchLimit = 1
+                        
+                        if let foundEpisode = try? context.fetch(fetchRequest).first {
+                            LogManager.shared.info("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
+                            selectedEpisode = foundEpisode
+                        } else {
+                            LogManager.shared.error("❌ Could not find episode for id \(id)")
+                        }
+                    }
+                }
+                .toast()
         }
+    }
+    
+    @ViewBuilder
+    var HomeView: some View {
+        ZStack {
+            NavigationStack {
+                ZStack {
+                    MainBackground()
+                    
+                    ScrollView {
+                        VStack(spacing: 32) {
+                            QueueView(selectedTab: $selectedTab)
+                            LatestEpisodesView(mini:true, maxItems: 5)
+                            FavEpisodesView(mini: true, maxItems: 5)
+                            SubscriptionsRow()
+                        }
+                        
+                        Spacer().frame(height:70)
+                    }
+                    
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        NavigationLink {
+                            PodcastSearchView(searchQuery: $query)
+                                .searchable(text: $query, prompt: "Find a Podcast")
+                                .navigationTitle("Find a Podcast")
+                        } label: {
+                            Label("Search", systemImage: "magnifyingglass")
+                        }
+                        .labelStyle(.iconOnly)
+                    }
+                    
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink {
+                            SettingsView()
+                        } label: {
+                            Label("Settings", systemImage: "person.crop.circle")
+                        }
+                        .labelStyle(.iconOnly)
+                    }
+                }
+                .navigationDestination(item: $selectedEpisodeForNavigation) { episode in
+                    EpisodeView(episode: episode)
+                        .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                }
+            }
+//            
+//            VStack {
+//                Spacer()
+//                
+//                NowPlayingBar
+//                    .glassEffect()
+//                    .padding(.horizontal, 16)
+//            }
+        }
+        
+        
     }
     
     @ViewBuilder
@@ -129,40 +223,40 @@ struct ContentView: View {
             EpisodeView(episode: episode)
                 .modifier(PPSheet())
         }
-        .onAppear {
-            checkPendingNotification()
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .active {
-                // Clear badge when app becomes active
-                UNUserNotificationCenter.current().setBadgeCount(0)
-                UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-                
-                // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
-                let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
-                if timeSinceLastRefresh > 30 {
-                    LogManager.shared.info("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-                    forceRefreshPodcasts()
-                } else {
-                    LogManager.shared.info("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-                }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
-            if let id = notification.object as? String {
-                let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                fetchRequest.predicate = NSPredicate(format: "id == %@", id)
-                fetchRequest.fetchLimit = 1
-                
-                if let foundEpisode = try? context.fetch(fetchRequest).first {
-                    LogManager.shared.info("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
-                    selectedEpisode = foundEpisode
-                } else {
-                    LogManager.shared.error("❌ Could not find episode for id \(id)")
-                }
-            }
-        }
-        .toast()
+//        .onAppear {
+//            checkPendingNotification()
+//        }
+//        .onChange(of: scenePhase) { oldPhase, newPhase in
+//            if newPhase == .active {
+//                // Clear badge when app becomes active
+//                UNUserNotificationCenter.current().setBadgeCount(0)
+//                UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+//                
+//                // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
+//                let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+//                if timeSinceLastRefresh > 30 {
+//                    LogManager.shared.info("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+//                    forceRefreshPodcasts()
+//                } else {
+//                    LogManager.shared.info("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+//                }
+//            }
+//        }
+//        .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
+//            if let id = notification.object as? String {
+//                let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+//                fetchRequest.predicate = NSPredicate(format: "id == %@", id)
+//                fetchRequest.fetchLimit = 1
+//                
+//                if let foundEpisode = try? context.fetch(fetchRequest).first {
+//                    LogManager.shared.info("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
+//                    selectedEpisode = foundEpisode
+//                } else {
+//                    LogManager.shared.error("❌ Could not find episode for id \(id)")
+//                }
+//            }
+//        }
+//        .toast()
     }
     
     @ViewBuilder
@@ -172,24 +266,28 @@ struct ContentView: View {
             if let episode = firstQueueEpisode {
                 let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
-                    HStack {
-                        ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
-                        
-                        VStack(alignment:.leading) {
-                            Text(episode.podcast?.title ?? "Podcast title")
-                                .textDetail()
-                                .lineLimit(1)
+                    Button {
+                        selectedEpisodeForNavigation = episode
+                    } label: {
+                        HStack {
+                            ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
                             
-                            Text(episode.title ?? "Episode title")
-                                .textBody()
-                                .lineLimit(1)
+                            VStack(alignment:.leading) {
+                                Text(episode.podcast?.title ?? "Podcast title")
+                                    .textDetail()
+                                    .lineLimit(1)
+                                
+                                Text(episode.title ?? "Episode title")
+                                    .textBody()
+                                    .lineLimit(1)
+                            }
                         }
+                        .frame(maxWidth:.infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth:.infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedEpisode = episode
-                    }
+//                    .onTapGesture {
+//                        selectedEpisode = episode
+//                    }
                     
                     HStack {
                         Button(action: {
@@ -201,6 +299,7 @@ struct ContentView: View {
                             } else {
                                 Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                                     .contentTransition(.symbolEffect(.replace))
+                                    .foregroundStyle(Color.heading)
                             }
                         }
                         
@@ -211,19 +310,20 @@ struct ContentView: View {
                         }) {
                             Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
                                 .symbolEffect(.rotate.byLayer, options: .nonRepeating.speed(10), value: rotateTrigger)
+                                .foregroundStyle(player.isPlaying ? Color.heading : Color.surface)
                         }
                         .disabled(!player.isPlaying)
+                        .labelStyle(.iconOnly)
                     }
                 }
-                .padding(.leading,4)
-                .padding(.trailing, 8)
+                .padding(8)
                 .frame(maxWidth:.infinity, alignment:.leading)
             } else {
                 HStack {
                     Text("Nothing up next")
                         .textBody()
                         .frame(maxWidth:.infinity, alignment: .leading)
-
+                    
                     ZStack {
                         HStack {
                             Button(action: {
@@ -237,6 +337,7 @@ struct ContentView: View {
                                 Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
                             }
                             .disabled(!player.isPlaying)
+                            .labelStyle(.iconOnly)
                         }
                         .opacity(0)
                         
@@ -245,7 +346,9 @@ struct ContentView: View {
                             .frame(width:29, height:22)
                     }
                 }
-                .padding(.leading,16).padding(.trailing, 8)
+                .padding(.leading, 16)
+                .padding(.trailing,8)
+                .padding(.vertical,16)
                 .frame(maxWidth:.infinity, alignment:.leading)
             }
         }

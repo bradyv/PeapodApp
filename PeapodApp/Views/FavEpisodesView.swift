@@ -78,6 +78,7 @@ struct FavEpisodesView: View {
             }
         }
         .navigationLinkIndicatorVisibility(.hidden)
+        .navigationBarTitleDisplayMode(.large)
         .listStyle(.plain)
         .background(Color.background)
         .scrollDisabled(episodesViewModel.favs.isEmpty)

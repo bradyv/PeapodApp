@@ -11,6 +11,7 @@ import Kingfisher
 
 struct ActivityView: View {
     @Environment(\.managedObjectContext) private var context
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @ObservedObject private var userManager = UserManager.shared
     @State private var statistics = AppStatistics(podcastCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
     @State private var showingUpgrade = false
@@ -21,6 +22,7 @@ struct ActivityView: View {
     @State private var favoriteDayCount: Int = 0
     @State private var weeklyData: [WeeklyListeningData] = []
     @State private var rotationAngle: Double = 0
+    @State private var selectedEpisodeForNavigation: Episode? = nil
     @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default
@@ -250,6 +252,15 @@ struct ActivityView: View {
                             }
                         }
                     }
+                }
+            }
+        }
+        .toolbar {
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                    Spacer()
+                    NowPlayingButton()
                 }
             }
         }

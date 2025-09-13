@@ -46,8 +46,9 @@ struct PodcastSearchView: View {
                 
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
-                        Button {
-                            selectedPodcast = podcast
+                        NavigationLink {
+                            PodcastDetailView(feedUrl: podcast.feedUrl)
+//                            selectedPodcast = podcast
                         } label: {
                             VStack {
                                 FadeInView(delay: Double(index) * 0.05) {
@@ -70,8 +71,9 @@ struct PodcastSearchView: View {
                 
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(Array(topPodcasts.enumerated()), id: \.1.id) { index, podcast in
-                        Button {
-                            selectedPodcast = podcast
+                        NavigationLink {
+                            PodcastDetailView(feedUrl: podcast.feedUrl)
+//                            selectedPodcast = podcast
                         } label: {
                             VStack {
                                 FadeInView(delay: Double(index) * 0.05) {
@@ -178,8 +180,9 @@ struct PodcastSearchView: View {
                         VStack(spacing: 8) {
                             ForEach(results, id: \.id) { podcast in
                                 FadeInView(delay: 0.3) {
-                                    Button {
-                                        selectedPodcast = podcast
+                                    NavigationLink {
+                                        PodcastDetailView(feedUrl: podcast.feedUrl)
+//                                        selectedPodcast = podcast
                                     } label: {
                                         HStack {
                                             ArtworkView(url: podcast.artworkUrl600, size: 44, cornerRadius: 12, tilt: false)
@@ -211,6 +214,7 @@ struct PodcastSearchView: View {
             }
         }
         .frame(maxWidth:.infinity, alignment:.leading)
+        .navigationBarTitleDisplayMode(.large)
         .contentMargins(16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {

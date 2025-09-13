@@ -82,64 +82,31 @@ struct EpisodeView: View {
                     Spacer().frame(height: 8)
                     
                     HStack {
-//                        let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
-//                        Button(action: {
-//                            withAnimation(.easeInOut(duration: 0.3)) {
-//                                player.togglePlayback(for: episode)
-//                            }
-//                        }) {
-//                            Group {
-//                                HStack {
-//                                    if isLoading {
-//                                        PPSpinner(color: Color.white)
-//                                            .transition(.scale.combined(with: .opacity))
-//                                    } else {
-//                                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-//                                            .foregroundStyle(Color.white)
-//                                            .textBody()
-//                                            .transition(.scale.combined(with: .opacity))
-//                                            .contentTransition(.symbolEffect(.replace))
-//                                    }
-//                                    
-//                                    Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen Now")))
-//                                        .foregroundStyle(.white)
-//                                        .textBodyEmphasis()
-//                                        .contentTransition(.interpolate)
-//                                }
-//                                .padding(.horizontal,8)
-//                            }
-//                            .animation(.easeInOut(duration: 0.2), value: isLoading)
-//                            .animation(.easeInOut(duration: 0.2), value: isPlaying)
-//                        }
-//                        .buttonStyle(PPButton(type:.filled, colorStyle:.tinted))
-                        
-                        if !hasStarted {
-                            Button(action: {
-                                if episode.isQueued {
-                                    withAnimation {
-                                        removeFromQueue(episode)
-                                    }
-                                } else {
-                                    withAnimation {
-                                        toggleQueued(episode)
-                                    }
-                                }
-                            }) {
-                                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
-                        } else {
-                            Button(action: {
+                        Button(action: {
+                            if episode.isQueued {
                                 withAnimation {
-                                    player.markAsPlayed(for: episode, manually: true)
+                                    removeFromQueue(episode)
                                 }
-                            }) {
-                                Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
-                                    .contentTransition(.symbolEffect(.replace))
+                            } else {
+                                withAnimation {
+                                    toggleQueued(episode)
+                                }
                             }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                        }) {
+                            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                                .contentTransition(.symbolEffect(.replace))
                         }
+                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                    
+                        Button(action: {
+                            withAnimation {
+                                player.markAsPlayed(for: episode, manually: true)
+                            }
+                        }) {
+                            Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
+                                .contentTransition(.symbolEffect(.replace))
+                        }
+                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         
                         Button(action: {
                             withAnimation {

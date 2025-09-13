@@ -14,6 +14,7 @@ import UserNotifications
 struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject private var userManager = UserManager.shared
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @EnvironmentObject var player: AudioPlayerManager
     @AppStorage("appNotificationsEnabled") private var appNotificationsEnabled: Bool = false
     @State private var systemNotificationsGranted: Bool = false
@@ -30,6 +31,7 @@ struct SettingsView: View {
     @State private var showDebugTools = false
     @State private var showMailErrorAlert = false
     @State private var activeSheet: SheetType?
+    @State private var selectedEpisodeForNavigation: Episode? = nil
     
     enum SheetType: Identifiable {
         case upgrade
@@ -446,6 +448,15 @@ struct SettingsView: View {
                     
                     Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
                         .textDetail()
+                }
+            }
+            .toolbar {
+                if !episodesViewModel.queue.isEmpty {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                        Spacer()
+                        NowPlayingButton()
+                    }
                 }
             }
             .background(Color.background)

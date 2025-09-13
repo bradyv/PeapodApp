@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct LatestEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
@@ -95,9 +96,48 @@ struct LatestEpisodesView: View {
                 .listRowBackground(Color.clear)
         }
         .navigationLinkIndicatorVisibility(.hidden)
+        .navigationBarTitleDisplayMode(.large)
         .listStyle(.plain)
         .background(Color.background)
         .toolbar {
+            ToolbarItem(placement:.largeSubtitle) {
+                Text(selectedPodcast?.id == nil ? "All Podcasts" : "Filtering: \(selectedPodcast?.title ?? "")")
+                    .textMini()
+                    .frame(maxWidth:.infinity, alignment:.leading)
+            }
+            ToolbarItem(placement:.subtitle) {
+                Text(selectedPodcast?.id == nil ? "All Podcasts" : selectedPodcast?.title ?? "")
+                    .textMini()
+            }
+            ToolbarItem(placement:.topBarTrailing) {
+                Menu {
+                    Button(action: {
+                        selectedPodcast = nil
+                    }) {
+                        Text("All Podcasts")
+                    }
+                    
+                    Divider()
+                    
+                    ForEach(uniquePodcasts, id: \.id) { podcast in
+                        Button(action: {
+                            selectedPodcast = podcast
+                        }) {
+                            HStack {
+                                KFImage(URL(string:podcast.image ?? ""))
+                                    .clipShape(Circle())
+                                Text(podcast.title ?? "")
+                                    .lineLimit(1)
+                                if selectedPodcast?.id == podcast.id {
+                                    Image(systemName:"checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName:"line.3.horizontal.decrease")
+                }
+            }
             if !episodesViewModel.queue.isEmpty {
                 ToolbarItemGroup(placement: .bottomBar) {
                     NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)

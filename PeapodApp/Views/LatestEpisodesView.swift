@@ -98,8 +98,12 @@ struct LatestEpisodesView: View {
         .listStyle(.plain)
         .background(Color.background)
         .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                    Spacer()
+                    NowPlayingButton()
+                }
             }
         }
     }

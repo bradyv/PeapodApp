@@ -125,8 +125,12 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
                 }
                 
-                ToolbarItem(placement: .bottomBar) {
-                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                if !episodesViewModel.queue.isEmpty {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                        Spacer()
+                        NowPlayingButton()
+                    }
                 }
             }
             .navigationDestination(item: $selectedEpisodeForNavigation) { episode in

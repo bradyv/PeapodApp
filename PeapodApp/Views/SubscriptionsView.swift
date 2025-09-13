@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct SubscriptionsView: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var selectedEpisodeForNavigation: Episode? = nil
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
@@ -31,8 +32,12 @@ struct SubscriptionsView: View {
         .contentMargins(.horizontal, 16, for: .scrollContent)
         .background(Color.background)
         .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                    Spacer()
+                    NowPlayingButton()
+                }
             }
         }
     }

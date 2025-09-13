@@ -227,8 +227,12 @@ struct PodcastDetailView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                    Spacer()
+                    NowPlayingButton()
+                }
             }
         }
         .onAppear {

@@ -82,8 +82,12 @@ struct FavEpisodesView: View {
         .background(Color.background)
         .scrollDisabled(episodesViewModel.favs.isEmpty)
         .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                    Spacer()
+                    NowPlayingButton()
+                }
             }
         }
     }

@@ -37,7 +37,7 @@ struct EpisodeCell: View {
         let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
         // Podcast Info Row
         HStack(spacing: 16) {
-            PodcastGridItem(podcast: episode.podcast!)
+            EpisodeGridItem(episode: episode)
                 .frame(width:100,height:100)
             
             // Episode Meta

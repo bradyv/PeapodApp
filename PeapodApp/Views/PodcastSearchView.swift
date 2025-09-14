@@ -15,13 +15,14 @@ struct PodcastSearchView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @FocusState private var isTextFieldFocused: Bool
     // Accept external search query binding
-   @Binding var searchQuery: String
+//   @Binding var searchQuery: String
+    @State private var query = ""
    
    // Use computed property for query that syncs with searchQuery
-   private var query: String {
-       get { searchQuery }
-       set { searchQuery = newValue }
-   }
+//   private var query: String {
+//       get { searchQuery }
+//       set { searchQuery = newValue }
+//   }
     @State private var results: [PodcastResult] = []
     @State private var urlFeedPodcast: Podcast?
     @State private var topPodcasts: [PodcastResult] = []
@@ -125,15 +126,16 @@ struct PodcastSearchView: View {
                         
                         VStack(spacing: 8) {
                             FadeInView(delay: 0.3) {
-                                Button {
-                                    let podcastResult = PodcastResult(
-                                        feedUrl: urlPodcast.feedUrl ?? "",
-                                        trackName: urlPodcast.title ?? "Unknown Podcast",
-                                        artistName: urlPodcast.author ?? "Unknown Author",
-                                        artworkUrl600: urlPodcast.image ?? "",
-                                        trackId: urlPodcast.id?.hashValue ?? 0
-                                    )
-                                    selectedPodcast = podcastResult
+                                NavigationLink {
+                                    PodcastDetailView(feedUrl:urlPodcast.feedUrl ?? "")
+//                                    let podcastResult = PodcastResult(
+//                                        feedUrl: urlPodcast.feedUrl ?? "",
+//                                        trackName: urlPodcast.title ?? "Unknown Podcast",
+//                                        artistName: urlPodcast.author ?? "Unknown Author",
+//                                        artworkUrl600: urlPodcast.image ?? "",
+//                                        trackId: urlPodcast.id?.hashValue ?? 0
+//                                    )
+//                                    selectedPodcast = podcastResult
                                 } label: {
                                     HStack {
                                         ArtworkView(url: urlPodcast.image ?? "", size: 44, cornerRadius: 12, tilt: false)
@@ -215,6 +217,8 @@ struct PodcastSearchView: View {
         }
         .frame(maxWidth:.infinity, alignment:.leading)
         .navigationBarTitleDisplayMode(.large)
+        .searchable(text: $query, prompt: "Find a Podcast")
+        .navigationTitle("Find a Podcast")
         .contentMargins(16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {

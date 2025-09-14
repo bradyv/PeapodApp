@@ -32,6 +32,7 @@ extension View {
     func headerSection() -> some View { self.typography(size: 17, weight: .medium).fontWidth(.condensed) }
     func textBody() -> some View { self.typography(size: 17, color: .text).fontWidth(.condensed) }
     func textBodyEmphasis() -> some View { self.typography(size: 17, weight: .medium, color: .text).fontWidth(.condensed) }
+    func textButton() -> some View { self.typography(size: 17, weight: .medium, color: .heading).fontWidth(.condensed) }
     func textDetailEmphasis() -> some View { self.modifier(TextStyle(size: 14, weight: .medium)).fontWidth(.condensed) }
     func textDetail() -> some View { self.modifier(TextStyle(size: 14, color: .text)).fontWidth(.condensed) }
     func textMini() -> some View { self.modifier(TextStyle(size: 13, color: .text)).fontWidth(.condensed) }

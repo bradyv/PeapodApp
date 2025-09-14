@@ -53,7 +53,7 @@ struct EpisodeCell: View {
                 
                 Text(episode.title ?? "Episode title")
                     .foregroundStyle(Color.heading)
-                    .textBody()
+                    .titleCondensed()
                     .lineLimit(1)
                 
                 // Episode Actions
@@ -72,15 +72,17 @@ struct EpisodeCell: View {
                             
                             Text("\(player.getStableRemainingTime(for: episode, pretty: true))")
                                 .contentTransition(.numericText())
+                                .textButton()
                         }
                     }
-                    .buttonStyle(
-                        PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            hierarchical: false
-                        )
-                    )
+                    .buttonStyle(.bordered)
+//                    .buttonStyle(
+//                        PPButton(
+//                            type: .transparent,
+//                            colorStyle: .monochrome,
+//                            hierarchical: false
+//                        )
+//                    )
                     
                     Spacer()
                     
@@ -96,14 +98,17 @@ struct EpisodeCell: View {
                         }
                     }) {
                         Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                            .textButton()
                     }
-                    .buttonStyle(
-                        PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            iconOnly: true
-                        )
-                    )
+                    .buttonStyle(.bordered)
+                    .labelStyle(.iconOnly)
+//                    .buttonStyle(
+//                        PPButton(
+//                            type: .transparent,
+//                            colorStyle: .monochrome,
+//                            iconOnly: true
+//                        )
+//                    )
                     .changeEffect(
                         .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
                           Image(systemName: "heart.fill")
@@ -115,5 +120,27 @@ struct EpisodeCell: View {
         }
         .contentShape(Rectangle())
         .frame(width: frame, alignment: .leading)
+        .contextMenu {
+            Button {
+                if episode.isQueued {
+                    withAnimation {
+                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                    }
+                } else {
+                    withAnimation {
+                        toggleQueued(episode, episodesViewModel: episodesViewModel)
+                    }
+                }
+            } label: {
+                Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage:episode.isQueued ? "archivebox" : "text.append")
+            }
+            Button {
+                withAnimation {
+                    toggleFav(episode)
+                }
+            } label: {
+                Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+            }
+        }
     }
 }

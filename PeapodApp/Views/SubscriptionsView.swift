@@ -50,38 +50,39 @@ struct SubscriptionsRow: View {
     
     var body: some View {
         let frame = (UIScreen.main.bounds.width - 90) / 3
-        VStack(spacing: 8) {
-            
-            NavigationLink {
-                SubscriptionsView()
-                    .navigationTitle("Following")
-            } label: {
-                HStack(alignment: .center) {
-                    Text("Following")
-                        .titleSerifMini()
-                        .padding(.leading)
-                    
-                    Image(systemName: "chevron.right")
-                        .textDetailEmphasis()
+        if !subscriptions.isEmpty {
+            VStack(spacing: 8) {
+                NavigationLink {
+                    SubscriptionsView()
+                        .navigationTitle("Following")
+                } label: {
+                    HStack(alignment: .center) {
+                        Text("Following")
+                            .titleSerifMini()
+                            .padding(.leading)
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 16) {
-                    ForEach(subscriptions, id: \.objectID) { podcast in
-                        NavigationLink {
-                            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                        } label: {
-                            PodcastGridItem(podcast: podcast)
-                                .frame(width: frame, height: frame)
+                
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 16) {
+                        ForEach(subscriptions, id: \.objectID) { podcast in
+                            NavigationLink {
+                                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                            } label: {
+                                PodcastGridItem(podcast: podcast)
+                                    .frame(width: frame, height: frame)
+                            }
                         }
                     }
                 }
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .scrollTargetBehavior(.paging)
+                .scrollIndicators(.hidden)
             }
-            .contentMargins(.horizontal, 16, for: .scrollContent)
-            .scrollTargetBehavior(.paging)
-            .scrollIndicators(.hidden)
         }
     }
 }

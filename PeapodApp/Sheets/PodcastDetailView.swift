@@ -164,6 +164,7 @@ struct PodcastDetailView: View {
                         }
                         .scrollTargetBehavior(.viewAligned)
                         .scrollIndicators(.hidden)
+                        .scrollClipDisabled(true)
                         
                         Spacer().frame(height:24)
                         
@@ -194,6 +195,7 @@ struct PodcastDetailView: View {
                 .scrollEdgeEffectStyle(.soft, for: .all)
                 .coordinateSpace(name: "scroll")
                 .contentMargins(16, for: .scrollContent)
+                .scrollClipDisabled(true)
                 .frame(maxWidth:.infinity)
                 .onAppear {
                     Task.detached(priority: .background) {

@@ -88,28 +88,179 @@ struct ContentView: View {
     }
     
     @ViewBuilder
+    var EmptyHomeView: some View {
+        let window = UIScreen.main.bounds.width - 32
+        ZStack {
+            ScrollView {
+                VStack(alignment:.leading) {
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    Rectangle()
+                        .frame(width:window,height:200)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 32))
+                        .mask(
+                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                           startPoint: .top, endPoint: .bottom)
+                        )
+                    
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    HStack {
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    
+                    Spacer().frame(height:32)
+                    
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    HStack {
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        
+                        VStack(alignment:.leading) {
+                            Rectangle()
+                                .frame(width: 96, height: 12)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                            
+                            Rectangle()
+                                .frame(width: 200, height: 24)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            Rectangle()
+                                .frame(width: 96, height: 40)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    
+                    Spacer().frame(height:32)
+                    
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    HStack {
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        
+                        VStack(alignment:.leading) {
+                            Rectangle()
+                                .frame(width: 96, height: 12)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                            
+                            Rectangle()
+                                .frame(width: 200, height: 24)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            Rectangle()
+                                .frame(width: 96, height: 40)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                }
+                .frame(maxWidth:.infinity,alignment:.leading)
+                .mask(
+                    LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0.35), Color.black.opacity(0)]),
+                                   startPoint: .top, endPoint: .bottom)
+                )
+            }
+            .disabled(subscriptions.isEmpty)
+            
+            VStack(spacing:32) {
+                VStack {
+                    Text("Your library is empty")
+                        .titleCondensed()
+                    
+                    Text("Follow some podcasts to get started.")
+                        .textBody()
+                }
+                
+                VStack(spacing:16) {
+                    NavigationLink {
+                        PodcastSearchView()
+                        
+                    } label: {
+                        Label("Find a Podcast", systemImage: "plus.magnifyingglass")
+                            .padding(.vertical,4)
+                            .foregroundStyle(.white)
+                            .textBodyEmphasis()
+                    }
+                    .buttonStyle(.glassProminent)
+                    
+//                    Button {
+//                        //
+//                    } label: {
+//                        Label("Import OPML", systemImage: "tray.and.arrow.down")
+//                            .padding(.vertical,4)
+//                            .foregroundStyle(Color.accentColor)
+//                            .textBodyEmphasis()
+//                    }
+                }
+            }
+        }
+        .frame(maxWidth:.infinity, alignment:.leading)
+        .padding(.horizontal, 16)
+    }
+    
+    @ViewBuilder
     var HomeView: some View {
         NavigationStack {
             ZStack {
-                MainBackground()
-                
-                ScrollView {
-                    VStack(spacing: 32) {
-                        QueueView(selectedTab: $selectedTab)
-                        LatestEpisodesView(mini:true, maxItems: 5)
-                        FavEpisodesView(mini: true, maxItems: 5)
-                        SubscriptionsRow()
+                if subscriptions.isEmpty {
+                    EmptyHomeView
+                } else {
+                    MainBackground()
+                    
+                    ScrollView {
+                        VStack(spacing: 32) {
+                            QueueView(selectedTab: $selectedTab)
+                            LatestEpisodesView(mini:true, maxItems: 5)
+                            FavEpisodesView(mini: true, maxItems: 5)
+                            SubscriptionsRow()
+                        }
+                        .scrollClipDisabled(true)
                     }
-                    .scrollClipDisabled(true)
                 }
                 
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
-                        PodcastSearchView(searchQuery: $query)
-                            .searchable(text: $query, prompt: "Find a Podcast")
-                            .navigationTitle("Find a Podcast")
+                        PodcastSearchView()
                     } label: {
                         Label("Search", systemImage: "magnifyingglass")
                     }

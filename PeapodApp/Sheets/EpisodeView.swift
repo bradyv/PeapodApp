@@ -95,8 +95,10 @@ struct EpisodeView: View {
                         }) {
                             Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                                 .contentTransition(.symbolEffect(.replace))
+                                .textButton()
                         }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                        .buttonStyle(.bordered)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                     
                         Button(action: {
                             withAnimation {
@@ -105,8 +107,10 @@ struct EpisodeView: View {
                         }) {
                             Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
                                 .contentTransition(.symbolEffect(.replace))
+                                .textButton()
                         }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                        .buttonStyle(.bordered)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         
                         Button(action: {
                             withAnimation {
@@ -120,8 +124,11 @@ struct EpisodeView: View {
                             }
                         }) {
                             Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                                .textButton()
                         }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                        .buttonStyle(.bordered)
+                        .labelStyle(.iconOnly)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
                         .changeEffect(
                             .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
                               Image(systemName: "heart.fill")

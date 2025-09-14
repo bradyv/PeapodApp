@@ -136,16 +136,20 @@ struct EpisodeItem: View {
                             
                             Text("\(player.getStableRemainingTime(for: episode, pretty: true))")
                                 .contentTransition(.numericText())
+                                .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                                .textButton()
                         }
                     }
-                    .buttonStyle(
-                        PPButton(
-                            type: .filled,
-                            colorStyle: .monochrome,
-                            hierarchical: false,
-                            customColors: ButtonCustomColors(foreground: displayedInQueue ? .black : .heading, background: displayedInQueue ? .white : .surface)
-                        )
-                    )
+                    .buttonStyle(.bordered)
+                    .tint(displayedInQueue ? .white : .heading)
+//                    .buttonStyle(
+//                        PPButton(
+//                            type: .filled,
+//                            colorStyle: .monochrome,
+//                            hierarchical: false,
+//                            customColors: ButtonCustomColors(foreground: displayedInQueue ? .black : .heading, background: displayedInQueue ? .white : .surface)
+//                        )
+//                    )
                     
                     if hasStarted {
                         Button(action: {
@@ -155,14 +159,18 @@ struct EpisodeItem: View {
                         }) {
                             Label("Mark as Played", systemImage: "checkmark.circle")
                                 .contentTransition(.symbolEffect(.replace))
+                                .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                                .textButton()
                         }
-                        .buttonStyle(
-                            PPButton(
-                                type: .transparent,
-                                colorStyle: .monochrome,
-                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
-                            )
-                        )
+                        .buttonStyle(.bordered)
+                        .tint(displayedInQueue ? .white : .heading)
+//                        .buttonStyle(
+//                            PPButton(
+//                                type: .transparent,
+//                                colorStyle: .monochrome,
+//                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
+//                            )
+//                        )
                     } else {
                         Button(action: {
                             if episode.isQueued {
@@ -177,14 +185,18 @@ struct EpisodeItem: View {
                         }) {
                             Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
                                 .contentTransition(.symbolEffect(.replace))
+                                .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                                .textButton()
                         }
-                        .buttonStyle(
-                            PPButton(
-                                type: .transparent,
-                                colorStyle: .monochrome,
-                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
-                            )
-                        )
+                        .buttonStyle(.bordered)
+                        .tint(displayedInQueue ? .white : .heading)
+//                        .buttonStyle(
+//                            PPButton(
+//                                type: .transparent,
+//                                colorStyle: .monochrome,
+//                                customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
+//                            )
+//                        )
                     }
                     
                     Spacer()
@@ -201,15 +213,20 @@ struct EpisodeItem: View {
                         }
                     }) {
                         Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                            .foregroundStyle(displayedInQueue ? Color.white : Color.heading)
+                            .textButton()
                     }
-                    .buttonStyle(
-                        PPButton(
-                            type: .transparent,
-                            colorStyle: .monochrome,
-                            iconOnly: true,
-                            customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
-                        )
-                    )
+                    .buttonStyle(.bordered)
+                    .tint(displayedInQueue ? .white : .heading)
+                    .labelStyle(.iconOnly)
+//                    .buttonStyle(
+//                        PPButton(
+//                            type: .transparent,
+//                            colorStyle: .monochrome,
+//                            iconOnly: true,
+//                            customColors: ButtonCustomColors(foreground: displayedInQueue ? Color.white : .heading, background: displayedInQueue ? Color.white.opacity(0.15) : .surface)
+//                        )
+//                    )
                     .changeEffect(
                         .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
                           Image(systemName: "heart.fill")

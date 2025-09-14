@@ -53,8 +53,10 @@ struct QueueView: View {
                                         
                                         if subscriptions.isEmpty {
                                             VStack {
-                                                Button {
-                                                    selectedTab = .search
+                                                NavigationLink {
+                                                    PodcastSearchView()
+                                                    
+//                                                    selectedTab = .search
                                                 } label: {
                                                     Label("Find a Podcast", systemImage: "plus.magnifyingglass")
                                                         .padding(.vertical,4)

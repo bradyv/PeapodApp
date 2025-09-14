@@ -280,15 +280,11 @@ struct ContentView: View {
                 
                 if !episodesViewModel.queue.isEmpty {
                     ToolbarItemGroup(placement: .bottomBar) {
-                        NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                        NowPlayingBar()
                         Spacer()
                         NowPlayingButton()
                     }
                 }
-            }
-            .navigationDestination(item: $selectedEpisodeForNavigation) { episode in
-                EpisodeView(episode: episode)
-                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
             }
         }
     }

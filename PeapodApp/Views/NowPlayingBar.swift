@@ -50,29 +50,24 @@ struct NowPlayingBar: View {
     @EnvironmentObject var player: AudioPlayerManager
     @State private var queue: [Episode] = []
     @State private var episodeID = UUID()
-    @State private var rotateTrigger = false
     @Namespace private var namespace
-    @Binding var selectedEpisodeForNavigation: Episode?
     
     private var firstQueueEpisode: Episode? {
         queue.first
     }
     
     var body: some View {
-       NowPlayingBar
-    }
-    
-    @ViewBuilder
-    var NowPlayingBar: some View {
         VStack(alignment: .leading) {
             if let episode = firstQueueEpisode {
                 let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
-                    Button {
-                        selectedEpisodeForNavigation = episode
+                    NavigationLink {
+                        EpisodeView(episode: episode)
+                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                     } label: {
                         HStack {
                             ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
+                                .matchedGeometryEffect(id: episode.id, in: namespace)
                             
                             VStack(alignment:.leading) {
                                 Text(episode.podcast?.title ?? "Podcast title")
@@ -102,7 +97,6 @@ struct NowPlayingBar: View {
             episodeID = UUID()
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
-            // Refresh queue when Core Data changes
             loadQueue()
         }
         .onAppear {
@@ -113,5 +107,4 @@ struct NowPlayingBar: View {
     private func loadQueue() {
         queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
     }
-
 }

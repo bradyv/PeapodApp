@@ -231,7 +231,7 @@ struct PodcastDetailView: View {
         .toolbar {
             if !episodesViewModel.queue.isEmpty {
                 ToolbarItemGroup(placement: .bottomBar) {
-                    NowPlayingBar(selectedEpisodeForNavigation: $selectedEpisodeForNavigation)
+                    NowPlayingBar()
                     Spacer()
                     NowPlayingButton()
                 }

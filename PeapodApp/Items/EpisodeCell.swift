@@ -37,88 +37,63 @@ struct EpisodeCell: View {
         let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
         // Podcast Info Row
         HStack(spacing: 16) {
-            ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 100, cornerRadius: 16)
-                .matchedTransitionSource(id: episode.id, in: namespace)
+            PodcastGridItem(podcast: episode.podcast!)
+                .frame(width:100,height:100)
             
             // Episode Meta
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(episode.podcast?.title ?? "Podcast title")
-                        .lineLimit(1)
-                        .textDetailEmphasis()
+                    HStack(spacing:4) {
+                        if episode.isPlayed {
+                            ZStack {
+                                Image(systemName:"checkmark.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                    .textMini()
+                            }
+                            .background(Color.background)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.background, lineWidth: 1)
+                            )
+                        }
+                        
+                        Text(episode.podcast?.title ?? "Podcast title")
+                            .lineLimit(1)
+                            .textDetailEmphasis()
+                    }
                     
                     Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                         .textDetail()
                 }
                 
-                Text(episode.title ?? "Episode title")
-                    .foregroundStyle(Color.heading)
-                    .titleCondensed()
-                    .lineLimit(1)
-                
-                // Episode Actions
-                HStack {
-                    // ▶️ Playback Button
-                    Button(action: {
-                        guard !isLoading else { return }
-                        player.togglePlayback(for: episode)
-                    }) {
-                        HStack {
-                            PPCircularPlayButton(
-                                episode: episode,
-                                displayedInQueue: false,
-                                buttonSize: 20
-                            )
-                            
-                            Text("\(player.getStableRemainingTime(for: episode, pretty: true))")
-                                .contentTransition(.numericText())
-                                .textButton()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-//                    .buttonStyle(
-//                        PPButton(
-//                            type: .transparent,
-//                            colorStyle: .monochrome,
-//                            hierarchical: false
-//                        )
-//                    )
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        withAnimation {
-                            let wasFavorite = episode.isFav
-                            toggleFav(episode, episodesViewModel: episodesViewModel)
-                            
-                            // Only increment counter when favoriting (not unfavoriting)
-                            if !wasFavorite && episode.isFav {
-                                favoriteCount += 1
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Line\nLine\nLine")
+                        .titleCondensed()
+                        .lineLimit(3, reservesSpace: true)
+                        .frame(maxWidth: .infinity)
+                        .hidden()
+                        .overlay(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(episode.title ?? "Episode title")
+                                    .titleCondensed()
+                                    .lineLimit(2)
+                                    .layoutPriority(1)
+                                    .multilineTextAlignment(.leading)
+                                
+                                Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: true))
+                                    .textBody()
+                                    .lineLimit(2)
+                                    .layoutPriority(0)
+                                    .multilineTextAlignment(.leading)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                    }) {
-                        Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
-                            .textButton()
-                    }
-                    .buttonStyle(.bordered)
-                    .labelStyle(.iconOnly)
-//                    .buttonStyle(
-//                        PPButton(
-//                            type: .transparent,
-//                            colorStyle: .monochrome,
-//                            iconOnly: true
-//                        )
-//                    )
-                    .changeEffect(
-                        .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
-                          Image(systemName: "heart.fill")
-                            .foregroundStyle(.red)
-                        }, value: favoriteCount)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading) 
         }
-        .contentShape(Rectangle())
         .frame(width: frame, alignment: .leading)
         .contextMenu {
             Button {

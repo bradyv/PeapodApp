@@ -28,12 +28,10 @@ struct FavEpisodesView: View {
     }
     
     var body: some View {
-        Group {
-            if mini {
-                miniView
-            } else {
-                fullView
-            }
+        if mini {
+            miniView
+        } else {
+            fullView
         }
     }
     

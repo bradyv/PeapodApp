@@ -251,12 +251,14 @@ struct ContentView: View {
                             LatestEpisodesView(mini:true, maxItems: 5)
                             FavEpisodesView(mini: true, maxItems: 5)
                             SubscriptionsRow()
+                            Spacer().frame(height:0)
                         }
                         .scrollClipDisabled(true)
                     }
                 }
                 
             }
+//            .background(Color.background)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {

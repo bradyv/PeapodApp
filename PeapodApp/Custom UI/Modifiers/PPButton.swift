@@ -63,7 +63,7 @@ struct PPButton: ButtonStyle {
             if peapodPlus {
                 // Image background for peapodPlus
                 Color.white
-                Image("pro-pattern")
+                Image("plus-pattern")
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else if borderless {

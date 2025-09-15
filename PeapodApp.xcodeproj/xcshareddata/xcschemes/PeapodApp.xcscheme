@@ -75,7 +75,7 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <StoreKitConfigurationFileReference
-         identifier = "../../PeapodApp/PeapodDebug.storekit">
+         identifier = "../../PeapodApp/Purchases.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction

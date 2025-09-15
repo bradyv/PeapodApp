@@ -117,24 +117,6 @@ struct PodcastDetailView: View {
                                     }
                                 }
                                 .padding()
-                                
-                                Divider ()
-                                
-                                NavigationLink {
-                                    PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch)
-                                } label: {
-                                    HStack {
-                                        Text("View All Episodes")
-                                            .foregroundStyle(Color.heading)
-                                            .textBody()
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName:"chevron.right")
-                                            .textBody()
-                                    }
-                                    .padding()
-                                }
                             }
                             .background {
                                 KFImage(URL(string: latestEpisode.episodeImage ?? latestEpisode.podcast?.image ?? ""))
@@ -152,41 +134,41 @@ struct PodcastDetailView: View {
                             .glassEffect(in: .rect(cornerRadius:16))
                         }
                         
-//                        Spacer().frame(height:24)
-//                        
-//                        NavigationLink {
-//                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch)
-//                        } label: {
-//                            HStack(alignment:.center) {
-//                                Text("Episodes")
-//                                    .titleSerifMini()
-//                                
-//                                Image(systemName: "chevron.right")
-//                                    .textDetailEmphasis()
-//                            }
-//                            .frame(maxWidth:.infinity, alignment: .leading)
-//                        }
+                        Spacer().frame(height:24)
                         
-//                        ScrollView(.horizontal) {
-//                            LazyVStack(spacing: 16) {
-//                                ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
-//                                    NavigationLink {
-//                                        EpisodeView(episode:episode)
-//                                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-//                                    } label: {
-//                                        EpisodeItem(episode:episode, showActions: false)
-//                                    }
-//                                }
-//                            }
-//                            .scrollTargetLayout()
-//                        }
-//                        .scrollTargetBehavior(.viewAligned)
-//                        .scrollIndicators(.hidden)
-//                        .scrollClipDisabled(true)
+                        NavigationLink {
+                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch)
+                        } label: {
+                            HStack(alignment:.center) {
+                                Text("Episodes")
+                                    .titleSerifMini()
+                                
+                                Image(systemName: "chevron.right")
+                                    .textDetailEmphasis()
+                            }
+                            .frame(maxWidth:.infinity, alignment: .leading)
+                        }
                         
-//                        Spacer().frame(height:24)
-//                        
-//                        Divider()
+                        ScrollView(.horizontal) {
+                            LazyHStack(spacing: 16) {
+                                ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
+                                    NavigationLink {
+                                        EpisodeView(episode:episode)
+                                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                    } label: {
+                                        EpisodeCell(episode:episode)
+                                    }
+                                }
+                            }
+                            .scrollTargetLayout()
+                        }
+                        .scrollTargetBehavior(.viewAligned)
+                        .scrollIndicators(.hidden)
+                        .scrollClipDisabled(true)
+                        
+                        Spacer().frame(height:24)
+                        
+                        Divider()
                         
                         Spacer().frame(height:32)
                         

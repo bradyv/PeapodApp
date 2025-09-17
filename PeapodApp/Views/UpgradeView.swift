@@ -74,9 +74,16 @@ struct UpgradeView: View {
                     }
                     
                     // Footer Actions
-                    VStack(spacing: 12) {
+                    HStack(spacing: 12) {
                         Button("Privacy Policy") {
                             if let url = URL(string: "https://peapod.fm/privacy") {
+                                openURL(url)
+                            }
+                        }
+                        .textDetail()
+                        
+                        Button("Terms of Use") {
+                            if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
                                 openURL(url)
                             }
                         }

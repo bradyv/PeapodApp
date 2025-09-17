@@ -27,7 +27,7 @@ struct QueueView: View {
             VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        LazyHStack(alignment: .top, spacing: 16) {
+                        HStack(alignment: .top, spacing: 16) {
                             if episodesViewModel.queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
@@ -188,6 +188,60 @@ struct QueueView: View {
                             }
                         }
                     }
+                    .onAppear {
+                        print("QueueView appeared")
+                        print("Current episode: \(player.currentEpisode?.title ?? "none")")
+                        print("Current episode ID: \(player.currentEpisode?.id ?? "none")")
+                        print("Queue count: \(episodesViewModel.queue.count)")
+                        print("Queue episode IDs: \(episodesViewModel.queue.map { $0.id ?? "nil" })")
+                        
+                        if let currentEpisode = player.currentEpisode,
+                           let episodeID = currentEpisode.id {
+                            
+                            let isInQueue = episodesViewModel.queue.contains(where: { $0.id == episodeID })
+                            print("Is current episode in queue: \(isInQueue)")
+                            
+                            if isInQueue {
+                                print("Attempting to scroll to: \(episodeID)")
+                                proxy.scrollTo(episodeID, anchor: .leading)
+                            }
+                        } else {
+                            print("No current episode or no episode ID")
+                        }
+                    }
+                }
+                
+                GeometryReader { geo in
+                    HStack(spacing: 8) {
+                        Spacer()
+                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
+                            let isCurrent = index == Int(scrollOffset)
+                            
+                            VStack {
+                                Capsule()
+                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
+                                    .frame(width: isCurrent ? 18 : 6, height: 6)
+                                    .contentShape(Circle())
+                                    .transition(.opacity)
+                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
+                            }
+                            .frame(height: 44)
+                            .fixedSize()
+                            .onTapGesture {
+                                if let id = episodesViewModel.queue[index].id {
+                                    withAnimation {
+                                        scrollTarget = id
+                                    }
+                                }
+                            }
+                        }
+                        Spacer()
+                    }
+                    .frame(maxWidth: geo.size.width, alignment: .leading)
+                    .clipped()
+                    .padding(.horizontal)
+                    .contentShape(Rectangle())
+                    .opacity(episodesViewModel.queue.count > 1 ? 1 : 0)
                 }
             }
         }

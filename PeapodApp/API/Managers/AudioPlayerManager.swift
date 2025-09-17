@@ -58,6 +58,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     // MARK: - Simplified State Intent
     private var userInitiatedPause = false
     
+    // MARK: - Episode Keys
+    private let currentEpisodeKey = "currentEpisodeID"
+    private let currentPositionKey = "currentPosition"
+    
     // MARK: - Computed Properties (derived from playbackState)
     var currentEpisode: Episode? { playbackState.episode }
     var progress: Double { playbackState.position }
@@ -106,6 +110,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         primePlayer()
         configureRemoteTransportControls()
         setupNotifications()
+        restoreCurrentEpisodeState()
     }
     
     // MARK: - State Management
@@ -119,15 +124,57 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         )
         
         playbackState = newState
+        
+        // Save current episode state when it changes
+        saveCurrentEpisodeState()
     }
     
     private func clearState() {
         LogManager.shared.info("Clearing episode from state: \(playbackState.episode?.title?.prefix(20) ?? "nil") -> nil")
         playbackState = PlaybackState.idle
+        saveCurrentEpisodeState()
+    }
+    
+    private func saveCurrentEpisodeState() {
+        if let episode = playbackState.episode {
+            UserDefaults.standard.set(episode.id, forKey: currentEpisodeKey)
+            UserDefaults.standard.set(playbackState.position, forKey: currentPositionKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: currentEpisodeKey)
+            UserDefaults.standard.removeObject(forKey: currentPositionKey)
+        }
+    }
+
+    // Add this function to restore current episode
+    private func restoreCurrentEpisodeState() {
+        guard let episodeID = UserDefaults.standard.string(forKey: currentEpisodeKey) else { return }
+        
+        // Find the episode in Core Data
+        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@ AND nowPlaying == YES", episodeID)
+        request.fetchLimit = 1
+        
+        do {
+            if let episode = try viewContext.fetch(request).first {
+                let savedPosition = UserDefaults.standard.double(forKey: currentPositionKey)
+                let duration = getActualDuration(for: episode)
+                
+                // Restore the playback state without starting playback
+                updateState(episode: episode, position: savedPosition, duration: duration, isPlaying: false, isLoading: false)
+                
+                LogManager.shared.info("Restored current episode: \(episode.title?.prefix(30) ?? "Episode")")
+            } else {
+                // Episode not found or not marked as nowPlaying - clear the saved state
+                UserDefaults.standard.removeObject(forKey: currentEpisodeKey)
+                UserDefaults.standard.removeObject(forKey: currentPositionKey)
+            }
+        } catch {
+            LogManager.shared.error("Failed to restore current episode: \(error)")
+        }
     }
     
     // MARK: - Core Playback Control
-    func togglePlayback(for episode: Episode) {
+    func togglePlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
         guard let episodeID = episode.id else { return }
         
         LogManager.shared.info("Toggle playback for: \(episode.title?.prefix(30) ?? "Episode")")
@@ -135,29 +182,47 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Handle current episode
         if let currentEpisode = playbackState.episode, currentEpisode.id == episodeID {
             if playbackState.isPlaying {
-                pause() // This sets userInitiatedPause = true
+                pause()
             } else if playbackState.isLoading {
                 LogManager.shared.info("Already loading - ignoring")
             } else {
-                // User explicitly wants to resume
                 userInitiatedPause = false
                 resume()
             }
             return
         }
         
-        // Start new episode (user explicit action)
+        // Start new episode
         userInitiatedPause = false
-        startPlayback(for: episode)
+        startPlayback(for: episode, episodesViewModel: episodesViewModel)
     }
     
-    private func startPlayback(for episode: Episode) {
+    private func startPlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
         guard let episodeID = episode.id,
               let audioURL = episode.audio,
               !audioURL.isEmpty,
               let url = URL(string: audioURL) else {
             LogManager.shared.error("Invalid episode data")
             return
+        }
+        
+        // Add to queue SYNCHRONOUSLY if not already queued
+        if !episode.isQueued {
+            episode.isQueued = true
+            episode.objectWillChange.send()
+            
+            // Update the episodes view model immediately
+            Task { @MainActor in
+                episodesViewModel?.fetchQueue()
+            }
+            
+            // Save to Core Data
+            do {
+                try episode.managedObjectContext?.save()
+            } catch {
+                LogManager.shared.error("Failed to add episode to queue: \(error)")
+                episode.isQueued = false // Revert on failure
+            }
         }
         
         // Get saved position and duration
@@ -186,9 +251,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             
             // Minimal observations only
             self.setupPlayerObservations(for: episodeID)
-            
-            // Move to front of queue
-            self.moveEpisodeToFrontOfQueue(episode)
         }
         
         // Seek if needed
@@ -197,12 +259,18 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         // Start playback - let system handle routing
+        // Start playback - let system handle routing
         await MainActor.run {
-            self.player?.rate = self.playbackSpeed  // Use rate instead of playImmediately
+            self.player?.rate = self.playbackSpeed
             
             episode.nowPlaying = true
             if episode.isPlayed {
                 removeEpisodeFromPlaylist(episode, playlistName: "Played")
+            }
+            
+            // Ensure episode is in queue if it wasn't already
+            if !episode.isQueued {
+                episode.isQueued = true
             }
             
             try? episode.managedObjectContext?.save()
@@ -230,12 +298,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private func resume() {
-        guard let player = player else {
-            // No player? User needs to restart
+        guard let player = player,
+              let currentItem = player.currentItem,
+              currentItem.status == .readyToPlay else {
+            // No valid player/item - restart playback
+            if let episode = playbackState.episode {
+                LogManager.shared.info("No valid player for resume - restarting playback")
+                userInitiatedPause = false
+                Task { @MainActor in
+                    await startPlayback(for: episode)
+                }
+            }
             return
         }
         
-        // Don't check player item status - just tell it to play
+        // Valid player exists, just resume
         userInitiatedPause = false
         player.rate = playbackSpeed
     }
@@ -937,53 +1014,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func setBackwardInterval(_ interval: Double) {
         backwardInterval = interval
-    }
-    
-    private func moveEpisodeToFrontOfQueue(_ episode: Episode) {
-        guard let context = episode.managedObjectContext else { return }
-        
-        queueLock.lock()
-        defer { queueLock.unlock() }
-        
-        episode.objectWillChange.send()
-        
-        // Ensure episode is queued
-        if !episode.isQueued {
-            LogManager.shared.info("Adding episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
-            episode.isQueued = true
-        }
-        
-        // Get current queue order
-        let queue = getQueuedEpisodes(context: context)
-        
-        if queue.first?.id == episode.id {
-            // Already at front, just save to ensure consistency
-            try? context.save()
-            return
-        }
-        
-        // Move to front: remove from current position and insert at 0
-        var reordered = queue.filter { $0.id != episode.id }
-        reordered.insert(episode, at: 0)
-        
-        // Update all positions with immediate UI feedback
-        for (index, ep) in reordered.enumerated() {
-            ep.objectWillChange.send()
-            ep.queuePosition = Int64(index)
-        }
-        
-        do {
-            try context.save()
-            LogManager.shared.info("Moved episode to front of queue: \(episode.title?.prefix(30) ?? "Episode")")
-            
-            Task { @MainActor in
-                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
-            }
-            
-        } catch {
-            LogManager.shared.error("Failed to move episode to front: \(error)")
-            context.rollback()
-        }
     }
 
     private func checkQueueStatusAfterRemoval() {

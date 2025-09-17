@@ -13,30 +13,30 @@ struct NowPlayingButton: View {
     @EnvironmentObject var player: AudioPlayerManager
     @State private var queue: [Episode] = []
     
-    private var firstQueueEpisode: Episode? {
-        queue.first
+    private var displayEpisode: Episode? {
+        // Show currently playing episode, or first queue item if nothing playing
+        return player.currentEpisode ?? queue.first
     }
     
     var body: some View {
-        let episode = firstQueueEpisode
-        
-        Button(action: {
-            player.togglePlayback(for: episode!)
-        }) {
-            if player.isLoading {
-                PPSpinner(color: Color.heading)
-            } else {
-                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(Color.heading)
+        if let episode = displayEpisode {
+            Button(action: {
+                player.togglePlayback(for: episode)
+            }) {
+                if player.isLoadingEpisode(episode) {
+                    PPSpinner(color: Color.heading)
+                } else {
+                    Image(systemName: player.isPlayingEpisode(episode) ? "pause.fill" : "play.fill")
+                        .contentTransition(.symbolEffect(.replace))
+                        .foregroundStyle(Color.heading)
+                }
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
-            // Refresh queue when Core Data changes
-            loadQueue()
-        }
-        .onAppear {
-            loadQueue()
+            .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+                loadQueue()
+            }
+            .onAppear {
+                loadQueue()
+            }
         }
     }
     
@@ -52,13 +52,14 @@ struct NowPlayingBar: View {
     @State private var episodeID = UUID()
     @Namespace private var namespace
     
-    private var firstQueueEpisode: Episode? {
-        queue.first
+    private var displayEpisode: Episode? {
+        // Show currently playing episode, or first queue item if nothing playing
+        return player.currentEpisode ?? queue.first
     }
     
     var body: some View {
         VStack(alignment: .leading) {
-            if let episode = firstQueueEpisode {
+            if let episode = displayEpisode {
                 let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
                 HStack {
                     NavigationLink {
@@ -93,7 +94,7 @@ struct NowPlayingBar: View {
         }
         .frame(maxWidth:.infinity)
         .id(episodeID)
-        .onChange(of: firstQueueEpisode?.id) { _ in
+        .onChange(of: displayEpisode?.id) { _ in
             episodeID = UUID()
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in

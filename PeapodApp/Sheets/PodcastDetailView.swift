@@ -231,9 +231,9 @@ struct PodcastDetailView: View {
         .toolbar {
             if !episodesViewModel.queue.isEmpty {
                 ToolbarItemGroup(placement: .bottomBar) {
-                    NowPlayingBar()
+                    MiniPlayer()
                     Spacer()
-                    NowPlayingButton()
+                    MiniPlayerButton()
                 }
             }
         }

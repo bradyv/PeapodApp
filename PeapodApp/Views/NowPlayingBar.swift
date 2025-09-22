@@ -1,5 +1,5 @@
 //
-//  NowPlayingBar.swift
+//  MiniPlayer.swift
 //  Peapod
 //
 //  Created by Brady Valentino on 2025-03-31.
@@ -8,14 +8,13 @@
 import SwiftUI
 import CoreData
 
-struct NowPlayingButton: View {
-    @Environment(\.managedObjectContext) private var context
+struct MiniPlayerButton: View {
     @EnvironmentObject var player: AudioPlayerManager
-    @State private var queue: [Episode] = []
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     
     private var displayEpisode: Episode? {
         // Show currently playing episode, or first queue item if nothing playing
-        return player.currentEpisode ?? queue.first
+        return player.currentEpisode ?? episodesViewModel.queue.first
     }
     
     var body: some View {
@@ -31,30 +30,19 @@ struct NowPlayingButton: View {
                         .foregroundStyle(Color.heading)
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
-                loadQueue()
-            }
-            .onAppear {
-                loadQueue()
-            }
         }
-    }
-    
-    private func loadQueue() {
-        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
     }
 }
 
-struct NowPlayingBar: View {
-    @Environment(\.managedObjectContext) private var context
+struct MiniPlayer: View {
     @EnvironmentObject var player: AudioPlayerManager
-    @State private var queue: [Episode] = []
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var episodeID = UUID()
     @Namespace private var namespace
     
     private var displayEpisode: Episode? {
         // Show currently playing episode, or first queue item if nothing playing
-        return player.currentEpisode ?? queue.first
+        return player.currentEpisode ?? episodesViewModel.queue.first
     }
     
     var body: some View {
@@ -77,6 +65,7 @@ struct NowPlayingBar: View {
                                     .truncationMode(.tail)
                                 
                                 Text(episode.title ?? "Episode title")
+                                    .foregroundStyle(Color.heading)
                                     .textBody()
                                     .lineLimit(1)
                                     .truncationMode(.tail)
@@ -84,6 +73,7 @@ struct NowPlayingBar: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth:.infinity, alignment: .leading)
                         }
+                        .padding(.trailing,4)
                         .frame(maxWidth:.infinity, alignment: .leading)
                         .contentShape(Rectangle())
                     }
@@ -97,15 +87,5 @@ struct NowPlayingBar: View {
         .onChange(of: displayEpisode?.id) { _ in
             episodeID = UUID()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
-            loadQueue()
-        }
-        .onAppear {
-            loadQueue()
-        }
-    }
-    
-    private func loadQueue() {
-        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
     }
 }

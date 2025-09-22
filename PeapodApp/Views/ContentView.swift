@@ -21,15 +21,10 @@ struct ContentView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
     @State private var selectedTab: Tabs = .listen
-    @State private var queue: [Episode] = []
     @State private var episodeID = UUID()
     @State private var rotateTrigger = false
     @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
-    
-    private var firstQueueEpisode: Episode? {
-        queue.first
-    }
     
     enum Tabs: Hashable {
         case listen
@@ -280,17 +275,13 @@ struct ContentView: View {
                 
                 if !episodesViewModel.queue.isEmpty {
                     ToolbarItemGroup(placement: .bottomBar) {
-                        NowPlayingBar()
+                        MiniPlayer()
                         Spacer()
-                        NowPlayingButton()
+                        MiniPlayerButton()
                     }
                 }
             }
         }
-    }
-    
-    private func loadQueue() {
-        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
     }
     
     // 🚀 UPDATED: Unified refresh method with source tracking and debouncing

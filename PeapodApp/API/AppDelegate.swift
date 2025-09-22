@@ -13,6 +13,7 @@ import FirebaseMessaging
 import FirebaseFunctions
 import CryptoKit
 import AVFoundation
+import StoreKit
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
     static var pendingNotificationEpisodeID: String?
@@ -34,6 +35,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         AppAppearance.setupAppearance()
         UserManager.shared.setupCurrentUser()
+        
+        Task {
+            await SubscriptionManager.shared.loadProducts()
+            await SubscriptionManager.shared.checkSubscriptionStatus()
+        }
         
         configureGlobalAudioSession()
         

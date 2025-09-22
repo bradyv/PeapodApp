@@ -12,339 +12,215 @@ import StoreKit
 class SubscriptionManager: ObservableObject {
     static let shared = SubscriptionManager()
     
+    // MARK: - Published Properties
     @Published var products: [Product] = []
-    @Published var subscriptionProducts: [Product] = []
-    @Published var nonConsumableProducts: [Product] = []
-    @Published var purchasedSubscriptions: [Product] = []
-    @Published var purchasedNonConsumables: [Product] = []
+    @Published var purchasedProducts: [Product] = []
     @Published var isLoading = false
     
-    // UserDefaults keys for subscription status
-    private let isSubscriberKey = "SubscriptionManager.isSubscriber"
-    private let hasLifetimeAccessKey = "SubscriptionManager.hasLifetimeAccess"
-    private let subscriptionPurchaseDateKey = "SubscriptionManager.subscriptionPurchaseDate"
-    private let lifetimePurchaseDateKey = "SubscriptionManager.lifetimePurchaseDate"
-    private let lastEntitlementCheckKey = "SubscriptionManager.lastEntitlementCheck"
-    
-    // Published subscription status (from UserDefaults)
-    @Published var isSubscriberLocal: Bool = false
-    @Published var hasLifetimeAccessLocal: Bool = false
+    // Local subscription status (cached in UserDefaults)
+    @Published var hasSubscription: Bool = false
+    @Published var hasLifetime: Bool = false
     @Published var subscriptionPurchaseDate: Date?
     @Published var lifetimePurchaseDate: Date?
     
-    // Player
-    private let player = AudioPlayerManager.shared
-    
-    // Product IDs from App Store Connect
-    private let subscriptionIDs: Set<String> = [
-        "peapod.plus.annual",
-        "peapod.plus.monthly"
+    // MARK: - Product IDs
+    private let productIDs: Set<String> = [
+        "peapod.monthly",    // Monthly subscription
+        "peapod.lifetime"    // Lifetime purchase
     ]
     
-    private let nonConsumableIDs: Set<String> = [
-        "peapod.plus.lifetime"
-    ]
+    // MARK: - UserDefaults Keys
+    private let hasSubscriptionKey = "hasSubscription"
+    private let hasLifetimeKey = "hasLifetime"
+    private let subscriptionDateKey = "subscriptionPurchaseDate"
+    private let lifetimeDateKey = "lifetimePurchaseDate"
     
-    // Combined product IDs
-    private var allProductIDs: Set<String> {
-        subscriptionIDs.union(nonConsumableIDs)
-    }
+    private var transactionUpdates: Task<Void, Never>?
     
-    private var updates: Task<Void, Never>? = nil
-    
+    // MARK: - Initialization
     private init() {
-        loadSubscriptionStatusFromUserDefaults()
-        updates = observeTransactionUpdates()
+        loadCachedStatus()
+        transactionUpdates = observeTransactionUpdates()
     }
     
     deinit {
-        updates?.cancel()
+        transactionUpdates?.cancel()
     }
     
-    // MARK: - UserDefaults Management
-    
-    private func loadSubscriptionStatusFromUserDefaults() {
-        isSubscriberLocal = UserDefaults.standard.bool(forKey: isSubscriberKey)
-        hasLifetimeAccessLocal = UserDefaults.standard.bool(forKey: hasLifetimeAccessKey)
-        
-        if let purchaseData = UserDefaults.standard.object(forKey: subscriptionPurchaseDateKey) as? Date {
-            subscriptionPurchaseDate = purchaseData
-        }
-        
-        if let lifetimeData = UserDefaults.standard.object(forKey: lifetimePurchaseDateKey) as? Date {
-            lifetimePurchaseDate = lifetimeData
-        }
-        
-//        print("📱 Loaded subscription status from UserDefaults:")
-//        print("   Subscriber: \(isSubscriberLocal)")
-//        print("   Lifetime: \(hasLifetimeAccessLocal)")
-//        print("   Environment: \(currentEnvironment)")
+    // MARK: - Computed Properties
+    var hasPremiumAccess: Bool {
+        hasSubscription || hasLifetime
     }
     
-    private func saveSubscriptionStatusToUserDefaults() {
-        UserDefaults.standard.set(isSubscriberLocal, forKey: isSubscriberKey)
-        UserDefaults.standard.set(hasLifetimeAccessLocal, forKey: hasLifetimeAccessKey)
-        UserDefaults.standard.set(Date(), forKey: lastEntitlementCheckKey)
-        
-        if let date = subscriptionPurchaseDate {
-            UserDefaults.standard.set(date, forKey: subscriptionPurchaseDateKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: subscriptionPurchaseDateKey)
-        }
-        
-        if let date = lifetimePurchaseDate {
-            UserDefaults.standard.set(date, forKey: lifetimePurchaseDateKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: lifetimePurchaseDateKey)
-        }
-        
-        print("💾 Saved subscription status to UserDefaults")
+    var monthlyProduct: Product? {
+        products.first { $0.id == "peapod.monthly" }
     }
     
-    /// Clear all subscription data (useful for testing or user logout)
-    func clearSubscriptionStatus() {
-        isSubscriberLocal = false
-        hasLifetimeAccessLocal = false
-        subscriptionPurchaseDate = nil
-        lifetimePurchaseDate = nil
-        
-        UserDefaults.standard.removeObject(forKey: isSubscriberKey)
-        UserDefaults.standard.removeObject(forKey: hasLifetimeAccessKey)
-        UserDefaults.standard.removeObject(forKey: subscriptionPurchaseDateKey)
-        UserDefaults.standard.removeObject(forKey: lifetimePurchaseDateKey)
-        UserDefaults.standard.removeObject(forKey: lastEntitlementCheckKey)
-        
-        print("🗑️ Cleared all subscription status")
+    var lifetimeProduct: Product? {
+        products.first { $0.id == "peapod.lifetime" }
     }
     
-    // MARK: - Product Loading
+    var relevantPurchaseDate: Date? {
+        lifetimePurchaseDate ?? subscriptionPurchaseDate
+    }
     
+    // MARK: - Public Methods
+    
+    /// Load products from App Store Connect
     func loadProducts() async {
         isLoading = true
         
         do {
-            let storeProducts = try await Product.products(for: allProductIDs)
-            print("Loaded \(storeProducts.count) products from App Store Connect")
+            let storeProducts = try await Product.products(for: productIDs)
             
-            var subscriptions: [Product] = []
-            var nonConsumables: [Product] = []
-            
-            for product in storeProducts {
-                print("Product: \(product.id), Type: \(product.type)")
-                
-                switch product.type {
-                case .autoRenewable:
-                    subscriptions.append(product)
-                case .nonConsumable:
-                    nonConsumables.append(product)
-                default:
-                    print("Unexpected product type: \(product.type)")
-                }
+            // Sort products: monthly first, then lifetime
+            let sortedProducts = storeProducts.sorted { product1, product2 in
+                if product1.id == "peapod.monthly" { return true }
+                if product2.id == "peapod.monthly" { return false }
+                return product1.id < product2.id
             }
             
-            subscriptions.sort { product1, product2 in
-                guard let period1 = product1.subscription?.subscriptionPeriod,
-                      let period2 = product2.subscription?.subscriptionPeriod else {
-                    return false
-                }
-                return period1.value < period2.value
-            }
-            
-            self.products = storeProducts
-            self.subscriptionProducts = subscriptions
-            self.nonConsumableProducts = nonConsumables
+            self.products = sortedProducts
             self.isLoading = false
             
-            print("Subscriptions: \(subscriptions.count)")
-            print("Non-consumables: \(nonConsumables.count)")
-            
+            // Update purchased products
             await updatePurchasedProducts()
             
+            print("✅ Loaded \(products.count) products")
+            
         } catch {
-            print("Failed to load products: \(error)")
+            print("❌ Failed to load products: \(error)")
             self.isLoading = false
         }
     }
     
-    // MARK: - Purchase Management
-    
+    /// Purchase a product
     func purchase(_ product: Product) async throws {
         let result = try await product.purchase()
         
         switch result {
         case .success(let verification):
             let transaction = try checkVerified(verification)
+            
+            // Update purchased products
             await updatePurchasedProducts()
+            
+            // Finish the transaction
             await transaction.finish()
             
-            // Handle purchase - always set subscription status regardless of environment
-            handleSuccessfulPurchase(for: product)
+            print("✅ Purchase completed: \(product.id)")
             
         case .userCancelled:
-            print("User cancelled purchase")
+            print("🚫 User cancelled purchase")
             
         case .pending:
-            print("Purchase is pending")
+            print("⏳ Purchase is pending")
             
         @unknown default:
             break
         }
     }
     
-    private func handleSuccessfulPurchase(for product: Product) {
-        // Set subscription status for all environments (TestFlight and Production)
-        switch product.type {
-        case .autoRenewable:
-            isSubscriberLocal = true
-            subscriptionPurchaseDate = Date()
-            LogManager.shared.info("✅ Subscription purchase completed")
-            
-        case .nonConsumable:
-            hasLifetimeAccessLocal = true
-            lifetimePurchaseDate = Date()
-            LogManager.shared.info("✅ Lifetime purchase completed")
-            
-        default:
-            break
-        }
-        
-        saveSubscriptionStatusToUserDefaults()
-    }
-    
+    /// Restore purchases
     func restorePurchases() async {
         do {
             try await AppStore.sync()
             await updatePurchasedProducts()
+            print("✅ Purchases restored")
         } catch {
-            print("Failed to restore purchases: \(error)")
+            print("❌ Failed to restore purchases: \(error)")
         }
     }
     
-    // MARK: - Subscription Status Updates
-    
-    func updatePurchasedProducts() async {
-        var purchasedSubscriptions: [Product] = []
-        var purchasedNonConsumables: [Product] = []
-        
-        // Check current entitlements from StoreKit
-        for await result in Transaction.currentEntitlements {
-            do {
-                let transaction = try checkVerified(result)
-                print("Found entitlement for: \(transaction.productID)")
-                
-                if let product = products.first(where: { $0.id == transaction.productID }) {
-                    switch product.type {
-                    case .autoRenewable:
-                        purchasedSubscriptions.append(product)
-                    case .nonConsumable:
-                        purchasedNonConsumables.append(product)
-                    default:
-                        break
-                    }
-                }
-                
-            } catch {
-                print("Failed to verify transaction: \(error)")
-            }
-        }
-        
-        self.purchasedSubscriptions = purchasedSubscriptions
-        self.purchasedNonConsumables = purchasedNonConsumables
-        
-        print("Active subscriptions: \(purchasedSubscriptions.count)")
-        print("Owned non-consumables: \(purchasedNonConsumables.count)")
-        
-        // Update local subscription status based on entitlements
-        syncSubscriptionStatusWithEntitlements(
-            hasSubscriptions: !purchasedSubscriptions.isEmpty,
-            hasNonConsumables: !purchasedNonConsumables.isEmpty
-        )
-    }
-    
-    private func syncSubscriptionStatusWithEntitlements(hasSubscriptions: Bool, hasNonConsumables: Bool) {
-        var statusChanged = false
-        
-        // Handle subscription status
-        if hasSubscriptions && !isSubscriberLocal {
-            isSubscriberLocal = true
-            if subscriptionPurchaseDate == nil {
-                subscriptionPurchaseDate = Date()
-            }
-            statusChanged = true
-            LogManager.shared.info("✅ Subscription restored from entitlements")
-        } else if !hasSubscriptions && isSubscriberLocal {
-            isSubscriberLocal = false
-            subscriptionPurchaseDate = nil
-            statusChanged = true
-            print("⚠️ Subscription expired - removed from local status")
-            player.setBackwardInterval(30)
-            player.setForwardInterval(30)
-            player.setPlaybackSpeed(1.0)
-        }
-        
-        // Handle lifetime access
-        if hasNonConsumables && !hasLifetimeAccessLocal {
-            hasLifetimeAccessLocal = true
-            if lifetimePurchaseDate == nil {
-                lifetimePurchaseDate = Date()
-            }
-            statusChanged = true
-            LogManager.shared.info("✅ Lifetime access restored from entitlements")
-        }
-        
-        if statusChanged {
-            saveSubscriptionStatusToUserDefaults()
-        }
-    }
-    
-    // MARK: - Environment Detection
-    
-    private func isRunningInTestFlight() -> Bool {
-        guard let receiptURL = Bundle.main.appStoreReceiptURL else {
-            return false
-        }
-        return receiptURL.lastPathComponent == "sandboxReceipt"
-    }
-    
-    private func isRunningInDebug() -> Bool {
-        #if DEBUG
-        return true
-        #else
-        return false
-        #endif
-    }
-    
-    private var currentEnvironment: String {
-        if isRunningInDebug() {
-            return "debug"
-        } else if isRunningInTestFlight() {
-            return "testflight"
-        } else {
-            return "production"
-        }
-    }
-    
-    // MARK: - Public Status Methods
-    
-    /// Call this when app starts to validate subscription status
-    func validateEnvironment() async {
-        print("🔍 Validating subscription status...")
-        await updatePurchasedProducts()
-        
-        // Give StoreKit time to sync if needed
-        if (isSubscriberLocal || hasLifetimeAccessLocal) && purchasedSubscriptions.isEmpty && purchasedNonConsumables.isEmpty {
-            print("⏳ Waiting for StoreKit sync...")
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            await updatePurchasedProducts()
-        }
-    }
-    
-    /// Force check subscription status and update accordingly
+    /// Check subscription status on app launch
     func checkSubscriptionStatus() async {
         await updatePurchasedProducts()
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Private Methods
+    
+    private func loadCachedStatus() {
+        hasSubscription = UserDefaults.standard.bool(forKey: hasSubscriptionKey)
+        hasLifetime = UserDefaults.standard.bool(forKey: hasLifetimeKey)
+        
+        if let date = UserDefaults.standard.object(forKey: subscriptionDateKey) as? Date {
+            subscriptionPurchaseDate = date
+        }
+        
+        if let date = UserDefaults.standard.object(forKey: lifetimeDateKey) as? Date {
+            lifetimePurchaseDate = date
+        }
+        
+        print("📱 Loaded cached status - Subscription: \(hasSubscription), Lifetime: \(hasLifetime)")
+    }
+    
+    private func saveCachedStatus() {
+        UserDefaults.standard.set(hasSubscription, forKey: hasSubscriptionKey)
+        UserDefaults.standard.set(hasLifetime, forKey: hasLifetimeKey)
+        
+        if let date = subscriptionPurchaseDate {
+            UserDefaults.standard.set(date, forKey: subscriptionDateKey)
+        }
+        
+        if let date = lifetimePurchaseDate {
+            UserDefaults.standard.set(date, forKey: lifetimeDateKey)
+        }
+        
+        print("💾 Saved subscription status")
+    }
+    
+    private func updatePurchasedProducts() async {
+        var activeProducts: [Product] = []
+        var hasActiveSubscription = false
+        var hasLifetimeAccess = false
+        
+        // Check current entitlements
+        for await result in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerified(result)
+                
+                if let product = products.first(where: { $0.id == transaction.productID }) {
+                    activeProducts.append(product)
+                    
+                    if product.type == .autoRenewable {
+                        hasActiveSubscription = true
+                        if subscriptionPurchaseDate == nil {
+                            subscriptionPurchaseDate = transaction.purchaseDate
+                        }
+                    } else if product.type == .nonConsumable {
+                        hasLifetimeAccess = true
+                        if lifetimePurchaseDate == nil {
+                            lifetimePurchaseDate = transaction.purchaseDate
+                        }
+                    }
+                }
+            } catch {
+                print("❌ Failed to verify transaction: \(error)")
+            }
+        }
+        
+        // Update state
+        let subscriptionChanged = hasSubscription != hasActiveSubscription
+        let lifetimeChanged = hasLifetime != hasLifetimeAccess
+        
+        self.purchasedProducts = activeProducts
+        self.hasSubscription = hasActiveSubscription
+        self.hasLifetime = hasLifetimeAccess
+        
+        // Clear subscription date if subscription expired
+        if !hasActiveSubscription && subscriptionChanged {
+            subscriptionPurchaseDate = nil
+        }
+        
+        // Save to UserDefaults if anything changed
+        if subscriptionChanged || lifetimeChanged {
+            saveCachedStatus()
+        }
+        
+        print("📊 Active products: \(activeProducts.count)")
+        print("   Subscription: \(hasSubscription)")
+        print("   Lifetime: \(hasLifetime)")
+    }
     
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
@@ -356,98 +232,55 @@ class SubscriptionManager: ObservableObject {
     }
     
     private func observeTransactionUpdates() -> Task<Void, Never> {
-        Task(priority: .background) { [unowned self] in
+        Task(priority: .background) { [weak self] in
             for await _ in Transaction.updates {
-                await self.updatePurchasedProducts()
+                await self?.updatePurchasedProducts()
             }
         }
     }
     
-    // MARK: - Computed Properties (StoreKit-based)
+    // MARK: - Testing Support
     
-    var hasActiveSubscription: Bool {
-        !purchasedSubscriptions.isEmpty
-    }
-    
-    var hasLifetimeAccess: Bool {
-        !purchasedNonConsumables.isEmpty
-    }
-    
-    var hasPremiumAccess: Bool {
-        hasActiveSubscription || hasLifetimeAccess
-    }
-    
-    // MARK: - Computed Properties (UserDefaults-based)
-    
-    /// Whether user has premium access
-    var hasPremiumAccessLocal: Bool {
-        return isSubscriberLocal || hasLifetimeAccessLocal
-    }
-    
-    /// The relevant purchase date for display
-    var relevantPurchaseDate: Date? {
-        return lifetimePurchaseDate ?? subscriptionPurchaseDate
-    }
-    
-    // MARK: - Product Access
-    
-    var monthlyProduct: Product? {
-        subscriptionProducts.first { product in
-            product.subscription?.subscriptionPeriod.unit == .month
-        }
-    }
-    
-    var annualProduct: Product? {
-        subscriptionProducts.first { product in
-            product.subscription?.subscriptionPeriod.unit == .year
-        }
-    }
-    
-    var lifetimeProduct: Product? {
-        nonConsumableProducts.first
-    }
-    
-    // Legacy tiers for backward compatibility
-    var tiers: [SubscriptionTiers] {
-        return subscriptionProducts.map { product in
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .currency
-            formatter.locale = product.priceFormatStyle.locale
-            
-            let price = formatter.string(from: NSDecimalNumber(decimal: product.price)) ?? ""
-            let term = product.subscription?.subscriptionPeriod.unit == .month ? "Monthly" : "Annual"
-            
-            return SubscriptionTiers(term: term, price: price)
-        }
+    /// Clear all subscription data (for testing)
+    func clearSubscriptionData() {
+        hasSubscription = false
+        hasLifetime = false
+        subscriptionPurchaseDate = nil
+        lifetimePurchaseDate = nil
+        
+        UserDefaults.standard.removeObject(forKey: hasSubscriptionKey)
+        UserDefaults.standard.removeObject(forKey: hasLifetimeKey)
+        UserDefaults.standard.removeObject(forKey: subscriptionDateKey)
+        UserDefaults.standard.removeObject(forKey: lifetimeDateKey)
+        
+        print("🗑️ Cleared all subscription data")
     }
 }
 
 // MARK: - Supporting Types
 
-struct SubscriptionTiers {
-    var term: String
-    var price: String
-    
-    init(term: String, price: String) {
-        self.term = term
-        self.price = price
-    }
-}
-
 enum StoreError: Error {
     case failedVerification
 }
 
-// MARK: - StoreKit Extensions
+// MARK: - Product Extensions
 
-extension Product.SubscriptionPeriod.Unit {
-    var description: String {
-        switch self {
-        case .day: return "Daily"
-        case .week: return "Weekly"
-        case .month: return "Monthly"
-        case .year: return "Annual"
-        @unknown default: return "Unknown"
+extension Product {
+    var formattedPrice: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = priceFormatStyle.locale
+        return formatter.string(from: NSDecimalNumber(decimal: price)) ?? ""
+    }
+    
+    var displayName: String {
+        switch id {
+        case "peapod.monthly":
+            return "Monthly Subscription"
+        case "peapod.lifetime":
+            return "Lifetime Access"
+        default:
+            return displayName
         }
     }
 }

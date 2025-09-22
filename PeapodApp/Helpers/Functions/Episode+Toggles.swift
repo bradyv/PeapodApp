@@ -15,9 +15,6 @@ private let queueLock = NSLock()
     guard let context = episode.managedObjectContext else { return }
 
     if toFront {
-        // Move to front for playback
-        moveEpisodeInQueue(episode, to: 0, episodesViewModel: episodesViewModel)
-        
         if let current = current, current.id != episode.id {
             // Ensure current episode is queued
             if !current.isQueued {

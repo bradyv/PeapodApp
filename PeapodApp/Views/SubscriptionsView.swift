@@ -9,68 +9,80 @@ import SwiftUI
 import Kingfisher
 
 struct SubscriptionsView: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @State private var selectedEpisodeForNavigation: Episode? = nil
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
-    @State private var selectedPodcast: Podcast? = nil
     
     var body: some View {
-        VStack(alignment:.leading) {
-            Text("Following")
-                .titleSerifMini()
-            
-            ZStack(alignment: .topLeading) {
-                // Actual grid with Add button + (possibly empty) real subscriptions
-                LazyVGrid(columns: columns, spacing: 16) {
-                    // Real podcasts - optimized for scroll performance
-                    if !subscriptions.isEmpty {
+        ScrollView {
+            // Actual grid with Add button + (possibly empty) real subscriptions
+            LazyVGrid(columns: columns, spacing: 16) {
+                // Real podcasts - optimized for scroll performance
+                ForEach(subscriptions, id: \.objectID) { podcast in
+                    NavigationLink {
+                        PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                    } label: {
+                        PodcastGridItem(podcast: podcast)
+                    }
+                }
+            }
+        }
+        .contentMargins(.horizontal, 16, for: .scrollContent)
+        .background(Color.background)
+        .toolbar {
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    MiniPlayer()
+                    Spacer()
+                    MiniPlayerButton()
+                }
+            }
+        }
+    }
+}
+
+struct SubscriptionsRow: View {
+    @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
+    var subscriptions: FetchedResults<Podcast>
+    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    
+    var body: some View {
+        let frame = (UIScreen.main.bounds.width - 80) / 3
+        if !subscriptions.isEmpty {
+            VStack(spacing: 8) {
+                NavigationLink {
+                    SubscriptionsView()
+                        .navigationTitle("Following")
+                } label: {
+                    HStack(alignment: .center) {
+                        Text("Following")
+                            .titleSerifMini()
+                            .padding(.leading)
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 16) {
                         ForEach(subscriptions, id: \.objectID) { podcast in
-                            PodcastGridItem(podcast: podcast) {
-                                selectedPodcast = podcast
+                            NavigationLink {
+                                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                            } label: {
+                                PodcastGridItem(podcast: podcast)
+                                    .frame(width: frame, height: frame)
                             }
                         }
                     }
                 }
-
-                // Overlayed placeholder grid, masked as a single unit
-                if subscriptions.isEmpty {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        // Add empty placeholder to maintain grid offset (position 0)
-                        ForEach(0..<6, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.surface)
-                                .aspectRatio(1, contentMode: .fit)
-                                .opacity(0.5)
-                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.surface.opacity(0.5), lineWidth: 1))
-                        }
-                    }
-                    .mask(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .allowsHitTesting(false) // So the overlay doesn't block taps on the real button
-                    
-                    VStack {
-                        Spacer()
-                        Text("Library is empty")
-                            .titleCondensed()
-                        
-                        Text("Follow some podcasts to get started.")
-                            .textBody()
-                        Spacer()
-                    }
-                    .frame(maxWidth:.infinity)
-                }
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .scrollTargetBehavior(.paging)
+                .scrollIndicators(.hidden)
             }
-        }
-        .frame(maxWidth:.infinity)
-        .padding()
-        .sheet(item: $selectedPodcast) { podcast in
-            PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                .modifier(PPSheet())
         }
     }
 }
@@ -78,15 +90,12 @@ struct SubscriptionsView: View {
 // MARK: - Optimized Podcast Grid Item for Scroll Performance
 struct PodcastGridItem: View {
     let podcast: Podcast
-    let onTap: () -> Void
     
     var body: some View {
-        Button(action: onTap) {
-            KFImage(URL(string:podcast.image ?? ""))
-                .resizable()
-                .aspectRatio(1, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-        }
-        .glassEffect(in: .rect(cornerRadius: 24))
+        KFImage(URL(string:podcast.image ?? ""))
+            .resizable()
+            .aspectRatio(1, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .glassEffect(in: .rect(cornerRadius: 24))
     }
 }

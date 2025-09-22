@@ -18,7 +18,6 @@ struct PodcastDetailView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
-    @State private var selectedEpisode: Episode? = nil
     @State var showFullDescription: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var showDebugTools = false
@@ -27,6 +26,8 @@ struct PodcastDetailView: View {
     @State private var showSearch = false
     @State private var isLoading = true
     @State private var loadedPodcast: Podcast? = nil
+    @State private var selectedEpisodeForNavigation: Episode? = nil
+    @Namespace private var namespace
     
     var podcast: Podcast? { loadedPodcast ?? podcastResults.first }
 
@@ -43,8 +44,6 @@ struct PodcastDetailView: View {
     var body: some View {
         Group {
             if let podcast = podcast {
-//                let badFeed = "https://feeds.megaphone.fm/GLT1412515089"
-//                let blockFeed = podcast.feedUrl == badFeed
                 ScrollView {
                     Color.clear
                         .frame(height: 1)
@@ -103,37 +102,19 @@ struct PodcastDetailView: View {
                         }
                         
                         if let latestEpisode = episodes.first {
-                            VStack {
+                            VStack(spacing:0) {
                                 VStack {
                                     Text("Latest Episode")
                                         .titleSerifMini()
                                         .frame(maxWidth:.infinity, alignment:.leading)
                                     
-                                    EpisodeItem(episode: latestEpisode, showActions: true)
-                                        .lineLimit(3)
-                                        .onTapGesture {
-                                            selectedEpisode = latestEpisode
-                                        }
-                                        .contextMenu {
-                                            Button {
-                                                withAnimation {
-                                                    if latestEpisode.isQueued {
-                                                        removeFromQueue(latestEpisode, episodesViewModel: episodesViewModel)
-                                                    } else {
-                                                        toggleQueued(latestEpisode, episodesViewModel: episodesViewModel)
-                                                    }
-                                                }
-                                            } label: {
-                                                Label(latestEpisode.isQueued ? "Archive" : "Add to Up Next", systemImage: latestEpisode.isQueued ? "archivebox" : "text.append")
-                                            }
-                                            Button {
-                                                withAnimation {
-                                                    toggleFav(latestEpisode, episodesViewModel: episodesViewModel)
-                                                }
-                                            } label: {
-                                                Label(latestEpisode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: latestEpisode.isFav ? "heart.slash" : "heart")
-                                            }
-                                        }
+                                    NavigationLink {
+                                        EpisodeView(episode:latestEpisode)
+                                            .navigationTransition(.zoom(sourceID: latestEpisode.id, in: namespace))
+                                    } label: {
+                                        EpisodeItem(episode: latestEpisode, showActions: true)
+                                            .lineLimit(3)
+                                    }
                                 }
                                 .padding()
                             }
@@ -156,7 +137,7 @@ struct PodcastDetailView: View {
                         Spacer().frame(height:24)
                         
                         NavigationLink {
-                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch, selectedEpisode: $selectedEpisode)
+                            PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch)
                         } label: {
                             HStack(alignment:.center) {
                                 Text("Episodes")
@@ -168,41 +149,28 @@ struct PodcastDetailView: View {
                             .frame(maxWidth:.infinity, alignment: .leading)
                         }
                         
-                        LazyVStack(alignment: .leading) {
-                            ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
-                                EpisodeItem(episode: episode, showActions: false)
-                                    .lineLimit(3)
-                                    .padding(.bottom, 24)
-                                    .onTapGesture {
-                                        selectedEpisode = episode
+                        ScrollView(.horizontal) {
+                            LazyHStack(spacing: 16) {
+                                ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
+                                    NavigationLink {
+                                        EpisodeView(episode:episode)
+                                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                    } label: {
+                                        EpisodeCell(episode:episode)
                                     }
-                                    .environmentObject(episodesViewModel)
-                                    .contextMenu {
-                                        Button {
-                                            withAnimation {
-                                                if episode.isQueued {
-                                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                                                } else {
-                                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
-                                                }
-                                            }
-                                        } label: {
-                                            Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                                        }
-                                        Button {
-                                            withAnimation {
-                                                toggleFav(episode, episodesViewModel: episodesViewModel)
-                                            }
-                                        } label: {
-                                            Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
-                                        }
-                                    }
+                                }
                             }
+                            .scrollTargetLayout()
                         }
+                        .scrollTargetBehavior(.viewAligned)
+                        .scrollIndicators(.hidden)
+                        .scrollClipDisabled(true)
+                        
+                        Spacer().frame(height:24)
                         
                         Divider()
                         
-                        Spacer().frame(height:24)
+                        Spacer().frame(height:32)
                         
                         VStack(spacing:8) {
                             Text("About")
@@ -217,25 +185,7 @@ struct PodcastDetailView: View {
                         }
                         .frame(maxWidth:.infinity, alignment:.leading)
                     }
-//                    .if(blockFeed, transform: { $0.blur(radius:16) })
                 }
-//                .disabled(blockFeed)
-//                .overlay {
-//                    if blockFeed {
-//                        VStack(spacing:8) {
-//                            Text("Mics On, Misinformation Off")
-//                                .titleSerifMini()
-//                            
-//                            Text("Find a podcast that doesn’t spread misinformation or promote controversial, unverified content.")
-//                                .textBody()
-//                                .multilineTextAlignment(.center)
-//                                .padding(.horizontal,32)
-//                            
-//                            Text("You can do better.")
-//                                .textBody()
-//                        }
-//                    }
-//                }
                 .background {
                     let frame = UIScreen.main.bounds.width
                     SplashImage(image: podcast.image ?? "")
@@ -245,22 +195,18 @@ struct PodcastDetailView: View {
                 .scrollEdgeEffectStyle(.soft, for: .all)
                 .coordinateSpace(name: "scroll")
                 .contentMargins(16, for: .scrollContent)
+                .scrollClipDisabled(true)
                 .frame(maxWidth:.infinity)
                 .onAppear {
                     Task.detached(priority: .background) {
                         await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                     }
                 }
-                .sheet(item: $selectedEpisode) { episode in
-                    EpisodeView(episode: episode)
-                        .modifier(PPSheet())
-                }
                 .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem {
                         subscribeButton()
-//                            .disabled(blockFeed)
                     }
                 }
                 // 🔥 ADD: Listen for Core Data changes and refresh episodes
@@ -280,6 +226,15 @@ struct PodcastDetailView: View {
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth:.infinity, maxHeight:.infinity)
+            }
+        }
+        .toolbar {
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    MiniPlayer()
+                    Spacer()
+                    MiniPlayerButton()
+                }
             }
         }
         .onAppear {
@@ -322,7 +277,7 @@ struct PodcastDetailView: View {
             self.episodes = result
         }
     }
-    
+
     @ViewBuilder
     var EmptyPodcastView: some View {
         VStack {

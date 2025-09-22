@@ -13,10 +13,10 @@ struct QueueView: View {
     @EnvironmentObject var player: AudioPlayerManager
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
-    @State private var selectedEpisode: Episode? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
     @Binding var selectedTab: ContentView.Tabs
+    @Namespace private var namespace
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -27,7 +27,7 @@ struct QueueView: View {
             VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        LazyHStack(alignment: .top, spacing: 8) {
+                        HStack(alignment: .top, spacing: 16) {
                             if episodesViewModel.queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
@@ -53,8 +53,10 @@ struct QueueView: View {
                                         
                                         if subscriptions.isEmpty {
                                             VStack {
-                                                Button {
-                                                    selectedTab = .search
+                                                NavigationLink {
+                                                    PodcastSearchView()
+                                                    
+//                                                    selectedTab = .search
                                                 } label: {
                                                     Label("Find a Podcast", systemImage: "plus.magnifyingglass")
                                                         .padding(.vertical,4)
@@ -127,11 +129,12 @@ struct QueueView: View {
                                 .frame(width: UIScreen.main.bounds.width, height: 250)
                             } else {
                                 ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
-                                    QueueItemView(episode: episode, index: index) {
-                                        selectedEpisode = episode
-                                    }
-                                    .onTapGesture {
-                                        selectedEpisode = episode
+                                    NavigationLink {
+                                        EpisodeView(episode: episode)
+                                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                    } label: {
+                                        QueueItemView(episode: episode, index: index)
+                                            .matchedTransitionSource(id: episode.id, in: namespace)
                                     }
                                 }
                             }
@@ -185,6 +188,27 @@ struct QueueView: View {
                             }
                         }
                     }
+                    .onAppear {
+                        print("QueueView appeared")
+                        print("Current episode: \(player.currentEpisode?.title ?? "none")")
+                        print("Current episode ID: \(player.currentEpisode?.id ?? "none")")
+                        print("Queue count: \(episodesViewModel.queue.count)")
+                        print("Queue episode IDs: \(episodesViewModel.queue.map { $0.id ?? "nil" })")
+                        
+                        if let currentEpisode = player.currentEpisode,
+                           let episodeID = currentEpisode.id {
+                            
+                            let isInQueue = episodesViewModel.queue.contains(where: { $0.id == episodeID })
+                            print("Is current episode in queue: \(isInQueue)")
+                            
+                            if isInQueue {
+                                print("Attempting to scroll to: \(episodeID)")
+                                proxy.scrollTo(episodeID, anchor: .leading)
+                            }
+                        } else {
+                            print("No current episode or no episode ID")
+                        }
+                    }
                 }
                 
                 GeometryReader { geo in
@@ -222,10 +246,6 @@ struct QueueView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
-        }
     }
 }
 
@@ -240,8 +260,6 @@ struct QueueItemView: View {
     @EnvironmentObject var player: AudioPlayerManager
     let episode: Episode
     let index: Int
-    var onSelect: () -> Void
-    @State private var selectedEpisode: Episode? = nil
     
     var body: some View {
         QueueItem(episode: episode)
@@ -257,7 +275,6 @@ struct QueueItemView: View {
             .scrollTransition { content, phase in
                 content
                     .opacity(phase.isIdentity ? 1 : 0.5)
-                    .scaleEffect(y: phase.isIdentity ? 1 : 0.85)
             }
     }
 }

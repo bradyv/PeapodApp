@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		231644522E77CF4F002B5DB1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 231644512E77CF4F002B5DB1 /* StoreKit.framework */; };
 		2326DF0B2E52776900BCC7C9 /* Pow in Frameworks */ = {isa = PBXBuildFile; productRef = 2326DF0A2E52776900BCC7C9 /* Pow */; };
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
 		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
@@ -57,6 +58,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		231644512E77CF4F002B5DB1 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		23599E2B2D9B895C00F2DE3B /* PeapodApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PeapodApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		23599E402D9B895D00F2DE3B /* PeapodAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PeapodAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		23599E4A2D9B895D00F2DE3B /* PeapodAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PeapodAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -117,6 +119,7 @@
 				239EFB8D2DE2607A0036D6F3 /* FirebaseMessaging in Frameworks */,
 				2326DF0B2E52776900BCC7C9 /* Pow in Frameworks */,
 				239EFB942DE26AE20036D6F3 /* FirebaseFunctions in Frameworks */,
+				231644522E77CF4F002B5DB1 /* StoreKit.framework in Frameworks */,
 				2354DD362DA88968007348BC /* Kingfisher in Frameworks */,
 				2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */,
 				2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */,
@@ -173,6 +176,7 @@
 		239EFDED2DE2D4340036D6F3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				231644512E77CF4F002B5DB1 /* StoreKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -541,7 +545,7 @@
 				CODE_SIGN_ENTITLEMENTS = PeapodApp/PeapodApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 96;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
@@ -559,7 +563,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.02;
 				PRODUCT_BUNDLE_IDENTIFIER = fm.peapod.debug;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -581,7 +585,7 @@
 				CODE_SIGN_ENTITLEMENTS = PeapodApp/PeapodApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 96;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PeapodApp/Info.plist;
@@ -599,7 +603,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.02;
 				PRODUCT_BUNDLE_IDENTIFIER = fm.peapod;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

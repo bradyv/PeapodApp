@@ -29,16 +29,15 @@ class UserManager: ObservableObject {
     
     private init() {
         setupUserObservation()
+        setupSubscriptionObservation()
         loadCurrentUser()
     }
     
     // MARK: - Core Data Observation
     
     private func setupUserObservation() {
-        // Listen for Core Data changes, but only refresh if User entities were affected
         NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange)
             .compactMap { notification -> Notification? in
-                // Only process if User entities were changed
                 let userInfo = notification.userInfo
                 let insertedObjects = userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? Set()
                 let updatedObjects = userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject> ?? Set()
@@ -50,16 +49,57 @@ class UserManager: ObservableObject {
                 return hasUserChanges ? notification : nil
             }
             .sink { [weak self] _ in
-                // Only reload if we haven't just completed initial setup
                 guard let self = self else { return }
                 
-                // Avoid reloading immediately after we just set up the user
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                     self.loadCurrentUser()
                 }
             }
             .store(in: &cancellables)
+    }
+    
+    // MARK: - Subscription Status Observation
+    
+    private func setupSubscriptionObservation() {
+        // Listen for subscription status changes and update Core Data accordingly
+        // Since hasPremiumAccess is computed from hasSubscription || hasLifetime,
+        // we need to observe both underlying properties
+        Publishers.CombineLatest(
+            SubscriptionManager.shared.$hasSubscription,
+            SubscriptionManager.shared.$hasLifetime
+        )
+        .map { hasSubscription, hasLifetime in
+            return hasSubscription || hasLifetime
+        }
+        .removeDuplicates()
+        .sink { [weak self] hasPremium in
+            Task { @MainActor in
+                await self?.updateUserTypeForSubscriptionStatus(hasPremium: hasPremium)
+            }
+        }
+        .store(in: &cancellables)
+    }
+    
+    private func updateUserTypeForSubscriptionStatus(hasPremium: Bool) async {
+        guard let user = currentUser else { return }
+        
+        let targetMemberType: MemberType = hasPremium ? .subscriber : .listener
+        
+        // Only update if the member type actually changed
+        if user.memberType != targetMemberType {
+            user.memberType = targetMemberType
+            
+            // Update the legacy userType field for backward compatibility
+            user.userType = targetMemberType.rawValue
+            
+            saveContextSynchronously()
+            
+            LogManager.shared.info("✅ UserManager: Updated user type to \(targetMemberType.rawValue)")
+            
+            // Refresh the published property
+            self.currentUser = user
+        }
     }
     
     private func loadCurrentUser() {
@@ -79,7 +119,6 @@ class UserManager: ObservableObject {
     
     private var hasCompletedInitialSetup: Bool {
         get {
-            // Check if we've completed setup AND if it's for the current version
             let hasCompleted = UserDefaults.standard.bool(forKey: hasCompletedInitialSetupKey)
             let lastVersion = UserDefaults.standard.string(forKey: lastUserCheckVersionKey)
             return hasCompleted && lastVersion == currentSetupVersion
@@ -121,6 +160,17 @@ class UserManager: ObservableObject {
                 LogManager.shared.info("✅ UserManager: Set userSince for existing user")
             }
             
+            // Sync user type with current subscription status
+            let currentPremiumStatus = SubscriptionManager.shared.hasPremiumAccess
+            let expectedMemberType: MemberType = currentPremiumStatus ? .subscriber : .listener
+            
+            if existingUser.memberType != expectedMemberType {
+                existingUser.memberType = expectedMemberType
+                existingUser.userType = expectedMemberType.rawValue
+                needsSave = true
+                LogManager.shared.info("✅ UserManager: Synced user type to \(expectedMemberType.rawValue)")
+            }
+            
             if needsSave {
                 saveContextSynchronously()
             }
@@ -146,9 +196,9 @@ class UserManager: ObservableObject {
         let newUser = User(context: context)
         newUser.userSince = Date()
         
-        // All new users start as listeners
-        // Note: This userType field may be deprecated in the future
+        // All new users start as listeners (preserving your existing logic)
         newUser.memberType = .listener
+        newUser.userType = MemberType.listener.rawValue
         
         saveContextSynchronously()
         loadCurrentUser() // Refresh the cached user
@@ -166,15 +216,41 @@ class UserManager: ObservableObject {
     
     // MARK: - Subscription Status (delegates to SubscriptionManager)
     
-    /// Whether the user is currently a subscriber
-    var isSubscriber: Bool {
-//        return SubscriptionManager.shared.isSubscriberLocal || SubscriptionManager.shared.hasLifetimeAccessLocal
-        return true
+    /// Whether the user has premium access (subscription or lifetime)
+    var hasPremiumAccess: Bool {
+        return SubscriptionManager.shared.hasPremiumAccess
     }
     
-    /// When the user purchased their subscription
+    /// Whether the user has an active subscription
+    var hasSubscription: Bool {
+        return SubscriptionManager.shared.hasSubscription
+    }
+    
+    /// Whether the user has lifetime access
+    var hasLifetime: Bool {
+        return SubscriptionManager.shared.hasLifetime
+    }
+    
+    /// When the user purchased their subscription/lifetime
     var purchaseDate: Date? {
         return SubscriptionManager.shared.relevantPurchaseDate
+    }
+    
+    /// Display name for the current member type (now reflects actual Core Data state)
+    var memberTypeDisplay: String {
+        // Use the actual Core Data member type, which should be synced with subscription status
+        switch currentUser?.memberType {
+        case .subscriber:
+            if hasLifetime {
+                return "Lifetime Member"
+            } else {
+                return "Subscriber"
+            }
+        case .betaTester:
+            return "Beta Tester"
+        case .listener, .none:
+            return "Listener"
+        }
     }
     
     /// The relevant date for display purposes
@@ -182,18 +258,13 @@ class UserManager: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         
-        if isSubscriber, let purchaseDate = purchaseDate {
+        if hasPremiumAccess, let purchaseDate = purchaseDate {
             return formatter.string(from: purchaseDate)
         } else if let userSince = userSince {
             return formatter.string(from: userSince)
         } else {
             return "Unknown"
         }
-    }
-    
-    /// Display name for the current member type
-    var memberTypeDisplay: String {
-        return isSubscriber ? "Supporter" : "Listener"
     }
     
     /// Formatted string for "Since" display
@@ -207,28 +278,41 @@ class UserManager: ObservableObject {
     
     /// Formatted string for purchase date display
     var formattedPurchaseDate: String {
-        guard let date = purchaseDate else { return "Unknown" }
+        guard let date = purchaseDate else { return "No Purchase" }
         
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: date)
     }
     
-    // MARK: - Legacy Properties (for compatibility - will be removed later)
+    // MARK: - Legacy Properties (for compatibility)
     
-    /// The current user's member type (legacy - consider deprecated)
+    /// The current user's member type from Core Data
     var userType: MemberType? {
         guard let user = currentUser,
               let typeRaw = user.userType,
               let type = MemberType(rawValue: typeRaw) else {
-            return nil
+            return .listener // Default to listener
         }
         return type
     }
     
-    /// Whether the user is a listener (legacy - will always be true for non-subscribers)
+    /// Whether the user is a listener (now based on Core Data, synced with subscription)
     var isListener: Bool {
-        return !isSubscriber
+        return currentUser?.memberType == .listener
+    }
+    
+    /// Whether the user is a subscriber (now based on Core Data, synced with subscription)
+    var isSubscriber: Bool {
+        return currentUser?.memberType == .subscriber
+    }
+    
+    // MARK: - Manual Sync Method
+    
+    /// Force sync user type with current subscription status
+    func syncWithSubscriptionStatus() async {
+        let hasPremium = SubscriptionManager.shared.hasPremiumAccess
+        await updateUserTypeForSubscriptionStatus(hasPremium: hasPremium)
     }
     
     // MARK: - Helper Methods

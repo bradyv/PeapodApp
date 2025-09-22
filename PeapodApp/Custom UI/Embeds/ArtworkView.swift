@@ -27,3 +27,15 @@ struct ArtworkView: View {
             .rotationEffect(.degrees(tilt ? 2 : 0))
     }
 }
+
+struct EpisodeGridItem: View {
+    let episode: Episode
+    
+    var body: some View {
+        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+            .resizable()
+            .aspectRatio(1, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .glassEffect(in: .rect(cornerRadius: 24))
+    }
+}

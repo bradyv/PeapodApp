@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 import CoreData
 import CloudKit
+import UniformTypeIdentifiers
 
 struct WelcomeView: View {
     @Environment(\.managedObjectContext) private var context
@@ -48,7 +49,12 @@ struct WelcomeView: View {
         .animation(.easeInOut, value: appStateManager.currentOnboardingStep)
         .fileImporter(
             isPresented: $showFileBrowser,
-            allowedContentTypes: [.xml, .plainText],
+            allowedContentTypes: [
+                .xml,
+                .plainText,
+                UTType(filenameExtension: "opml") ?? .xml,
+                UTType(mimeType: "text/x-opml") ?? .xml
+            ],
             allowsMultipleSelection: false
         ) { result in
             do {

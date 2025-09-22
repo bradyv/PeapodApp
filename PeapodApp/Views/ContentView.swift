@@ -21,13 +21,10 @@ struct ContentView: View {
     @State private var selectedEpisode: Episode? = nil
     @State private var query = ""
     @State private var selectedTab: Tabs = .listen
-    @State private var queue: [Episode] = []
     @State private var episodeID = UUID()
     @State private var rotateTrigger = false
-    
-    private var firstQueueEpisode: Episode? {
-        queue.first
-    }
+    @State private var selectedEpisodeForNavigation: Episode? = nil
+    @Namespace private var namespace
     
     enum Tabs: Hashable {
         case listen
@@ -46,224 +43,245 @@ struct ContentView: View {
             .transition(.opacity)
             
         case .main:
-            Peapod
+            HomeView
                 .transition(.opacity)
+                .onAppear {
+                    checkPendingNotification()
+                }
+                .onChange(of: scenePhase) { oldPhase, newPhase in
+                    if newPhase == .active {
+                        // Clear badge when app becomes active
+                        UNUserNotificationCenter.current().setBadgeCount(0)
+                        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+                        
+                        // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
+                        let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
+                        if timeSinceLastRefresh > 30 {
+                            LogManager.shared.info("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                            forceRefreshPodcasts()
+                        } else {
+                            LogManager.shared.info("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
+                        }
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
+                    if let id = notification.object as? String {
+                        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                        fetchRequest.predicate = NSPredicate(format: "id == %@", id)
+                        fetchRequest.fetchLimit = 1
+                        
+                        if let foundEpisode = try? context.fetch(fetchRequest).first {
+                            LogManager.shared.info("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
+                            selectedEpisode = foundEpisode
+                        } else {
+                            LogManager.shared.error("❌ Could not find episode for id \(id)")
+                        }
+                    }
+                }
+                .toast()
         }
     }
     
     @ViewBuilder
-    var Peapod: some View {
-        TabView(selection: $selectedTab) {
-            Tab("Listen", systemImage: "play.square.stack", value: .listen) {
-                NavigationStack {
-                    ZStack {
-                        MainBackground()
-                        
-                        ScrollView {
-                            QueueView(selectedTab: $selectedTab)
-                            LatestEpisodesView(mini: true, maxItems: 3)
-                        }
-                    }
-                    .scrollEdgeEffectStyle(.soft, for: .all)
-                    .background(Color.background)
-                    .navigationTitle("Listen")
-                    .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            NavigationLink {
-                                SettingsView()
-                            } label: {
-                                Label("Settings", systemImage: "person.crop.circle")
-                            }
-                            .labelStyle(.iconOnly)
-                        }
-                    }
-                }
-            }
-            
-            Tab("Library", systemImage: "circle.grid.3x3", value: .library) {
-                NavigationStack {
-                    ScrollView {
-                        SubscriptionsView()
-                        FavEpisodesView(mini: true, maxItems: 3)
-                    }
-                    .background(Color.background)
-                    .scrollEdgeEffectStyle(.soft, for: .all)
-                    .navigationTitle("Library")
-                    .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            NavigationLink {
-                               SettingsView()
-                           } label: {
-                               Label("Settings", systemImage: "person.crop.circle")
-                           }
-                           .labelStyle(.iconOnly)
-                        }
-                    }
-                }
-            }
-            
-            Tab("Search", systemImage: "plus.magnifyingglass", value: .search, role: .search) {
-                NavigationStack {
-                    PodcastSearchView(searchQuery: $query)
-                        .searchable(text: $query, prompt: "Find a Podcast")
-                        .navigationTitle("Find a Podcast")
-                        .toolbar {
-                            ToolbarItem(placement: .primaryAction) {
-                                NavigationLink {
-                                   SettingsView()
-                               } label: {
-                                   Label("Settings", systemImage: "person.crop.circle")
-                               }
-                               .labelStyle(.iconOnly)
-                            }
-                        }
-                }
-                .scrollEdgeEffectStyle(.soft, for: .all)
-            }
-        }
-        .tabViewBottomAccessory {
-            NowPlayingBar
-        }
-        .tabBarMinimizeBehavior(.onScrollDown)
-        .sheet(item: $selectedEpisode) { episode in
-            EpisodeView(episode: episode)
-                .modifier(PPSheet())
-        }
-        .onAppear {
-            checkPendingNotification()
-        }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .active {
-                // Clear badge when app becomes active
-                UNUserNotificationCenter.current().setBadgeCount(0)
-                UNUserNotificationCenter.current().removeAllDeliveredNotifications()
-                
-                // 🚀 NEW: Only refresh if it's been more than 30 seconds since last refresh
-                let timeSinceLastRefresh = Date().timeIntervalSince(lastRefreshDate)
-                if timeSinceLastRefresh > 30 {
-                    LogManager.shared.info("📱 App foregrounding - refreshing (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-                    forceRefreshPodcasts()
-                } else {
-                    LogManager.shared.info("📱 App foregrounding - skipping refresh (last refresh: \(String(format: "%.1f", timeSinceLastRefresh))s ago)")
-                }
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .didTapEpisodeNotification)) { notification in
-            if let id = notification.object as? String {
-                let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                fetchRequest.predicate = NSPredicate(format: "id == %@", id)
-                fetchRequest.fetchLimit = 1
-                
-                if let foundEpisode = try? context.fetch(fetchRequest).first {
-                    LogManager.shared.info("✅ Opening episode from notification: \(foundEpisode.title ?? "Unknown")")
-                    selectedEpisode = foundEpisode
-                } else {
-                    LogManager.shared.error("❌ Could not find episode for id \(id)")
-                }
-            }
-        }
-        .toast()
-    }
-    
-    @ViewBuilder
-    var NowPlayingBar: some View {
-        
-        Group {
-            if let episode = firstQueueEpisode {
-                let artwork = episode.episodeImage ?? episode.podcast?.image ?? ""
-                HStack {
-                    HStack {
-                        ArtworkView(url: artwork, size: 36, cornerRadius: 18, tilt: false)
-                        
-                        VStack(alignment:.leading) {
-                            Text(episode.podcast?.title ?? "Podcast title")
-                                .textDetail()
-                                .lineLimit(1)
-                            
-                            Text(episode.title ?? "Episode title")
-                                .textBody()
-                                .lineLimit(1)
-                        }
-                    }
-                    .frame(maxWidth:.infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedEpisode = episode
-                    }
+    var EmptyHomeView: some View {
+        let window = UIScreen.main.bounds.width - 32
+        ZStack {
+            ScrollView {
+                VStack(alignment:.leading) {
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    Rectangle()
+                        .frame(width:window,height:200)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 32))
+                        .mask(
+                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                           startPoint: .top, endPoint: .bottom)
+                        )
+                    
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     
                     HStack {
-                        Button(action: {
-                            player.togglePlayback(for: episode)
-                            print("Playing episode")
-                        }) {
-                            if player.isLoading {
-                                PPSpinner(color: Color.heading)
-                            } else {
-                                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                        }
-                        
-                        Button(action: {
-                            rotateTrigger.toggle()
-                            player.skipForward(seconds: player.forwardInterval)
-                            print("Seeking forward")
-                        }) {
-                            Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-                                .symbolEffect(.rotate.byLayer, options: .nonRepeating.speed(10), value: rotateTrigger)
-                        }
-                        .disabled(!player.isPlaying)
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
-                }
-                .padding(.leading,4)
-                .padding(.trailing, 8)
-                .frame(maxWidth:.infinity, alignment:.leading)
-            } else {
-                HStack {
-                    Text("Nothing up next")
-                        .textBody()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-
-                    ZStack {
-                        HStack {
-                            Button(action: {
-                            }) {
-                                Image(systemName: "play.fill")
-                            }
-                            .disabled(player.isPlaying)
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    
+                    Spacer().frame(height:32)
+                    
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    HStack {
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        
+                        VStack(alignment:.leading) {
+                            Rectangle()
+                                .frame(width: 96, height: 12)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
                             
-                            Button(action: {
-                            }) {
-                                Label("Go forward", systemImage: "\(String(format: "%.0f", player.forwardInterval)).arrow.trianglehead.clockwise")
-                            }
-                            .disabled(!player.isPlaying)
+                            Rectangle()
+                                .frame(width: 200, height: 24)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            Rectangle()
+                                .frame(width: 96, height: 40)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(Capsule())
                         }
-                        .opacity(0)
-                        
-                        Image("peapod-mark")
-                            .resizable()
-                            .frame(width:29, height:22)
                     }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    
+                    Spacer().frame(height:32)
+                    
+                    Rectangle()
+                        .frame(width: 96, height: 24)
+                        .foregroundStyle(Color.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    HStack {
+                        Rectangle()
+                            .frame(width: window / 3, height: window / 3)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        
+                        VStack(alignment:.leading) {
+                            Rectangle()
+                                .frame(width: 96, height: 12)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                            
+                            Rectangle()
+                                .frame(width: 200, height: 24)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            Rectangle()
+                                .frame(width: 96, height: 40)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
                 }
-                .padding(.leading,16).padding(.trailing, 8)
-                .frame(maxWidth:.infinity, alignment:.leading)
+                .frame(maxWidth:.infinity,alignment:.leading)
+                .mask(
+                    LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0.35), Color.black.opacity(0)]),
+                                   startPoint: .top, endPoint: .bottom)
+                )
+            }
+            .disabled(subscriptions.isEmpty)
+            
+            VStack(spacing:32) {
+                VStack {
+                    Text("Your library is empty")
+                        .titleCondensed()
+                    
+                    Text("Follow some podcasts to get started.")
+                        .textBody()
+                }
+                
+                VStack(spacing:16) {
+                    NavigationLink {
+                        PodcastSearchView()
+                        
+                    } label: {
+                        Label("Find a Podcast", systemImage: "plus.magnifyingglass")
+                            .padding(.vertical,4)
+                            .foregroundStyle(.white)
+                            .textBodyEmphasis()
+                    }
+                    .buttonStyle(.glassProminent)
+                    
+//                    Button {
+//                        //
+//                    } label: {
+//                        Label("Import OPML", systemImage: "tray.and.arrow.down")
+//                            .padding(.vertical,4)
+//                            .foregroundStyle(Color.accentColor)
+//                            .textBodyEmphasis()
+//                    }
+                }
             }
         }
-        .id(episodeID)
-        .onChange(of: firstQueueEpisode?.id) { _ in
-            episodeID = UUID()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
-            // Refresh queue when Core Data changes
-            loadQueue()
-        }
-        .onAppear {
-            loadQueue()
-        }
+        .frame(maxWidth:.infinity, alignment:.leading)
+        .padding(.horizontal, 16)
     }
     
-    private func loadQueue() {
-        queue = fetchEpisodesInPlaylist(named: "Queue", context: context)
+    @ViewBuilder
+    var HomeView: some View {
+        NavigationStack {
+            ZStack {
+                if subscriptions.isEmpty {
+                    EmptyHomeView
+                } else {
+                    MainBackground()
+                    
+                    ScrollView {
+                        VStack(spacing: 32) {
+                            QueueView(selectedTab: $selectedTab)
+                            LatestEpisodesView(mini:true, maxItems: 5)
+                            FavEpisodesView(mini: true, maxItems: 5)
+                            SubscriptionsRow()
+                            Spacer().frame(height:0)
+                        }
+                        .scrollClipDisabled(true)
+                    }
+                }
+                
+            }
+//            .background(Color.background)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        PodcastSearchView()
+                    } label: {
+                        Label("Search", systemImage: "magnifyingglass")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Settings", systemImage: "person.crop.circle")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+                
+                if !episodesViewModel.queue.isEmpty {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        MiniPlayer()
+                        Spacer()
+                        MiniPlayerButton()
+                    }
+                }
+            }
+        }
     }
     
     // 🚀 UPDATED: Unified refresh method with source tracking and debouncing

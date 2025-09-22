@@ -29,6 +29,10 @@ struct EpisodeView: View {
         player.isLoadingEpisode(episode)
     }
     
+    private var hasStarted: Bool {
+        isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
+    }
+    
     var body: some View {
         
         ScrollView {
@@ -51,20 +55,24 @@ struct EpisodeView: View {
                         .multilineTextAlignment(.center)
                     
                     HStack {
-                        HStack {
-                            ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
-                            
-                            Text(episode.podcast?.title ?? "Podcast title")
-                                .lineLimit(1)
-                                .textDetailEmphasis()
-                        }
-                        .onTapGesture {
-                            selectedPodcast = episode.podcast
-                        }
-                        .sheet(item: $selectedPodcast) { podcast in
+                        NavigationLink {
                             PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                                .modifier(PPSheet())
+                        } label: {
+                            HStack {
+                                ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
+                                
+                                Text(episode.podcast?.title ?? "Podcast title")
+                                    .lineLimit(1)
+                                    .textDetailEmphasis()
+                            }
                         }
+//                        .onTapGesture {
+//                            selectedPodcast = episode.podcast
+//                        }
+//                        .sheet(item: $selectedPodcast) { podcast in
+//                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+//                                .modifier(PPSheet())
+//                        }
                         
                         Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                             .textDetail()
@@ -74,26 +82,24 @@ struct EpisodeView: View {
                     Spacer().frame(height: 8)
                     
                     HStack {
-                        let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || episode.playbackPosition > 0
-                        
-                        if !hasStarted {
-                            Button(action: {
-                                if episode.isQueued {
-                                    withAnimation {
-                                        removeFromQueue(episode)
-                                    }
-                                } else {
-                                    withAnimation {
-                                        toggleQueued(episode)
-                                    }
+                        Button(action: {
+                            if episode.isQueued {
+                                withAnimation {
+                                    removeFromQueue(episode)
                                 }
-                            }) {
-                                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                                    .contentTransition(.symbolEffect(.replace))
+                            } else {
+                                withAnimation {
+                                    toggleQueued(episode)
+                                }
                             }
-                            .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                        }) {
+                            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                                .contentTransition(.symbolEffect(.replace))
+                                .textButton()
                         }
-                        
+                        .buttonStyle(.bordered)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                    
                         Button(action: {
                             withAnimation {
                                 player.markAsPlayed(for: episode, manually: true)
@@ -101,8 +107,10 @@ struct EpisodeView: View {
                         }) {
                             Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
                                 .contentTransition(.symbolEffect(.replace))
+                                .textButton()
                         }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
+                        .buttonStyle(.bordered)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         
                         Button(action: {
                             withAnimation {
@@ -116,8 +124,11 @@ struct EpisodeView: View {
                             }
                         }) {
                             Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                                .textButton()
                         }
-                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                        .buttonStyle(.bordered)
+                        .labelStyle(.iconOnly)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
                         .changeEffect(
                             .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
                               Image(systemName: "heart.fill")
@@ -217,7 +228,7 @@ struct EpisodeView: View {
                                     .contentTransition(.symbolEffect(.replace))
                             }
                             
-                            Text(isPlaying ? "Pause" : "Listen Now")
+                            Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen Now")))
                                 .foregroundStyle(.white)
                                 .textBodyEmphasis()
                                 .contentTransition(.interpolate)

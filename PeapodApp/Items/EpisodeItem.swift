@@ -154,6 +154,9 @@ struct EpisodeItem: View {
                     if hasStarted {
                         Button(action: {
                             withAnimation {
+                                if episode.isQueued {
+                                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                                }
                                 player.markAsPlayed(for: episode, manually: true)
                             }
                         }) {

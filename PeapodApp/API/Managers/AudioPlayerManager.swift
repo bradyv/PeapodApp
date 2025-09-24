@@ -778,20 +778,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         }
         
-        // Remove from queue if episode was just marked as played (not unmarked)
-        if !wasPlayed && episode.isPlayed {
-            LogManager.shared.info("Removing manually marked episode from queue")
-            
-            Task { @MainActor in
-                removeFromQueue(episode)
-            }
-            
-            // Check if we need to clear player state after queue removal
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.checkQueueStatusAfterRemoval()
-            }
-        }
-        
         do {
             try context.save()
             LogManager.shared.info("Manual mark as played completed")

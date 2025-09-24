@@ -27,7 +27,7 @@ struct QueueView: View {
             VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        HStack(alignment: .top, spacing: 16) {
+                        HStack(alignment: .top, spacing: 8) {
                             if episodesViewModel.queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in
@@ -211,38 +211,38 @@ struct QueueView: View {
                     }
                 }
                 
-                GeometryReader { geo in
-                    HStack(spacing: 8) {
-                        Spacer()
-                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
-                            let isCurrent = index == Int(scrollOffset)
-                            
-                            VStack {
-                                Capsule()
-                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
-                                    .frame(width: isCurrent ? 18 : 6, height: 6)
-                                    .contentShape(Circle())
-                                    .transition(.opacity)
-                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
-                            }
-                            .frame(height: 44)
-                            .fixedSize()
-                            .onTapGesture {
-                                if let id = episodesViewModel.queue[index].id {
-                                    withAnimation {
-                                        scrollTarget = id
-                                    }
-                                }
-                            }
-                        }
-                        Spacer()
-                    }
-                    .frame(maxWidth: geo.size.width, alignment: .leading)
-                    .clipped()
-                    .padding(.horizontal)
-                    .contentShape(Rectangle())
-                    .opacity(episodesViewModel.queue.count > 1 ? 1 : 0)
-                }
+//                GeometryReader { geo in
+//                    HStack(spacing: 8) {
+//                        Spacer()
+//                        ForEach(episodesViewModel.queue.indices, id: \.self) { index in
+//                            let isCurrent = index == Int(scrollOffset)
+//                            
+//                            VStack {
+//                                Capsule()
+//                                    .fill(isCurrent ? Color.heading : Color.heading.opacity(0.3))
+//                                    .frame(width: isCurrent ? 18 : 6, height: 6)
+//                                    .contentShape(Circle())
+//                                    .transition(.opacity)
+//                                    .animation(.easeOut(duration: 0.3), value: isCurrent)
+//                            }
+//                            .frame(height: 44)
+//                            .fixedSize()
+//                            .onTapGesture {
+//                                if let id = episodesViewModel.queue[index].id {
+//                                    withAnimation {
+//                                        scrollTarget = id
+//                                    }
+//                                }
+//                            }
+//                        }
+//                        Spacer()
+//                    }
+//                    .frame(maxWidth: geo.size.width, alignment: .leading)
+//                    .clipped()
+//                    .padding(.horizontal)
+//                    .contentShape(Rectangle())
+//                    .opacity(episodesViewModel.queue.count > 1 ? 1 : 0)
+//                }
             }
         }
         .frame(maxWidth: .infinity)

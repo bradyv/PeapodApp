@@ -78,9 +78,10 @@ struct SubscriptionsRow: View {
                             }
                         }
                     }
+                    .scrollTargetLayout()
                 }
                 .contentMargins(.horizontal, 16, for: .scrollContent)
-                .scrollTargetBehavior(.paging)
+                .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)
             }
         }

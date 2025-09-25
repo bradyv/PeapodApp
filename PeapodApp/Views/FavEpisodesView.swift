@@ -73,6 +73,7 @@ struct FavEpisodesView: View {
             } else {
                 episodesList
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
         }
         .navigationLinkIndicatorVisibility(.hidden)
@@ -98,7 +99,7 @@ struct FavEpisodesView: View {
                 EpisodeView(episode:episode)
                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
             } label: {
-                EpisodeItem(episode: episode, showActions: false)
+                EpisodeCell(episode: episode)
                     .lineLimit(3)
                     .swipeActions(edge: .trailing) {
                         Button {
@@ -129,6 +130,7 @@ struct FavEpisodesView: View {
                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                 } label: {
                     EpisodeCell(episode: episode)
+                        .frame(width: UIScreen.main.bounds.width - 48)
                 }
             }
         }

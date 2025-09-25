@@ -253,7 +253,6 @@ struct ContentView: View {
                 }
                 
             }
-//            .background(Color.background)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {

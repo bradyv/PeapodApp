@@ -101,41 +101,6 @@ struct PodcastDetailView: View {
                             }
                         }
                         
-                        if let latestEpisode = episodes.first {
-                            VStack(spacing:0) {
-                                VStack {
-                                    Text("Latest Episode")
-                                        .titleSerifMini()
-                                        .frame(maxWidth:.infinity, alignment:.leading)
-                                    
-                                    NavigationLink {
-                                        EpisodeView(episode:latestEpisode)
-                                            .navigationTransition(.zoom(sourceID: latestEpisode.id, in: namespace))
-                                    } label: {
-                                        EpisodeItem(episode: latestEpisode, showActions: true)
-                                            .lineLimit(3)
-                                    }
-                                }
-                                .padding()
-                            }
-                            .background {
-                                KFImage(URL(string: latestEpisode.episodeImage ?? latestEpisode.podcast?.image ?? ""))
-                                    .resizable()
-                                    .aspectRatio(contentMode:.fill)
-                                    .blur(radius:50)
-                                    .mask(
-                                        LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                                       startPoint: .top, endPoint: .bottom)
-                                    )
-                                    .offset(y:-128)
-                                    .opacity(0.5)
-                            }
-                            .clipShape(RoundedRectangle(cornerRadius:16))
-                            .glassEffect(in: .rect(cornerRadius:16))
-                        }
-                        
-                        Spacer().frame(height:24)
-                        
                         NavigationLink {
                             PodcastEpisodeSearchView(podcast: podcast, showSearch: $showSearch)
                         } label: {
@@ -149,22 +114,17 @@ struct PodcastDetailView: View {
                             .frame(maxWidth:.infinity, alignment: .leading)
                         }
                         
-                        ScrollView(.horizontal) {
-                            LazyHStack(spacing: 16) {
-                                ForEach(episodes.prefix(4).dropFirst(), id: \.id) { episode in
-                                    NavigationLink {
-                                        EpisodeView(episode:episode)
-                                            .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
-                                    } label: {
-                                        EpisodeCell(episode:episode)
-                                    }
+                        LazyVStack(spacing: 24) {
+                            ForEach(episodes.prefix(3), id: \.id) { episode in
+                                NavigationLink {
+                                    EpisodeView(episode:episode)
+                                        .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                                } label: {
+                                    EpisodeCell(episode:episode)
+                                        .frame(maxWidth:.infinity)
                                 }
                             }
-                            .scrollTargetLayout()
                         }
-                        .scrollTargetBehavior(.viewAligned)
-                        .scrollIndicators(.hidden)
-                        .scrollClipDisabled(true)
                         
                         Spacer().frame(height:24)
                         

@@ -92,6 +92,7 @@ struct LatestEpisodesView: View {
         List {
             episodesList
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
         .navigationLinkIndicatorVisibility(.hidden)
         .navigationBarTitleDisplayMode(.large)
@@ -218,7 +219,7 @@ struct LatestEpisodesView: View {
                 EpisodeView(episode:episode)
                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
             } label: {
-                EpisodeItem(episode: episode, showActions: false)
+                EpisodeCell(episode: episode)
                     .lineLimit(3)
                     .animation(.easeOut(duration: 0.2), value: showAll)
                     .swipeActions(edge: .trailing) {
@@ -250,6 +251,7 @@ struct LatestEpisodesView: View {
                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                 } label: {
                     EpisodeCell(episode: episode)
+                        .frame(width: UIScreen.main.bounds.width - 48)
                 }
             }
         }

@@ -33,7 +33,6 @@ struct EpisodeCell: View {
     }
     
     var body: some View {
-        let frame = UIScreen.main.bounds.width - 48
         let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
         // Podcast Info Row
         HStack(spacing: 16) {
@@ -94,7 +93,7 @@ struct EpisodeCell: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading) 
         }
-        .frame(width: frame, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
             Button {
                 if episode.isQueued {

@@ -174,36 +174,41 @@ struct ActivityView: View {
                                     .frame(maxWidth:.infinity,alignment:.leading)
                                 
                                 HStack(spacing:16) {
-                                    Image(systemName: "laurel.leading")
-                                        .foregroundStyle(.yellow)
-                                        .font(.system(size: 32))
-                                    
-                                    VStack {
-                                        HStack {
+                                    ZStack(alignment:.bottom) {
+                                        ArtworkView(url: longestEpisode.episodeImage ?? longestEpisode.podcast?.image ?? "", size: 100, cornerRadius: 24)
+                                            .mask {
+                                                LinearGradient(gradient: Gradient(colors: [.background, .clear]), startPoint: .top, endPoint: .bottom)
+                                            }
+                                        
+                                        HStack(alignment:.center) {
                                             let duration = Int(longestEpisode.actualDuration)
-                                            ArtworkView(url: longestEpisode.podcast?.image ?? "", size: 24, cornerRadius: 6)
-                                            
-                                            Text(longestEpisode.podcast?.title ?? "Podcast title")
-                                                .lineLimit(1)
-                                                .textDetailEmphasis()
+                                            Image(systemName: "laurel.leading")
+                                                .foregroundStyle(.accent)
+                                                .font(.system(size: 32))
                                             
                                             Text("\(formatDuration(seconds: duration))")
                                                 .textDetailEmphasis()
+                                            
+                                            Image(systemName: "laurel.trailing")
+                                                .foregroundStyle(.accent)
+                                                .font(.system(size: 32))
                                         }
-                                        .frame(maxWidth: .infinity)
-                                        
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text(longestEpisode.title ?? "Episode title")
-                                                .multilineTextAlignment(.center)
-                                                .titleCondensed()
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
                                     }
+                                    .scrollClipDisabled(true)
                                     
-                                    Image(systemName: "laurel.trailing")
-                                        .foregroundStyle(.yellow)
-                                        .font(.system(size: 32))
+                                    VStack(alignment:.leading) {
+                                        Text(longestEpisode.podcast?.title ?? "Podcast title")
+                                            .lineLimit(1)
+                                            .textDetailEmphasis()
+                                        
+                                        Text(longestEpisode.title ?? "Episode title")
+                                            .titleCondensed()
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    .frame(maxWidth:.infinity, alignment:.leading)
                                 }
+                                .frame(maxWidth:.infinity)
                                 
                             }
                             .frame(maxWidth:.infinity,alignment:.leading)

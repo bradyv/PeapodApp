@@ -78,7 +78,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                .toast()
+//                .toast()
         }
     }
     

@@ -26,7 +26,7 @@ struct QueueView: View {
             VStack(spacing:0) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal) {
-                        HStack(alignment: .top, spacing: 16) {
+                        HStack(alignment: .top, spacing: 8) {
                             if episodesViewModel.queue.isEmpty {
                                 ZStack {
                                     GeometryReader { geometry in

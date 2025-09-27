@@ -49,7 +49,7 @@ struct SubscriptionsRow: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     
     var body: some View {
-        let frame = (UIScreen.main.bounds.width - 80) / 3
+        let frame = (UIScreen.main.bounds.width - 72) / 3
         if !subscriptions.isEmpty {
             VStack(spacing: 8) {
                 NavigationLink {

@@ -130,7 +130,7 @@ struct FavEpisodesView: View {
                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                 } label: {
                     EpisodeCell(episode: episode)
-                        .frame(width: UIScreen.main.bounds.width - 48)
+                        .frame(width: UIScreen.main.bounds.width - 40)
                 }
             }
         }

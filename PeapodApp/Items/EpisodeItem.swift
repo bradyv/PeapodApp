@@ -118,59 +118,14 @@ struct EpisodeItem: View {
                 .tint(.white)
                 
                 if hasStarted {
-                    Button(action: {
-                        withAnimation {
-                            removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                            player.markAsPlayed(for: episode, manually: true)
-                        }
-                    }) {
-                        Label("Mark as Played", systemImage: "checkmark.circle")
-                            .contentTransition(.symbolEffect(.replace))
-                            .foregroundStyle(Color.white)
-                            .textButton()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.white)
+                    MarkAsPlayedButton
                 } else {
-                    Button(action: {
-                        withAnimation {
-                            removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                        }
-                    }) {
-                        Label("Archive", systemImage: "archivebox")
-                            .contentTransition(.symbolEffect(.replace))
-                            .foregroundStyle(Color.white)
-                            .textButton()
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.white)
+                    ArchiveButton
                 }
                 
                 Spacer()
                 
-                Button(action: {
-                    withAnimation {
-                        let wasFavorite = episode.isFav
-                        toggleFav(episode, episodesViewModel: episodesViewModel)
-                        
-                        // Only increment counter when favoriting (not unfavoriting)
-                        if !wasFavorite && episode.isFav {
-                            favoriteCount += 1
-                        }
-                    }
-                }) {
-                    Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
-                        .foregroundStyle(Color.white)
-                        .textButton()
-                }
-                .buttonStyle(.bordered)
-                .tint(.white)
-                .labelStyle(.iconOnly)
-                .changeEffect(
-                    .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
-                      Image(systemName: "heart.fill")
-                        .foregroundStyle(.red)
-                    }, value: favoriteCount)
+                FavButton
             }
         }
         .contentShape(Rectangle())
@@ -192,6 +147,66 @@ struct EpisodeItem: View {
             // Cancel if the user scrolls away before debounce interval
             workItem?.cancel()
         }
+    }
+    
+    @ViewBuilder
+    var ArchiveButton: some View {
+        Button(action: {
+            withAnimation {
+                removeFromQueue(episode, episodesViewModel: episodesViewModel)
+            }
+        }) {
+            Label("Archive", systemImage: "archivebox")
+                .contentTransition(.symbolEffect(.replace))
+                .foregroundStyle(Color.white)
+                .textButton()
+        }
+        .buttonStyle(.bordered)
+        .tint(.white)
+    }
+    
+    @ViewBuilder
+    var MarkAsPlayedButton: some View {
+        Button(action: {
+            withAnimation {
+                removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                player.markAsPlayed(for: episode, manually: true)
+            }
+        }) {
+            Label("Mark as Played", systemImage: "checkmark.circle")
+                .contentTransition(.symbolEffect(.replace))
+                .foregroundStyle(Color.white)
+                .textButton()
+        }
+        .buttonStyle(.bordered)
+        .tint(.white)
+    }
+    
+    @ViewBuilder
+    var FavButton: some View {
+        Button(action: {
+            withAnimation {
+                let wasFavorite = episode.isFav
+                toggleFav(episode, episodesViewModel: episodesViewModel)
+                
+                // Only increment counter when favoriting (not unfavoriting)
+                if !wasFavorite && episode.isFav {
+                    favoriteCount += 1
+                }
+            }
+        }) {
+            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                .foregroundStyle(Color.white)
+                .textButton()
+        }
+        .buttonStyle(.bordered)
+        .tint(.white)
+        .labelStyle(.iconOnly)
+        .changeEffect(
+            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+              Image(systemName: "heart.fill")
+                .foregroundStyle(.red)
+            }, value: favoriteCount)
     }
 }
 

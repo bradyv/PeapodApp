@@ -259,6 +259,7 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.3), value: episodesViewModel.isLoading)
                 }
             }
+            .background(Color.background)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {

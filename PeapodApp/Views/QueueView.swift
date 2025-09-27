@@ -189,24 +189,14 @@ struct QueueView: View {
                         }
                     }
                     .onAppear {
-                        print("QueueView appeared")
-                        print("Current episode: \(player.currentEpisode?.title ?? "none")")
-                        print("Current episode ID: \(player.currentEpisode?.id ?? "none")")
-                        print("Queue count: \(episodesViewModel.queue.count)")
-                        print("Queue episode IDs: \(episodesViewModel.queue.map { $0.id ?? "nil" })")
-                        
                         if let currentEpisode = player.currentEpisode,
                            let episodeID = currentEpisode.id {
                             
                             let isInQueue = episodesViewModel.queue.contains(where: { $0.id == episodeID })
-                            print("Is current episode in queue: \(isInQueue)")
                             
                             if isInQueue {
-                                print("Attempting to scroll to: \(episodeID)")
                                 proxy.scrollTo(episodeID, anchor: .leading)
                             }
-                        } else {
-                            print("No current episode or no episode ID")
                         }
                     }
                 }

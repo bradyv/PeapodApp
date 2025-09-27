@@ -78,7 +78,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                .toast()
+//                .toast()
         }
     }
     
@@ -241,19 +241,24 @@ struct ContentView: View {
                     MainBackground()
                     
                     ScrollView {
-                        VStack(spacing: 32) {
-                            QueueView(selectedTab: $selectedTab)
-                            LatestEpisodesView(mini:true, maxItems: 5)
-                            FavEpisodesView(mini: true, maxItems: 5)
-                            SubscriptionsRow()
-                            Spacer().frame(height:0)
+                        if episodesViewModel.isLoading {
+                            LoadingView
+                                .transition(.opacity)
+                        } else {
+                            VStack(spacing: 32) {
+                                QueueView(selectedTab: $selectedTab)
+                                LatestEpisodesView(mini:true, maxItems: 5)
+                                FavEpisodesView(mini: true, maxItems: 5)
+                                SubscriptionsRow()
+                                Spacer().frame(height:0)
+                            }
+                            .scrollClipDisabled(true)
+                            .transition(.opacity)
                         }
-                        .scrollClipDisabled(true)
                     }
+                    .animation(.easeInOut(duration: 0.3), value: episodesViewModel.isLoading)
                 }
-                
             }
-//            .background(Color.background)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -273,7 +278,7 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
                 }
                 
-                if !episodesViewModel.queue.isEmpty {
+                if !episodesViewModel.queue.isEmpty && !episodesViewModel.isLoading {
                     ToolbarItemGroup(placement: .bottomBar) {
                         MiniPlayer()
                         Spacer()
@@ -282,6 +287,118 @@ struct ContentView: View {
                 }
             }
         }
+    }
+    
+    @ViewBuilder
+    var LoadingView: some View {
+        VStack(alignment: .leading) {
+            Text("Up Next")
+                .titleSerifMini()
+                .padding(.top)
+            
+            VStack(spacing:0) {
+                HStack(alignment: .top, spacing: 8) {
+                    ZStack {
+                        HStack(spacing: 16) {
+                            EmptyQueueItem()
+                                .opacity(0.15)
+                        }
+                        .mask(
+                            LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                           startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
+                        )
+                    }
+                    .frame(height: 250)
+                }
+            }
+            .frame(maxWidth:.infinity, alignment:.leading)
+            
+            Text("Recent Releases")
+                .titleSerifMini()
+            
+            HStack(spacing: 16) {
+                // Artwork
+                RoundedRectangle(cornerRadius:24)
+                    .frame(width:100,height:100)
+                    .foregroundStyle(Color.surface)
+                
+                // Episode Meta
+                VStack(alignment: .leading, spacing: 8) {
+                    // Podcast Title + Release
+                    HStack {
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(width:100, height:16)
+                            .foregroundStyle(Color.surface)
+                        
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(width:50, height:14)
+                            .foregroundStyle(Color.surface)
+                    }
+                    
+                    // Episode Title + Description
+                    VStack(alignment: .leading, spacing: 2) {
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(width: 200, height:20)
+                            .foregroundStyle(Color.surface)
+                        
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(height:16)
+                            .foregroundStyle(Color.surface)
+                        
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(height:16)
+                            .foregroundStyle(Color.surface)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            Text("Favorites")
+                .titleSerifMini()
+            
+            HStack(spacing: 16) {
+                // Artwork
+                RoundedRectangle(cornerRadius:24)
+                    .frame(width:100,height:100)
+                    .foregroundStyle(Color.surface)
+                
+                // Episode Meta
+                VStack(alignment: .leading, spacing: 8) {
+                    // Podcast Title + Release
+                    HStack {
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(width:100, height:16)
+                            .foregroundStyle(Color.surface)
+                        
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(width:50, height:14)
+                            .foregroundStyle(Color.surface)
+                    }
+                    
+                    // Episode Title + Description
+                    VStack(alignment: .leading, spacing: 2) {
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(width: 200, height:20)
+                            .foregroundStyle(Color.surface)
+                        
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(height:16)
+                            .foregroundStyle(Color.surface)
+                        
+                        RoundedRectangle(cornerRadius:4)
+                            .frame(height:16)
+                            .foregroundStyle(Color.surface)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal)
     }
     
     // 🚀 UPDATED: Unified refresh method with source tracking and debouncing

@@ -30,6 +30,7 @@ struct PodcastEpisodeSearchView: View {
         List {
             EpisodesList
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
         .background(Color.background)
         .navigationLinkIndicatorVisibility(.hidden)
@@ -82,7 +83,7 @@ struct PodcastEpisodeSearchView: View {
                     EpisodeView(episode:episode)
                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                 } label: {
-                    EpisodeItem(episode: episode, showActions: false)
+                    EpisodeCell(episode: episode)
                         .lineLimit(3)
                         .swipeActions(edge: .trailing) {
                             Button {

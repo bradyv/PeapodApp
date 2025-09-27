@@ -60,7 +60,7 @@ struct QueueItem: View {
 
 struct EmptyQueueItem: View {
     var body: some View {
-        let frame = UIScreen.main.bounds.width - 32
+        let frame = UIScreen.main.bounds.width - 48
         VStack {
             HStack {
                 Rectangle()

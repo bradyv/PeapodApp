@@ -15,7 +15,6 @@ struct QueueView: View {
     var subscriptions: FetchedResults<Podcast>
     @State private var scrollOffset: CGFloat = 0
     @State private var scrollTarget: String? = nil
-    @Binding var selectedTab: ContentView.Tabs
     @Namespace private var namespace
 
     var body: some View {
@@ -55,8 +54,6 @@ struct QueueView: View {
                                             VStack {
                                                 NavigationLink {
                                                     PodcastSearchView()
-                                                    
-//                                                    selectedTab = .search
                                                 } label: {
                                                     Label("Find a Podcast", systemImage: "plus.magnifyingglass")
                                                         .padding(.vertical,4)
@@ -65,14 +62,14 @@ struct QueueView: View {
                                                 }
                                                 .buttonStyle(.glassProminent)
                                                 
-                                                Button {
-                                                    //
-                                                } label: {
-                                                    Label("Import OPML", systemImage: "tray.and.arrow.down")
-                                                        .padding(.vertical,4)
-                                                        .foregroundStyle(Color.accentColor)
-                                                        .textBodyEmphasis()
-                                                }
+//                                                Button {
+//                                                    //
+//                                                } label: {
+//                                                    Label("Import OPML", systemImage: "tray.and.arrow.down")
+//                                                        .padding(.vertical,4)
+//                                                        .foregroundStyle(Color.accentColor)
+//                                                        .textBodyEmphasis()
+//                                                }
                                             }
                                         }
                                         

@@ -246,7 +246,7 @@ struct ContentView: View {
                                 .transition(.opacity)
                         } else {
                             VStack(spacing: 32) {
-                                QueueView(selectedTab: $selectedTab)
+                                QueueView()
                                 LatestEpisodesView(mini:true, maxItems: 5)
                                 FavEpisodesView(mini: true, maxItems: 5)
                                 SubscriptionsRow()

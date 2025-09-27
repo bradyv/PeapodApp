@@ -671,13 +671,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Check for autoplay AFTER clearing state
         if autoplayNext {
-            let queuedEpisodes = fetchQueuedEpisodes()
-            if let nextEpisode = queuedEpisodes.first {
-                LogManager.shared.info("Auto-playing next episode: \(nextEpisode.title?.prefix(30) ?? "Next")")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.startPlayback(for: nextEpisode)
+            // Check premium access on main actor
+            Task { @MainActor in
+                guard UserManager.shared.hasPremiumAccess else { return }
+                
+                let queuedEpisodes = fetchQueuedEpisodes()
+                if let nextEpisode = queuedEpisodes.first {
+                    LogManager.shared.info("Auto-playing next episode: \(nextEpisode.title?.prefix(30) ?? "Next")")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.startPlayback(for: nextEpisode)
+                    }
                 }
-                return
             }
         }
         

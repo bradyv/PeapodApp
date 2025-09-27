@@ -590,13 +590,31 @@ extension SettingsView {
             label: "Autoplay Next Episode",
             tint: Color.orange,
             framedIcon: true) {
-                Toggle(isOn: $player.autoplayNext) {
-                    Text("Autoplay Next Episode")
-                }
-                .tint(.accentColor)
-                .labelsHidden()
-                .symbolRenderingMode(.hierarchical)
+                autoplayControl
             }
+    }
+
+    @ViewBuilder
+    private var autoplayControl: some View {
+        if userManager.hasPremiumAccess {
+            Toggle(isOn: $player.autoplayNext) {
+                Text("Autoplay Next Episode")
+            }
+            .tint(.accentColor)
+            .labelsHidden()
+            .symbolRenderingMode(.hierarchical)
+        } else {
+            HStack {
+                Text("Off")
+                    .textBody()
+                
+                Image(systemName: "chevron.up.chevron.down")
+                    .foregroundStyle(Color.accentColor)
+            }
+            .onTapGesture {
+                activeSheet = .upgrade
+            }
+        }
     }
     
     @ViewBuilder

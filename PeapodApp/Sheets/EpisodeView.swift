@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Kingfisher
+import Pow
 import TipKit
 
 struct EpisodeView: View {
@@ -65,6 +66,13 @@ struct EpisodeView: View {
                                     .textDetailEmphasis()
                             }
                         }
+//                        .onTapGesture {
+//                            selectedPodcast = episode.podcast
+//                        }
+//                        .sheet(item: $selectedPodcast) { podcast in
+//                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+//                                .modifier(PPSheet())
+//                        }
                         
                         Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
                             .textDetail()
@@ -74,16 +82,93 @@ struct EpisodeView: View {
                     Spacer().frame(height: 8)
                     
                     HStack {
-                        ArchiveButton(episode: episode)
+                        Button(action: {
+                            if episode.isQueued {
+                                withAnimation {
+                                    removeFromQueue(episode)
+                                }
+                            } else {
+                                withAnimation {
+                                    toggleQueued(episode)
+                                }
+                            }
+                        }) {
+                            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                                .contentTransition(.symbolEffect(.replace))
+                                .textButton()
+                        }
+                        .buttonStyle(.bordered)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                     
-                        MarkAsPlayedButton(episode: episode)
+                        Button(action: {
+                            withAnimation {
+                                if episode.isQueued {
+                                    removeFromQueue(episode)
+                                }
+                                player.markAsPlayed(for: episode, manually: true)
+                            }
+                        }) {
+                            Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
+                                .contentTransition(.symbolEffect(.replace))
+                                .textButton()
+                        }
+                        .buttonStyle(.bordered)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome))
                         
-                        FavButton(episode: episode)
+                        Button(action: {
+                            withAnimation {
+                                let wasFavorite = episode.isFav
+                                toggleFav(episode)
+                                
+                                // Only increment counter when favoriting (not unfavoriting)
+                                if !wasFavorite && episode.isFav {
+                                    favoriteCount += 1
+                                }
+                            }
+                        }) {
+                            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                                .textButton()
+                        }
+                        .buttonStyle(.bordered)
+                        .labelStyle(.iconOnly)
+//                        .buttonStyle(PPButton(type:.transparent, colorStyle:.monochrome, iconOnly: true))
+                        .changeEffect(
+                            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                              Image(systemName: "heart.fill")
+                                .foregroundStyle(.red)
+                            }, value: favoriteCount)
                     }
                     
                     Spacer().frame(height: 8)
                     
-                    ProgressBar
+                    HStack(spacing: 16) {
+                        Text(player.getElapsedTime(for: episode))
+                            .fontDesign(.monospaced)
+                            .font(.caption)
+                            .onTapGesture {
+                                player.skipBackward(seconds: player.backwardInterval)
+                            }
+                        
+                        PPProgress(
+                            value: Binding(
+                                get: { player.getProgress(for: episode) },
+                                set: { player.seek(to: $0) }
+                            ),
+                            range: 0...player.getActualDuration(for: episode),
+                            onEditingChanged: { _ in },
+                            isDraggable: true,
+                            isQQ: false
+                        )
+                        .disabled(!player.isPlayingEpisode(episode))
+                        
+                        Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
+                            .fontDesign(.monospaced)
+                            .font(.caption)
+                            .onTapGesture {
+                                player.skipForward(seconds: player.forwardInterval)
+                            }
+                            .if(player.isPlaying, transform: { $0.popoverTip(skipTip, arrowEdge: .bottom) })
+                    }
                 }
                 .padding(.horizontal)
                 .frame(maxWidth: .infinity)
@@ -168,38 +253,6 @@ struct EpisodeView: View {
                 // Handle TipKit errors
                 print("Error initializing TipKit \(error.localizedDescription)")
             }
-        }
-    }
-    
-    @ViewBuilder
-    var ProgressBar: some View {
-        HStack(spacing: 16) {
-            Text(player.getElapsedTime(for: episode))
-                .fontDesign(.monospaced)
-                .font(.caption)
-                .onTapGesture {
-                    player.skipBackward(seconds: player.backwardInterval)
-                }
-            
-            PPProgress(
-                value: Binding(
-                    get: { player.getProgress(for: episode) },
-                    set: { player.seek(to: $0) }
-                ),
-                range: 0...player.getActualDuration(for: episode),
-                onEditingChanged: { _ in },
-                isDraggable: true,
-                isQQ: false
-            )
-            .disabled(!player.isPlayingEpisode(episode))
-            
-            Text("-\(player.getStableRemainingTime(for: episode, pretty: false))")
-                .fontDesign(.monospaced)
-                .font(.caption)
-                .onTapGesture {
-                    player.skipForward(seconds: player.forwardInterval)
-                }
-                .if(player.isPlaying, transform: { $0.popoverTip(skipTip, arrowEdge: .bottom) })
         }
     }
 }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Pow
 
 struct EpisodeItem: View {
     @Environment(\.managedObjectContext) private var context
@@ -32,13 +33,145 @@ struct EpisodeItem: View {
     var body: some View {
         VStack(alignment: .leading) {
             // Podcast Info Row
-            PodcastMetaRow
+            HStack {
+                HStack {
+                    ZStack(alignment:.bottomTrailing) {
+                        ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
+                            .matchedTransitionSource(id: episode.id, in: namespace)
+                        
+                        if episode.isPlayed {
+                            ZStack {
+                                Image(systemName:"checkmark.circle.fill")
+                                    .foregroundStyle(Color.accentColor)
+                                    .textMini()
+                            }
+                            .background(Color.background)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.background, lineWidth: 1)
+                            )
+                            .offset(x:5)
+                        }
+                    }
+                    
+                    Text(episode.podcast?.title ?? "Podcast title")
+                        .lineLimit(1)
+                        .foregroundStyle(Color.white)
+                        .textDetailEmphasis()
+                }
+                
+                Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
+                    .foregroundStyle(Color.white.opacity(0.75))
+                    .textDetail()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             // Episode Meta
-            EpisodeDetails
+            VStack(alignment: .leading) {
+                Text("Line\nLine\nLine\nLine")
+                    .titleCondensed()
+                    .lineLimit(4, reservesSpace: true)
+                    .frame(maxWidth: .infinity)
+                    .hidden()
+                    .overlay(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(episode.title ?? "Episode title")
+                                .foregroundStyle(.white)
+                                .multilineTextAlignment(.leading)
+                                .titleCondensed()
+                                .lineLimit(4)
+                                .layoutPriority(2)
+                            
+                            Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: true))
+                                .foregroundStyle(.white.opacity(0.75))
+                                .multilineTextAlignment(.leading)
+                                .textBody()
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.clear)
+                    }
+            }
             
             // Episode Actions
-            EpisodeActions
+            HStack {
+                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
+                // ▶️ Playback Button
+                Button(action: {
+                    guard !isLoading else { return }
+                    player.togglePlayback(for: episode)
+                }) {
+                    HStack {
+                        PPCircularPlayButton(
+                            episode: episode,
+                            displayedInQueue: true,
+                            buttonSize: 20
+                        )
+                        
+                        Text("\(player.getStableRemainingTime(for: episode, pretty: true))")
+                            .contentTransition(.numericText())
+                            .foregroundStyle(Color.white)
+                            .textButton()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .tint(.white)
+                
+                if hasStarted {
+                    Button(action: {
+                        withAnimation {
+                            removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                            player.markAsPlayed(for: episode, manually: true)
+                        }
+                    }) {
+                        Label("Mark as Played", systemImage: "checkmark.circle")
+                            .contentTransition(.symbolEffect(.replace))
+                            .foregroundStyle(Color.white)
+                            .textButton()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
+                } else {
+                    Button(action: {
+                        withAnimation {
+                            removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                        }
+                    }) {
+                        Label("Archive", systemImage: "archivebox")
+                            .contentTransition(.symbolEffect(.replace))
+                            .foregroundStyle(Color.white)
+                            .textButton()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    withAnimation {
+                        let wasFavorite = episode.isFav
+                        toggleFav(episode, episodesViewModel: episodesViewModel)
+                        
+                        // Only increment counter when favoriting (not unfavoriting)
+                        if !wasFavorite && episode.isFav {
+                            favoriteCount += 1
+                        }
+                    }
+                }) {
+                    Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                        .foregroundStyle(Color.white)
+                        .textButton()
+                }
+                .buttonStyle(.bordered)
+                .tint(.white)
+                .labelStyle(.iconOnly)
+                .changeEffect(
+                    .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+                      Image(systemName: "heart.fill")
+                        .foregroundStyle(.red)
+                    }, value: favoriteCount)
+            }
         }
         .contentShape(Rectangle())
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -58,108 +191,6 @@ struct EpisodeItem: View {
         .onDisappear {
             // Cancel if the user scrolls away before debounce interval
             workItem?.cancel()
-        }
-    }
-    
-    @ViewBuilder
-    var PodcastMetaRow: some View {
-        HStack {
-            HStack {
-                ZStack(alignment:.bottomTrailing) {
-                    ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
-                        .matchedTransitionSource(id: episode.id, in: namespace)
-                    
-                    if episode.isPlayed {
-                        ZStack {
-                            Image(systemName:"checkmark.circle.fill")
-                                .foregroundStyle(Color.accentColor)
-                                .textMini()
-                        }
-                        .background(Color.background)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.background, lineWidth: 1)
-                        )
-                        .offset(x:5)
-                    }
-                }
-                
-                Text(episode.podcast?.title ?? "Podcast title")
-                    .lineLimit(1)
-                    .foregroundStyle(Color.white)
-                    .textDetailEmphasis()
-            }
-            
-            Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
-                .foregroundStyle(Color.white.opacity(0.75))
-                .textDetail()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    
-    @ViewBuilder
-    var EpisodeDetails: some View {
-        VStack(alignment: .leading) {
-            Text("Line\nLine\nLine\nLine")
-                .titleCondensed()
-                .lineLimit(4, reservesSpace: true)
-                .frame(maxWidth: .infinity)
-                .hidden()
-                .overlay(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(episode.title ?? "Episode title")
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.leading)
-                            .titleCondensed()
-                            .lineLimit(4)
-                            .layoutPriority(2)
-                        
-                        Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: true))
-                            .foregroundStyle(.white.opacity(0.75))
-                            .multilineTextAlignment(.leading)
-                            .textBody()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.clear)
-                }
-        }
-    }
-    
-    @ViewBuilder
-    var EpisodeActions: some View {
-        HStack {
-            let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
-            // ▶️ Playback Button
-            Button(action: {
-                guard !isLoading else { return }
-                player.togglePlayback(for: episode)
-            }) {
-                HStack {
-                    PPCircularPlayButton(
-                        episode: episode,
-                        displayedInQueue: true,
-                        buttonSize: 20
-                    )
-                    
-                    Text("\(player.getStableRemainingTime(for: episode, pretty: true))")
-                        .contentTransition(.numericText())
-                        .foregroundStyle(Color.white)
-                        .textButton()
-                }
-            }
-            .tint(.white)
-            .buttonStyle(.bordered)
-            
-            if hasStarted {
-                MarkAsPlayedButton(episode: episode, foregroundColor: .white, tintColor: .white)
-            } else {
-                ArchiveButton(episode: episode, foregroundColor: .white, tintColor: .white)
-            }
-            
-            Spacer()
-            
-            FavButton(episode: episode, foregroundColor: .white, tintColor: .white)
         }
     }
 }

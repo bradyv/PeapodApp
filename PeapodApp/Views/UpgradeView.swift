@@ -150,6 +150,9 @@ struct UpgradeView: View {
         }
         .background(alignment:.top) {
             Image("plus-pattern")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity)
                 .mask {
                     LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                    startPoint: .top, endPoint: .bottom)

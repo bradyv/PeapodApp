@@ -69,6 +69,7 @@ struct SettingsView: View {
         }
         .background(Color.background)
         .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.large)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .contentMargins(16,for:.scrollContent)
         .coordinateSpace(name: "scroll")
@@ -176,7 +177,13 @@ extension SettingsView {
     
     @ViewBuilder
     private var moreStatsButton: some View {
-        if userManager.hasPremiumAccess {
+        if userManager.hasPremiumAccess || {
+                #if DEBUG
+                true
+                #else
+                false
+                #endif
+            }() {
             NavigationLink {
                 ActivityView()
             } label: {
@@ -209,22 +216,15 @@ extension SettingsView {
     private var settingsSection: some View {
         FadeInView(delay:0.2) {
             VStack {
-                Text("Settings")
-                    .titleSerifMini()
-                    .frame(maxWidth:.infinity, alignment: .leading)
-                    .padding(.top,24)
-                
-                VStack {
-                    playbackSpeedRow
-                    skipBackwardRow
-                    skipForwardRow
-                    autoplayRow
-                    notificationsRow
-                }
-                .padding()
-                .background(Color.surface)
-                .clipShape(RoundedRectangle(cornerRadius:16))
+                playbackSpeedRow
+                skipBackwardRow
+                skipForwardRow
+                autoplayRow
+                notificationsRow
             }
+            .padding()
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius:16))
         }
     }
     

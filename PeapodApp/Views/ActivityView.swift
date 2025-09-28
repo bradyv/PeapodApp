@@ -227,8 +227,20 @@ struct ActivityView: View {
                 }
             }
         }
+        .background(alignment:.top) {
+            Image("plus-pattern")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .mask {
+                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                   startPoint: .top, endPoint: .bottom)
+                }
+                .ignoresSafeArea(.all)
+        }
         .background(Color.background)
         .navigationTitle("My Stats")
+        .navigationBarTitleDisplayMode(.large)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {
             loadEpisodeData()

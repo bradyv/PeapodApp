@@ -54,23 +54,7 @@ struct EpisodeView: View {
                         .titleSerif()
                         .multilineTextAlignment(.center)
                     
-                    HStack {
-                        NavigationLink {
-                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                        } label: {
-                            HStack {
-                                ArtworkView(url: episode.podcast?.image ?? "", size: 24, cornerRadius: 6)
-                                
-                                Text(episode.podcast?.title ?? "Podcast title")
-                                    .lineLimit(1)
-                                    .textDetailEmphasis()
-                            }
-                        }
-                        
-                        Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
-                            .textDetail()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    PodcastDetailsRow(episode: episode)
                     
                     Spacer().frame(height: 8)
                     

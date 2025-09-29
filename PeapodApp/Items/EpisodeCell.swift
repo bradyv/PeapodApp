@@ -66,30 +66,7 @@ struct EpisodeCell: View {
                         .textDetail()
                 }
                 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Line\nLine\nLine")
-                        .titleCondensed()
-                        .lineLimit(3, reservesSpace: true)
-                        .frame(maxWidth: .infinity)
-                        .hidden()
-                        .overlay(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(episode.title ?? "Episode title")
-                                    .titleCondensed()
-                                    .lineLimit(2)
-                                    .layoutPriority(1)
-                                    .multilineTextAlignment(.leading)
-                                
-                                Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: true))
-                                    .textBody()
-                                    .lineLimit(2)
-                                    .layoutPriority(0)
-                                    .multilineTextAlignment(.leading)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                EpisodeDetails(episode: episode)
             }
             .frame(maxWidth: .infinity, alignment: .leading) 
         }
@@ -113,8 +90,24 @@ struct EpisodeCell: View {
                     toggleFav(episode)
                 }
             } label: {
-                Label(episode.isFav ? "Remove from Favorites" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+                Label(episode.isFav ? "Undo" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
             }
+        }
+        .swipeActions(edge: .trailing) {
+            Button {
+                toggleQueued(episode)
+            } label: {
+                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+            }
+            .tint(.accentColor)
+        }
+        .swipeActions(edge: .leading) {
+            Button {
+                toggleFav(episode)
+            } label: {
+                Label(episode.isFav ? "Undo" : "Favorite", systemImage: episode.isFav ? "heart.slash" : "heart")
+            }
+            .tint(.red)
         }
     }
 }

@@ -84,23 +84,8 @@ struct PodcastEpisodeSearchView: View {
                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                 } label: {
                     EpisodeCell(episode: episode)
+                        .matchedTransitionSource(id: episode.id, in: namespace)
                         .lineLimit(3)
-                        .swipeActions(edge: .trailing) {
-                            Button {
-                                toggleQueued(episode)
-                            } label: {
-                                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                            }
-                            .tint(.accentColor)
-                        }
-                        .swipeActions(edge: .leading) {
-                            Button {
-                                toggleFav(episode)
-                            } label: {
-                                Label(episode.isFav ? "Undo" : "Favorite", systemImage: episode.isFav ? "heart.slash" : "heart")
-                            }
-                            .tint(.red)
-                        }
                 }
             }
             

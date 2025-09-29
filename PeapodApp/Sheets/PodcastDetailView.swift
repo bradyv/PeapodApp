@@ -121,6 +121,7 @@ struct PodcastDetailView: View {
                                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                                 } label: {
                                     EpisodeCell(episode:episode)
+                                        .matchedTransitionSource(id: episode.id, in: namespace)
                                         .frame(maxWidth:.infinity)
                                 }
                             }

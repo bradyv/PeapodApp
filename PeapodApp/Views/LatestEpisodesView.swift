@@ -220,24 +220,9 @@ struct LatestEpisodesView: View {
                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
             } label: {
                 EpisodeCell(episode: episode)
+                    .matchedTransitionSource(id: episode.id, in: namespace)
                     .lineLimit(3)
                     .animation(.easeOut(duration: 0.2), value: showAll)
-                    .swipeActions(edge: .trailing) {
-                        Button {
-                            toggleQueued(episode)
-                        } label: {
-                            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                        }
-                        .tint(.accentColor)
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button {
-                            toggleFav(episode)
-                        } label: {
-                            Label(episode.isFav ? "Undo" : "Favorite", systemImage: episode.isFav ? "heart.slash" : "heart")
-                        }
-                        .tint(.red)
-                    }
             }
         }
     }
@@ -248,10 +233,11 @@ struct LatestEpisodesView: View {
             ForEach(filteredEpisodes, id: \.id) { episode in
                 NavigationLink {
                     EpisodeView(episode:episode)
-                        .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+                        .navigationTransition(.zoom(sourceID: "\(episode.id ?? "")-latest", in: namespace))
                 } label: {
                     EpisodeCell(episode: episode)
                         .frame(width: UIScreen.main.bounds.width - 40)
+                        .matchedTransitionSource(id: "\(episode.id ?? "")-latest", in: namespace)
                 }
             }
         }

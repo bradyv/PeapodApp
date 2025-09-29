@@ -220,6 +220,7 @@ extension SettingsView {
                 skipBackwardRow
                 skipForwardRow
                 autoplayRow
+                IconSwitcherView()
                 notificationsRow
             }
             .padding()

@@ -17,5 +17,18 @@
 	</array>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundleAlternateIcons</key>
+        <dict>
+            <key>PeapodAPpIcon-Sparkly</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>PeapodAPpIcon-Sparkly</string>
+                </array>
+            </dict>
+        </dict>
+    </dict>
 </dict>
 </plist>

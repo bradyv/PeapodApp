@@ -21,11 +21,11 @@
     <dict>
         <key>CFBundleAlternateIcons</key>
         <dict>
-            <key>PeapodAPpIcon-Sparkly</key>
+            <key>PeapodAppIcon-Sparkly</key>
             <dict>
                 <key>CFBundleIconFiles</key>
                 <array>
-                    <string>PeapodAPpIcon-Sparkly</string>
+                    <string>PeapodAppIcon-Sparkly</string>
                 </array>
             </dict>
         </dict>

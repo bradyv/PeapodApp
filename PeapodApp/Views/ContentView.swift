@@ -252,13 +252,13 @@ struct ContentView: View {
                                 SubscriptionsRow()
                                 Spacer().frame(height:0)
                             }
-                            .scrollClipDisabled(true)
                             .transition(.opacity)
                         }
                     }
                     .animation(.easeInOut(duration: 0.3), value: episodesViewModel.isLoading)
                 }
             }
+            .navigationTitle("Up Next")
             .background(Color.background)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

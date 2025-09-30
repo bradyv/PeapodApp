@@ -61,7 +61,6 @@ struct FavEpisodesView: View {
                 .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)
             }
-            .scrollClipDisabled(true)
         }
     }
     

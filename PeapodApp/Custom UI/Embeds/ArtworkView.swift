@@ -22,20 +22,19 @@ struct ArtworkView: View {
                 view.frame(width: size, height: size)
             }
             .clipShape(RoundedRectangle(cornerRadius:cornerRadius))
-            .if(tilt, transform: { $0.overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1.5)) })
-            .if(!tilt, transform: { $0.glassEffect(in: .rect(cornerRadius: cornerRadius)) })
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1))
             .rotationEffect(.degrees(tilt ? 2 : 0))
     }
 }
 
-struct EpisodeGridItem: View {
-    let episode: Episode
-    
-    var body: some View {
-        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-            .resizable()
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .glassEffect(in: .rect(cornerRadius: 24))
-    }
-}
+//struct EpisodeGridItem: View {
+//    let episode: Episode
+//    
+//    var body: some View {
+//        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
+//            .resizable()
+//            .aspectRatio(1, contentMode: .fit)
+//            .clipShape(RoundedRectangle(cornerRadius: 24))
+//            .glassEffect(in: .rect(cornerRadius: 24))
+//    }
+//}

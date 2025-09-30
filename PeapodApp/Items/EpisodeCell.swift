@@ -36,8 +36,7 @@ struct EpisodeCell: View {
         let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
         // Podcast Info Row
         HStack(spacing: 16) {
-            EpisodeGridItem(episode: episode)
-                .frame(width:100,height:100)
+            ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 100, cornerRadius: 24, tilt: false)
             
             // Episode Meta
             VStack(alignment: .leading, spacing: 8) {

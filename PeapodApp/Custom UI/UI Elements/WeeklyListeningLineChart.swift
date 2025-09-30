@@ -11,8 +11,16 @@ import Charts
 struct WeeklyListeningLineChart: View {
     let weeklyData: [WeeklyListeningData]
     let favoriteDayName: String
+    let chartHeight: CGFloat
+    let showPeakDot: Bool
     
-    private let chartHeight: CGFloat = 92
+    // Default initializer with optional height and showPeakDot parameters
+    init(weeklyData: [WeeklyListeningData], favoriteDayName: String, chartHeight: CGFloat = 92, showPeakDot: Bool = true) {
+        self.weeklyData = weeklyData
+        self.favoriteDayName = favoriteDayName
+        self.chartHeight = chartHeight
+        self.showPeakDot = showPeakDot
+    }
     
     // Find the single peak day
     private var peakDay: Int? {
@@ -63,7 +71,8 @@ struct WeeklyListeningLineChart: View {
             .interpolationMethod(.catmullRom)
             
             // Show dot ONLY for the single peak day
-            if let peakDay = peakDay,
+            if showPeakDot,
+               let peakDay = peakDay,
                dayData.dayOfWeek == peakDay {
                 PointMark(
                     x: .value("Day", dayData.dayOfWeek),
@@ -103,10 +112,11 @@ extension WeeklyListeningLineChart {
 struct WeeklyListeningLineChart_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
-            Text("Weekly Listening Pattern")
+            Text("Weekly Listening Pattern - Default Height")
                 .font(.headline)
                 .padding()
             
+            // Using default height (92) and showing dot
             WeeklyListeningLineChart(
                 weeklyData: WeeklyListeningLineChart.mockData,
                 favoriteDayName: "Friday"
@@ -115,6 +125,48 @@ struct WeeklyListeningLineChart_Previews: PreviewProvider {
             .background(Color.black)
             
             Text("You listen the most on Friday")
+                .foregroundColor(.white)
+                .padding()
+            
+            Divider()
+                .background(Color.white)
+                .padding()
+            
+            Text("Weekly Listening Pattern - Custom Height")
+                .font(.headline)
+                .padding()
+            
+            // Using custom height (150)
+            WeeklyListeningLineChart(
+                weeklyData: WeeklyListeningLineChart.mockData,
+                favoriteDayName: "Friday",
+                chartHeight: 150
+            )
+            .padding()
+            .background(Color.black)
+            
+            Text("Same chart with custom height")
+                .foregroundColor(.white)
+                .padding()
+            
+            Divider()
+                .background(Color.white)
+                .padding()
+            
+            Text("Weekly Listening Pattern - No Peak Dot")
+                .font(.headline)
+                .padding()
+            
+            // Hiding the peak dot
+            WeeklyListeningLineChart(
+                weeklyData: WeeklyListeningLineChart.mockData,
+                favoriteDayName: "Friday",
+                showPeakDot: false
+            )
+            .padding()
+            .background(Color.black)
+            
+            Text("Chart without peak indicator")
                 .foregroundColor(.white)
                 .padding()
         }

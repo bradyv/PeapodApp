@@ -46,12 +46,6 @@ struct SettingsView: View {
     
     var body: some View {
         ScrollView {
-            Color.clear
-                .frame(height: 1)
-                .trackScrollOffset("scroll") { value in
-                    scrollOffset = value
-                }
-            
             userStatsSection
             settingsSection
             aboutSection
@@ -68,7 +62,7 @@ struct SettingsView: View {
             }
         }
         .background(Color.background)
-        .navigationTitle("Settings")
+        .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.large)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .contentMargins(16,for:.scrollContent)
@@ -114,6 +108,43 @@ struct SettingsView: View {
             )
         }
     }
+    
+    private func getWeeklyListeningData(context: NSManagedObjectContext) -> [WeeklyListeningData] {
+        let playedEpisodes = getPlayedEpisodes(context: context)
+        
+        // Group by day of week
+        var dayCounts: [Int: Int] = [:]
+        let calendar = Calendar.current
+        
+        for episode in playedEpisodes {
+            if let playedDate = episode.playedDate {
+                let dayOfWeek = calendar.component(.weekday, from: playedDate)
+                dayCounts[dayOfWeek, default: 0] += 1
+            }
+        }
+        
+        let maxCount = dayCounts.values.max() ?? 1
+        
+        return (1...7).map { dayOfWeek in
+            let count = dayCounts[dayOfWeek] ?? 0
+            let percentage = maxCount > 0 ? Double(count) / Double(maxCount) : 0.0
+            let dayAbbreviation = dayAbbreviation(from: dayOfWeek)
+            
+            return WeeklyListeningData(
+                dayOfWeek: dayOfWeek,
+                count: count,
+                percentage: percentage,
+                dayAbbreviation: dayAbbreviation
+            )
+        }
+    }
+    
+    private func dayAbbreviation(from dayOfWeek: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "E"
+        let date = Calendar.current.date(from: DateComponents(weekday: dayOfWeek))!
+        return String(formatter.string(from: date).prefix(1))
+    }
 }
 
 // MARK: - View Sections
@@ -121,46 +152,74 @@ extension SettingsView {
     
     @ViewBuilder
     private var userStatsSection: some View {
-        VStack {
+        VStack(alignment:.leading) {
             let hours = Int(statistics.totalPlayedSeconds) / 3600
             let hourString = hours > 1 ? "Hours" : "Hour"
             let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
             
             HStack(alignment:.top) {
-                Image("peapod-mark")
+                Image("peapod-mark-white")
             }
             .frame(maxWidth:.infinity, alignment:.leading)
             
-            HStack {
-                VStack(alignment:.leading) {
-                    Text(userManager.memberTypeDisplay)
-                        .titleCondensed()
-                    
-                    Text("Since \(userManager.userDateString)")
-                        .textDetail()
-                }
-                
-                Spacer()
-                
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("\(hours)")
-                            .titleCondensed()
-                            .monospaced()
-                            .contentTransition(.numericText())
+            HStack(alignment:.bottom, spacing:38) {
+                if userManager.hasPremiumAccess || {
+                        #if DEBUG
+                        true
+                        #else
+                        false
+                        #endif
+                }() {
+                    ActivityView(mini: true)
+                } else {
+                    VStack(alignment:.leading,spacing:10) {
+                        Rectangle()
+                            .frame(width: 44, height: 8)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                         
-                        Text("\(hourString) listened")
-                            .textDetail()
+                        VStack(alignment:.leading,spacing:4) {
+                            Rectangle()
+                                .frame(width: 68, height: 24)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            
+                            Rectangle()
+                                .frame(width: 32, height: 12)
+                                .foregroundStyle(Color.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
                     }
                     
-                    VStack(alignment: .leading) {
-                        Text("\(statistics.playCount)")
-                            .titleCondensed()
-                            .monospaced()
-                            .contentTransition(.numericText())
+                    VStack(alignment:.leading,spacing:10) {
+                        Rectangle()
+                            .frame(width: 44, height: 8)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                         
-                        Text("\(episodeString) played")
-                            .textDetail()
+                        VStack(alignment:.leading,spacing:4) {
+                            WeeklyListeningLineChart(
+                                weeklyData: WeeklyListeningLineChart.mockData,
+                                favoriteDayName: "Friday",
+                                chartHeight: 34,
+                                showPeakDot: false
+                            )
+                            .opacity(0.15)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    VStack(alignment:.leading,spacing:10) {
+                        Rectangle()
+                            .frame(width: 44, height: 8)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        
+                        Rectangle()
+                            .frame(width: 40, height: 40)
+                            .foregroundStyle(Color.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 11))
                     }
                 }
             }
@@ -170,8 +229,19 @@ extension SettingsView {
             
             moreStatsButton
         }
+        .frame(maxWidth:.infinity, alignment:.leading)
         .padding()
-        .background(Color.surface)
+        .background(alignment:.top) {
+            Image("sparkle")
+                .resizable()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .mask {
+                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                   startPoint: .top, endPoint: .bottom)
+                }
+                .ignoresSafeArea(.all)
+        }
+        .background(Color.background)
         .clipShape(RoundedRectangle(cornerRadius:16))
     }
     
@@ -185,47 +255,44 @@ extension SettingsView {
                 #endif
             }() {
             NavigationLink {
-                ActivityView()
+                ActivityView(mini:false)
             } label: {
-                Text("More Stats")
-                    .frame(maxWidth:.infinity)
+                Label("View More", systemImage: "chevron.right")
             }
-            .buttonStyle(PPButton(
-                type:.filled,
-                colorStyle:.monochrome,
-                peapodPlus: true
-            ))
-            .glassEffect()
+            .buttonStyle(.glass)
+            .labelStyle(.titleOnly)
         } else {
             Button {
                 activeSheet = .upgrade
             } label: {
-                Text("More Stats")
-                    .frame(maxWidth:.infinity)
+                Label("Unlock Stats", systemImage: "lock.fill")
             }
-            .buttonStyle(PPButton(
-                type:.filled,
-                colorStyle:.monochrome,
-                peapodPlus: true
-            ))
-            .glassEffect()
+            .buttonStyle(.glassProminent)
         }
     }
     
     @ViewBuilder
     private var settingsSection: some View {
         FadeInView(delay:0.2) {
-            VStack {
-                playbackSpeedRow
-                skipBackwardRow
-                skipForwardRow
-                autoplayRow
-                IconSwitcherView()
-                notificationsRow
+            VStack(alignment:.leading) {
+                Text("Settings")
+                    .titleSerifMini()
+                    .frame(maxWidth:.infinity, alignment:.leading)
+                    .padding(.top,24)
+                
+                VStack {
+                    playbackSpeedRow
+                    skipBackwardRow
+                    skipForwardRow
+                    autoplayRow
+                    IconSwitcherView()
+                    notificationsRow
+                }
+                .padding()
+                .background(Color.surface)
+                .clipShape(RoundedRectangle(cornerRadius:16))
             }
-            .padding()
-            .background(Color.surface)
-            .clipShape(RoundedRectangle(cornerRadius:16))
+            .frame(maxWidth:.infinity,alignment:.leading)
         }
     }
     

@@ -29,7 +29,120 @@ struct ActivityView: View {
     )
     var topPodcasts: FetchedResults<Podcast>
     
+    let mini: Bool
+    
     var body: some View {
+        Group {
+            if mini {
+                miniView
+            } else {
+                fullView
+                    .background(alignment:.top) {
+                        Image("plus-pattern")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: .infinity)
+                            .mask {
+                                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                               startPoint: .top, endPoint: .bottom)
+                            }
+                            .ignoresSafeArea(.all)
+                    }
+                    .background(Color.background)
+                    .navigationTitle("My Stats")
+                    .navigationBarTitleDisplayMode(.large)
+                    .scrollEdgeEffectStyle(.soft, for: .all)
+            }
+        }
+        .toolbar {
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    MiniPlayer()
+                    Spacer()
+                    MiniPlayerButton()
+                }
+            }
+        }
+        .onAppear {
+            loadEpisodeData()
+        }
+        .task {
+            await loadStatistics()
+            await loadFavoriteDay()
+        }
+    }
+    
+    @ViewBuilder
+    var miniView: some View {
+        VStack(alignment:.leading,spacing:2) {
+            let hours = Int(statistics.totalPlayedSeconds) / 3600
+            let hourString = hours > 1 ? "Hours" : "Hour"
+            let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
+            
+            Text("Listened")
+                .textDetail()
+            
+            VStack(alignment:.leading,spacing:0) {
+                Text("\(hours)")
+                    .titleCondensed()
+                    .monospaced()
+                    .contentTransition(.numericText())
+                
+                
+                Text("\(hourString)")
+                    .textDetailEmphasis()
+            }
+        }
+        
+        VStack(alignment:.leading,spacing:8) {
+            WeeklyListeningLineChart(
+                weeklyData: weeklyData,
+                favoriteDayName: favoriteDayName,
+                chartHeight: 20,
+                showPeakDot: false
+            )
+            
+            HStack {
+                Text("S").textDetailEmphasis()
+                Spacer()
+                Text("M").textDetailEmphasis()
+                Spacer()
+                Text("T").textDetailEmphasis()
+                Spacer()
+                Text("W").textDetailEmphasis()
+                Spacer()
+                Text("T").textDetailEmphasis()
+                Spacer()
+                Text("F").textDetailEmphasis()
+                Spacer()
+                Text("S").textDetailEmphasis()
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        
+        VStack(alignment:.leading,spacing:4) {
+            let podiumOrder = [2,1,0]
+            let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
+                guard index < topPodcasts.count else { return nil }
+                return (index, topPodcasts[index])
+            }
+            
+            Text("Favorite")
+                .textDetail()
+            
+            ForEach(reordered.prefix(1), id: \.1.id) { (index, podcast) in
+                KFImage(URL(string:podcast.image ?? ""))
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius:11))
+                    .glassEffect(in:RoundedRectangle(cornerRadius:11))
+            }
+        }
+    }
+    
+    @ViewBuilder
+    var fullView: some View {
         ScrollView {
             VStack(spacing:32) {
                 if recentlyPlayed.isEmpty {
@@ -217,37 +330,6 @@ struct ActivityView: View {
                     }
                 }
             }
-        }
-        .toolbar {
-            if !episodesViewModel.queue.isEmpty {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    MiniPlayer()
-                    Spacer()
-                    MiniPlayerButton()
-                }
-            }
-        }
-        .background(alignment:.top) {
-            Image("plus-pattern")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .mask {
-                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                                   startPoint: .top, endPoint: .bottom)
-                }
-                .ignoresSafeArea(.all)
-        }
-        .background(Color.background)
-        .navigationTitle("My Stats")
-        .navigationBarTitleDisplayMode(.large)
-        .scrollEdgeEffectStyle(.soft, for: .all)
-        .onAppear {
-            loadEpisodeData()
-        }
-        .task {
-            await loadStatistics()
-            await loadFavoriteDay()
         }
     }
     

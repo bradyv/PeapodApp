@@ -30,7 +30,7 @@ struct EpisodeDetails: View {
                         Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: true))
                             .foregroundStyle(displayedInQueue ? .white.opacity(0.75) : .text)
                             .textBody()
-                            .lineLimit(2)
+                            .lineLimit(3)
                             .layoutPriority(0)
                             .multilineTextAlignment(.leading)
                     }

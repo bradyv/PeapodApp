@@ -229,7 +229,7 @@ struct LatestEpisodesView: View {
     
     @ViewBuilder
     private var episodesCells: some View {
-        LazyHStack(spacing: 16) {
+        LazyHStack(spacing: 8) {
             ForEach(filteredEpisodes, id: \.id) { episode in
                 NavigationLink {
                     EpisodeView(episode:episode)

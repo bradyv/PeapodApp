@@ -24,7 +24,8 @@ struct SubscriptionsView: View {
                     NavigationLink {
                         PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                     } label: {
-                        PodcastGridItem(podcast: podcast)
+                        ArtworkView(url: podcast.image ?? "", cornerRadius: 24)
+//                        PodcastGridItem(podcast: podcast)
                     }
                 }
             }
@@ -49,7 +50,7 @@ struct SubscriptionsRow: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     
     var body: some View {
-        let frame = (UIScreen.main.bounds.width - 72) / 3
+        let frame = (UIScreen.main.bounds.width - 80) / 3
         if !subscriptions.isEmpty {
             VStack(spacing: 8) {
                 NavigationLink {
@@ -73,8 +74,7 @@ struct SubscriptionsRow: View {
                             NavigationLink {
                                 PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                             } label: {
-                                PodcastGridItem(podcast: podcast)
-                                    .frame(width: frame, height: frame)
+                                ArtworkView(url: podcast.image ?? "", size: frame, cornerRadius: 24)
                             }
                         }
                     }
@@ -85,18 +85,5 @@ struct SubscriptionsRow: View {
                 .scrollIndicators(.hidden)
             }
         }
-    }
-}
-
-// MARK: - Optimized Podcast Grid Item for Scroll Performance
-struct PodcastGridItem: View {
-    let podcast: Podcast
-    
-    var body: some View {
-        KFImage(URL(string:podcast.image ?? ""))
-            .resizable()
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1))
     }
 }

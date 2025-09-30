@@ -293,10 +293,6 @@ struct ContentView: View {
     @ViewBuilder
     var LoadingView: some View {
         VStack(alignment: .leading) {
-            Text("Up Next")
-                .titleSerifMini()
-                .padding(.top)
-            
             VStack(spacing:0) {
                 HStack(alignment: .top, spacing: 8) {
                     ZStack {

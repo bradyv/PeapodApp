@@ -107,7 +107,7 @@ struct FavEpisodesView: View {
     
     @ViewBuilder
     private var episodesCells: some View {
-        LazyHStack(spacing: 16) {
+        LazyHStack(spacing: 8) {
             ForEach(displayedEpisodes, id: \.id) { episode in
                 NavigationLink {
                     EpisodeView(episode:episode)

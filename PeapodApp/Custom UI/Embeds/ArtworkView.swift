@@ -10,14 +10,14 @@ import Kingfisher
 
 struct ArtworkView: View {
     let url: String
-    let size: CGFloat?
+    var size: CGFloat?
     let cornerRadius: CGFloat
     var tilt: Bool = false
     
     var body: some View {
         KFImage(URL(string:url))
             .resizable()
-            .aspectRatio(1, contentMode: .fit)
+            .aspectRatio(1, contentMode: .fill)
             .ifLet(size) { view, size in
                 view.frame(width: size, height: size)
             }
@@ -26,15 +26,3 @@ struct ArtworkView: View {
             .rotationEffect(.degrees(tilt ? 2 : 0))
     }
 }
-
-//struct EpisodeGridItem: View {
-//    let episode: Episode
-//    
-//    var body: some View {
-//        KFImage(URL(string:episode.episodeImage ?? episode.podcast?.image ?? ""))
-//            .resizable()
-//            .aspectRatio(1, contentMode: .fit)
-//            .clipShape(RoundedRectangle(cornerRadius: 24))
-//            .glassEffect(in: .rect(cornerRadius: 24))
-//    }
-//}

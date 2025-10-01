@@ -68,7 +68,7 @@ struct ActivityView: View {
                         
                         HStack {
                             VStack(alignment:.leading) {
-                                Text("Listener")
+                                Text(userManager.memberTypeDisplay)
                                     .titleCondensed()
                                 
                                 Text("Since \(userManager.userDateString)")

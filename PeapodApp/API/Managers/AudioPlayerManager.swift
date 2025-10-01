@@ -89,12 +89,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30 {
         didSet {
             UserDefaults.standard.set(forwardInterval, forKey: "forwardInterval")
+            updateRemoteCommandIntervals()
         }
     }
     
     @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15 {
         didSet {
             UserDefaults.standard.set(backwardInterval, forKey: "backwardInterval")
+            updateRemoteCommandIntervals()
         }
     }
     
@@ -109,6 +111,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private init() {
         primePlayer()
         configureRemoteTransportControls()
+        updateRemoteCommandIntervals()
         setupNotifications()
         restoreCurrentEpisodeState()
     }
@@ -923,21 +926,28 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         commandCenter.skipForwardCommand.isEnabled = true
-        commandCenter.skipForwardCommand.preferredIntervals = [30]
+        commandCenter.skipForwardCommand.preferredIntervals = [60]
         commandCenter.skipForwardCommand.addTarget { [weak self] _ in
-            self?.skipForward(seconds: 30)
+            guard let self = self else { return .commandFailed }
+            self.skipForward(seconds: self.forwardInterval)  // Uses current value
             return .success
         }
         
         commandCenter.skipBackwardCommand.isEnabled = true
-        commandCenter.skipBackwardCommand.preferredIntervals = [15]
         commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
-            self?.skipBackward(seconds: 15)
+            guard let self = self else { return .commandFailed }
+            self.skipBackward(seconds: self.backwardInterval)  // Uses current value
             return .success
         }
         
         commandCenter.nextTrackCommand.isEnabled = false
         commandCenter.previousTrackCommand.isEnabled = false
+    }
+    
+    private func updateRemoteCommandIntervals() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+        commandCenter.skipForwardCommand.preferredIntervals = [forwardInterval as NSNumber]
+        commandCenter.skipBackwardCommand.preferredIntervals = [backwardInterval as NSNumber]
     }
     
     private func fetchArtwork(for episode: Episode, completion: @escaping (MPMediaItemArtwork?) -> Void) {

@@ -72,7 +72,15 @@ func parseHtmlToAttributedString(_ html: String, linkColor: Color = .accentColor
         guard let body = try doc.body() else { return AttributedString("No content") }
 
         for node in body.getChildNodes() {
-            result.append(parseNode(node, font: font, color: color, linkColor: linkColor))
+            let parsed = parseNode(node, font: font, color: color, linkColor: linkColor)
+            
+            // Add spacing before this node if result already has content
+            // and the parsed node is not empty
+            if !result.characters.isEmpty && !parsed.characters.isEmpty {
+                result.append(AttributedString("\n\n"))
+            }
+            
+            result.append(parsed)
         }
 
         let result = linkifyPlainUrls(in: result, linkColor: linkColor)
@@ -186,10 +194,14 @@ private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color 
     var output = AttributedString()
 
     if let textNode = node as? TextNode {
-        var text = AttributedString(textNode.text())
-        text.font = font
-        text.foregroundColor = color
-        output.append(text)
+        let text = textNode.text()
+        // Only skip completely empty/whitespace-only nodes
+        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            var attrText = AttributedString(text)
+            attrText.font = font
+            attrText.foregroundColor = color
+            output.append(attrText)
+        }
     }
 
     else if let element = node as? Element {
@@ -198,7 +210,6 @@ private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color 
             for child in element.getChildNodes() {
                 output.append(parseNode(child, font: font, color: color, linkColor: linkColor))
             }
-            output.append(AttributedString("\n\n"))
 
         case "br":
             output.append(AttributedString("\n"))
@@ -212,6 +223,20 @@ private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color 
                 link.foregroundColor = linkColor
                 link.link = url
                 output.append(link)
+            }
+
+        case "strong", "b":
+            for child in element.getChildNodes() {
+                var childOutput = parseNode(child, font: font, color: color, linkColor: linkColor)
+                childOutput.inlinePresentationIntent = .stronglyEmphasized
+                output.append(childOutput)
+            }
+
+        case "em", "i":
+            for child in element.getChildNodes() {
+                var childOutput = parseNode(child, font: font, color: color, linkColor: linkColor)
+                childOutput.inlinePresentationIntent = .emphasized
+                output.append(childOutput)
             }
 
         default:

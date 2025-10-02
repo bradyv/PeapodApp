@@ -355,7 +355,8 @@ struct CategoryRowItem: View {
                 if !podcasts.isEmpty {
                     ForEach(Array(podcasts.prefix(3).enumerated()), id: \.offset) { index, podcast in
                         ArtworkView(url: podcast.artworkUrl600, size: 32, cornerRadius: 8, tilt: false)
-                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.background, lineWidth: 2))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.background, lineWidth: 2))
                     }
                 }
             }

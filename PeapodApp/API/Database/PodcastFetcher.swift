@@ -94,6 +94,46 @@ enum PodcastAPI {
         }.resume()
     }
     
+    static func fetchTopPodcastsByGenre(genreId: Int, limit: Int = 3, completion: @escaping ([PodcastResult]) -> Void) {
+        guard let url = URL(string: "https://itunes.apple.com/us/rss/toppodcasts/limit=\(limit)/genre=\(genreId)/json") else {
+            completion([])
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            guard let data = data else {
+                completion([])
+                return
+            }
+            
+            struct FeedResponse: Codable {
+                struct Feed: Codable {
+                    struct Entry: Codable {
+                        struct ID: Codable {
+                            let attributes: Attributes
+                            struct Attributes: Codable {
+                                let imID: String
+                                enum CodingKeys: String, CodingKey { case imID = "im:id" }
+                            }
+                        }
+                        let id: ID
+                    }
+                    let entry: [Entry]
+                }
+                let feed: Feed
+            }
+            
+            do {
+                let decoded = try JSONDecoder().decode(FeedResponse.self, from: data)
+                let ids = decoded.feed.entry.map { $0.id.attributes.imID }
+                fetchPodcastResults(for: ids, completion: completion)
+            } catch {
+                LogManager.shared.error("❌ Failed to decode genre podcasts: \(error)")
+                completion([])
+            }
+        }.resume()
+    }
+    
     static func fetchPodcastResults(for ids: [String], completion: @escaping ([PodcastResult]) -> Void) {
         let idString = ids.joined(separator: ",")
         guard let url = URL(string: "https://itunes.apple.com/lookup?id=\(idString)") else {

@@ -14,25 +14,41 @@ struct PodcastSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @FocusState private var isTextFieldFocused: Bool
-    // Accept external search query binding
-//   @Binding var searchQuery: String
     @State private var query = ""
-   
-   // Use computed property for query that syncs with searchQuery
-//   private var query: String {
-//       get { searchQuery }
-//       set { searchQuery = newValue }
-//   }
     @State private var results: [PodcastResult] = []
     @State private var urlFeedPodcast: Podcast?
     @State private var topPodcasts: [PodcastResult] = []
     @State private var curatedFeeds: [PodcastResult] = []
+    @State private var categoryPodcasts: [String: [PodcastResult]] = [:]
     @State private var hasSearched = false
     @State private var isLoadingUrlFeed = false
     @State private var urlFeedError: String?
     @State private var debounceWorkItem: DispatchWorkItem?
     @State private var selectedPodcast: PodcastResult? = nil
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
+    
+    // Define categories with their genre IDs
+    private let categories: [(name: String, icon: String, genreId: Int)] = [
+        ("Arts", "paintpalette", 1301),
+        ("Business", "briefcase", 1321),
+        ("Comedy", "theatermasks", 1303),
+        ("Education", "book", 1304),
+        ("Fiction", "text.book.closed", 1483),
+        ("Government", "building.columns", 1511),
+        ("History", "clock", 1487),
+        ("Health & Fitness", "heart", 1512),
+        ("Kids & Family", "figure.2.and.child.holdinghands", 1305),
+        ("Leisure", "leaf", 1502),
+        ("Music", "music.note", 1310),
+        ("News & Politics", "newspaper", 1489),
+        ("Religion & Spirituality", "sparkles", 1314),
+        ("Science", "flask", 1533),
+        ("Society & Culture", "person.3", 1324),
+        ("Sports", "sportscourt", 1545),
+        ("Technology", "cpu", 1318),
+        ("True Crime", "magnifyingglass", 1488),
+        ("TV & Film", "film", 1309)
+    ]
 
     var body: some View {
         ScrollView {
@@ -41,15 +57,10 @@ struct PodcastSearchView: View {
                     .titleSerifMini()
                     .frame(maxWidth:.infinity, alignment:.leading)
                 
-                Text("What we're listening to.")
-                    .textDetail()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-                
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
                         NavigationLink {
                             PodcastDetailView(feedUrl: podcast.feedUrl)
-//                            selectedPodcast = podcast
                         } label: {
                             VStack {
                                 FadeInView(delay: Double(index) * 0.05) {
@@ -66,22 +77,21 @@ struct PodcastSearchView: View {
                     .titleSerifMini()
                     .frame(maxWidth:.infinity, alignment:.leading)
                 
-                Text("What the world is listening to.")
-                    .textDetail()
-                    .frame(maxWidth:.infinity, alignment:.leading)
+                Spacer().frame(height:8)
                 
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(Array(topPodcasts.enumerated()), id: \.1.id) { index, podcast in
+                // Category rows
+                LazyVStack(spacing: 0) {
+                    ForEach(categories, id: \.genreId) { category in
                         NavigationLink {
-                            PodcastDetailView(feedUrl: podcast.feedUrl)
-//                            selectedPodcast = podcast
+                            PodcastCategoryView(categoryName: category.name, genreId: category.genreId)
                         } label: {
-                            VStack {
-                                FadeInView(delay: Double(index) * 0.05) {
-                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
-                                }
-                            }
+                            CategoryRowItem(
+                                icon: category.icon,
+                                label: category.name,
+                                podcasts: categoryPodcasts[category.name] ?? []
+                            )
                         }
+                        Divider()
                     }
                 }
             } else {
@@ -128,14 +138,6 @@ struct PodcastSearchView: View {
                             FadeInView(delay: 0.3) {
                                 NavigationLink {
                                     PodcastDetailView(feedUrl:urlPodcast.feedUrl ?? "")
-//                                    let podcastResult = PodcastResult(
-//                                        feedUrl: urlPodcast.feedUrl ?? "",
-//                                        trackName: urlPodcast.title ?? "Unknown Podcast",
-//                                        artistName: urlPodcast.author ?? "Unknown Author",
-//                                        artworkUrl600: urlPodcast.image ?? "",
-//                                        trackId: urlPodcast.id?.hashValue ?? 0
-//                                    )
-//                                    selectedPodcast = podcastResult
                                 } label: {
                                     HStack {
                                         ArtworkView(url: urlPodcast.image ?? "", size: 44, cornerRadius: 12, tilt: false)
@@ -184,7 +186,6 @@ struct PodcastSearchView: View {
                                 FadeInView(delay: 0.3) {
                                     NavigationLink {
                                         PodcastDetailView(feedUrl: podcast.feedUrl)
-//                                        selectedPodcast = podcast
                                     } label: {
                                         HStack {
                                             ArtworkView(url: podcast.artworkUrl600, size: 44, cornerRadius: 12, tilt: false)
@@ -215,6 +216,7 @@ struct PodcastSearchView: View {
                 .frame(maxWidth:.infinity)
             }
         }
+        .background(Color.background)
         .frame(maxWidth:.infinity, alignment:.leading)
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $query, prompt: "Find a Podcast")
@@ -225,8 +227,14 @@ struct PodcastSearchView: View {
             PodcastAPI.fetchCuratedFeeds { podcasts in
                 self.curatedFeeds = podcasts
             }
-            PodcastAPI.fetchTopPodcasts { podcasts in
-                self.topPodcasts = podcasts
+            
+            // Fetch top podcasts for each category
+            for category in categories {
+                PodcastAPI.fetchTopPodcastsByGenre(genreId: category.genreId, limit: 3) { podcasts in
+                    DispatchQueue.main.async {
+                        self.categoryPodcasts[category.name] = podcasts
+                    }
+                }
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -318,6 +326,37 @@ struct PodcastSearchView: View {
     }
 }
 
+// New component for category rows
+struct CategoryRowItem: View {
+    let icon: String
+    let label: String
+    let podcasts: [PodcastResult]
+    
+    var body: some View {
+        HStack(spacing:8) {
+            Text(label)
+                .foregroundStyle(Color.heading)
+                .textBody()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            LazyHStack(spacing:-4) {
+                // Actual podcast artworks
+                if !podcasts.isEmpty {
+                    ForEach(Array(podcasts.prefix(3).enumerated()), id: \.offset) { index, podcast in
+                        ArtworkView(url: podcast.artworkUrl600, size: 32, cornerRadius: 8, tilt: false)
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.background, lineWidth: 2))
+                    }
+                }
+            }
+            
+            Image(systemName: "chevron.right")
+                .frame(width: 16, alignment: .trailing)
+                .textBody()
+                .opacity(0.25)
+        }
+        .padding(.vertical, 12)
+    }
+}
 
 struct CuratedFeedView: View {
     @State private var curatedFeeds: [PodcastResult] = []

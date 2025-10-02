@@ -53,45 +53,45 @@ struct PodcastSearchView: View {
     var body: some View {
         ScrollView {
             if query.isEmpty {
-                Text("Our Favorites")
-                    .titleSerifMini()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-                
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
-                        NavigationLink {
-                            PodcastDetailView(feedUrl: podcast.feedUrl)
-                        } label: {
-                            VStack {
-                                FadeInView(delay: Double(index) * 0.05) {
+                LazyVStack {
+                    Text("Our Favorites")
+                        .titleSerifMini()
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                    
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(Array(curatedFeeds.enumerated()), id: \.1.id) { index, podcast in
+                            NavigationLink {
+                                PodcastDetailView(feedUrl: podcast.feedUrl)
+                            } label: {
+                                VStack {
                                     ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
                                 }
                             }
                         }
                     }
-                }
-                
-                Spacer().frame(height:24)
-                
-                Text("Top Podcasts")
-                    .titleSerifMini()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-                
-                Spacer().frame(height:8)
-                
-                // Category rows
-                LazyVStack(spacing: 0) {
-                    ForEach(categories, id: \.genreId) { category in
-                        NavigationLink {
-                            PodcastCategoryView(categoryName: category.name, genreId: category.genreId)
-                        } label: {
-                            CategoryRowItem(
-                                icon: category.icon,
-                                label: category.name,
-                                podcasts: categoryPodcasts[category.name] ?? []
-                            )
+                    
+                    Spacer().frame(height:24)
+                    
+                    Text("Top Podcasts")
+                        .titleSerifMini()
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                    
+                    Spacer().frame(height:8)
+                    
+                    // Category rows
+                    VStack(spacing: 0) {
+                        ForEach(categories, id: \.genreId) { category in
+                            NavigationLink {
+                                PodcastCategoryView(categoryName: category.name, genreId: category.genreId)
+                            } label: {
+                                CategoryRowItem(
+                                    icon: category.icon,
+                                    label: category.name,
+                                    podcasts: categoryPodcasts[category.name] ?? []
+                                )
+                            }
+                            Divider()
                         }
-                        Divider()
                     }
                 }
             } else {
@@ -196,8 +196,23 @@ struct PodcastSearchView: View {
                                                     .lineLimit(1)
                                                 Text(podcast.author)
                                                     .textDetail()
+                                                    .lineLimit(1)
                                             }
                                             .frame(maxWidth: .infinity, alignment: .leading)
+                                            
+                                            if podcast.isSubscribed(in: viewContext) {
+                                                
+                                                HStack(spacing:4) {
+                                                    Image(systemName: "checkmark")
+                                                        .textDetail()
+                                                    
+                                                    Text("Following")
+                                                        .textDetail()
+                                                }
+                                                .padding(.horizontal).padding(.vertical,6)
+                                                .background(Color.surface)
+                                                .clipShape(Capsule())
+                                            }
                                             
                                             Image(systemName: "chevron.right")
                                                 .frame(width:12)
@@ -235,10 +250,6 @@ struct PodcastSearchView: View {
                         self.categoryPodcasts[category.name] = podcasts
                     }
                 }
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isTextFieldFocused = true
             }
         }
         .onChange(of: query) { newValue in

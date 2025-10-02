@@ -222,6 +222,16 @@ struct PodcastResult: Codable, Identifiable {
     private enum CodingKeys: String, CodingKey {
         case feedUrl, trackName, artistName, artworkUrl600, trackId
     }
+    
+    // Check if this podcast is subscribed in Core Data
+    func isSubscribed(in context: NSManagedObjectContext) -> Bool {
+        let normalizedUrl = feedUrl.normalizeURL()
+        let request = Podcast.fetchRequest()
+        request.predicate = NSPredicate(format: "feedUrl == %@ AND isSubscribed == YES", normalizedUrl)
+        request.fetchLimit = 1
+        
+        return (try? context.fetch(request).first) != nil
+    }
 }
 
 enum PodcastLoader {

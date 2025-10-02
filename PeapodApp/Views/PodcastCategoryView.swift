@@ -11,6 +11,7 @@ struct PodcastCategoryView: View {
     let categoryName: String
     let genreId: Int
     
+    @Environment(\.managedObjectContext) private var context
     @State private var podcasts: [PodcastResult] = []
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 3)
     
@@ -30,18 +31,16 @@ struct PodcastCategoryView: View {
                                 ZStack(alignment:.bottomTrailing) {
                                     ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
                                     
-                                    // if is subscribed
-                                    ZStack {
-                                        Image(systemName:"checkmark.circle.fill")
-                                            .foregroundStyle(Color.accentColor)
-                                            .textMini()
+                                    if podcast.isSubscribed(in: context) {
+                                        ZStack {
+                                            Image(systemName:"checkmark")
+                                                .foregroundStyle(.white)
+                                        }
+                                        .frame(width:44,height:44)
+                                        .background(Color.accentColor)
+                                        .clipShape(Circle())
+                                        .glassEffect(in:Circle())
                                     }
-                                    .background(Color.background)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.background, lineWidth: 1)
-                                    )
                                 }
                             }
                         }

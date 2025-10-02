@@ -29,7 +29,74 @@ struct ActivityView: View {
     )
     var topPodcasts: FetchedResults<Podcast>
     
+    var mini: Bool = false
+    
     var body: some View {
+        Group {
+            if mini {
+                miniView
+            } else {
+                fullView
+            }
+        }
+        .onAppear {
+            loadEpisodeData()
+        }
+        .task {
+            await loadStatistics()
+            await loadFavoriteDay()
+        }
+    }
+    
+    @ViewBuilder
+    var miniView: some View {
+        HStack(alignment:.bottom, spacing:28) {
+            let podiumOrder = [2,1,0]
+            let reordered: [(Int, Podcast)] = podiumOrder.compactMap { index in
+                guard index < topPodcasts.count else { return nil }
+                return (index, topPodcasts[index])
+            }
+            let hours = Int(statistics.totalPlayedSeconds) / 3600
+            let hourString = hours > 1 ? "Hours" : "Hour"
+            
+            VStack(alignment:.leading,spacing:10) {
+                Text("Listened")
+                    .textDetail()
+                
+                VStack(alignment:.leading,spacing:0) {
+                    Text("\(hours)")
+                        .titleCondensed()
+                        .monospaced()
+                        .contentTransition(.numericText())
+                    
+                    Text("\(hourString)")
+                        .textDetailEmphasis()
+                }
+            }
+            .fixedSize()
+            
+            VStack(alignment:.leading,spacing:10) {
+                Text("Favorite")
+                    .textDetail()
+                
+                ForEach(reordered.reversed().prefix(1), id: \.1.id) { (index, podcast) in
+                    ArtworkView(url: podcast.image ?? "", size: 40, cornerRadius: 11)
+                }
+            }
+            .fixedSize()
+            
+            WeeklyListeningLineChart(
+                weeklyData: weeklyData,
+                favoriteDayName: favoriteDayName,
+                mini: true
+            )
+            .frame(maxWidth:.infinity)
+        }
+        .frame(maxWidth:.infinity, alignment:.leading)
+    }
+    
+    @ViewBuilder
+    var fullView: some View {
         ScrollView {
             VStack(spacing:32) {
                 if recentlyPlayed.isEmpty {
@@ -64,8 +131,6 @@ struct ActivityView: View {
                     let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
                     
                     VStack(alignment:.leading) {
-                        Image("peapod-mark")
-                        
                         HStack {
                             VStack(alignment:.leading) {
                                 Text(userManager.memberTypeDisplay)
@@ -242,13 +307,6 @@ struct ActivityView: View {
         .navigationTitle("My Stats")
         .navigationBarTitleDisplayMode(.large)
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .onAppear {
-            loadEpisodeData()
-        }
-        .task {
-            await loadStatistics()
-            await loadFavoriteDay()
-        }
     }
     
     // MARK: - Data Loading

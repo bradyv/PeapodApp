@@ -12,11 +12,18 @@ struct WeeklyListeningLineChart: View {
     let weeklyData: [WeeklyListeningData]
     let favoriteDayName: String
     
-    private let chartHeight: CGFloat = 92
+    var mini: Bool? = false
     
-    // Find the single peak day
+    private var chartHeight: CGFloat {
+        mini == true ? 24 : 92
+    }
+    
+    // Find the single peak day - use count instead of percentage for consistency
+    // Use .last to match getMostPopularListeningDay() behavior when there are ties
     private var peakDay: Int? {
-        weeklyData.max(by: { $0.percentage < $1.percentage })?.dayOfWeek
+        guard !weeklyData.isEmpty else { return nil }
+        let maxCount = weeklyData.map { $0.count }.max() ?? 0
+        return weeklyData.last(where: { $0.count == maxCount })?.dayOfWeek
     }
     
     private var paddedData: [WeeklyListeningData] {
@@ -49,40 +56,80 @@ struct WeeklyListeningLineChart: View {
             dayAbbreviation: ""
         )
         
-        return [paddingStart] + completeWeekData + [paddingEnd]
+        if mini == true {
+            return completeWeekData
+        } else {
+            return [paddingStart] + completeWeekData + [paddingEnd]
+        }
+    }
+    
+    private var dayLabels: [String] {
+        ["S", "M", "T", "W", "T", "F", "S"]
     }
     
     var body: some View {
-        Chart(paddedData, id: \.dayOfWeek) { dayData in
-            LineMark(
-                x: .value("Day", dayData.dayOfWeek),
-                y: .value("Percentage", dayData.percentage)
-            )
-            .foregroundStyle(Color.heading)
-            .lineStyle(StrokeStyle(lineWidth: 2))
-            .interpolationMethod(.catmullRom)
-            
-            // Show dot ONLY for the single peak day
-            if let peakDay = peakDay,
-               dayData.dayOfWeek == peakDay {
-                PointMark(
+        VStack {
+            Chart(paddedData, id: \.dayOfWeek) { dayData in
+                LineMark(
                     x: .value("Day", dayData.dayOfWeek),
                     y: .value("Percentage", dayData.percentage)
                 )
-                .foregroundStyle(Color.accentColor)
-                .symbol {
-                    Circle()
-                        .fill(Color.accentColor)
-                        .frame(width: 12, height: 12)
-                        .overlay(Circle().stroke(Color.background, lineWidth: 3))
+                .foregroundStyle(Color.heading)
+                .lineStyle(StrokeStyle(lineWidth: 2))
+                .interpolationMethod(.catmullRom)
+                
+                // Show dot ONLY for the single peak day
+                if mini != true {
+                    if let peakDay = peakDay,
+                       dayData.dayOfWeek == peakDay {
+                        PointMark(
+                            x: .value("Day", dayData.dayOfWeek),
+                            y: .value("Percentage", dayData.percentage)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                        .symbol {
+                            Circle()
+                                .fill(Color.accentColor)
+                                .frame(width: 12, height: 12)
+                                .overlay(Circle().stroke(Color.background, lineWidth: 3))
+                        }
+                    }
                 }
             }
+            .chartXAxis(.hidden)
+            .chartYAxis(.hidden)
+            .chartYScale(domain: 0...1)
+            .chartXScale(domain: mini != true ? 0...8 : 1...7)
+            .frame(height: chartHeight)
+            
+            // Day labels with highlighting
+            HStack(spacing: 0) {
+                if mini != true {
+                    Text("S")
+                        .textDetailEmphasis()
+                        .opacity(0)
+                    Spacer()
+                }
+                ForEach(1...7, id: \.self) { dayIndex in
+                    Text(dayLabels[dayIndex - 1])
+                        .textDetailEmphasis()
+                        .opacity(dayIndex == peakDay ? 1 : 0.5)
+                    
+                    if dayIndex == 7 {
+                        
+                    } else {
+                        Spacer()
+                    }
+                }
+                if mini != true {
+                    Spacer()
+                    Text("S")
+                        .textDetailEmphasis()
+                        .opacity(0)
+                }
+            }
+            .padding(.top, mini != true ? 16 : 8)
         }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartYScale(domain: 0...1)
-        .chartXScale(domain: 0...8)
-        .frame(height: chartHeight)
     }
 }
 

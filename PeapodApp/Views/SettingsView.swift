@@ -52,11 +52,13 @@ struct SettingsView: View {
                     scrollOffset = value
                 }
             
-            userStatsSection
-            settingsSection
-            aboutSection
-            debugSection
-            footerSection
+            VStack(spacing:24) {
+                userStatsSection
+                settingsSection
+                aboutSection
+                debugSection
+                footerSection
+            }
         }
         .toolbar {
             if !episodesViewModel.queue.isEmpty {
@@ -121,50 +123,35 @@ extension SettingsView {
     
     @ViewBuilder
     private var userStatsSection: some View {
-        VStack {
-            let hours = Int(statistics.totalPlayedSeconds) / 3600
-            let hourString = hours > 1 ? "Hours" : "Hour"
-            let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
-            
-            HStack(alignment:.top) {
-                Image("peapod-mark")
-            }
-            .frame(maxWidth:.infinity, alignment:.leading)
-            
-            HStack {
-                VStack(alignment:.leading) {
-                    Text(userManager.memberTypeDisplay)
-                        .titleCondensed()
-                    
-                    Text("Since \(userManager.userDateString)")
-                        .textDetail()
-                }
-                
-                Spacer()
-                
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("\(hours)")
-                            .titleCondensed()
-                            .monospaced()
-                            .contentTransition(.numericText())
-                        
-                        Text("\(hourString) listened")
-                            .textDetail()
+        VStack(alignment:.leading) {
+            if userManager.hasPremiumAccess {
+                ActivityView(mini:true)
+            } else {
+                HStack(spacing:28) {
+                    VStack(alignment:.leading,spacing:10) {
+                        SkeletonItem(width:44, height:8)
+                        VStack(alignment:.leading,spacing:4) {
+                            SkeletonItem(width:68, height:24)
+                            SkeletonItem(width:33, height:12)
+                        }
                     }
+                    .fixedSize()
                     
-                    VStack(alignment: .leading) {
-                        Text("\(statistics.playCount)")
-                            .titleCondensed()
-                            .monospaced()
-                            .contentTransition(.numericText())
-                        
-                        Text("\(episodeString) played")
-                            .textDetail()
+                    VStack(alignment:.leading,spacing:10) {
+                        SkeletonItem(width:44, height:8)
+                        SkeletonItem(width:40, height:40)
                     }
+                    .fixedSize()
+                    
+                    WeeklyListeningLineChart(
+                        weeklyData: WeeklyListeningLineChart.mockData,
+                        favoriteDayName: "Friday",
+                        mini: true
+                    )
+                    .frame(maxWidth:.infinity)
                 }
+                .frame(maxWidth:.infinity, alignment:.leading)
             }
-            .frame(maxWidth:.infinity)
             
             Spacer().frame(height:16)
             
@@ -177,38 +164,27 @@ extension SettingsView {
     
     @ViewBuilder
     private var moreStatsButton: some View {
-        if userManager.hasPremiumAccess || {
-                #if DEBUG
-                true
-                #else
-                false
-                #endif
-            }() {
+//        if userManager.hasPremiumAccess || {
+//                #if DEBUG
+//                true
+//                #else
+//                false
+//                #endif
+//            }() {
+        if userManager.hasPremiumAccess {
             NavigationLink {
                 ActivityView()
             } label: {
-                Text("More Stats")
-                    .frame(maxWidth:.infinity)
+                Text("View More")
             }
-            .buttonStyle(PPButton(
-                type:.filled,
-                colorStyle:.monochrome,
-                peapodPlus: true
-            ))
-            .glassEffect()
+            .buttonStyle(.glass)
         } else {
             Button {
                 activeSheet = .upgrade
             } label: {
-                Text("More Stats")
-                    .frame(maxWidth:.infinity)
+                Label("Unlock Stats", systemImage: "fill.lock")
             }
-            .buttonStyle(PPButton(
-                type:.filled,
-                colorStyle:.monochrome,
-                peapodPlus: true
-            ))
-            .glassEffect()
+            .buttonStyle(.glassProminent)
         }
     }
     
@@ -233,32 +209,21 @@ extension SettingsView {
     private var aboutSection: some View {
         FadeInView(delay:0.3) {
             VStack(alignment:.leading) {
-                Text("About")
-                    .titleSerifMini()
-                    .frame(maxWidth:.infinity, alignment:.leading)
-                    .padding(.top,24)
+                Text("Thanks so much for taking a peek at Peapod! This app has been a little dream I've been nurturing for years that I'm finally sharing with the world. I've poured tons of love into designing and building my ideal podcast app.\n")
+                    .multilineTextAlignment(.leading)
+                    .textBody()
                 
-                VStack {
-                    Text("Thanks for taking the time to check out Peapod! This is the podcast app I've wanted for years and I've put a lot of love into building it. I hope that you enjoy using it as much as I do.\n")
-                        .multilineTextAlignment(.leading)
-                        .textBody()
-                    
-                    Text("- Brady")
-                        .multilineTextAlignment(.leading)
-                        .font(.custom("Bradley Hand", size: 17))
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                    
-                    supporterButton
-                    
-                    Divider()
-                    
-                    feedbackButton
-                }
-                .padding()
-                .background(Color.surface)
-                .clipShape(RoundedRectangle(cornerRadius:16))
+                Image("bv")
+                    .renderingMode(.template)
+                    .foregroundStyle(.text)
+                
+                Divider()
+                
+                feedbackButton
             }
-            .frame(maxWidth:.infinity,alignment:.leading)
+            .padding()
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius:16))
         }
     }
     
@@ -306,46 +271,39 @@ extension SettingsView {
     private var debugSection: some View {
         if _isDebugAssertConfiguration() || showDebugTools {
             FadeInView(delay:0.5) {
-                VStack(alignment:.leading) {
-                    Text("Debug")
-                        .titleSerifMini()
-                        .frame(maxWidth:.infinity, alignment: .leading)
-                        .padding(.top,24)
+                VStack {
+                    Button("🧹 Wipe Sync Data") {
+                        quickWipeSyncData()
+                    }
                     
-                    VStack {
-                        Button("🧹 Wipe Sync Data") {
-                            quickWipeSyncData()
-                        }
-                        
-                        RowItem(icon: "doc.text", label: "Log Storage") {
-                            Text(LogManager.shared.getTotalLogSize())
+                    RowItem(icon: "doc.text", label: "Log Storage") {
+                        Text(LogManager.shared.getTotalLogSize())
+                            .textBody()
+                    }
+                    
+                    Button {
+                        LogManager.shared.clearLog()
+                    } label: {
+                        RowItem(icon: "trash", label: "Clear Today's Logs", tint: Color.orange)
+                    }
+                    
+                    Button {
+                        subscribeViaURL(feedUrl: "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml")
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.diamond")
+                            
+                            Text("Show test feed")
+                                .foregroundStyle(Color.red)
                                 .textBody()
                         }
-                        
-                        Button {
-                            LogManager.shared.clearLog()
-                        } label: {
-                            RowItem(icon: "trash", label: "Clear Today's Logs", tint: Color.orange)
-                        }
-                        
-                        Button {
-                            subscribeViaURL(feedUrl: "https://bradyv.github.io/bvfeed.github.io/peapod-test.xml")
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "plus.diamond")
-                                
-                                Text("Show test feed")
-                                    .foregroundStyle(Color.red)
-                                    .textBody()
-                            }
-                            .foregroundStyle(Color.red)
-                            .padding(.vertical, 2)
-                        }
+                        .foregroundStyle(Color.red)
+                        .padding(.vertical, 2)
                     }
-                    .padding()
-                    .background(Color.surface)
-                    .clipShape(RoundedRectangle(cornerRadius:16))
                 }
+                .padding()
+                .background(Color.surface)
+                .clipShape(RoundedRectangle(cornerRadius:16))
             }
             .frame(maxWidth:.infinity,alignment:.leading)
         }
@@ -354,20 +312,22 @@ extension SettingsView {
     @ViewBuilder
     private var footerSection: some View {
         FadeInView(delay:0.4) {
-            Spacer().frame(height:24)
-            
-            Image("peapod-mark")
-                .resizable()
-                .frame(width:58, height:44)
-                .onTapGesture(count: 5) {
-                    showDebugTools.toggle()
-                }
-            
-            Text("Peapod")
-                .titleSerifMini()
-            
-            Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
-                .textDetail()
+            VStack {
+                supporterButton
+                
+                Image("peapod-mark")
+                    .resizable()
+                    .frame(width:58, height:44)
+                    .onTapGesture(count: 5) {
+                        showDebugTools.toggle()
+                    }
+                
+                Text("Peapod")
+                    .titleSerifMini()
+                
+                Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
+                    .textDetail()
+            }
         }
     }
 }

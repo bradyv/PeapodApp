@@ -25,7 +25,6 @@ struct PodcastDetailView: View {
     @State private var query = ""
     @State private var showSearch = false
     @State private var isLoading = true
-    @State private var isLoadingEpisodes = true
     @State private var loadedPodcast: Podcast? = nil
     @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
@@ -44,9 +43,7 @@ struct PodcastDetailView: View {
 
     var body: some View {
         Group {
-            if isLoading || isLoadingEpisodes {
-                LoadingView
-            } else if let podcast = podcast {
+            if let podcast = podcast {
                 ScrollView {
                     Color.clear
                         .frame(height: 1)
@@ -179,6 +176,8 @@ struct PodcastDetailView: View {
                         refreshEpisodes()
                     }
                 }
+            } else if isLoading {
+                LoadingView
             } else {
                 VStack {
                     Text("Unable to load podcast")
@@ -216,8 +215,6 @@ struct PodcastDetailView: View {
     private func refreshEpisodes() {
         guard let podcast = podcast else { return }
         
-        isLoadingEpisodes = true
-        
         Task {
             let result: [Episode] = await withCheckedContinuation { continuation in
                 context.perform {
@@ -236,7 +233,6 @@ struct PodcastDetailView: View {
             }
             
             self.episodes = result
-            self.isLoadingEpisodes = false
         }
     }
     

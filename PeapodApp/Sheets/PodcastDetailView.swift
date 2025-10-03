@@ -315,9 +315,6 @@ struct PodcastDetailView: View {
             // Clear all boolean states for episodes from this podcast
             for episode in podcastEpisodes {
                 episode.isQueued = false
-                episode.isPlayed = false
-                episode.isFav = false
-                
                 // Also reset playback position
                 episode.playbackPosition = 0
             }

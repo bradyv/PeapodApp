@@ -37,20 +37,18 @@ struct PodcastCategoryView: View {
                         NavigationLink {
                             PodcastDetailView(feedUrl: podcast.feedUrl)
                         } label: {
-                            FadeInView(delay: Double(index) * 0.05) {
-                                ZStack(alignment:.bottomTrailing) {
-                                    ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
-                                    
-                                    if podcast.isSubscribed(in: context) {
-                                        ZStack {
-                                            Image(systemName:"checkmark")
-                                                .foregroundStyle(.white)
-                                        }
-                                        .frame(width:44,height:44)
-                                        .background(Color.accentColor)
-                                        .clipShape(Circle())
-                                        .glassEffect(in:Circle())
+                            ZStack(alignment:.bottomTrailing) {
+                                ArtworkView(url: podcast.artworkUrl600, size: nil, cornerRadius: 24)
+                                
+                                if podcast.isSubscribed(in: context) {
+                                    ZStack {
+                                        Image(systemName:"checkmark")
+                                            .foregroundStyle(.white)
                                     }
+                                    .frame(width:44,height:44)
+                                    .background(Color.accentColor)
+                                    .clipShape(Circle())
+                                    .glassEffect(in:Circle())
                                 }
                             }
                         }

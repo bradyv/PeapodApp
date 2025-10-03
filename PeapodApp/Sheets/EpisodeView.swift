@@ -186,7 +186,7 @@ struct EpisodeView: View {
                 player.markAsPlayed(for: episode, manually: true)
             }
         }) {
-            Label(episode.isPlayed ? "Mark as Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "circle.dashed" : "checkmark.circle")
+            Label(episode.isPlayed ? "Mark Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "rectangle.badge.minus" : "rectangle.badge.checkmark")
                 .contentTransition(.symbolEffect(.replace))
                 .textButton()
         }

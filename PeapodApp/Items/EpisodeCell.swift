@@ -19,6 +19,8 @@ struct EpisodeCell: View {
     @State private var favoriteCount = 0
     @Namespace private var namespace
     
+    var showPodcast: Bool? = true
+    
     // Computed properties based on unified state
     private var isPlaying: Bool {
         player.isPlayingEpisode(episode)
@@ -56,9 +58,11 @@ struct EpisodeCell: View {
                             )
                         }
                         
-                        Text(episode.podcast?.title ?? "Podcast title")
-                            .lineLimit(1)
-                            .textDetailEmphasis()
+                        if showPodcast == true {
+                            Text(episode.podcast?.title ?? "Podcast title")
+                                .lineLimit(1)
+                                .textDetailEmphasis()
+                        }
                     }
                     
                     Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))

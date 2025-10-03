@@ -18,6 +18,16 @@ struct PodcastCategoryView: View {
     var body: some View {
         ScrollView {
             if podcasts.isEmpty {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(1...9, id: \.self) {_ in
+                        SkeletonItem(cornerRadius:24)
+                    }
+                }
+                .mask(
+                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                   startPoint: .top, endPoint: .bottom)
+                )
+                
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 100)

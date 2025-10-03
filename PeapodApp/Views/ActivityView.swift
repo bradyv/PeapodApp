@@ -103,8 +103,7 @@ struct ActivityView: View {
                     ZStack {
                         VStack {
                             ForEach(0..<2, id: \.self) { _ in
-                                EmptyEpisodeItem()
-                                    .opacity(0.03)
+                                EmptyEpisodeCell()
                             }
                         }
                         .mask(

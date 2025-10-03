@@ -88,101 +88,53 @@ struct ContentView: View {
         ZStack {
             ScrollView {
                 VStack(alignment:.leading) {
-                    Rectangle()
-                        .frame(width: 96, height: 24)
-                        .foregroundStyle(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    SkeletonItem(width:96, height:24)
                     
-                    Rectangle()
-                        .frame(width:window,height:200)
-                        .foregroundStyle(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 32))
+                    SkeletonItem(width:window, height:200, cornerRadius:32)
                         .mask(
                             LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
                                            startPoint: .top, endPoint: .bottom)
                         )
                     
-                    Rectangle()
-                        .frame(width: 96, height: 24)
-                        .foregroundStyle(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    SkeletonItem(width:96, height:24)
                     
                     HStack {
-                        Rectangle()
-                            .frame(width: window / 3, height: window / 3)
-                            .foregroundStyle(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                        Rectangle()
-                            .frame(width: window / 3, height: window / 3)
-                            .foregroundStyle(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                        Rectangle()
-                            .frame(width: window / 3, height: window / 3)
-                            .foregroundStyle(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .frame(maxWidth:.infinity,alignment:.leading)
-                    
-                    Spacer().frame(height:32)
-                    
-                    Rectangle()
-                        .frame(width: 96, height: 24)
-                        .foregroundStyle(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    
-                    HStack {
-                        Rectangle()
-                            .frame(width: window / 3, height: window / 3)
-                            .foregroundStyle(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                        
-                        VStack(alignment:.leading) {
-                            Rectangle()
-                                .frame(width: 96, height: 12)
-                                .foregroundStyle(Color.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: 3))
-                            
-                            Rectangle()
-                                .frame(width: 200, height: 24)
-                                .foregroundStyle(Color.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            
-                            Rectangle()
-                                .frame(width: 96, height: 40)
-                                .foregroundStyle(Color.surface)
-                                .clipShape(Capsule())
+                        ForEach(1...3, id: \.self) {_ in
+                            SkeletonItem(width:window / 3, height:window / 3, cornerRadius: 16)
                         }
                     }
                     .frame(maxWidth:.infinity,alignment:.leading)
                     
                     Spacer().frame(height:32)
                     
-                    Rectangle()
-                        .frame(width: 96, height: 24)
-                        .foregroundStyle(Color.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    SkeletonItem(width:96, height:24)
                     
                     HStack {
-                        Rectangle()
-                            .frame(width: window / 3, height: window / 3)
-                            .foregroundStyle(Color.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        SkeletonItem(width:window / 3, height:window / 3, cornerRadius:16)
                         
                         VStack(alignment:.leading) {
-                            Rectangle()
-                                .frame(width: 96, height: 12)
-                                .foregroundStyle(Color.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                            SkeletonItem(width:96, height:12, cornerRadius:3)
                             
-                            Rectangle()
-                                .frame(width: 200, height: 24)
-                                .foregroundStyle(Color.surface)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            SkeletonItem(width:200, height:24)
                             
-                            Rectangle()
-                                .frame(width: 96, height: 40)
-                                .foregroundStyle(Color.surface)
-                                .clipShape(Capsule())
+                            SkeletonItem(width:96, height:40, cornerRadius:20)
+                        }
+                    }
+                    .frame(maxWidth:.infinity,alignment:.leading)
+                    
+                    Spacer().frame(height:32)
+                    
+                    SkeletonItem(width:96, height:24)
+                    
+                    HStack {
+                        SkeletonItem(width:window / 3, height:window / 3, cornerRadius:16)
+                        
+                        VStack(alignment:.leading) {
+                            SkeletonItem(width:96, height:12, cornerRadius:3)
+                            
+                            SkeletonItem(width:200, height:24)
+                            
+                            SkeletonItem(width:96, height:40, cornerRadius:20)
                         }
                     }
                     .frame(maxWidth:.infinity,alignment:.leading)
@@ -292,7 +244,7 @@ struct ContentView: View {
     
     @ViewBuilder
     var LoadingView: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 32) {
             VStack(spacing:0) {
                 HStack(alignment: .top, spacing: 8) {
                     ZStack {
@@ -310,89 +262,21 @@ struct ContentView: View {
             }
             .frame(maxWidth:.infinity, alignment:.leading)
             
-            Text("Recent Releases")
-                .titleSerifMini()
-            
-            HStack(spacing: 16) {
-                // Artwork
-                RoundedRectangle(cornerRadius:24)
-                    .frame(width:100,height:100)
-                    .foregroundStyle(Color.surface)
+            VStack(alignment:.leading, spacing: 8) {
+                Text("Recent Releases")
+                    .titleSerifMini()
                 
-                // Episode Meta
-                VStack(alignment: .leading, spacing: 8) {
-                    // Podcast Title + Release
-                    HStack {
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(width:100, height:16)
-                            .foregroundStyle(Color.surface)
-                        
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(width:50, height:14)
-                            .foregroundStyle(Color.surface)
-                    }
-                    
-                    // Episode Title + Description
-                    VStack(alignment: .leading, spacing: 2) {
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(width: 200, height:20)
-                            .foregroundStyle(Color.surface)
-                        
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(height:16)
-                            .foregroundStyle(Color.surface)
-                        
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(height:16)
-                            .foregroundStyle(Color.surface)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                EmptyEpisodeCell()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth:.infinity,alignment:.leading)
             
-            Text("Favorites")
-                .titleSerifMini()
-            
-            HStack(spacing: 16) {
-                // Artwork
-                RoundedRectangle(cornerRadius:24)
-                    .frame(width:100,height:100)
-                    .foregroundStyle(Color.surface)
+            VStack(alignment:.leading, spacing: 8) {
+                Text("Favorites")
+                    .titleSerifMini()
                 
-                // Episode Meta
-                VStack(alignment: .leading, spacing: 8) {
-                    // Podcast Title + Release
-                    HStack {
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(width:100, height:16)
-                            .foregroundStyle(Color.surface)
-                        
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(width:50, height:14)
-                            .foregroundStyle(Color.surface)
-                    }
-                    
-                    // Episode Title + Description
-                    VStack(alignment: .leading, spacing: 2) {
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(width: 200, height:20)
-                            .foregroundStyle(Color.surface)
-                        
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(height:16)
-                            .foregroundStyle(Color.surface)
-                        
-                        RoundedRectangle(cornerRadius:4)
-                            .frame(height:16)
-                            .foregroundStyle(Color.surface)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                EmptyEpisodeCell()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth:.infinity,alignment:.leading)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal)

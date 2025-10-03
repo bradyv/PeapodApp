@@ -110,3 +110,35 @@ struct EpisodeCell: View {
         }
     }
 }
+
+
+struct EmptyEpisodeCell: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            // Artwork
+            SkeletonItem(width:100, height:100, cornerRadius:24)
+            
+            // Episode Meta
+            VStack(alignment: .leading, spacing: 8) {
+                // Podcast Title + Release
+                HStack {
+                    SkeletonItem(width:100, height:16, cornerRadius:4)
+                    
+                    SkeletonItem(width:50, height:14, cornerRadius:4)
+                }
+                
+                // Episode Title + Description
+                VStack(alignment: .leading, spacing: 2) {
+                    SkeletonItem(width:200, height:20, cornerRadius:4)
+                    
+                    SkeletonItem(height:16, cornerRadius:4)
+                    
+                    SkeletonItem(height:16, cornerRadius:4)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}

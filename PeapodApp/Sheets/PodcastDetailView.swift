@@ -177,10 +177,7 @@ struct PodcastDetailView: View {
                     }
                 }
             } else if isLoading {
-                VStack {
-                    ProgressView("Loading...")
-                }
-                .frame(maxWidth:.infinity, maxHeight:.infinity)
+                LoadingView
             } else {
                 VStack {
                     Text("Unable to load podcast")
@@ -238,14 +235,28 @@ struct PodcastDetailView: View {
             self.episodes = result
         }
     }
-
+    
     @ViewBuilder
-    var EmptyPodcastView: some View {
-        VStack {
-            EmptyEpisodeItem()
-            EmptyEpisodeItem()
-            EmptyEpisodeItem()
+    var LoadingView: some View {
+        ScrollView {
+            SkeletonItem(width:128, height:128, cornerRadius:32)
+                .rotationEffect(.degrees(2))
+            
+            SkeletonItem(height:34)
+            
+            Spacer().frame(height:32)
+            
+            Text("Episodes")
+                .titleSerifSm()
+                .frame(maxWidth:.infinity, alignment:.leading)
+            
+            ForEach(1...3, id: \.self) { _ in
+                EmptyEpisodeCell()
+            }
         }
+        .disabled(true)
+        .contentMargins(.horizontal,16, for:.scrollContent)
+        .frame(maxWidth:.infinity, maxHeight:.infinity)
     }
     
     @ViewBuilder

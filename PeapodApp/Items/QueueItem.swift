@@ -63,38 +63,23 @@ struct EmptyQueueItem: View {
         let frame = UIScreen.main.bounds.width - 40
         VStack {
             HStack {
-                Rectangle()
-                    .frame(width: 24, height: 24)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                SkeletonItem(width:24, height:24, cornerRadius:3)
                 
-                Rectangle()
-                    .frame(width: 96, height: 12)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                SkeletonItem(width:96, height:12, cornerRadius:3)
                 
-                Rectangle()
-                    .frame(width: 32, height: 12)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                SkeletonItem(width:32, height:12, cornerRadius:3)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
             
             VStack(alignment: .leading) {
-                Rectangle()
-                    .frame(width: 100, height: 24)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                SkeletonItem(width:100, height:24, cornerRadius:3)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
             
             VStack(alignment: .leading) {
-                Rectangle()
-                    .frame(width: 188, height: 12)
-                    .foregroundStyle(Color.heading)
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                SkeletonItem(width:188, height:24, cornerRadius:3)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal).padding(.bottom, 16)

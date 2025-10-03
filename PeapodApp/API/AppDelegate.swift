@@ -578,13 +578,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     /// Background task handler for weekly cleanup
     private func handleWeeklyCleanup(task: BGAppRefreshTask) {
-        scheduleWeeklyCleanup() // Reschedule for next week
         
         let context = PersistenceController.shared.container.newBackgroundContext()
         context.perform { [self] in
             do {
                 let (deletedEpisodes, deletedPodcasts, deletedPlayback) = try cleanupUnusedData(in: context)
                 LogManager.shared.info("✅ Background weekly cleanup completed: \(deletedEpisodes) episodes, \(deletedPodcasts) podcasts, \(deletedPlayback) playback deleted")
+                
+                // Mark that cleanup ran successfully
+                UserDefaults.standard.set(Date(), forKey: "lastSuccessfulWeeklyCleanup")
+                
                 task.setTaskCompleted(success: true)
             } catch {
                 LogManager.shared.error("❌ Background weekly cleanup failed: \(error)")
@@ -594,13 +597,29 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func scheduleWeeklyCleanup() {
+        let lastScheduledKey = "lastScheduledWeeklyCleanup"
+        let now = Date()
+        
+        // Check if we already have a recent schedule
+        if let lastScheduled = UserDefaults.standard.object(forKey: lastScheduledKey) as? Date {
+            let timeSinceLastSchedule = now.timeIntervalSince(lastScheduled)
+            let oneDayInSeconds: TimeInterval = 60 * 60 * 24
+            
+            // If we scheduled within the last day, don't reschedule
+            if timeSinceLastSchedule < oneDayInSeconds {
+                LogManager.shared.info("✅ Weekly cleanup already scheduled recently, skipping")
+                return
+            }
+        }
+        
         let request = BGAppRefreshTaskRequest(identifier: "fm.peapod.weeklyCleanup.v1")
         request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60 * 24 * 7) // 1 week
 
         do {
             try BGTaskScheduler.shared.submit(request)
-            LogManager.shared.info("✅ Weekly cleanup task scheduled successfully for: \(request.earliestBeginDate?.description ?? "unknown")")
-            print("✅ Weekly cleanup task scheduled successfully for: \(request.earliestBeginDate?.description ?? "unknown")")
+            UserDefaults.standard.set(now, forKey: lastScheduledKey)
+            LogManager.shared.info("✅ Weekly cleanup task scheduled for: \(request.earliestBeginDate?.description ?? "unknown")")
+            print("✅ Weekly cleanup task scheduled for: \(request.earliestBeginDate?.description ?? "unknown")")
         } catch {
             LogManager.shared.error("❌ Could not schedule weekly cleanup task: \(error)")
             print("❌ Could not schedule weekly cleanup task: \(error)")

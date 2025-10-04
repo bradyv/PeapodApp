@@ -10,6 +10,7 @@ import CoreData
 import FeedKit
 import MessageUI
 import UserNotifications
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -31,6 +32,9 @@ struct SettingsView: View {
     @State private var activeSheet: SheetType?
     @State private var selectedEpisodeForNavigation: Episode? = nil
     @StateObject private var userManager = UserManager.shared
+    @StateObject private var opmlImportManager = OPMLImportManager()
+    @State private var showFileBrowser: Bool = false
+    @State private var selectedOPMLContent: String = ""
     
     enum SheetType: Identifiable {
         case upgrade
@@ -203,12 +207,64 @@ extension SettingsView {
             
             VStack {
                 IconSwitcherView()
+                importRow
                 notificationsRow
             }
             .padding()
             .background(Color.surface)
             .clipShape(RoundedRectangle(cornerRadius:26))
         }
+    }
+    
+    @ViewBuilder
+    private var importRow: some View {
+        RowItem(
+            icon: "tray.and.arrow.down",
+            label: "Import OPML",
+            tint: Color.purple,
+            framedIcon: true,
+            showDivider: true)
+            .onTapGesture {
+                showFileBrowser = true
+            }
+            .fileImporter(
+                isPresented: $showFileBrowser,
+                allowedContentTypes: [
+                    .xml,
+                    .plainText,
+                    UTType(filenameExtension: "opml") ?? .xml,
+                    UTType(mimeType: "text/x-opml") ?? .xml
+                ],
+                allowsMultipleSelection: false
+            ) { result in
+                do {
+                    guard let selectedFile: URL = try result.get().first else { return }
+                    
+                    // Start accessing the security-scoped resource
+                    guard selectedFile.startAccessingSecurityScopedResource() else {
+                        LogManager.shared.error("Couldn't access security-scoped resource")
+                        return
+                    }
+                    
+                    defer {
+                        selectedFile.stopAccessingSecurityScopedResource()
+                    }
+                    
+                    // Now read the file
+                    let xmlContent = try String(contentsOf: selectedFile, encoding: .utf8)
+                    selectedOPMLContent = xmlContent
+                    
+                    // Start the import process
+                    opmlImportManager.importOPML(xmlString: xmlContent, context: viewContext)
+                } catch {
+                    LogManager.shared.error("Unable to read OPML file: \(error.localizedDescription)")
+                }
+            }
+            .alert("Import Complete", isPresented: $opmlImportManager.isComplete, actions: {
+                // Leave empty to use the default "OK" action.
+            }, message: {
+                Text("Subscribed to \(opmlImportManager.processedPodcasts) of \(opmlImportManager.totalPodcasts) podcasts.")
+            })
     }
     
     @ViewBuilder

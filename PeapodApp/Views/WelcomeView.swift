@@ -59,9 +59,20 @@ struct WelcomeView: View {
         ) { result in
             do {
                 guard let selectedFile: URL = try result.get().first else { return }
+                
+                // Start accessing the security-scoped resource
+                guard selectedFile.startAccessingSecurityScopedResource() else {
+                    LogManager.shared.error("Couldn't access security-scoped resource")
+                    return
+                }
+                
+                defer {
+                    selectedFile.stopAccessingSecurityScopedResource()
+                }
+                
+                // Now read the file
                 let xmlContent = try String(contentsOf: selectedFile, encoding: .utf8)
                 selectedOPMLContent = xmlContent
-                appStateManager.currentOnboardingStep = .importOPML
                 
                 // Start the import process
                 opmlImportManager.importOPML(xmlString: xmlContent, context: context)

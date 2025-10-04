@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var context
@@ -24,6 +25,9 @@ struct ContentView: View {
     @State private var episodeID = UUID()
     @State private var rotateTrigger = false
     @State private var selectedEpisodeForNavigation: Episode? = nil
+    @StateObject private var opmlImportManager = OPMLImportManager()
+    @State private var showFileBrowser: Bool = false
+    @State private var selectedOPMLContent: String = ""
     @Namespace private var namespace
     
     enum Tabs: Hashable {
@@ -44,6 +48,44 @@ struct ContentView: View {
             
         case .main:
             HomeView
+                .fileImporter(
+                    isPresented: $showFileBrowser,
+                    allowedContentTypes: [
+                        .xml,
+                        .plainText,
+                        UTType(filenameExtension: "opml") ?? .xml,
+                        UTType(mimeType: "text/x-opml") ?? .xml
+                    ],
+                    allowsMultipleSelection: false
+                ) { result in
+                    do {
+                        guard let selectedFile: URL = try result.get().first else { return }
+                        
+                        // Start accessing the security-scoped resource
+                        guard selectedFile.startAccessingSecurityScopedResource() else {
+                            LogManager.shared.error("Couldn't access security-scoped resource")
+                            return
+                        }
+                        
+                        defer {
+                            selectedFile.stopAccessingSecurityScopedResource()
+                        }
+                        
+                        // Now read the file
+                        let xmlContent = try String(contentsOf: selectedFile, encoding: .utf8)
+                        selectedOPMLContent = xmlContent
+                        
+                        // Start the import process
+                        opmlImportManager.importOPML(xmlString: xmlContent, context: context)
+                    } catch {
+                        LogManager.shared.error("Unable to read OPML file: \(error.localizedDescription)")
+                    }
+                }
+                .alert("Import Complete", isPresented: $opmlImportManager.isComplete, actions: {
+                    // Leave empty to use the default "OK" action.
+                }, message: {
+                    Text("Subscribed to \(opmlImportManager.processedPodcasts) of \(opmlImportManager.totalPodcasts) podcasts.")
+                })
                 .transition(.opacity)
                 .onAppear {
                     checkPendingNotification()
@@ -88,8 +130,6 @@ struct ContentView: View {
         ZStack {
             ScrollView {
                 VStack(alignment:.leading) {
-                    SkeletonItem(width:96, height:24)
-                    
                     SkeletonItem(width:window, height:200, cornerRadius:32)
                         .mask(
                             LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
@@ -168,14 +208,15 @@ struct ContentView: View {
                     }
                     .buttonStyle(.glassProminent)
                     
-//                    Button {
-//                        //
-//                    } label: {
-//                        Label("Import OPML", systemImage: "tray.and.arrow.down")
-//                            .padding(.vertical,4)
-//                            .foregroundStyle(Color.accentColor)
-//                            .textBodyEmphasis()
-//                    }
+                    Button {
+                        showFileBrowser = true
+                    } label: {
+                        Label("Import OPML", systemImage: "tray.and.arrow.down")
+                            .padding(.vertical,4)
+                            .foregroundStyle(Color.accentColor)
+                            .textBodyEmphasis()
+                    }
+                    .buttonStyle(.bordered)
                 }
             }
         }

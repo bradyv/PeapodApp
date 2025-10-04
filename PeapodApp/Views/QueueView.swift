@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct QueueView: View {
+    @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @EnvironmentObject var player: AudioPlayerManager
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
@@ -57,14 +58,15 @@ struct QueueView: View {
                                             }
                                             .buttonStyle(.glassProminent)
                                             
-//                                                Button {
-//                                                    //
-//                                                } label: {
-//                                                    Label("Import OPML", systemImage: "tray.and.arrow.down")
-//                                                        .padding(.vertical,4)
-//                                                        .foregroundStyle(Color.accentColor)
-//                                                        .textBodyEmphasis()
-//                                                }
+//                                            Button {
+//                                                showFileBrowser = true
+//                                            } label: {
+//                                                Label("Import OPML", systemImage: "tray.and.arrow.down")
+//                                                    .padding(.vertical,4)
+//                                                    .foregroundStyle(Color.accentColor)
+//                                                    .textBodyEmphasis()
+//                                            }
+//                                            .buttonStyle(.bordered)
                                         }
                                     }
                                     

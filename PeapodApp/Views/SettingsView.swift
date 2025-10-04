@@ -388,9 +388,12 @@ extension SettingsView {
         } label: {
             HStack {
                 Text(currentSpeed == 1.0 ? "Normal" : "\(currentSpeed, specifier: "%.1fx")")
+                    .foregroundStyle(Color.accentColor)
                     .textBody()
                 
                 Image(systemName: "chevron.up.chevron.down")
+                    .foregroundStyle(Color.accentColor)
+                    .textDetail()
             }
         }
         .onReceive(player.$playbackSpeed) { newSpeed in
@@ -402,10 +405,12 @@ extension SettingsView {
     private var playbackSpeedLocked: some View {
         HStack {
             Text("\(currentSpeed, specifier: "%.1fx")")
+                .foregroundStyle(Color.accentColor)
                 .textBody()
             
             Image(systemName: "chevron.up.chevron.down")
                 .foregroundStyle(Color.accentColor)
+                .textDetail()
         }
         .onTapGesture {
             activeSheet = .upgrade
@@ -457,9 +462,12 @@ extension SettingsView {
         } label: {
             HStack {
                 Text("\(currentBackwardInterval, specifier: "%.0fs")")
+                    .foregroundStyle(Color.accentColor)
                     .textBody()
                 
                 Image(systemName: "chevron.up.chevron.down")
+                    .foregroundStyle(Color.accentColor)
+                    .textDetail()
             }
         }
         .onReceive(player.$backwardInterval) { newBackwardInterval in
@@ -471,10 +479,12 @@ extension SettingsView {
     private var skipBackwardLocked: some View {
         HStack {
             Text("\(currentBackwardInterval, specifier: "%.0fs")")
+                .foregroundStyle(Color.accentColor)
                 .textBody()
             
             Image(systemName: "chevron.up.chevron.down")
                 .foregroundStyle(Color.accentColor)
+                .textDetail()
         }
         .onTapGesture {
             activeSheet = .upgrade
@@ -526,9 +536,12 @@ extension SettingsView {
         } label: {
             HStack {
                 Text("\(currentForwardInterval, specifier: "%.0fs")")
+                    .foregroundStyle(Color.accentColor)
                     .textBody()
                 
                 Image(systemName: "chevron.up.chevron.down")
+                    .foregroundStyle(Color.accentColor)
+                    .textDetail()
             }
         }
         .onReceive(player.$forwardInterval) { newForwardInterval in
@@ -540,10 +553,12 @@ extension SettingsView {
     private var skipForwardLocked: some View {
         HStack {
             Text("\(currentForwardInterval, specifier: "%.0fs")")
+                .foregroundStyle(Color.accentColor)
                 .textBody()
             
             Image(systemName: "chevron.up.chevron.down")
                 .foregroundStyle(Color.accentColor)
+                .textDetail()
         }
         .onTapGesture {
             activeSheet = .upgrade

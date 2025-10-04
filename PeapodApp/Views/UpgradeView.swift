@@ -86,7 +86,7 @@ struct UpgradeView: View {
             
             VStack(spacing:12) {
                 // Purchase Options
-                if !userManager.hasPremiumAccess {
+//                if !userManager.hasPremiumAccess {
                     HStack(spacing: 16) {
                         // Monthly Subscription
                         if let monthlyProduct = subscriptionManager.monthlyProduct {
@@ -118,7 +118,7 @@ struct UpgradeView: View {
                             )
                         }
                     }
-                }
+//                }
                 
                 // Footer Actions
                 HStack(spacing: 12) {
@@ -138,13 +138,10 @@ struct UpgradeView: View {
                 }
             }
             .padding()
+            .frame(maxWidth:.infinity)
             .background {
                 Rectangle()
                     .fill(.ultraThinMaterial)
-//                    .mask {
-//                        LinearGradient(gradient: Gradient(colors: [Color.accent.opacity(0), Color.accent]),
-//                                       startPoint: .top, endPoint: .bottom)
-//                    }
                 .ignoresSafeArea(.all)
             }
         }

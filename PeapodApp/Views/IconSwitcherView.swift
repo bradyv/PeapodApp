@@ -15,11 +15,9 @@ struct IconSwitcherView: View {
     @State private var showUpgrade = false
     @State private var showPicker = false
     
-    // Define your app icons here
-    let icons = [
-        IconOption(name: "Default", displayName: "Default", imageName: "appicon"),
-        IconOption(name: "PeapodAppIcon-Sparkly", displayName: "Sparkly", imageName: "appicon-sparkly")
-    ]
+    var icons: [IconOption] {
+        IconOption.availableIcons(for: userManager)
+    }
     
     var body: some View {
         VStack {
@@ -77,18 +75,32 @@ struct IconOption: Identifiable {
     let name: String
     let displayName: String
     let imageName: String
+    
+    @MainActor
+    static func availableIcons(for userManager: UserManager) -> [IconOption] {
+        var baseIcons = [
+            IconOption(name: "Default", displayName: "Default", imageName: "appicon"),
+            IconOption(name: "PeapodAppIcon-Sparkly", displayName: "Sparkly", imageName: "appicon-sparkly")
+        ]
+        
+        if userManager.hasLifetime {
+            baseIcons.append(IconOption(name: "PeapodAppIcon-Cupertino", displayName: "Cupertino", imageName: "appicon-cupertino"))
+        }
+        
+        return baseIcons
+    }
 }
 
 struct IconSheet: View {
+    @StateObject private var userManager = UserManager.shared
     @State private var currentIcon: String? = UIApplication.shared.alternateIconName
     @State private var showAlert = false
     @State private var alertMessage = ""
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
     
-    let icons = [
-        IconOption(name: "Default", displayName: "Default", imageName: "appicon"),
-        IconOption(name: "PeapodAppIcon-Sparkly", displayName: "Sparkly", imageName: "appicon-sparkly")
-    ]
+    var icons: [IconOption] {
+        IconOption.availableIcons(for: userManager)
+    }
     
     var body: some View {
         VStack {

@@ -91,7 +91,11 @@ struct WeeklyListeningLineChart: View {
                             Circle()
                                 .fill(Color.accentColor)
                                 .frame(width: 12, height: 12)
-                                .overlay(Circle().stroke(Color.background, lineWidth: 3))
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.background, lineWidth: 3)
+                                        .blendMode(.destinationOut)
+                                )
                         }
                     }
                 }

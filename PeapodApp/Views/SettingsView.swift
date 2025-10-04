@@ -159,7 +159,7 @@ extension SettingsView {
         }
         .padding()
         .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius:16))
+        .clipShape(RoundedRectangle(cornerRadius:26))
     }
     
     @ViewBuilder
@@ -196,12 +196,18 @@ extension SettingsView {
                 skipBackwardRow
                 skipForwardRow
                 autoplayRow
+            }
+            .padding()
+            .background(Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius:26))
+            
+            VStack {
                 IconSwitcherView()
                 notificationsRow
             }
             .padding()
             .background(Color.surface)
-            .clipShape(RoundedRectangle(cornerRadius:16))
+            .clipShape(RoundedRectangle(cornerRadius:26))
         }
     }
     
@@ -223,7 +229,7 @@ extension SettingsView {
             }
             .padding()
             .background(Color.surface)
-            .clipShape(RoundedRectangle(cornerRadius:16))
+            .clipShape(RoundedRectangle(cornerRadius:26))
         }
     }
     
@@ -303,7 +309,7 @@ extension SettingsView {
                 }
                 .padding()
                 .background(Color.surface)
-                .clipShape(RoundedRectangle(cornerRadius:16))
+                .clipShape(RoundedRectangle(cornerRadius:26))
             }
             .frame(maxWidth:.infinity,alignment:.leading)
         }
@@ -340,7 +346,7 @@ extension SettingsView {
         RowItem(
             icon: playbackSpeedIcon,
             label: "Playback Speed",
-            tint: Color.green,
+            tint: Color.accentColor,
             framedIcon: true) {
                 playbackSpeedControl
             }
@@ -381,7 +387,7 @@ extension SettingsView {
             }
         } label: {
             HStack {
-                Text("\(currentSpeed, specifier: "%.1fx")")
+                Text(currentSpeed == 1.0 ? "Normal" : "\(currentSpeed, specifier: "%.1fx")")
                     .textBody()
                 
                 Image(systemName: "chevron.up.chevron.down")
@@ -547,10 +553,11 @@ extension SettingsView {
     @ViewBuilder
     private var autoplayRow: some View {
         RowItem(
-            icon: "sparkles.rectangle.stack",
+            icon: "checkmark.arrow.trianglehead.clockwise",
             label: "Autoplay Next Episode",
             tint: Color.orange,
-            framedIcon: true) {
+            framedIcon: true,
+            showDivider: false) {
                 autoplayControl
             }
     }

@@ -13,6 +13,7 @@ struct IconSwitcherView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var showUpgrade = false
+    @State private var showPicker = false
     
     // Define your app icons here
     let icons = [
@@ -21,54 +22,132 @@ struct IconSwitcherView: View {
     ]
     
     var body: some View {
-        HStack {
-            RowItem(
-                icon: "app.gift",
-                label: "App Icon",
-                tint: Color.purple,
-                framedIcon: true) {
-                    appIcons
-                }
+        VStack {
+            HStack(spacing: 8) {
+                appIcons
+                
+                Text("App Icon")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textBody()
+                
+                    Image(systemName: "chevron.right")
+                        .frame(width: 16, alignment: .trailing)
+                        .textBody()
+                        .opacity(0.25)
+            }
+            .padding(.vertical, 2)
+            
+            Divider()
         }
-        .alert("Icon Changed", isPresented: $showAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(alertMessage)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if userManager.hasPremiumAccess {
+                showPicker = true
+            } else {
+                showUpgrade = true
+            }
         }
         .sheet(isPresented: $showUpgrade) {
             UpgradeView()
                 .modifier(PPSheet())
         }
+        .sheet(isPresented: $showPicker) {
+            IconSheet()
+                .modifier(PPSheet())
+                .presentationDetents([.medium])
+        }
     }
     
     @ViewBuilder
     var appIcons: some View {
-        ForEach(icons) { icon in
-            Button(action: {
-                if userManager.hasPremiumAccess {
-                    changeAppIcon(to: icon.name)
-                } else {
-                    showUpgrade = true
-                }
-            }) {
-                ZStack(alignment:.bottomTrailing) {
-                    Image(icon.imageName)
-                    if (icon.name == "Default" && currentIcon == nil) || currentIcon == icon.name {
-                        ZStack {
-                            Image(systemName:"checkmark.circle.fill")
-                                .foregroundStyle(Color.accentColor)
-                                .textMini()
+        ForEach(icons.filter { icon in
+            (icon.name == "Default" && currentIcon == nil) || currentIcon == icon.name
+        }) { icon in
+            Image(icon.imageName)
+                .resizable()
+                .frame(width:30,height:30)
+                .clipShape(RoundedRectangle(cornerRadius:8))
+                .glassEffect(in:RoundedRectangle(cornerRadius:8))
+        }
+    }
+}
+
+struct IconOption: Identifiable {
+    let id = UUID()
+    let name: String
+    let displayName: String
+    let imageName: String
+}
+
+struct IconSheet: View {
+    @State private var currentIcon: String? = UIApplication.shared.alternateIconName
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 4)
+    
+    let icons = [
+        IconOption(name: "Default", displayName: "Default", imageName: "appicon"),
+        IconOption(name: "PeapodAppIcon-Sparkly", displayName: "Sparkly", imageName: "appicon-sparkly")
+    ]
+    
+    var body: some View {
+        VStack {
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(icons) { icon in
+                    VStack {
+                        Button(action: {
+                            changeAppIcon(to: icon.name)
+                        }) {
+                            ZStack(alignment:.bottomTrailing) {
+                                Image(icon.imageName)
+                                    .resizable()
+                                    .clipShape(RoundedRectangle(cornerRadius:23))
+                                    .aspectRatio(1, contentMode:.fill)
+                                    .overlay(RoundedRectangle(cornerRadius: 23).strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1))
+                                
+                                if (icon.name == "Default" && currentIcon == nil) || currentIcon == icon.name {
+                                    ZStack {
+                                        Image(systemName:"checkmark.circle.fill")
+                                            .foregroundStyle(Color.accentColor)
+                                            .titleCondensed()
+                                    }
+                                    .background(Color.background)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.red, lineWidth: 1)
+                                            .blendMode(.destinationOut)
+                                    )
+                                }
+                            }
+                            .compositingGroup()
                         }
-                        .background(Color.background)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(Color.background, lineWidth: 1)
-                        )
+                        Text(icon.displayName)
+                            .textDetail()
+                    }
+                }
+                
+                ForEach(1...8-icons.count, id: \.self) { _ in
+                    VStack {
+                        ZStack {
+                            RoundedRectangle(cornerRadius:23)
+                                .foregroundStyle(Color.surface)
+                                .aspectRatio(1, contentMode:.fill)
+                            
+                            Image("peapod-outline")
+                                .renderingMode(.template)
+                                .foregroundStyle(Color.surface)
+                        }
+                        
+                        Text("???")
+                            .textDetail()
+                            .opacity(0.25)
                     }
                 }
             }
         }
+        .padding()
+        .navigationTitle("App Icon")
     }
     
     func changeAppIcon(to iconName: String) {
@@ -88,11 +167,4 @@ struct IconSwitcherView: View {
             }
         }
     }
-}
-
-struct IconOption: Identifiable {
-    let id = UUID()
-    let name: String
-    let displayName: String
-    let imageName: String
 }

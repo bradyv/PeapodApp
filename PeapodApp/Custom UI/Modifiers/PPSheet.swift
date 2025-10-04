@@ -14,7 +14,6 @@ struct PPSheet: ViewModifier {
         NavigationStack { 
             content
                 .presentationDragIndicator(.hidden)
-                .background(Color.background)
                 .toolbar {
                     ToolbarItem(placement:.topBarLeading) {
                         Button(action: {

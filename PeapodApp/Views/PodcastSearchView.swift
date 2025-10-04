@@ -93,6 +93,9 @@ struct PodcastSearchView: View {
                             Divider()
                         }
                     }
+                    .padding(.horizontal)
+                    .background(Color.surface)
+                    .clipShape(RoundedRectangle(cornerRadius:26))
                 }
             } else {
                 VStack {
@@ -355,11 +358,15 @@ struct CategoryRowItem: View {
                 if !podcasts.isEmpty {
                     ForEach(Array(podcasts.prefix(3).enumerated()), id: \.offset) { index, podcast in
                         ArtworkView(url: podcast.artworkUrl600, size: 32, cornerRadius: 8, tilt: false)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.background, lineWidth: 2))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(lineWidth: 2)
+                                    .blendMode(.destinationOut)
+                            )
                     }
                 }
             }
+            .compositingGroup() // Add this to group the overlapping items
             
             Image(systemName: "chevron.right")
                 .frame(width: 16, alignment: .trailing)

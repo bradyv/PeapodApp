@@ -537,15 +537,44 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         return deletedCount
     }
 
-    /// Remove all unsubscribed podcasts
+    // Remove unsubscribed podcasts that have no episodes with meaningful playback
     private func cleanupUnsubscribedPodcasts(context: NSManagedObjectContext) throws -> Int {
         var deletedCount = 0
         
+        // Get all episodes with meaningful interaction
+        let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
+        playbackRequest.predicate = NSPredicate(format: "isPlayed == YES OR isQueued == YES OR isFav == YES OR playbackPosition > 300")
+        let meaningfulPlaybackRecords = try context.fetch(playbackRequest)
+        let episodeIdsWithMeaningfulPlayback = Set(meaningfulPlaybackRecords.compactMap { $0.episodeId })
+        
+        print("🔍 Found \(episodeIdsWithMeaningfulPlayback.count) episodes with meaningful playback")
+        
+        // Get podcast IDs that have episodes with meaningful playback
+        var podcastIdsToPreserve = Set<String>()
+        if !episodeIdsWithMeaningfulPlayback.isEmpty {
+            let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+            episodeRequest.predicate = NSPredicate(format: "id IN %@", Array(episodeIdsWithMeaningfulPlayback))
+            let episodesWithMeaningfulPlayback = try context.fetch(episodeRequest)
+            podcastIdsToPreserve = Set(episodesWithMeaningfulPlayback.compactMap { $0.podcastId })
+            
+            print("🔍 Found \(podcastIdsToPreserve.count) podcasts with meaningful episode playback to preserve")
+        }
+        
+        // Find unsubscribed podcasts WITHOUT meaningful episode playback
         let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
-        podcastRequest.predicate = NSPredicate(format: "isSubscribed == NO")
+        var predicates: [NSPredicate] = [
+            NSPredicate(format: "isSubscribed == NO")
+        ]
+        
+        // Exclude podcasts that have episodes with meaningful playback
+        if !podcastIdsToPreserve.isEmpty {
+            predicates.append(NSPredicate(format: "NOT (id IN %@)", Array(podcastIdsToPreserve)))
+        }
+        
+        podcastRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         
         let unsubscribedPodcasts = try context.fetch(podcastRequest)
-        print("🗑️ Found \(unsubscribedPodcasts.count) unsubscribed podcasts to delete")
+        print("🗑️ Found \(unsubscribedPodcasts.count) unsubscribed podcasts without meaningful playback to delete")
         
         for podcast in unsubscribedPodcasts {
             let title = podcast.title ?? "Unknown Podcast"

@@ -96,6 +96,10 @@ class OPMLImportManager: ObservableObject {
         
         currentStatus = "Added \(processedPodcasts) podcasts to your library."
         isComplete = true
+        
+        UserDefaults.standard.set(true, forKey: "OPMLImported")
+        NSUbiquitousKeyValueStore.default.set(true, forKey: "OPMLImported")
+        NSUbiquitousKeyValueStore.default.synchronize()
     }
     
     private func processFeedsWithConcurrency(feedUrls: [String], context: NSManagedObjectContext) async {

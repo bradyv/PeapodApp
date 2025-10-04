@@ -231,6 +231,12 @@ class UserManager: ObservableObject {
         return SubscriptionManager.shared.hasLifetime
     }
     
+    var hasImported: Bool {
+        let hasImported = NSUbiquitousKeyValueStore.default.bool(forKey: "OPMLImported") ||
+                          UserDefaults.standard.bool(forKey: "OPMLImported")
+        return hasImported
+    }
+    
     /// When the user purchased their subscription/lifetime
     var purchaseDate: Date? {
         return SubscriptionManager.shared.relevantPurchaseDate

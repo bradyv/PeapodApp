@@ -87,6 +87,10 @@ struct IconOption: Identifiable {
             baseIcons.append(IconOption(name: "PeapodAppIcon-Cupertino", displayName: "Cupertino", imageName: "appicon-cupertino"))
         }
         
+        if userManager.hasImported {
+            baseIcons.append(IconOption(name: "PeapodAppIcon-Starry", displayName: "Starry", imageName: "appicon-starry"))
+        }
+        
         return baseIcons
     }
 }

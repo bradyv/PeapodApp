@@ -364,7 +364,7 @@ extension SettingsView {
     @ViewBuilder
     private var playbackSpeedMenu: some View {
         Menu {
-            let speeds: [Float] = [2.0, 1.5, 1.2, 1.1, 1.0, 0.75]
+            let speeds: [Float] = [0.75, 1.0, 1.1, 1.2, 1.5, 2.0]
             
             Section(header: Text("Playback Speed")) {
                 ForEach(speeds, id: \.self) { speed in

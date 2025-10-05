@@ -258,6 +258,12 @@ class UserManager: ObservableObject {
         return false
     }
     
+    var unlockAllIcons: Bool {
+        let unlockAllIcons = NSUbiquitousKeyValueStore.default.bool(forKey: "unlockAllIcons") ||
+                             UserDefaults.standard.bool(forKey: "unlockAllIcons")
+        return unlockAllIcons
+    }
+    
     /// Checks if the app is running in TestFlight and caches the result
     @MainActor
     private func checkTestFlightStatus() async {

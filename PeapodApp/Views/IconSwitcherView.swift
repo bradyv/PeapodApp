@@ -39,7 +39,7 @@ struct IconSwitcherView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            if userManager.hasPremiumAccess {
+            if userManager.hasPremiumAccess || userManager.unlockAllIcons {
                 showPicker = true
             } else {
                 showUpgrade = true
@@ -75,44 +75,71 @@ struct IconOption: Identifiable {
     let name: String
     let displayName: String
     let imageName: String
+    let unlockCondition: (UserManager, StatisticsManager) -> Bool
+    
+    @MainActor
+    static let allIcons: [IconOption] = [
+        IconOption(
+            name: "Default",
+            displayName: "Default",
+            imageName: "appicon",
+            unlockCondition: { _, _ in true }
+        ),
+        IconOption(
+            name: "PeapodAppIcon-Sparkly",
+            displayName: "Sparkly",
+            imageName: "appicon-sparkly",
+            unlockCondition: { user, _ in user.hasPremiumAccess }
+        ),
+        IconOption(
+            name: "PeapodAppIcon-Cupertino",
+            displayName: "Cupertino",
+            imageName: "appicon-cupertino",
+            unlockCondition: { user, _ in user.hasLifetime }
+        ),
+        IconOption(
+            name: "PeapodAppIcon-Starry",
+            displayName: "Starry",
+            imageName: "appicon-starry",
+            unlockCondition: { user, _ in user.hasImported }
+        ),
+        IconOption(
+            name: "PeapodAppIcon-Blueprint",
+            displayName: "Blueprint",
+            imageName: "appicon-blueprint",
+            unlockCondition: { user, _ in user.isBetaTester }
+        ),
+        IconOption(
+            name: "PeapodAppIcon-Pastel",
+            displayName: "Pastel",
+            imageName: "appicon-pastel",
+            unlockCondition: { _, stats in stats.playCount >= 100 }
+        ),
+        IconOption(
+            name: "PeapodAppIcon-Sunset",
+            displayName: "Sunset",
+            imageName: "appicon-sunset",
+            unlockCondition: { _, stats in stats.playCount >= 250 }
+        ),
+        IconOption(
+            name: "PeapodAppIcon-Gold",
+            displayName: "Gold",
+            imageName: "appicon-gold",
+            unlockCondition: { _, stats in stats.playCount >= 500 }
+        )
+    ]
     
     @MainActor
     static func availableIcons(for userManager: UserManager) -> [IconOption] {
         let statsManager = StatisticsManager.shared
         
-        var baseIcons = [
-            IconOption(name: "Default", displayName: "Default", imageName: "appicon")
-        ]
-        
-        if userManager.hasPremiumAccess {
-            baseIcons.append(IconOption(name: "PeapodAppIcon-Sparkly", displayName: "Sparkly", imageName: "appicon-sparkly"))
+        if userManager.unlockAllIcons {
+            return allIcons
         }
         
-        if userManager.hasLifetime {
-            baseIcons.append(IconOption(name: "PeapodAppIcon-Cupertino", displayName: "Cupertino", imageName: "appicon-cupertino"))
+        return allIcons.filter { icon in
+            icon.unlockCondition(userManager, statsManager)
         }
-        
-        if userManager.hasImported {
-            baseIcons.append(IconOption(name: "PeapodAppIcon-Starry", displayName: "Starry", imageName: "appicon-starry"))
-        }
-        
-        if userManager.isBetaTester {
-            baseIcons.append(IconOption(name: "PeapodAppIcon-Blueprint", displayName: "Blueprint", imageName: "appicon-blueprint"))
-        }
-        
-//        if statsManager.playCount < 100 {
-//            baseIcons.append(IconOption(name: "PeapodAppIcon-Pastel", displayName: "Pastel", imageName: "appicon-pastel"))
-//        }
-        
-        if statsManager.playCount >= 250 {
-            baseIcons.append(IconOption(name: "PeapodAppIcon-Sunset", displayName: "Sunset", imageName: "appicon-sunset"))
-        }
-        
-        if statsManager.playCount >= 500 {
-            baseIcons.append(IconOption(name: "PeapodAppIcon-Gold", displayName: "Gold", imageName: "appicon-gold"))
-        }
-        
-        return baseIcons
     }
 }
 
@@ -164,21 +191,23 @@ struct IconSheet: View {
                     }
                 }
                 
-                ForEach(1...8-icons.count, id: \.self) { _ in
-                    VStack {
-                        ZStack {
-                            RoundedRectangle(cornerRadius:23)
-                                .foregroundStyle(Color.surface)
-                                .aspectRatio(1, contentMode:.fill)
+                if !userManager.unlockAllIcons {
+                    ForEach(1...8-icons.count, id: \.self) { _ in
+                        VStack {
+                            ZStack {
+                                RoundedRectangle(cornerRadius:23)
+                                    .foregroundStyle(Color.surface)
+                                    .aspectRatio(1, contentMode:.fill)
+                                
+                                Image("peapod-outline")
+                                    .renderingMode(.template)
+                                    .foregroundStyle(Color.surface)
+                            }
                             
-                            Image("peapod-outline")
-                                .renderingMode(.template)
-                                .foregroundStyle(Color.surface)
+                            Text("???")
+                                .textDetail()
+                                .opacity(0.25)
                         }
-                        
-                        Text("???")
-                            .textDetail()
-                            .opacity(0.25)
                     }
                 }
             }

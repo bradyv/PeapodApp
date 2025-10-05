@@ -33,6 +33,7 @@ struct SettingsView: View {
     @StateObject private var userManager = UserManager.shared
     @StateObject private var opmlImportManager = OPMLImportManager()
     @State private var showFileBrowser: Bool = false
+    @State private var showIconUnlock: Bool = false
     @State private var selectedOPMLContent: String = ""
     
     enum SheetType: Identifiable {
@@ -379,12 +380,31 @@ extension SettingsView {
                     .onTapGesture(count: 5) {
                         showDebugTools.toggle()
                     }
+                    .onLongPressGesture(minimumDuration: 5) {
+                        if userManager.unlockAllIcons {
+                            UserDefaults.standard.set(false, forKey: "unlockAllIcons")
+                            NSUbiquitousKeyValueStore.default.set(false, forKey: "unlockAllIcons")
+                            NSUbiquitousKeyValueStore.default.synchronize()
+                            showIconUnlock = true
+                        } else {
+                            UserDefaults.standard.set(true, forKey: "unlockAllIcons")
+                            NSUbiquitousKeyValueStore.default.set(true, forKey: "unlockAllIcons")
+                            NSUbiquitousKeyValueStore.default.synchronize()
+                            showIconUnlock = true
+                        }
+                    }
                 
                 Text("Peapod")
                     .titleSerifMini()
                 
                 Text("\(Bundle.main.releaseVersionNumber ?? "0") (\(Bundle.main.buildVersionNumber ?? "0"))")
                     .textDetail()
+            }
+            .alert(userManager.unlockAllIcons ? "Unlocked All Icons" : "Locked All Icons", isPresented: $showIconUnlock) {
+                Button("Dismiss") {
+                }
+            } message: {
+                Text(userManager.unlockAllIcons ? "All app icons have been unlocked." : "All app icons have been locked.")
             }
         }
     }

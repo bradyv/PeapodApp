@@ -13,7 +13,7 @@ struct ActivityView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @ObservedObject private var userManager = UserManager.shared
-    @State private var statistics = AppStatistics(podcastCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
+    @ObservedObject private var statsManager = StatisticsManager.shared
     @State private var showingUpgrade = false
     @State private var recentlyPlayed: [Episode] = []
     @State private var longestEpisode: Episode?
@@ -43,7 +43,7 @@ struct ActivityView: View {
             loadEpisodeData()
         }
         .task {
-            await loadStatistics()
+            await statsManager.loadStatistics(from: context)
             await loadFavoriteDay()
         }
     }
@@ -56,7 +56,7 @@ struct ActivityView: View {
                 guard index < topPodcasts.count else { return nil }
                 return (index, topPodcasts[index])
             }
-            let hours = Int(statistics.totalPlayedSeconds) / 3600
+            let hours = statsManager.totalPlayedHours
             let hourString = hours > 1 ? "Hours" : "Hour"
             
             VStack(alignment:.leading,spacing:10) {
@@ -125,9 +125,9 @@ struct ActivityView: View {
                         guard index < topPodcasts.count else { return nil }
                         return (index, topPodcasts[index])
                     }
-                    let hours = Int(statistics.totalPlayedSeconds) / 3600
+                    let hours = statsManager.totalPlayedHours
                     let hourString = hours > 1 ? "Hours" : "Hour"
-                    let episodeString = statistics.playCount > 1 ? "Episodes" : "Episode"
+                    let episodeString = statsManager.playCount > 1 ? "Episodes" : "Episode"
                     
                     VStack(alignment:.leading) {
                         HStack {
@@ -153,7 +153,7 @@ struct ActivityView: View {
                                 }
                                 
                                 VStack(alignment: .leading) {
-                                    Text("\(statistics.playCount)")
+                                    Text("\(statsManager.playCount)")
                                         .titleCondensed()
                                         .monospaced()
                                         .contentTransition(.numericText())
@@ -167,6 +167,7 @@ struct ActivityView: View {
                     }
                     .padding(.horizontal)
                     
+                    // Rest of your view code remains the same...
                     FadeInView(delay: 0.1) {
                         VStack(spacing:16) {
                             WeeklyListeningLineChart(
@@ -291,17 +292,6 @@ struct ActivityView: View {
                 }
             }
         }
-//        .background(alignment:.top) {
-//            Image("plus-pattern")
-//                .resizable()
-//                .aspectRatio(contentMode: .fit)
-//                .frame(maxWidth: .infinity)
-//                .mask {
-//                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-//                                   startPoint: .top, endPoint: .bottom)
-//                }
-//                .ignoresSafeArea(.all)
-//        }
         .background(Color.background)
         .navigationTitle("My Stats")
         .navigationBarTitleDisplayMode(.large)
@@ -310,79 +300,46 @@ struct ActivityView: View {
     
     // MARK: - Data Loading
     private func loadEpisodeData() {
-        // Load recently played episodes
         recentlyPlayed = getPlayedEpisodes(context: context)
             .sorted { ($0.playedDate ?? Date.distantPast) > ($1.playedDate ?? Date.distantPast) }
             .prefix(5)
             .compactMap { $0 }
         
-        // Load longest episode (episode with highest actualDuration that's been played)
         let playedEpisodes = getPlayedEpisodes(context: context)
         longestEpisode = playedEpisodes
             .filter { $0.actualDuration > 0 }
             .max { $0.actualDuration < $1.actualDuration }
         
-        // Load top played episodes (episodes with highest play count)
         topPlayedEpisodes = playedEpisodes
             .sorted { $0.playCount > $1.playCount }
             .prefix(5)
             .compactMap { $0 }
     }
     
-    // MARK: - Statistics Loading
-    private func loadStatistics() async {
-        do {
-            let newStats = try await AppStatistics.load(from: context)
-            
-            // Wait to allow the UI to render with zeros, then animate the updates
-            try? await Task.sleep(for: .nanoseconds(1))
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                withAnimation(.easeInOut) {
-                    statistics = newStats
-                }
-            }
-        } catch {
-            LogManager.shared.error("Error loading statistics: \(error)")
-            // Keep default zero values on error
-        }
-    }
-    
     private func loadFavoriteDay() async {
-        do {
-            // Load weekly data using new boolean approach
-            let weeklyListeningData = getWeeklyListeningData(context: context)
+        let weeklyListeningData = getWeeklyListeningData(context: context)
+        
+        if let (dayOfWeek, count) = getMostPopularListeningDay(context: context) {
+            let dayName = dayName(from: dayOfWeek)
             
-            // Find favorite day
-            if let (dayOfWeek, count) = getMostPopularListeningDay(context: context) {
-                let dayName = dayName(from: dayOfWeek)
-                
-                DispatchQueue.main.async {
-                    withAnimation(.easeInOut) {
-                        self.weeklyData = weeklyListeningData
-                        self.favoriteDayName = dayName
-                        self.favoriteDayCount = count
-                    }
-                }
-            } else {
-                DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                withAnimation(.easeInOut) {
                     self.weeklyData = weeklyListeningData
-                    self.favoriteDayName = "No data yet"
+                    self.favoriteDayName = dayName
+                    self.favoriteDayCount = count
                 }
             }
-        } catch {
-            LogManager.shared.error("Error loading favorite day: \(error)")
+        } else {
             DispatchQueue.main.async {
-                self.favoriteDayName = "Unable to load"
+                self.weeklyData = weeklyListeningData
+                self.favoriteDayName = "No data yet"
             }
         }
     }
     
-    // MARK: - Helper Functions
+    // Helper functions remain the same...
     private func getWeeklyListeningData(context: NSManagedObjectContext) -> [WeeklyListeningData] {
         let playedEpisodes = getPlayedEpisodes(context: context)
-        
-        // Group by day of week
         var dayCounts: [Int: Int] = [:]
         let calendar = Calendar.current
         
@@ -411,7 +368,6 @@ struct ActivityView: View {
     
     private func getMostPopularListeningDay(context: NSManagedObjectContext) -> (Int, Int)? {
         let playedEpisodes = getPlayedEpisodes(context: context)
-        
         var dayCounts: [Int: Int] = [:]
         let calendar = Calendar.current
         

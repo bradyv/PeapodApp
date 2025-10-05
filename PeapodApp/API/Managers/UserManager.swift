@@ -9,6 +9,7 @@ import Foundation
 import CoreData
 import Combine
 import UIKit
+import StoreKit
 
 @MainActor
 class UserManager: ObservableObject {
@@ -31,6 +32,11 @@ class UserManager: ObservableObject {
         setupUserObservation()
         setupSubscriptionObservation()
         loadCurrentUser()
+        
+        // Check TestFlight status during initialization
+        Task {
+            await checkTestFlightStatus()
+        }
     }
     
     // MARK: - Core Data Observation
@@ -237,6 +243,45 @@ class UserManager: ObservableObject {
         return hasImported
     }
     
+    var isBetaTester: Bool {
+        // Use the cached value if available to avoid async calls in computed property
+        if let cachedValue = UserDefaults.standard.object(forKey: "isBetaTester") as? Bool {
+            return cachedValue
+        }
+        
+        // Check asynchronously and cache the result
+        Task {
+            await checkTestFlightStatus()
+        }
+        
+        // Return false by default while checking
+        return false
+    }
+    
+    /// Checks if the app is running in TestFlight and caches the result
+    @MainActor
+    private func checkTestFlightStatus() async {
+        do {
+            let appTransactionResult = try await AppTransaction.shared
+            let appTransaction = try appTransactionResult.payloadValue
+            let isTestFlight = appTransaction.environment == .sandbox
+            
+            // Cache the result in both UserDefaults and iCloud Key-Value Store
+            UserDefaults.standard.set(isTestFlight, forKey: "isBetaTester")
+            NSUbiquitousKeyValueStore.default.set(isTestFlight, forKey: "isBetaTester")
+            NSUbiquitousKeyValueStore.default.synchronize()
+            
+            LogManager.shared.info("✅ UserManager: TestFlight status checked - isTestFlight: \(isTestFlight)")
+        } catch {
+            LogManager.shared.error("❌ UserManager: Failed to check TestFlight status: \(error)")
+            
+            // Fallback: assume not TestFlight on error
+            UserDefaults.standard.set(false, forKey: "isBetaTester")
+            NSUbiquitousKeyValueStore.default.set(false, forKey: "isBetaTester")
+            NSUbiquitousKeyValueStore.default.synchronize()
+        }
+    }
+    
     /// When the user purchased their subscription/lifetime
     var purchaseDate: Date? {
         return SubscriptionManager.shared.relevantPurchaseDate
@@ -319,6 +364,11 @@ class UserManager: ObservableObject {
     func syncWithSubscriptionStatus() async {
         let hasPremium = SubscriptionManager.shared.hasPremiumAccess
         await updateUserTypeForSubscriptionStatus(hasPremium: hasPremium)
+    }
+    
+    /// Force refresh of TestFlight status
+    func refreshTestFlightStatus() async {
+        await checkTestFlightStatus()
     }
     
     // MARK: - Helper Methods

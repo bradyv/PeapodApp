@@ -232,28 +232,6 @@ func getUnsubscribedPodcastIds(context: NSManagedObjectContext) -> [String] {
 }
 
 // MARK: - App Statistics Helper
-
-struct AppStatistics {
-    let podcastCount: Int
-    let totalPlayedSeconds: Double
-    let subscribedCount: Int
-    let playCount: Int
-    
-    static func load(from context: NSManagedObjectContext) async throws -> AppStatistics {
-        let podcasts = try Podcast.totalPodcastCount(in: context)
-        let playedSeconds = try await Podcast.totalPlayedDuration(in: context)
-        let subscribed = try Podcast.totalSubscribedCount(in: context)
-        let plays = try Podcast.totalPlayCount(in: context)
-        
-        return AppStatistics(
-            podcastCount: podcasts,
-            totalPlayedSeconds: playedSeconds,
-            subscribedCount: subscribed,
-            playCount: plays
-        )
-    }
-}
-
 struct WeeklyListeningData {
     let dayOfWeek: Int
     let count: Int

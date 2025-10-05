@@ -100,6 +100,14 @@ struct IconOption: Identifiable {
             baseIcons.append(IconOption(name: "PeapodAppIcon-Blueprint", displayName: "Blueprint", imageName: "appicon-blueprint"))
         }
         
+//        if statsManager.playCount < 100 {
+//            baseIcons.append(IconOption(name: "PeapodAppIcon-Pastel", displayName: "Pastel", imageName: "appicon-pastel"))
+//        }
+        
+        if statsManager.playCount >= 250 {
+            baseIcons.append(IconOption(name: "PeapodAppIcon-Sunset", displayName: "Sunset", imageName: "appicon-sunset"))
+        }
+        
         if statsManager.playCount >= 500 {
             baseIcons.append(IconOption(name: "PeapodAppIcon-Gold", displayName: "Gold", imageName: "appicon-gold"))
         }

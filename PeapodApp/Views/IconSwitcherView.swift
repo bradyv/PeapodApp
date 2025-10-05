@@ -78,10 +78,15 @@ struct IconOption: Identifiable {
     
     @MainActor
     static func availableIcons(for userManager: UserManager) -> [IconOption] {
+        let statsManager = StatisticsManager.shared
+        
         var baseIcons = [
-            IconOption(name: "Default", displayName: "Default", imageName: "appicon"),
-            IconOption(name: "PeapodAppIcon-Sparkly", displayName: "Sparkly", imageName: "appicon-sparkly")
+            IconOption(name: "Default", displayName: "Default", imageName: "appicon")
         ]
+        
+        if userManager.hasPremiumAccess {
+            baseIcons.append(IconOption(name: "PeapodAppIcon-Sparkly", displayName: "Sparkly", imageName: "appicon-sparkly"))
+        }
         
         if userManager.hasLifetime {
             baseIcons.append(IconOption(name: "PeapodAppIcon-Cupertino", displayName: "Cupertino", imageName: "appicon-cupertino"))
@@ -89,6 +94,14 @@ struct IconOption: Identifiable {
         
         if userManager.hasImported {
             baseIcons.append(IconOption(name: "PeapodAppIcon-Starry", displayName: "Starry", imageName: "appicon-starry"))
+        }
+        
+        if userManager.isBetaTester {
+            baseIcons.append(IconOption(name: "PeapodAppIcon-Blueprint", displayName: "Blueprint", imageName: "appicon-blueprint"))
+        }
+        
+        if statsManager.playCount >= 500 {
+            baseIcons.append(IconOption(name: "PeapodAppIcon-Gold", displayName: "Gold", imageName: "appicon-gold"))
         }
         
         return baseIcons

@@ -21,7 +21,6 @@ struct SettingsView: View {
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var showNotificationAlert = false
     @State private var showNotificationRequest = false
-    @State private var statistics = AppStatistics(podcastCount: 0, totalPlayedSeconds: 0, subscribedCount: 0, playCount: 0)
     @State private var lastSynced: Date? = UserDefaults.standard.object(forKey: "lastCloudSyncDate") as? Date
     @State private var scrollOffset: CGFloat = 0
     @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
@@ -79,9 +78,6 @@ struct SettingsView: View {
         .scrollEdgeEffectStyle(.soft, for: .all)
         .contentMargins(16,for:.scrollContent)
         .coordinateSpace(name: "scroll")
-        .task {
-            await loadStatistics()
-        }
         .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
             lastSynced = Date()
             UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
@@ -708,24 +704,6 @@ extension SettingsView {
 
 // MARK: - Methods
 extension SettingsView {
-    
-    private func loadStatistics() async {
-        let context = PersistenceController.shared.container.viewContext
-        
-        do {
-            let newStats = try await AppStatistics.load(from: context)
-            
-            try? await Task.sleep(for: .nanoseconds(1))
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                withAnimation(.easeInOut) {
-                    statistics = newStats
-                }
-            }
-        } catch {
-            print("Error loading statistics: \(error)")
-        }
-    }
     
     private func handleNotificationToggle(_ enabled: Bool) {
         if enabled {

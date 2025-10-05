@@ -15,31 +15,6 @@
       "blur-material" : 0.8,
       "layers" : [
         {
-          "hidden-specializations" : [
-            {
-              "appearance" : "light",
-              "value" : true
-            }
-          ],
-          "image-name" : "appicon-blueprint 3.png",
-          "name" : "appicon-blueprint 3"
-        },
-        {
-          "glass" : true,
-          "hidden-specializations" : [
-            {
-              "appearance" : "dark",
-              "value" : true
-            },
-            {
-              "appearance" : "tinted",
-              "value" : true
-            }
-          ],
-          "image-name" : "appicon-blueprint 2.png",
-          "name" : "appicon-blueprint 2"
-        },
-        {
           "glass" : false,
           "hidden-specializations" : [
             {
@@ -96,8 +71,8 @@
               "appearance" : "dark",
               "value" : {
                 "linear-gradient" : [
-                  "display-p3:0.35443,0.70194,1.00000,1.00000",
-                  "display-p3:0.20351,0.40783,1.00000,1.00000"
+                  "display-p3:0.95605,0.89648,0.30762,1.00000",
+                  "display-p3:0.86279,0.65039,0.22327,1.00000"
                 ]
               }
             }
@@ -145,8 +120,8 @@
               "appearance" : "dark",
               "value" : {
                 "linear-gradient" : [
-                  "display-p3:0.35443,0.70194,1.00000,1.00000",
-                  "display-p3:0.20351,0.40783,1.00000,1.00000"
+                  "display-p3:0.95605,0.89648,0.30762,1.00000",
+                  "display-p3:0.86279,0.65039,0.22327,1.00000"
                 ]
               }
             }
@@ -198,8 +173,8 @@
               "appearance" : "dark",
               "value" : {
                 "linear-gradient" : [
-                  "display-p3:0.35443,0.70194,1.00000,1.00000",
-                  "display-p3:0.20351,0.40783,1.00000,1.00000"
+                  "display-p3:0.95605,0.89648,0.30762,1.00000",
+                  "display-p3:0.86279,0.65039,0.22327,1.00000"
                 ]
               }
             }
@@ -230,6 +205,31 @@
       "blur-material" : null,
       "layers" : [
         {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "display-p3:0.95605,0.89648,0.30762,1.00000"
+              }
+            }
+          ],
+          "glass" : false,
+          "hidden-specializations" : [
+            {
+              "appearance" : "light",
+              "value" : true
+            },
+            {
+              "appearance" : "tinted",
+              "value" : true
+            }
+          ],
+          "image-name" : "appicon-gold 2.png",
+          "name" : "appicon-gold 2",
+          "opacity" : 0.35
+        },
+        {
+          "glass" : false,
           "hidden-specializations" : [
             {
               "value" : false
@@ -243,8 +243,8 @@
               "value" : true
             }
           ],
-          "image-name" : "appicon-blueprint.png",
-          "name" : "appicon-blueprint",
+          "image-name" : "appicon-gold.png",
+          "name" : "appicon-gold",
           "opacity-specializations" : [
             {
               "appearance" : "dark",

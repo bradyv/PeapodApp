@@ -262,7 +262,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         // Start playback - let system handle routing
-        // Start playback - let system handle routing
         await MainActor.run {
             self.player?.rate = self.playbackSpeed
             
@@ -278,6 +277,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             
             try? episode.managedObjectContext?.save()
             
+            MPNowPlayingInfoCenter.default().playbackState = .playing
             // Update metadata
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 self.updateNowPlayingInfo()

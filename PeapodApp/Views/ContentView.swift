@@ -120,6 +120,25 @@ struct ContentView: View {
                         }
                     }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PlayEpisodeFromCarPlay"))) { notification in
+                    print("🎵 ContentView received CarPlay play notification")
+                    if let episodeID = notification.object as? String {
+                        print("🎵 Looking for episode with ID: \(episodeID)")
+                        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                        fetchRequest.predicate = NSPredicate(format: "id == %@", episodeID)
+                        fetchRequest.fetchLimit = 1
+                        
+                        if let episode = try? context.fetch(fetchRequest).first {
+                            print("🎵 Found episode: \(episode.title ?? "Unknown")")
+                            print("🎵 Calling togglePlayback")
+                            player.togglePlayback(for: episode)
+                        } else {
+                            print("❌ Episode not found with ID: \(episodeID)")
+                        }
+                    } else {
+                        print("❌ No episode ID in notification")
+                    }
+                }
 //                .toast()
         }
     }

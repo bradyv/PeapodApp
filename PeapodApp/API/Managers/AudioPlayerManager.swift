@@ -265,6 +265,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Start playback - let system handle routing
         // Start playback - let system handle routing
         await MainActor.run {
+            self.player?.play()
             self.player?.rate = self.playbackSpeed
             
             episode.nowPlaying = true

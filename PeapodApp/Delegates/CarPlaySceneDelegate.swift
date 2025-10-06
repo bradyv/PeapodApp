@@ -207,7 +207,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         favoritesTemplate?.emptyViewTitleVariants = ["No Favorites"]
         favoritesTemplate?.emptyViewSubtitleVariants = ["Tap the heart icon on any episode"]
         
-        recentTemplate = CPListTemplate(title: "Recent", sections: [createRecentSection()])
+        recentTemplate = CPListTemplate(title: "Recents", sections: [createRecentSection()])
         recentTemplate?.tabImage = UIImage(systemName: "clock.fill")
         recentTemplate?.emptyViewTitleVariants = ["No Recent Episodes"]
         

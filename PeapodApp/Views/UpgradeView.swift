@@ -19,10 +19,10 @@ struct UpgradeView: View {
     
     private let perks = [
         (title: "Listening Stats", description: "Keep track of your listening habits.", icon: "trophy", tint: Color.purple),
-        (title: "Custom App Icon", description: "A sparkly app icon, plus more to come.", icon: "app.gift", tint: Color.red),
-        (title: "Jump Around", description: "Skip forward or back in custom intervals.", icon: "30.arrow.trianglehead.clockwise", tint: Color.blue),
-        (title: "Playback Speed", description: "Tune playback speed to your preference.", icon: "gauge.with.dots.needle.67percent", tint: Color.accent),
-        (title: "Autoplay", description: "Continue listening when the current episode ends.", icon: "checkmark.arrow.trianglehead.clockwise", tint: Color.orange),
+        (title: "Colourful App Icons", description: "For those who don’t like green.", icon: "app.gift", tint: Color.red),
+        (title: "Jump Around", description: "Set custom skip intervals. ", icon: "30.arrow.trianglehead.clockwise", tint: Color.blue),
+        (title: "Playback Speed", description: "Tune to your preference.", icon: "gauge.with.dots.needle.67percent", tint: Color.accent),
+        (title: "Autoplay", description: "Continue listening when your episode ends.", icon: "checkmark.arrow.trianglehead.clockwise", tint: Color.orange),
     ]
     
     var body: some View {

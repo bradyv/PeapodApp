@@ -24,6 +24,10 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private var recentTemplate: CPListTemplate?
     private var libraryTemplate: CPListTemplate?
     
+    // Cache for resized images to prevent flashing
+    private var imageCache: [String: UIImage] = [:]
+    private let imageCacheQueue = DispatchQueue(label: "carplay.imageCache", qos: .userInteractive)
+    
     func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene,
                                  didConnect interfaceController: CPInterfaceController) {
         
@@ -63,6 +67,12 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         self.interfaceController = nil
         cancellables.removeAll()
         NotificationCenter.default.removeObserver(self)
+        
+        // Clear image cache on disconnect
+        imageCacheQueue.async { [weak self] in
+            self?.imageCache.removeAll()
+        }
+        
         print("CarPlay disconnected")
     }
     
@@ -108,6 +118,18 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
             .sink { [weak self] latest in
                 print("Latest changed in CarPlay: \(latest.count) episodes")
                 self?.updateRecentTemplate()
+            }
+            .store(in: &cancellables)
+        
+        // Observe audio player changes to update accessory images
+        let player = AudioPlayerManager.shared
+        
+        // Observe playback state changes
+        player.$playbackState
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                print("Playback state changed in CarPlay")
+                self?.refreshAllTemplates()
             }
             .store(in: &cancellables)
     }
@@ -339,18 +361,25 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         
         let item = CPListItem(text: title, detailText: subtitle)
         
-        // Load artwork asynchronously
-        if let artworkURL = episode.episodeImage ?? episode.podcast?.image,
-           let url = URL(string: artworkURL) {
-            loadImage(from: url) { image in
-                DispatchQueue.main.async {
-                    item.setImage(image)
-                }
+        // Check if this is the currently playing episode
+        let player = AudioPlayerManager.shared
+        let isCurrentlyPlaying = player.currentEpisode?.id == episode.id
+        
+        if isCurrentlyPlaying {
+            // Show playing indicator
+            if player.isPlaying {
+                item.setAccessoryImage(
+                    UIImage(systemName: "speaker.wave.2.fill")?.withTintColor(.systemBlue, renderingMode: .alwaysOriginal))
             }
         }
         
+        // Load artwork with caching to prevent flashing
+        if let artworkURL = episode.episodeImage ?? episode.podcast?.image {
+            loadImageWithCaching(from: artworkURL, for: item)
+        }
+        
         // Handle tap to play episode
-        item.handler = { [weak self] _, completion in
+        item.handler = { [weak self] (item: any CPSelectableListItem, completion: @escaping () -> Void) in
             self?.playEpisode(episode)
             completion()
         }
@@ -362,18 +391,13 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         let title = podcast.title ?? "Untitled Podcast"
         let item = CPListItem(text: title, detailText: nil)
         
-        // Load artwork asynchronously
-        if let artworkURL = podcast.image,
-           let url = URL(string: artworkURL) {
-            loadImage(from: url) { image in
-                DispatchQueue.main.async {
-                    item.setImage(image)
-                }
-            }
+        // Load artwork with caching to prevent flashing
+        if let artworkURL = podcast.image {
+            loadImageWithCaching(from: artworkURL, for: item)
         }
         
         // Handle tap to show podcast episodes
-        item.handler = { [weak self] _, completion in
+        item.handler = { [weak self] (item: any CPSelectableListItem, completion: @escaping () -> Void) in
             self?.showPodcastEpisodes(for: podcast)
             completion()
         }
@@ -426,23 +450,53 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     
     // MARK: - Image Loading
     
+    private func loadImageWithCaching(from urlString: String, for item: CPListItem) {
+        guard let url = URL(string: urlString) else { return }
+        
+        // Check cache first
+        if let cachedImage = imageCache[urlString] {
+            item.setImage(cachedImage)
+            return
+        }
+        
+        // Load from Kingfisher cache or network
+        loadImage(from: url) { [weak self] image in
+            DispatchQueue.main.async {
+                if let image = image {
+                    // Cache the resized image
+                    self?.imageCacheQueue.async {
+                        self?.imageCache[urlString] = image
+                    }
+                    item.setImage(image)
+                }
+            }
+        }
+    }
+    
     private func loadImage(from url: URL, completion: @escaping (UIImage?) -> Void) {
         // Use Kingfisher's cache
         KingfisherManager.shared.retrieveImage(with: url) { result in
             switch result {
             case .success(let imageResult):
-                // Resize for CarPlay
-                let image = imageResult.image
-                let size = CGSize(width: 200, height: 200)
-                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                image.draw(in: CGRect(origin: .zero, size: size))
-                let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-                UIGraphicsEndImageContext()
-                
-                completion(resizedImage)
+                // Resize for CarPlay on background queue to avoid blocking
+                DispatchQueue.global(qos: .userInteractive).async {
+                    let image = imageResult.image
+                    let size = CGSize(width: 200, height: 200)
+                    
+                    let renderer = UIGraphicsImageRenderer(size: size)
+                    let resizedImage = renderer.image { context in
+                        image.draw(in: CGRect(origin: .zero, size: size))
+                    }
+                    
+                    DispatchQueue.main.async {
+                        completion(resizedImage)
+                    }
+                }
             case .failure(let error):
                 print("Failed to load image: \(error)")
-                completion(nil)
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
             }
         }
     }

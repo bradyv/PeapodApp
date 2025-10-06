@@ -12,8 +12,6 @@
 		2354DD332DA8895E007348BC /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD322DA8895E007348BC /* SwiftSoup */; };
 		2354DD362DA88968007348BC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD352DA88968007348BC /* Kingfisher */; };
 		2354DD3C2DA889BA007348BC /* FeedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2354DD3B2DA889BA007348BC /* FeedKit */; };
-		2361E75D2E9232270082EF37 /* CarPlayHelloWorld.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2361E75C2E9232270082EF37 /* CarPlayHelloWorld.swift */; };
-		2361E75E2E9232270082EF37 /* CarPlayHelloWorld.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2361E75C2E9232270082EF37 /* CarPlayHelloWorld.swift */; };
 		2390AC012DE8C7C100487751 /* SmoothGradient in Frameworks */ = {isa = PBXBuildFile; productRef = 2390AC002DE8C7C100487751 /* SmoothGradient */; };
 		239EFB8D2DE2607A0036D6F3 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 239EFB8C2DE2607A0036D6F3 /* FirebaseMessaging */; };
 		239EFB942DE26AE20036D6F3 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 239EFB932DE26AE20036D6F3 /* FirebaseFunctions */; };
@@ -64,7 +62,6 @@
 		23599E2B2D9B895C00F2DE3B /* PeapodApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PeapodApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		23599E402D9B895D00F2DE3B /* PeapodAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PeapodAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		23599E4A2D9B895D00F2DE3B /* PeapodAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PeapodAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		2361E75C2E9232270082EF37 /* CarPlayHelloWorld.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarPlayHelloWorld.swift; path = PeapodApp/CarPlayHelloWorld.swift; sourceTree = "<group>"; };
 		239EFB992DE285950036D6F3 /* NotificationServiceExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationServiceExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -158,7 +155,6 @@
 		23599E222D9B895C00F2DE3B = {
 			isa = PBXGroup;
 			children = (
-				2361E75C2E9232270082EF37 /* CarPlayHelloWorld.swift */,
 				23599E2D2D9B895C00F2DE3B /* PeapodApp */,
 				239EFB9A2DE285950036D6F3 /* NotificationServiceExtension */,
 				239EFDED2DE2D4340036D6F3 /* Frameworks */,
@@ -374,7 +370,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2361E75E2E9232270082EF37 /* CarPlayHelloWorld.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -396,7 +391,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2361E75D2E9232270082EF37 /* CarPlayHelloWorld.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

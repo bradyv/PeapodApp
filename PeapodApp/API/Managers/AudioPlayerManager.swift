@@ -251,6 +251,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             // Create new player - let system handle everything else
             let playerItem = AVPlayerItem(url: url)
             self.player = AVPlayer(playerItem: playerItem)
+            self.player?.automaticallyWaitsToMinimizeStalling = false
             
             // Minimal observations only
             self.setupPlayerObservations(for: episodeID)

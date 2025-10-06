@@ -100,9 +100,11 @@ struct LatestEpisodesView: View {
         .background(Color.background)
         .toolbar {
             ToolbarItem(placement:.largeSubtitle) {
-                Text(selectedPodcast?.id == nil ? "All Podcasts" : "Filtering: \(selectedPodcast?.title ?? "")")
-                    .textMini()
-                    .frame(maxWidth:.infinity, alignment:.leading)
+                HStack(spacing: 2) {
+                    Text(selectedPodcast?.id == nil ? "All Podcasts" : "Filtering: **\(selectedPodcast?.title ?? "")**")
+                        .textMini()
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                }
             }
             ToolbarItem(placement:.subtitle) {
                 Text(selectedPodcast?.id == nil ? "All Podcasts" : selectedPodcast?.title ?? "")
@@ -137,6 +139,7 @@ struct LatestEpisodesView: View {
                     Image(systemName:"line.3.horizontal.decrease")
                 }
             }
+            
             if !episodesViewModel.queue.isEmpty {
                 ToolbarItemGroup(placement: .bottomBar) {
                     MiniPlayer()

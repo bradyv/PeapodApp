@@ -337,6 +337,18 @@ struct ContentView: View {
                 EmptyEpisodeCell()
             }
             .frame(maxWidth:.infinity,alignment:.leading)
+            
+            VStack(alignment:.leading, spacing:8) {
+                Text("Following")
+                    .titleSerifMini()
+                
+                HStack(spacing: 16) {
+                    let frame = (UIScreen.main.bounds.width - 80) / 3
+                    ForEach(1...3, id:\.self) {_ in
+                        SkeletonItem(width:frame,height:frame,cornerRadius:24)
+                    }
+                }
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal)

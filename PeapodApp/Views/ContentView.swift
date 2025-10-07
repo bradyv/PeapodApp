@@ -253,6 +253,7 @@ struct ContentView: View {
                     MainBackground()
                     
                     ScrollView {
+                        Spacer().frame(height:4)
                         if episodesViewModel.isLoading {
                             LoadingView
                                 .transition(.opacity)

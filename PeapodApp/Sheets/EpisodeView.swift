@@ -102,6 +102,8 @@ struct EpisodeView: View {
                         return .systemAction
                     })
             }
+            
+            Spacer().frame(height: 24)
         }
         .background {
             SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
@@ -180,9 +182,6 @@ struct EpisodeView: View {
     var MarkAsPlayedButton: some View {
         Button(action: {
             withAnimation {
-                if episode.isQueued {
-                    removeFromQueue(episode)
-                }
                 player.markAsPlayed(for: episode, manually: true)
             }
         }) {

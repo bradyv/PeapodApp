@@ -239,7 +239,7 @@ struct PodcastSearchView: View {
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $query, prompt: "Find a Podcast")
         .navigationTitle("Find a Podcast")
-        .contentMargins(16, for: .scrollContent)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {
             PodcastAPI.fetchCuratedFeeds { podcasts in

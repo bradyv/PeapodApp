@@ -98,7 +98,15 @@ struct EpisodeCell: View {
         }
         .swipeActions(edge: .trailing) {
             Button {
-                toggleQueued(episode)
+                if episode.isQueued {
+                    withAnimation {
+                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                    }
+                } else {
+                    withAnimation {
+                        toggleQueued(episode, episodesViewModel: episodesViewModel)
+                    }
+                }
             } label: {
                 Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
             }

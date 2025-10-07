@@ -50,12 +50,6 @@ struct SettingsView: View {
     
     var body: some View {
         ScrollView {
-            Color.clear
-                .frame(height: 1)
-                .trackScrollOffset("scroll") { value in
-                    scrollOffset = value
-                }
-            
             VStack(spacing:24) {
                 userStatsSection
                 settingsSection
@@ -77,7 +71,7 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
         .scrollEdgeEffectStyle(.soft, for: .all)
-        .contentMargins(16,for:.scrollContent)
+        .contentMargins(.horizontal,16,for:.scrollContent)
         .coordinateSpace(name: "scroll")
         .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
             lastSynced = Date()

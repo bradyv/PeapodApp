@@ -59,7 +59,7 @@ struct PodcastCategoryView: View {
         .background(Color.background)
         .navigationTitle(categoryName)
         .navigationBarTitleDisplayMode(.large)
-        .contentMargins(16, for: .scrollContent)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {
             loadPodcasts()

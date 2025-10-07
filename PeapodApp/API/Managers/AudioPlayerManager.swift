@@ -748,17 +748,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
         let context = episode.managedObjectContext ?? viewContext
         
-        // FIXED: Check if this is the current episode (regardless of play/pause state)
         let isCurrentEpisode = (playbackState.episode?.id == episode.id)
         let progressBeforeStop = isCurrentEpisode ? playbackState.position : episode.playbackPosition
+        let wasPlayed = episode.isPlayed
         
-        let wasPlayed = episode.isPlayed // Store original state
-        
+        // Toggle played state
         if episode.isPlayed {
-            // Unmark as played
             episode.isPlayed = false
         } else {
-            // Mark as played
             episode.isPlayed = true
             
             let actualDuration = getActualDuration(for: episode)
@@ -770,17 +767,15 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
         }
         
-        // CRITICAL: Reset episode position and nowPlaying FIRST
+        // Reset position and nowPlaying
         episode.playbackPosition = 0
         episode.nowPlaying = false
         
-        // CRITICAL: Stop playback if this is the current episode (playing OR paused)
+        // Stop playback if this is the current episode
         if isCurrentEpisode {
-            // Cancel any pending position saves
             positionSaveTimer?.invalidate()
             positionSaveTimer = nil
             
-            // Clear state immediately without saving current position
             LogManager.shared.info("Stopping player for manual mark as played")
             clearState()
             cleanupPlayer()
@@ -789,7 +784,15 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         do {
             try context.save()
-            LogManager.shared.info("Manual mark as played completed")
+            LogManager.shared.info("Manual mark as played completed - isPlayed: \(episode.isPlayed)")
+            
+            // Only remove from queue when marking as played (not unmarking)
+            if !wasPlayed && episode.isPlayed && episode.isQueued {
+                Task { @MainActor in
+                    removeFromQueue(episode)
+                }
+            }
+            
         } catch {
             LogManager.shared.error("Failed to save manual mark as played: \(error)")
         }

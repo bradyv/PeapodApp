@@ -86,9 +86,29 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     
     LogManager.shared.info("✅ Removing episode from queue: \(episode.title?.prefix(30) ?? "Episode")")
     
+    // 🆕 Check if playback entity can be deleted BEFORE saving
+    var shouldDeletePlayback = false
+    if let playback = episode.playbackState {
+        let canDelete = !playback.isPlayed &&
+                       !playback.isFav &&
+                       playback.playbackPosition <= 0
+        
+        if canDelete {
+            shouldDeletePlayback = true
+            LogManager.shared.info("🗑️ Will delete orphaned playback entity for episode: \(episode.title?.prefix(30) ?? "Episode")")
+        }
+    }
+    
     do {
         try context.save()
         LogManager.shared.info("✅ Episode removed from queue successfully")
+        
+        // Delete playback entity AFTER successful save if needed
+        if shouldDeletePlayback, let playback = episode.playbackState {
+            context.delete(playback)
+            try context.save()
+            LogManager.shared.info("✅ Deleted orphaned playback entity")
+        }
         
         // Reindex positions in background after UI update
         Task {

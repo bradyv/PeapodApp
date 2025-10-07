@@ -20,6 +20,22 @@ struct QueueView: View {
 
     var body: some View {
         VStack(alignment:.leading, spacing:0) {
+            NavigationLink {
+                QueueListView()
+                    .navigationTitle("Up Next")
+            } label: {
+                HStack(alignment: .center) {
+                    Text("Up Next")
+                        .titleSerifMini()
+                    
+                    Image(systemName: "chevron.right")
+                        .textDetailEmphasis()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .padding(.bottom,8)
+            }
+            
             ScrollViewReader { proxy in
                 ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: 8) {

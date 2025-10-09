@@ -43,15 +43,21 @@ struct EpisodeItem: View {
                 let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
                 PlayButton
                 
-                if hasStarted {
-                    MarkAsPlayedButton
-                } else {
-                    ArchiveButton
-                }
+//                if hasStarted {
+//                    MarkAsPlayedButton
+//                } else {
+//                    ArchiveButton
+//                }
                 
                 Spacer()
                 
-                FavButton
+//                FavButton
+                EpisodeContextMenu(episode:episode)
+                    .foregroundStyle(Color.white)
+                    .textButton()
+                    .buttonStyle(.plain)
+                    .buttonBorderShape(.circle)
+                    .labelStyle(.iconOnly)
             }
         }
         .contentShape(Rectangle())

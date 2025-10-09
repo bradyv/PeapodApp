@@ -271,7 +271,7 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.3), value: episodesViewModel.isLoading)
                 }
             }
-            .navigationTitle("Up Next")
+            .navigationTitle("Peapod")
             .background(Color.background)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

@@ -22,39 +22,53 @@ func runDeduplicationOnceIfNeeded(context: NSManagedObjectContext) {
 
 // Updated deduplication function for the new model
 func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
-    // Ensure we're using a background context
     let backgroundContext = context.concurrencyType == .mainQueueConcurrencyType ?
         PersistenceController.shared.container.newBackgroundContext() : context
     
     backgroundContext.perform {
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-
         do {
-            let episodes = try backgroundContext.fetch(request)
-            print("🔍 Checking \(episodes.count) episodes for duplicates")
-
+            // First, get all unique podcast IDs
+            let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+            let podcasts = try backgroundContext.fetch(podcastRequest)
+            print("🔍 Checking recent episodes from \(podcasts.count) podcasts for duplicates")
+            
+            var recentEpisodes: [Episode] = []
+            
+            // For each podcast, fetch only the 3 most recent episodes
+            for podcast in podcasts {
+                guard let podcastId = podcast.id else { continue }
+                
+                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcastId)
+                episodeRequest.sortDescriptors = [NSSortDescriptor(key: "airDate", ascending: false)]
+                episodeRequest.fetchLimit = 3
+                
+                let episodes = try backgroundContext.fetch(episodeRequest)
+                recentEpisodes.append(contentsOf: episodes)
+            }
+            
+            print("🔍 Checking \(recentEpisodes.count) recent episodes")
+            
             var episodesByGUID: [String: [Episode]] = [:]
-
-            for episode in episodes {
+            
+            for episode in recentEpisodes {
                 if let guid = episode.guid {
                     episodesByGUID[guid, default: []].append(episode)
                 }
             }
-
+            
             var duplicatesFound = 0
-
+            
             for (_, duplicates) in episodesByGUID {
                 if duplicates.count > 1 {
-                    // Keep the newest one based on airDate
                     let sorted = duplicates.sorted {
                         ($0.airDate ?? Date.distantPast) > ($1.airDate ?? Date.distantPast)
                     }
-
+                    
                     guard let keeper = sorted.first else { continue }
                     let toDelete = sorted.dropFirst()
-
+                    
                     for duplicate in toDelete {
-                        // Transfer important flags using the new boolean system
                         if duplicate.isQueued {
                             keeper.isQueued = true
                             keeper.queuePosition = max(keeper.queuePosition, duplicate.queuePosition)
@@ -69,23 +83,20 @@ func mergeDuplicateEpisodes(context: NSManagedObjectContext) {
                             keeper.isFav = true
                             keeper.favDate = max(keeper.favDate ?? Date.distantPast, duplicate.favDate ?? Date.distantPast)
                         }
-
-                        // Transfer playback position
+                        
                         if duplicate.playbackPosition > 0 {
                             keeper.playbackPosition = max(keeper.playbackPosition, duplicate.playbackPosition)
                         }
-
+                        
                         backgroundContext.delete(duplicate)
                         duplicatesFound += 1
                     }
                 }
             }
-
-            // Save on background context
+            
             if backgroundContext.hasChanges {
                 try backgroundContext.save()
                 
-                // If we created a new background context, merge changes to main context
                 if backgroundContext !== context {
                     DispatchQueue.main.async {
                         PersistenceController.shared.container.viewContext.mergeChanges(

@@ -65,6 +65,7 @@ struct EpisodeItem: View {
                     }
                 } label: {
                     Label("More", systemImage:"ellipsis")
+                        .frame(width:36,height:36)
                 }
                 .labelStyle(.iconOnly)
                 .foregroundStyle(Color.white)

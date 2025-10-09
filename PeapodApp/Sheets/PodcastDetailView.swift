@@ -163,9 +163,14 @@ struct PodcastDetailView: View {
                         await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                     }
                 }
-                .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")
+                .navigationTitle(podcast.title ?? "")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement:.principal) {
+                        Text(scrollOffset < -250 ? "\(podcast.title ?? "") " : " ")
+                            .font(.system(.headline, design: .serif))
+                    }
+                    
                     ToolbarItem {
                         subscribeButton()
                     }

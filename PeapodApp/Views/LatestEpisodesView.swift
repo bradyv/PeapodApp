@@ -80,6 +80,7 @@ struct LatestEpisodesView: View {
                 ScrollView(.horizontal) {
                     episodesCells
                 }
+                .scrollClipDisabled(true)
                 .contentMargins(.horizontal, 16, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)

@@ -233,6 +233,8 @@ struct PodcastSearchView: View {
                 }
                 .frame(maxWidth:.infinity)
             }
+            
+            Spacer().frame(height:16)
         }
         .background(Color.background)
         .frame(maxWidth:.infinity, alignment:.leading)

@@ -11,30 +11,18 @@ import CoreData
 private let queueLock = NSLock()
 
 /// Toggle episode in queue using boolean approach
-@MainActor func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
+@MainActor func toggleQueued(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
 
-    if toFront {
-        if let current = current, current.id != episode.id {
-            // Ensure current episode is queued
-            if !current.isQueued {
-                current.isQueued = true
-            }
-            moveEpisodeInQueue(current, to: 1, episodesViewModel: episodesViewModel)
-        }
+    if episode.isQueued {
+        episode.isQueued = false
+        episode.objectWillChange.send()
     } else {
-        // 🔥 Immediate toggle for UI feedback
-        if episode.isQueued {
-            episode.isQueued = false
-            episode.objectWillChange.send()
-        } else {
-            episode.isQueued = true
-            episode.objectWillChange.send()
-        }
-        
-        // 🔥 CRITICAL: Update EpisodesViewModel immediately for animations
-        episodesViewModel?.fetchQueue()
+        episode.isQueued = true
+        episode.objectWillChange.send()
     }
+    
+    episodesViewModel?.fetchQueue()
     
     do {
         try context.save()
@@ -47,18 +35,10 @@ private let queueLock = NSLock()
         // Also revert the view model
         episodesViewModel?.fetchQueue()
     }
-    
-    if !toFront {
-        // Reindex in background after UI update
-        Task {
-            reindexQueuePositions(context: context, episodesViewModel: episodesViewModel)
-        }
-    }
 }
 
 /// Add episode to queue
 private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-    guard let context = episode.managedObjectContext else { return }
     
     // Check if already in queue
     if episode.isQueued {
@@ -109,12 +89,6 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
             try context.save()
             LogManager.shared.info("✅ Deleted orphaned playback entity")
         }
-        
-        // Reindex positions in background after UI update
-        Task {
-            reindexQueuePositions(context: context, episodesViewModel: episodesViewModel)
-        }
-        
     } catch {
         LogManager.shared.error("⚠️ Error removing from queue: \(error)")
         // Revert the change if save failed
@@ -126,73 +100,6 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     }
     
     AudioPlayerManager.shared.handleQueueRemoval()
-}
-
-/// Move episode to specific position in queue
-func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel: EpisodesViewModel? = nil) {
-    guard let context = episode.managedObjectContext else { return }
-    
-    queueLock.lock()
-    defer { queueLock.unlock() }
-    
-    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
-    episode.objectWillChange.send()
-    
-    // Ensure episode is in the queue
-    if !episode.isQueued {
-        episode.isQueued = true
-    }
-    
-    // Get current queue order
-    let queue = getQueuedEpisodes(context: context)
-        .sorted { $0.queuePosition < $1.queuePosition }
-    
-    // Create new ordering
-    var reordered = queue.filter { $0.id != episode.id }
-    let targetPosition = min(max(0, position), reordered.count)
-    reordered.insert(episode, at: targetPosition)
-    
-    // Update positions
-    for (index, ep) in reordered.enumerated() {
-        // 🔥 ADD THIS: Notify each episode that changes position
-        ep.objectWillChange.send()
-        ep.queuePosition = Int64(index)
-    }
-    
-    do {
-        try context.save()
-        LogManager.shared.info("✅ Episode moved in queue: \(episode.title ?? "Episode") to position \(position)")
-    } catch {
-        LogManager.shared.error("❌ Error moving episode in queue: \(error)")
-        context.rollback()
-    }
-    
-    Task { @MainActor in
-        episodesViewModel?.updateQueue()
-    }
-}
-
-/// Reindex queue positions
-func reindexQueuePositions(context: NSManagedObjectContext, episodesViewModel: EpisodesViewModel? = nil) {
-    queueLock.lock()
-    defer { queueLock.unlock() }
-    
-    let episodes = getQueuedEpisodes(context: context)
-        .sorted { $0.queuePosition < $1.queuePosition }
-    
-    for (index, episode) in episodes.enumerated() {
-        // 🔥 ADD THIS: Notify each episode of position change
-        episode.objectWillChange.send()
-        episode.queuePosition = Int64(index)
-    }
-    
-    do {
-        try context.save()
-        LogManager.shared.info("✅ Queue reindexed with \(episodes.count) episodes")
-    } catch {
-        LogManager.shared.error("❌ Error reindexing queue: \(error)")
-        context.rollback()
-    }
 }
 
 /// Get next queue position

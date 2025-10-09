@@ -26,7 +26,7 @@ struct QueueView: View {
                         if episodesViewModel.queue.isEmpty {
                             ZStack {
                                 GeometryReader { geometry in
-                                    HStack(spacing: 16) {
+                                    HStack(spacing: 8) {
                                         ForEach(0..<2, id: \.self) { _ in
                                             EmptyQueueItem()
                                                 .opacity(0.15)
@@ -135,6 +135,7 @@ struct QueueView: View {
                     }
                     .scrollTargetLayout()
                 }
+                .scrollClipDisabled(true)
                 .scrollTargetBehavior(.viewAligned)
                 .onPreferenceChange(ScrollOffsetKey.self) { values in
                     if let nearest = values.min(by: { abs($0.value) < abs($1.value) }) {
@@ -264,5 +265,18 @@ struct QueueItemView: View {
                 content
                     .opacity(phase.isIdentity ? 1 : 0.5)
             }
+//            .contextMenu {
+//                ArchiveButton(episode:episode)
+//                MarkAsPlayedButton(episode:episode)
+//                FavButton(episode:episode)
+//                
+//                Section(episode.podcast?.title ?? "") {
+//                    NavigationLink {
+//                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+//                    } label: {
+//                        Label("View Podcast", systemImage: "widget.small")
+//                    }
+//                }
+//            }
     }
 }

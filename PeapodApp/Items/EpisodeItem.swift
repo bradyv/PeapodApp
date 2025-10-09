@@ -40,18 +40,18 @@ struct EpisodeItem: View {
             
             // Episode Actions
             HStack {
-                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
+//                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
                 PlayButton
                 
-                if hasStarted {
-                    MarkAsPlayedButton
-                } else {
-                    ArchiveButton
-                }
+//                if hasStarted {
+//                    MarkAsPlayedButton
+//                } else {
+//                    ArchiveButton
+//                }
                 
                 Spacer()
                 
-                FavButton
+//                FavButton
             }
         }
         .contentShape(Rectangle())
@@ -119,7 +119,6 @@ struct EpisodeItem: View {
     var MarkAsPlayedButton: some View {
         Button(action: {
             withAnimation {
-                removeFromQueue(episode, episodesViewModel: episodesViewModel)
                 player.markAsPlayed(for: episode, manually: true)
             }
         }) {

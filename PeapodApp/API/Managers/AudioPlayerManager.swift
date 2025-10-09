@@ -785,14 +785,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         do {
             try context.save()
             LogManager.shared.info("Manual mark as played completed - isPlayed: \(episode.isPlayed)")
-            
-            // Only remove from queue when marking as played (not unmarking)
-            if !wasPlayed && episode.isPlayed && episode.isQueued {
-                Task { @MainActor in
-                    removeFromQueue(episode)
-                }
-            }
-            
         } catch {
             LogManager.shared.error("Failed to save manual mark as played: \(error)")
         }

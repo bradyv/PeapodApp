@@ -11,6 +11,7 @@ struct PodcastCategoryView: View {
     let categoryName: String
     let genreId: Int
     
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @Environment(\.managedObjectContext) private var context
     @State private var podcasts: [PodcastResult] = []
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 3)
@@ -55,6 +56,8 @@ struct PodcastCategoryView: View {
                     }
                 }
             }
+            
+            Spacer().frame(height:16)
         }
         .background(Color.background)
         .navigationTitle(categoryName)
@@ -63,6 +66,15 @@ struct PodcastCategoryView: View {
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {
             loadPodcasts()
+        }
+        .toolbar {
+            if !episodesViewModel.queue.isEmpty {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    MiniPlayer()
+                    Spacer()
+                    MiniPlayerButton()
+                }
+            }
         }
     }
     

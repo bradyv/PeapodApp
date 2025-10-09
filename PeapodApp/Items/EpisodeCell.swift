@@ -43,30 +43,26 @@ struct EpisodeCell: View {
             // Episode Meta
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    HStack(spacing:4) {
-                        if episode.isPlayed {
-                            ZStack {
-                                Image(systemName:"checkmark.circle.fill")
-                                    .foregroundStyle(Color.accentColor)
-                                    .textMini()
-                            }
-                            .background(Color.background)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.background, lineWidth: 1)
-                            )
-                        }
-                        
-                        if showPodcast == true {
-                            Text(episode.podcast?.title ?? "Podcast title")
-                                .lineLimit(1)
-                                .textDetailEmphasis()
-                        }
+                    if showPodcast == true {
+                        Text(episode.podcast?.title ?? "Podcast title")
+                            .lineLimit(1)
+                            .textDetailEmphasis()
                     }
                     
-                    Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
-                        .textDetail()
+                    if episode.isPlayed {
+                        HStack(spacing:4) {
+                            Image(systemName:"checkmark.circle.fill")
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(Color.heading)
+                                .textDetail()
+                            
+                            Text("Played")
+                                .textDetail()
+                        }
+                    } else {
+                        Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
+                            .textDetail()
+                    }
                 }
                 
                 EpisodeDetails(episode: episode)
@@ -75,25 +71,16 @@ struct EpisodeCell: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
-            Button {
-                if episode.isQueued {
-                    withAnimation {
-                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                    }
-                } else {
-                    withAnimation {
-                        toggleQueued(episode, episodesViewModel: episodesViewModel)
-                    }
+            ArchiveButton(episode:episode)
+            MarkAsPlayedButton(episode:episode)
+            FavButton(episode:episode)
+            
+            Section(episode.podcast?.title ?? "") {
+                NavigationLink {
+                    PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+                } label: {
+                    Label("View Podcast", systemImage: "widget.small")
                 }
-            } label: {
-                Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage:episode.isQueued ? "archivebox" : "text.append")
-            }
-            Button {
-                withAnimation {
-                    toggleFav(episode)
-                }
-            } label: {
-                Label(episode.isFav ? "Undo" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
             }
         }
         .swipeActions(edge: .trailing) {
@@ -108,7 +95,7 @@ struct EpisodeCell: View {
                     }
                 }
             } label: {
-                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled")
             }
             .tint(.accentColor)
         }

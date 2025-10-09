@@ -34,14 +34,12 @@ struct EpisodeView: View {
     }
     
     var body: some View {
-        
         ScrollView {
             Color.clear
                 .frame(height: 1)
                 .trackScrollOffset("scroll") { value in
                     scrollOffset = value
                 }
-            
             FadeInView(delay: 0.1) {
                 ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 256, cornerRadius: 32, tilt: true)
             }
@@ -49,22 +47,12 @@ struct EpisodeView: View {
             Spacer().frame(height:24)
             
             FadeInView(delay: 0.2) {
-                VStack(spacing: 8) {
+                VStack(alignment:.leading,spacing: 8) {
                     Text(episode.title ?? "Episode title")
                         .titleSerif()
-                        .multilineTextAlignment(.center)
+                        .multilineTextAlignment(.leading)
                     
                     PodcastDetailsRow(episode: episode)
-                    
-                    Spacer().frame(height: 8)
-                    
-                    HStack {
-                        ArchiveButton
-                    
-                        MarkAsPlayedButton
-                        
-                        FavButton
-                    }
                     
                     Spacer().frame(height: 8)
                     
@@ -105,15 +93,28 @@ struct EpisodeView: View {
             
             Spacer().frame(height: 24)
         }
+        .coordinateSpace(name: "scroll")
+        .navigationTitle(episode.title ?? "")
+        .navigationBarTitleDisplayMode(.inline)
         .background {
             SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
                 .offset(y:-200)
         }
         .background(Color.background)
-        .coordinateSpace(name: "scroll")
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity)
         .toolbar {
+            ToolbarItem(placement:.principal) {
+                Text(scrollOffset < -250 ? "\(episode.title ?? "") " : " ")
+                    .font(.system(.headline, design: .serif))
+            }
+            
+            ToolbarItemGroup(placement:.topBarTrailing) {
+                ArchiveButton(episode:episode)
+                MarkAsPlayedButton(episode:episode)
+                FavButton(episode:episode)
+            }
+            
             ToolbarItem(placement: .bottomBar) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -156,65 +157,6 @@ struct EpisodeView: View {
                 print("Error initializing TipKit \(error.localizedDescription)")
             }
         }
-    }
-    
-    @ViewBuilder
-    var ArchiveButton: some View {
-        Button(action: {
-            if episode.isQueued {
-                withAnimation {
-                    removeFromQueue(episode)
-                }
-            } else {
-                withAnimation {
-                    toggleQueued(episode)
-                }
-            }
-        }) {
-            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                .contentTransition(.symbolEffect(.replace))
-                .textButton()
-        }
-        .buttonStyle(.bordered)
-    }
-    
-    @ViewBuilder
-    var MarkAsPlayedButton: some View {
-        Button(action: {
-            withAnimation {
-                player.markAsPlayed(for: episode, manually: true)
-            }
-        }) {
-            Label(episode.isPlayed ? "Mark Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "rectangle.badge.minus" : "rectangle.badge.checkmark")
-                .contentTransition(.symbolEffect(.replace))
-                .textButton()
-        }
-        .buttonStyle(.bordered)
-    }
-    
-    @ViewBuilder
-    var FavButton: some View {
-        Button(action: {
-            withAnimation {
-                let wasFavorite = episode.isFav
-                toggleFav(episode)
-                
-                // Only increment counter when favoriting (not unfavoriting)
-                if !wasFavorite && episode.isFav {
-                    favoriteCount += 1
-                }
-            }
-        }) {
-            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
-                .textButton()
-        }
-        .buttonStyle(.bordered)
-        .labelStyle(.iconOnly)
-        .changeEffect(
-            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
-              Image(systemName: "heart.fill")
-                .foregroundStyle(.red)
-            }, value: favoriteCount)
     }
     
     @ViewBuilder

@@ -20,6 +20,11 @@ struct QueueListView: View {
     
     var body: some View {
         listView
+            .navigationTitle(
+                selectedEpisodes.count > 0 ? "\(selectedEpisodes.count) Selected" :
+                isEditing ? "Select Episodes" :
+                "Up Next"
+            )
             .navigationLinkIndicatorVisibility(.hidden)
             .navigationBarTitleDisplayMode(.large)
             .listStyle(.plain)
@@ -29,10 +34,8 @@ struct QueueListView: View {
                     EditButton()
                 }
                 
-                if isEditing {
-                    ToolbarItem(placement:.bottomBar) {
-                        archiveButton
-                    }
+                ToolbarItem(placement:.bottomBar) {
+                    archiveButton
                 }
             }
             .onChange(of: isEditing) { _, newValue in
@@ -112,9 +115,7 @@ struct QueueListView: View {
     private var archiveButton: some View {
         Button(action: archiveSelectedEpisodes) {
             Label("Archive", systemImage: "archivebox")
-                .foregroundStyle(.primary)
         }
-        .buttonStyle(.borderedProminent)
         .disabled(selectedEpisodes.isEmpty)
     }
     

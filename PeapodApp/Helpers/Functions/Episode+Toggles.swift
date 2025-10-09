@@ -102,6 +102,72 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     AudioPlayerManager.shared.handleQueueRemoval()
 }
 
+func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel: EpisodesViewModel? = nil) {
+    guard let context = episode.managedObjectContext else { return }
+    
+    queueLock.lock()
+    defer { queueLock.unlock() }
+    
+    // 🔥 ADD THIS: Notify SwiftUI BEFORE the change
+    episode.objectWillChange.send()
+    
+    // Ensure episode is in the queue
+    if !episode.isQueued {
+        episode.isQueued = true
+    }
+    
+    // Get current queue order
+    let queue = getQueuedEpisodes(context: context)
+        .sorted { $0.queuePosition < $1.queuePosition }
+    
+    // Create new ordering
+    var reordered = queue.filter { $0.id != episode.id }
+    let targetPosition = min(max(0, position), reordered.count)
+    reordered.insert(episode, at: targetPosition)
+    
+    // Update positions
+    for (index, ep) in reordered.enumerated() {
+        // 🔥 ADD THIS: Notify each episode that changes position
+        ep.objectWillChange.send()
+        ep.queuePosition = Int64(index)
+    }
+    
+    do {
+        try context.save()
+        LogManager.shared.info("✅ Episode moved in queue: \(episode.title ?? "Episode") to position \(position)")
+    } catch {
+        LogManager.shared.error("❌ Error moving episode in queue: \(error)")
+        context.rollback()
+    }
+    
+    Task { @MainActor in
+        episodesViewModel?.updateQueue()
+    }
+}
+
+/// Reindex queue positions
+func reindexQueuePositions(context: NSManagedObjectContext, episodesViewModel: EpisodesViewModel? = nil) {
+    queueLock.lock()
+    defer { queueLock.unlock() }
+    
+    let episodes = getQueuedEpisodes(context: context)
+        .sorted { $0.queuePosition < $1.queuePosition }
+    
+    for (index, episode) in episodes.enumerated() {
+        // 🔥 ADD THIS: Notify each episode of position change
+        episode.objectWillChange.send()
+        episode.queuePosition = Int64(index)
+    }
+    
+    do {
+        try context.save()
+        LogManager.shared.info("✅ Queue reindexed with \(episodes.count) episodes")
+    } catch {
+        LogManager.shared.error("❌ Error reindexing queue: \(error)")
+        context.rollback()
+    }
+}
+
 /// Get next queue position
 func getNextQueuePosition(context: NSManagedObjectContext) -> Int64 {
     let request: NSFetchRequest<Playback> = Playback.fetchRequest()

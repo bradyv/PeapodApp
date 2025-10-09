@@ -58,6 +58,16 @@ struct EpisodeView: View {
                     
                     Spacer().frame(height: 8)
                     
+                    HStack {
+                        ArchiveButton
+                    
+                        MarkAsPlayedButton
+                        
+                        FavButton
+                    }
+                    
+                    Spacer().frame(height: 8)
+                    
                     EpisodeProgressBar
                 }
                 .padding(.horizontal)
@@ -104,22 +114,6 @@ struct EpisodeView: View {
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                ArchiveButton(
-                    episode: episode,
-                    removeFromQueue: { ep in removeFromQueue(ep) },
-                    toggleQueued: { ep in toggleQueued(ep) }
-                )
-                
-                MarkAsPlayedButton(episode: episode)
-                
-                FavoriteButton(
-                    episode: episode,
-                    favoriteCount: $favoriteCount,
-                    toggleFav: { ep in toggleFav(ep) }
-                )
-            }
-            
             ToolbarItem(placement: .bottomBar) {
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -162,6 +156,65 @@ struct EpisodeView: View {
                 print("Error initializing TipKit \(error.localizedDescription)")
             }
         }
+    }
+    
+    @ViewBuilder
+    var ArchiveButton: some View {
+        Button(action: {
+            if episode.isQueued {
+                withAnimation {
+                    removeFromQueue(episode)
+                }
+            } else {
+                withAnimation {
+                    toggleQueued(episode)
+                }
+            }
+        }) {
+            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+                .contentTransition(.symbolEffect(.replace))
+                .textButton()
+        }
+        .buttonStyle(.bordered)
+    }
+    
+    @ViewBuilder
+    var MarkAsPlayedButton: some View {
+        Button(action: {
+            withAnimation {
+                player.markAsPlayed(for: episode, manually: true)
+            }
+        }) {
+            Label(episode.isPlayed ? "Mark Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "rectangle.badge.minus" : "rectangle.badge.checkmark")
+                .contentTransition(.symbolEffect(.replace))
+                .textButton()
+        }
+        .buttonStyle(.bordered)
+    }
+    
+    @ViewBuilder
+    var FavButton: some View {
+        Button(action: {
+            withAnimation {
+                let wasFavorite = episode.isFav
+                toggleFav(episode)
+                
+                // Only increment counter when favoriting (not unfavoriting)
+                if !wasFavorite && episode.isFav {
+                    favoriteCount += 1
+                }
+            }
+        }) {
+            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
+                .textButton()
+        }
+        .buttonStyle(.bordered)
+        .labelStyle(.iconOnly)
+        .changeEffect(
+            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
+              Image(systemName: "heart.fill")
+                .foregroundStyle(.red)
+            }, value: favoriteCount)
     }
     
     @ViewBuilder

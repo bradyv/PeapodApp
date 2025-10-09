@@ -75,22 +75,49 @@ struct EpisodeCell: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
-            EpisodeContextActions(episode:episode)
+            Button {
+                if episode.isQueued {
+                    withAnimation {
+                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                    }
+                } else {
+                    withAnimation {
+                        toggleQueued(episode, episodesViewModel: episodesViewModel)
+                    }
+                }
+            } label: {
+                Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage:episode.isQueued ? "archivebox" : "text.append")
+            }
+            Button {
+                withAnimation {
+                    toggleFav(episode)
+                }
+            } label: {
+                Label(episode.isFav ? "Undo" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
+            }
         }
         .swipeActions(edge: .trailing) {
-            ArchiveButton(
-                episode: episode,
-                removeFromQueue: { ep in removeFromQueue(ep) },
-                toggleQueued: { ep in toggleQueued(ep) }
-            )
+            Button {
+                if episode.isQueued {
+                    withAnimation {
+                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                    }
+                } else {
+                    withAnimation {
+                        toggleQueued(episode, episodesViewModel: episodesViewModel)
+                    }
+                }
+            } label: {
+                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
+            }
             .tint(.accentColor)
         }
         .swipeActions(edge: .leading) {
-            FavoriteButton(
-                episode: episode,
-                favoriteCount: $favoriteCount,
-                toggleFav: { ep in toggleFav(ep) }
-            )
+            Button {
+                toggleFav(episode)
+            } label: {
+                Label(episode.isFav ? "Undo" : "Favorite", systemImage: episode.isFav ? "heart.slash" : "heart")
+            }
             .tint(.red)
         }
     }

@@ -17,5 +17,5 @@ func getRelativeDateString(from date: Date) -> String {
     let formatter = RelativeDateTimeFormatter()
     formatter.unitsStyle = .full
     formatter.dateTimeStyle = .named
-    return formatter.localizedString(for: date, relativeTo: Date())
+    return formatter.localizedString(for: date, relativeTo: Date()).capitalized
 }

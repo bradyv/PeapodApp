@@ -99,9 +99,12 @@ struct FavEpisodesView: View {
                 EpisodeView(episode:episode)
                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
             } label: {
-                EpisodeCell(episode: episode)
-                    .matchedTransitionSource(id: episode.id, in: namespace)
-                    .lineLimit(3)
+                EpisodeCell(
+                    data: EpisodeCellData(from: episode),
+                    episode: episode
+                )
+                .matchedTransitionSource(id: episode.id, in: namespace)
+                .lineLimit(3)
             }
         }
     }
@@ -114,9 +117,12 @@ struct FavEpisodesView: View {
                     EpisodeView(episode:episode)
                         .navigationTransition(.zoom(sourceID: "\(episode.id ?? "")-favs", in: namespace))
                 } label: {
-                    EpisodeCell(episode: episode)
-                        .frame(width: UIScreen.main.bounds.width - 40)
-                        .matchedTransitionSource(id: "\(episode.id ?? "")-favs", in: namespace)
+                    EpisodeCell(
+                        data: EpisodeCellData(from: episode),
+                        episode: episode
+                    )
+                    .frame(width: UIScreen.main.bounds.width - 40)
+                    .matchedTransitionSource(id: "\(episode.id ?? "")-favs", in: namespace)
                 }
             }
         }

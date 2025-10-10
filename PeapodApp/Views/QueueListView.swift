@@ -104,12 +104,15 @@ struct QueueListView: View {
     
     @ViewBuilder
     private func editingEpisodeCell(for episode: Episode) -> some View {
-        EpisodeCell(episode: episode)
-            .matchedTransitionSource(id: episode.id, in: namespace)
-            .lineLimit(3)
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .tag(episode)
+        EpisodeCell(
+            data: EpisodeCellData(from: episode),
+            episode: episode
+        )
+        .matchedTransitionSource(id: episode.id, in: namespace)
+        .lineLimit(3)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .tag(episode)
     }
     
     @ViewBuilder
@@ -118,9 +121,12 @@ struct QueueListView: View {
             EpisodeView(episode: episode)
                 .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
         } label: {
-            EpisodeCell(episode: episode)
-                .matchedTransitionSource(id: episode.id, in: namespace)
-                .lineLimit(3)
+            EpisodeCell(
+                data: EpisodeCellData(from: episode),
+                episode: episode
+            )
+            .matchedTransitionSource(id: episode.id, in: namespace)
+            .lineLimit(3)
         }
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)

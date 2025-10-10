@@ -6,52 +6,76 @@
 //
 
 import SwiftUI
-import Pow
+
+struct EpisodeCellData {
+    let id: String
+    let title: String
+    let podcastTitle: String
+    let podcastImage: String
+    let episodeImage: String?
+    let airDate: Date
+    let isPlayed: Bool
+    let isQueued: Bool
+    let isFav: Bool
+    let feedUrl: String
+    
+    init(from episode: Episode) {
+        self.id = episode.id ?? ""
+        self.title = episode.title ?? ""
+        self.podcastTitle = episode.podcast?.title ?? ""
+        self.podcastImage = episode.podcast?.image ?? ""
+        self.episodeImage = episode.episodeImage
+        self.airDate = episode.airDate ?? Date.distantPast
+        self.isPlayed = episode.isPlayed
+        self.isQueued = episode.isQueued
+        self.isFav = episode.isFav
+        self.feedUrl = episode.podcast?.feedUrl ?? ""
+    }
+}
 
 struct EpisodeCell: View {
-    @Environment(\.managedObjectContext) private var context
-    @ObservedObject var episode: Episode
+    let data: EpisodeCellData
+    let episode: Episode  // Keep for actions only
+    var showPodcast: Bool = true
+    
     @EnvironmentObject var player: AudioPlayerManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @State private var selectedPodcast: Podcast? = nil
-    @State private var selectedEpisode: Episode? = nil
-    @State private var workItem: DispatchWorkItem?
-    @State private var favoriteCount = 0
-    @Namespace private var namespace
     
-    var showPodcast: Bool? = true
-    
-    // Computed properties based on unified state
-    private var isPlaying: Bool {
-        player.isPlayingEpisode(episode)
-    }
-    
-    private var isLoading: Bool {
-        player.isLoadingEpisode(episode)
-    }
-    
-    private var playbackPosition: Double {
-        player.getProgress(for: episode)
+    // Only compute player state when needed
+    private var playerState: (isPlaying: Bool, isLoading: Bool, progress: Double) {
+        (
+            player.isPlayingEpisode(episode),
+            player.isLoadingEpisode(episode),
+            player.getProgress(for: episode)
+        )
     }
     
     var body: some View {
-        let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
-        // Podcast Info Row
         HStack(spacing: 16) {
-            ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 100, cornerRadius: 24, tilt: false)
+            ArtworkView(
+                url: data.episodeImage ?? data.podcastImage,
+                size: 100,
+                cornerRadius: 24,
+                tilt: false
+            )
             
-            // Episode Meta
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    if showPodcast == true {
-                        Text(episode.podcast?.title ?? "Podcast title")
+                    if showPodcast {
+                        Text(data.podcastTitle)
                             .lineLimit(1)
                             .textDetailEmphasis()
                     }
                     
-                    if episode.isPlayed {
-                        HStack(spacing:4) {
-                            Image(systemName:"checkmark.circle.fill")
+                    if data.isFav {
+                        Image(systemName: "heart.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.red)
+                            .textBody()
+                        
+                    } else if data.isPlayed {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
                                 .symbolRenderingMode(.hierarchical)
                                 .foregroundStyle(Color.heading)
                                 .textDetail()
@@ -60,56 +84,69 @@ struct EpisodeCell: View {
                                 .textDetail()
                         }
                     } else {
-                        Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
+                        Text(getRelativeDateString(from: data.airDate))
                             .textDetail()
                     }
                 }
                 
                 EpisodeDetails(episode: episode)
             }
-            .frame(maxWidth: .infinity, alignment: .leading) 
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contextMenu {
-            ArchiveButton(episode:episode)
-            MarkAsPlayedButton(episode:episode)
-            FavButton(episode:episode)
-            
-            Section(episode.podcast?.title ?? "") {
-                NavigationLink {
-                    PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                } label: {
-                    Label("View Podcast", systemImage: "widget.small")
-                }
-            }
-        }
-        .swipeActions(edge: .trailing) {
-            Button {
-                if episode.isQueued {
-                    withAnimation {
-                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                    }
-                } else {
-                    withAnimation {
-                        toggleQueued(episode, episodesViewModel: episodesViewModel)
-                    }
-                }
+        .contentShape(Rectangle())
+        .contextMenu { contextMenuContent }
+        .swipeActions(edge: .trailing) { trailingSwipeActions }
+        .swipeActions(edge: .leading) { leadingSwipeActions }
+    }
+    
+    // Extract to separate computed properties to avoid rebuilding
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        ArchiveButton(episode: episode)
+        MarkAsPlayedButton(episode: episode)
+        FavButton(episode: episode)
+        
+        Section(data.podcastTitle) {
+            NavigationLink {
+                PodcastDetailView(feedUrl: data.feedUrl)
             } label: {
-                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled")
+                Label("View Podcast", systemImage: "widget.small")
             }
-            .tint(.accentColor)
-        }
-        .swipeActions(edge: .leading) {
-            Button {
-                toggleFav(episode)
-            } label: {
-                Label(episode.isFav ? "Undo" : "Favorite", systemImage: episode.isFav ? "heart.slash" : "heart")
-            }
-            .tint(.red)
         }
     }
+    
+    @ViewBuilder
+    private var trailingSwipeActions: some View {
+        Button {
+            withAnimation {
+                if data.isQueued {
+                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                } else {
+                    toggleQueued(episode, episodesViewModel: episodesViewModel)
+                }
+            }
+        } label: {
+            Label(
+                data.isQueued ? "Archive" : "Up Next",
+                systemImage: data.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled"
+            )
+        }
+        .tint(.accentColor)
+    }
+    
+    @ViewBuilder
+    private var leadingSwipeActions: some View {
+        Button {
+            toggleFav(episode)
+        } label: {
+            Label(
+                data.isFav ? "Undo" : "Favorite",
+                systemImage: data.isFav ? "heart.slash" : "heart"
+            )
+        }
+        .tint(.red)
+    }
 }
-
 
 struct EmptyEpisodeCell: View {
     var body: some View {

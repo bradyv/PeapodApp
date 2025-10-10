@@ -83,9 +83,13 @@ struct PodcastEpisodeSearchView: View {
                     EpisodeView(episode:episode)
                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                 } label: {
-                    EpisodeCell(episode: episode, showPodcast:false)
-                        .matchedTransitionSource(id: episode.id, in: namespace)
-                        .lineLimit(3)
+                    EpisodeCell(
+                        data: EpisodeCellData(from: episode),
+                        episode: episode,
+                        showPodcast: false
+                    )
+                    .matchedTransitionSource(id: episode.id, in: namespace)
+                    .lineLimit(3)
                 }
             }
             

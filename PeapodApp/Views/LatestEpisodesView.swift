@@ -92,9 +92,9 @@ struct LatestEpisodesView: View {
     private var fullView: some View {
         List {
             episodesList
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
         .navigationLinkIndicatorVisibility(.hidden)
         .navigationBarTitleDisplayMode(.large)
         .listStyle(.plain)
@@ -223,10 +223,10 @@ struct LatestEpisodesView: View {
                 EpisodeView(episode:episode)
                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
             } label: {
-                EpisodeCell(episode: episode)
-                    .matchedTransitionSource(id: episode.id, in: namespace)
-                    .lineLimit(3)
-                    .animation(.easeOut(duration: 0.2), value: showAll)
+                EpisodeCell(
+                    data: EpisodeCellData(from: episode),
+                    episode: episode
+                )
             }
         }
     }
@@ -239,9 +239,12 @@ struct LatestEpisodesView: View {
                     EpisodeView(episode:episode)
                         .navigationTransition(.zoom(sourceID: "\(episode.id ?? "")-latest", in: namespace))
                 } label: {
-                    EpisodeCell(episode: episode)
-                        .frame(width: UIScreen.main.bounds.width - 40)
-                        .matchedTransitionSource(id: "\(episode.id ?? "")-latest", in: namespace)
+                    EpisodeCell(
+                        data: EpisodeCellData(from: episode),
+                        episode: episode
+                    )
+                    .frame(width: UIScreen.main.bounds.width - 40)
+                    .matchedTransitionSource(id: "\(episode.id ?? "")-latest", in: namespace)
                 }
             }
         }

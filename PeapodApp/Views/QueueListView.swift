@@ -32,10 +32,13 @@ struct QueueListView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
+                        .disabled(episodesViewModel.queue.isEmpty)
                 }
                 
                 ToolbarItem(placement:.bottomBar) {
-                    archiveButton
+                    if isEditing {
+                        archiveButton
+                    }
                 }
             }
             .onChange(of: isEditing) { _, newValue in
@@ -47,10 +50,39 @@ struct QueueListView: View {
     
     @ViewBuilder
     private var listView: some View {
-        List(selection: isEditing ? $selectedEpisodes : .constant(Set<Episode>())) {
-            episodesList
+        if episodesViewModel.queue.isEmpty {
+            ZStack(alignment:.top) {
+                VStack(alignment:.leading, spacing:24) {
+                    ForEach(1...3, id:\.self) { _ in
+                        EmptyEpisodeCell()
+                    }
+                }
+                .opacity(0.5)
+                .frame(maxWidth:.infinity, maxHeight:.infinity, alignment: .topLeading)
+                .mask(
+                    LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                                   startPoint: .top, endPoint: .bottom)
+                )
+                
+                VStack {
+                    Spacer().frame(height:128)
+                    Text("Nothing up next")
+                        .titleCondensed()
+                    
+                    Text("New releases are automatically added.")
+                        .textBody()
+                }
+                .frame(maxWidth:.infinity)
+            }
+            .padding(.horizontal)
+            .frame(maxWidth:.infinity,maxHeight:.infinity)
+            
+        } else {
+            List(selection: isEditing ? $selectedEpisodes : .constant(Set<Episode>())) {
+                episodesList
+            }
+            .environment(\.editMode, editMode)
         }
-        .environment(\.editMode, editMode)
     }
     
     @ViewBuilder
@@ -92,24 +124,6 @@ struct QueueListView: View {
         }
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
-    }
-    
-    @ViewBuilder
-    private var bottomToolbar: some View {
-        if isEditing {
-            VStack(spacing: 0) {
-                Divider()
-                HStack {
-                    archiveButton
-                    Spacer()
-                    if !selectedEpisodes.isEmpty {
-                        selectionCountText
-                    }
-                }
-                .padding()
-                .background(.regularMaterial)
-            }
-        }
     }
     
     private var archiveButton: some View {

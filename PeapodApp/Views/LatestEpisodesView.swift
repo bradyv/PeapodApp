@@ -92,9 +92,9 @@ struct LatestEpisodesView: View {
     private var fullView: some View {
         List {
             episodesList
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
         }
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
         .navigationLinkIndicatorVisibility(.hidden)
         .navigationBarTitleDisplayMode(.large)
         .listStyle(.plain)

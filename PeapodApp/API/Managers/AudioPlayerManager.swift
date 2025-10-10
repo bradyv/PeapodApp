@@ -750,21 +750,16 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         let isCurrentEpisode = (playbackState.episode?.id == episode.id)
         let progressBeforeStop = isCurrentEpisode ? playbackState.position : episode.playbackPosition
-        let wasPlayed = episode.isPlayed
         
         // Toggle played state
-        if episode.isPlayed {
-            episode.isPlayed = false
-        } else {
-            episode.isPlayed = true
-            
-            let actualDuration = getActualDuration(for: episode)
-            let playedTime = manually ? progressBeforeStop : actualDuration
-            
-            if let podcast = episode.podcast {
-                podcast.playCount += 1
-                podcast.playedSeconds += playedTime
-            }
+        episode.isPlayed = true
+        
+        let actualDuration = getActualDuration(for: episode)
+        let playedTime = manually ? progressBeforeStop : actualDuration
+        
+        if let podcast = episode.podcast {
+            podcast.playCount += 1
+            podcast.playedSeconds += playedTime
         }
         
         // Reset position and nowPlaying
@@ -791,6 +786,23 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         DispatchQueue.main.async {
             self.objectWillChange.send()
+        }
+    }
+    
+    func markAsUnplayed(for episode: Episode) {
+        let context = episode.managedObjectContext ?? viewContext
+        
+        guard episode.isPlayed else {
+            return // Already unplayed, no changes needed
+        }
+        
+        episode.isPlayed = false
+        
+        do {
+            try context.save()
+            LogManager.shared.info("Mark as unplayed completed")
+        } catch {
+            LogManager.shared.error("Failed to mark as unplayed: \(error)")
         }
     }
 

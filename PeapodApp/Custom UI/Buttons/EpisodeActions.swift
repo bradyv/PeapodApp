@@ -36,10 +36,14 @@ struct MarkAsPlayedButton: View {
     
     var body: some View {
         Button(action: {
-            player.markAsPlayed(for: episode, manually: true)
-            if episode.isQueued && episode.isPlayed {
-                withAnimation {
-                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
+            if episode.isPlayed {
+                player.markAsUnplayed(for:episode)
+            } else {
+                player.markAsPlayed(for: episode, manually: true)
+                if episode.isQueued && episode.isPlayed {
+                    withAnimation {
+                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                    }
                 }
             }
         }) {

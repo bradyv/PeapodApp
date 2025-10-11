@@ -368,7 +368,7 @@ struct CategoryRowItem: View {
                     }
                 }
             }
-            .compositingGroup() // Add this to group the overlapping items
+            .compositingGroup()
             
             Image(systemName: "chevron.right")
                 .frame(width: 16, alignment: .trailing)

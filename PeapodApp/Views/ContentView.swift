@@ -260,8 +260,6 @@ struct ContentView: View {
                         } else {
                             VStack(spacing: 32) {
                                 QueueView()
-                                LatestEpisodesView(mini:true, maxItems: 5)
-                                FavEpisodesView(mini: true, maxItems: 5)
                                 SubscriptionsRow()
                                 Spacer().frame(height:0)
                             }
@@ -327,25 +325,25 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth:.infinity, alignment:.leading)
-            
-            VStack(alignment:.leading, spacing: 8) {
-                Text("Recent Releases")
-                    .titleSerifMini()
-                
-                EmptyEpisodeCell()
-            }
-            .frame(maxWidth:.infinity,alignment:.leading)
-            
-            VStack(alignment:.leading, spacing: 8) {
-                Text("Favorites")
-                    .titleSerifMini()
-                
-                EmptyEpisodeCell()
-            }
-            .frame(maxWidth:.infinity,alignment:.leading)
-            
+//            
+//            VStack(alignment:.leading, spacing: 8) {
+//                Text("Recent Releases")
+//                    .titleSerifMini()
+//                
+//                EmptyEpisodeCell()
+//            }
+//            .frame(maxWidth:.infinity,alignment:.leading)
+//            
+//            VStack(alignment:.leading, spacing: 8) {
+//                Text("Favorites")
+//                    .titleSerifMini()
+//                
+//                EmptyEpisodeCell()
+//            }
+//            .frame(maxWidth:.infinity,alignment:.leading)
+//            
             VStack(alignment:.leading, spacing:8) {
-                Text("Following")
+                Text("Library")
                     .titleSerifMini()
                 
                 HStack(spacing: 16) {

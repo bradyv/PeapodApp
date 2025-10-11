@@ -9,17 +9,8 @@ import SwiftUI
 import Kingfisher
 
 struct QueueItem: View {
-    @ObservedObject var episode: Episode
-    @EnvironmentObject var player: AudioPlayerManager
-    
-    // Computed properties based on unified state
-    private var isPlaying: Bool {
-        player.isPlayingEpisode(episode)
-    }
-    
-    private var isLoading: Bool {
-        player.isLoadingEpisode(episode)
-    }
+    let data: EpisodeCellData
+    let episode: Episode
     
     var body: some View {
         let frame = UIScreen.main.bounds.width - 40

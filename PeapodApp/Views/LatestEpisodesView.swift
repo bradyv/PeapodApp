@@ -8,6 +8,73 @@
 import SwiftUI
 import Kingfisher
 
+struct EpisodeCarousel: View {
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @Environment(\.managedObjectContext) private var context
+    @Namespace private var namespace
+    
+    var filter: String?
+    
+    private var episodes: [Episode] {
+        if filter == "unplayed" {
+            return episodesViewModel.unplayed
+        } else if filter == "favs" {
+            return episodesViewModel.favs
+        } else {
+            return episodesViewModel.latest
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            if !episodes.isEmpty {
+                NavigationLink {
+                    LatestEpisodesView(mini: false)
+                        .navigationTitle("Recent Releases")
+                } label: {
+                    HStack(alignment: .center) {
+                        Text("Recent Releases")
+                            .titleSerifMini()
+                            .padding(.leading)
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                
+                ScrollView(.horizontal) {
+                    episodesCells
+                }
+                .scrollClipDisabled(true)
+                .contentMargins(.horizontal, 16, for: .scrollContent)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var episodesCells: some View {
+        LazyHStack(spacing: 8) {
+            ForEach(episodes, id: \.id) { episode in
+                NavigationLink {
+                    EpisodeView(episode:episode)
+                        .navigationTransition(.zoom(sourceID: "\(episode.id ?? "")-latest", in: namespace))
+                } label: {
+                    EpisodeCell(
+                        data: EpisodeCellData(from: episode),
+                        episode: episode
+                    )
+                    .frame(width: UIScreen.main.bounds.width - 40)
+                    .matchedTransitionSource(id: "\(episode.id ?? "")-latest", in: namespace)
+                }
+            }
+        }
+        .scrollTargetLayout()
+    }
+}
+
 struct LatestEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @Environment(\.managedObjectContext) private var context

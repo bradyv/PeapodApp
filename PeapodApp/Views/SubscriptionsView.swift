@@ -17,20 +17,33 @@ struct SubscriptionsView: View {
     
     var body: some View {
         ScrollView {
-            // Actual grid with Add button + (possibly empty) real subscriptions
-            LazyVGrid(columns: columns, spacing: 16) {
-                // Real podcasts - optimized for scroll performance
-                ForEach(subscriptions, id: \.objectID) { podcast in
-                    NavigationLink {
-                        PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                    } label: {
-                        ArtworkView(url: podcast.image ?? "", cornerRadius: 24)
-//                        PodcastGridItem(podcast: podcast)
+            VStack(alignment:.leading,spacing:32) {
+                LatestEpisodesView(mini:true, maxItems: 5)
+                FavEpisodesView(mini: true, maxItems: 5)
+                
+                VStack(spacing: 8) {
+                    HStack(alignment: .center) {
+                        Text("Following")
+                            .titleSerifMini()
+                            .padding(.leading)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Actual grid with Add button + (possibly empty) real subscriptions
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        // Real podcasts - optimized for scroll performance
+                        ForEach(subscriptions, id: \.objectID) { podcast in
+                            NavigationLink {
+                                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                            } label: {
+                                ArtworkView(url: podcast.image ?? "", cornerRadius: 24)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
                 }
             }
+            .frame(maxWidth:.infinity, alignment:.leading)
         }
-        .contentMargins(.horizontal, 16, for: .scrollContent)
         .background(Color.background)
         .toolbar {
             if !episodesViewModel.queue.isEmpty {
@@ -55,10 +68,10 @@ struct SubscriptionsRow: View {
             VStack(spacing: 8) {
                 NavigationLink {
                     SubscriptionsView()
-                        .navigationTitle("Following")
+                        .navigationTitle("Library")
                 } label: {
                     HStack(alignment: .center) {
-                        Text("Following")
+                        Text("Library")
                             .titleSerifMini()
                             .padding(.leading)
                         

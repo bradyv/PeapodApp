@@ -20,20 +20,30 @@ struct QueueView: View {
 
     var body: some View {
         VStack(alignment:.leading, spacing:0) {
-            NavigationLink {
-                QueueListView()
-                    .navigationTitle("Up Next")
-            } label: {
+            if episodesViewModel.queue.isEmpty {
                 HStack(alignment: .center) {
                     Text("Up Next")
                         .titleSerifMini()
-                    
-                    Image(systemName: "chevron.right")
-                        .textDetailEmphasis()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
                 .padding(.bottom,8)
+            } else {
+                NavigationLink {
+                    QueueListView()
+                        .navigationTitle("Up Next")
+                } label: {
+                    HStack(alignment: .center) {
+                        Text("Up Next")
+                            .titleSerifMini()
+                        
+                        Image(systemName: "chevron.right")
+                            .textDetailEmphasis()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.bottom,8)
+                }
             }
             
             ScrollViewReader { proxy in
@@ -56,14 +66,15 @@ struct QueueView: View {
                                 }
                                 
                                 VStack {
-                                    Text("Nothing up next")
+                                    Text(subscriptions.isEmpty ? "Nothing up next" : "You’re all caught up 🎉")
                                         .titleCondensed()
                                     
-                                    Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New releases are automatically added.")
+                                    Text(subscriptions.isEmpty ? "Follow some podcasts to get started." : "New releases are automatically added to Up Next.")
                                         .textBody()
                                     
+                                    Spacer().frame(height:24)
+                                    
                                     if subscriptions.isEmpty {
-                                        VStack {
                                             NavigationLink {
                                                 PodcastSearchView()
                                             } label: {
@@ -73,63 +84,70 @@ struct QueueView: View {
                                                     .textBodyEmphasis()
                                             }
                                             .buttonStyle(.glassProminent)
+                                    } else {
+                                        HStack(spacing:8) {
+                                            NavigationLink {
+                                                LatestEpisodesView(mini: false)
+                                                    .navigationTitle("Recent Releases")
+                                            } label: {
+                                                Label("Recent Releases", systemImage:"calendar")
+                                                    .textButton()
+                                            }
+                                            .buttonStyle(.bordered)
                                             
-//                                            Button {
-//                                                showFileBrowser = true
-//                                            } label: {
-//                                                Label("Import OPML", systemImage: "tray.and.arrow.down")
-//                                                    .padding(.vertical,4)
-//                                                    .foregroundStyle(Color.accentColor)
-//                                                    .textBodyEmphasis()
-//                                            }
-//                                            .buttonStyle(.bordered)
-                                        }
-                                    }
-                                    
-                                    // UPDATED: Change from episodesViewModel.saved to episodesViewModel.favs
-                                    if !episodesViewModel.favs.isEmpty {
-                                        let items = Array(episodesViewModel.favs.prefix(3).enumerated().reversed())
-                                        Button(action: {
-                                            for (_, episode) in items {
-                                                withAnimation {
-                                                    toggleQueued(episode, episodesViewModel: episodesViewModel)
-                                                }
-                                            }
-                                        }) {
-                                            HStack(spacing: 16) {
-                                                let customOffsets: [(x: CGFloat, y: CGFloat)] = [
-                                                    (x: 2, y: -5),   // back
-                                                    (x: 8, y: 0),  // middle
-                                                    (x: 0, y: 4)     // front
-                                                ]
+                                            if !episodesViewModel.favs.isEmpty {
+                                                let items = Array(episodesViewModel.favs.prefix(3).enumerated().reversed())
                                                 
-                                                ZStack {
-                                                    ZStack {
-                                                        ForEach(0..<3, id: \.self) { index in
-                                                            let offset = customOffsets[index]
-                                                            RoundedRectangle(cornerRadius: 3)
-                                                                .fill(Color.background.opacity(0.15))
-                                                                .frame(width: 14, height: 14)
-                                                                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
-                                                                .offset(x: offset.x, y: offset.y)
+                                                NavigationLink {
+                                                    FavEpisodesView(mini: false)
+                                                        .navigationTitle("Favorites")
+                                                } label: {
+                                                    HStack(spacing: 16) {
+                                                        let customOffsets: [(x: CGFloat, y: CGFloat)] = [
+                                                            (x: 2, y: -5),   // back
+                                                            (x: 8, y: 0),  // middle
+                                                            (x: 0, y: 4)     // front
+                                                        ]
+                                                        
+                                                        ZStack {
+                                                            ZStack {
+                                                                ForEach(0..<3, id: \.self) { index in
+                                                                    let offset = customOffsets[index]
+                                                                    RoundedRectangle(cornerRadius: 3)
+                                                                        .fill(Color.background.opacity(0.15))
+                                                                        .frame(width: 14, height: 14)
+                                                                        .overlay(
+                                                                            RoundedRectangle(cornerRadius: 3)
+                                                                                .stroke(lineWidth: 1)
+                                                                                .blendMode(.destinationOut)
+                                                                        )
+                                                                        .offset(x: offset.x, y: offset.y)
+                                                                }
+                                                            }
+                                                            .compositingGroup()
+                                                            
+                                                            ZStack {
+                                                                ForEach(items, id: \.element.id) { index, episode in
+                                                                    let offset = customOffsets[index]
+                                                                    ArtworkView(url: episode.podcast?.image ?? "", size: 14, cornerRadius: 3)
+                                                                        .overlay(
+                                                                            RoundedRectangle(cornerRadius: 3)
+                                                                                .stroke(lineWidth: 1)
+                                                                                .blendMode(.destinationOut)
+                                                                        )
+                                                                        .offset(x: offset.x, y: offset.y)
+                                                                }
+                                                            }
+                                                            .compositingGroup()
                                                         }
-                                                    }
-                                                    
-                                                    ZStack {
-                                                        ForEach(items, id: \.element.id) { index, episode in
-                                                            let offset = customOffsets[index]
-                                                            ArtworkView(url: episode.podcast?.image ?? "", size: 14, cornerRadius: 3)
-                                                                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color.heading, lineWidth: 1))
-                                                                .offset(x: offset.x, y: offset.y)
-                                                        }
+                                                        
+                                                        Text("Favorites")
+                                                            .textButton()
                                                     }
                                                 }
-                                                
-                                                Text("Add from Favorites")
-                                                    .foregroundStyle(Color.background)
+                                                .buttonStyle(.bordered)
                                             }
                                         }
-                                        .buttonStyle(PPButton(type: .filled, colorStyle: .monochrome))
                                     }
                                 }
                                 .offset(x: -16)
@@ -267,7 +285,7 @@ struct QueueItemView: View {
     let index: Int
     
     var body: some View {
-        QueueItem(episode: episode)
+        QueueItem(data: EpisodeCellData(from:episode), episode: episode)
             .id(episode.id)
             .lineLimit(3)
             .background(
@@ -281,18 +299,5 @@ struct QueueItemView: View {
                 content
                     .opacity(phase.isIdentity ? 1 : 0.5)
             }
-//            .contextMenu {
-//                ArchiveButton(episode:episode)
-//                MarkAsPlayedButton(episode:episode)
-//                FavButton(episode:episode)
-//                
-//                Section(episode.podcast?.title ?? "") {
-//                    NavigationLink {
-//                        PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-//                    } label: {
-//                        Label("View Podcast", systemImage: "widget.small")
-//                    }
-//                }
-//            }
     }
 }

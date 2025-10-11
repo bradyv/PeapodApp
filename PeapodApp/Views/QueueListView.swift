@@ -10,6 +10,8 @@ import SwiftUI
 struct QueueListView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.editMode) private var editMode
+    @Environment(\.dismiss) private var dismiss
+    
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @Namespace private var namespace
     @State private var selectedEpisodes: Set<Episode> = []
@@ -149,6 +151,9 @@ struct QueueListView: View {
         // Archive selected episodes by removing them from the queue
         // In this app's context, "archiving" means removing from queue
         
+        // Check if we're about to remove all items
+        let willBeEmpty = selectedEpisodes.count == episodesViewModel.queue.count
+        
         for episode in selectedEpisodes {
             // Remove from queue using the global function
             removeFromQueue(episode, episodesViewModel: episodesViewModel)
@@ -156,6 +161,11 @@ struct QueueListView: View {
         
         selectedEpisodes.removeAll()
         editMode?.wrappedValue = .inactive
+        
+        // Navigate back if the queue is now empty
+        if willBeEmpty {
+            dismiss()
+        }
     }
     
     private func moveEpisodes(from: IndexSet, to: Int) {

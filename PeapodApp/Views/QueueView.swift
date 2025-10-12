@@ -141,7 +141,7 @@ struct QueueScrollView: View {
                 .frame(maxWidth: .infinity)
                 .zIndex(1)
         }
-        .frame(width: UIScreen.main.bounds.width, height: 250)
+        .frame(width: UIScreen.main.bounds.width, height: 450)
     }
     
     // MARK: - Event Handlers
@@ -227,7 +227,7 @@ struct EmptyQueueMessage: View {
     
     var body: some View {
         VStack {
-            Text(hasSubscriptions ? "You're all caught up 🎉" : "Nothing up next")
+            Text(hasSubscriptions ? "All caught up 🎉" : "Nothing up next")
                 .titleCondensed()
             
             Text(hasSubscriptions ? "New releases are automatically added to Up Next." : "Follow some podcasts to get started.")

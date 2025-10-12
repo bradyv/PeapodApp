@@ -321,7 +321,7 @@ struct ContentView: View {
                                            startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
                         )
                     }
-                    .frame(height: 250)
+                    .frame(height: 450)
                 }
             }
             .frame(maxWidth:.infinity, alignment:.leading)

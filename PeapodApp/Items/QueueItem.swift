@@ -75,7 +75,7 @@ struct EmptyQueueItem: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal).padding(.bottom, 16)
         }
-        .frame(width: frame, height: 250, alignment: .bottomLeading)
+        .frame(width: frame, height: 450, alignment: .bottomLeading)
         .background(Color.heading.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 32))
         .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.heading.opacity(0.5), lineWidth: 1))

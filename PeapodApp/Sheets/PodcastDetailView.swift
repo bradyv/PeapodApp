@@ -248,19 +248,31 @@ struct PodcastDetailView: View {
     @ViewBuilder
     var LoadingView: some View {
         ScrollView {
-            SkeletonItem(width:128, height:128, cornerRadius:32)
+            Color.clear
+                .frame(height: 1)
+                .trackScrollOffset("scroll") { value in
+                    scrollOffset = value
+                }
+            
+            Spacer().frame(height:24)
+            
+            SkeletonItem(width:128, height:128, cornerRadius:24)
                 .rotationEffect(.degrees(2))
             
-            SkeletonItem(height:34)
+            Spacer().frame(height:16)
             
-            Spacer().frame(height:32)
+            SkeletonItem(width:128, height:34)
+            
+            Spacer().frame(height:36)
             
             Text("Episodes")
-                .titleSerifSm()
+                .titleSerifMini()
                 .frame(maxWidth:.infinity, alignment:.leading)
             
-            ForEach(1...3, id: \.self) { _ in
-                EmptyEpisodeCell()
+            VStack(spacing:24) {
+                ForEach(1...3, id: \.self) { _ in
+                    EmptyEpisodeCell()
+                }
             }
         }
         .disabled(true)

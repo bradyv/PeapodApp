@@ -16,6 +16,11 @@ struct ArtworkView: View {
     
     var body: some View {
         KFImage(URL(string:url))
+            .placeholder {
+                Image("placeholder")
+                    .resizable()
+                    .aspectRatio(1, contentMode:.fill)
+            }
             .resizable()
             .aspectRatio(1, contentMode: .fill)
             .ifLet(size) { view, size in

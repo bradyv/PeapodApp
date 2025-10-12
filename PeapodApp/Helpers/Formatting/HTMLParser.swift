@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftSoup
 
-func parseHtml(_ html: String, flat: Bool = false) -> String {
+func parseHtml(_ html: String) -> String {
     do {
         let document = try SwiftSoup.parse(html)
 
@@ -31,25 +31,24 @@ func parseHtml(_ html: String, flat: Bool = false) -> String {
 
                 if innerText.isEmpty { continue }
 
-                switch tag {
-                case "p", "div":
-                    result.append(flat ? innerText : innerText + "\n\n")
-                case "br":
-                    if !flat { result.append("\n") }
-                default:
-                    result.append(flat ? innerText : innerText + "\n")
+                // Add space before adding new content (except for first item)
+                if !result.isEmpty {
+                    result.append(" ")
                 }
+                result.append(innerText)
+                
             } else if let textNode = child as? TextNode {
                 let text = textNode.text().trimmingCharacters(in: .whitespacesAndNewlines)
                 if !text.isEmpty {
-                    result.append(flat ? text : text + "\n\n")
+                    if !result.isEmpty {
+                        result.append(" ")
+                    }
+                    result.append(text)
                 }
             }
         }
 
-        return result
-            .replacingOccurrences(of: flat ? "\n" : "\n{3,}", with: flat ? "" : "\n\n", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
 
     } catch {
         return "Error parsing HTML"
@@ -99,11 +98,14 @@ func sanitizeHtml(_ html: String) -> String {
     // Normalize all <br> to consistent tag
     cleaned = cleaned.replacingOccurrences(of: "<br ?/?>", with: "<br>", options: .regularExpression)
 
+    // Remove paragraphs with only &nbsp; entities (with or without attributes)
+    cleaned = cleaned.replacingOccurrences(of: "<p[^>]*>\\s*(&nbsp;|&#160;|&#xA0;)\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
+    
     // Remove empty <p><br></p>
-    cleaned = cleaned.replacingOccurrences(of: "<p>\\s*<br>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
+    cleaned = cleaned.replacingOccurrences(of: "<p[^>]*>\\s*<br>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
 
-    // Remove entirely empty paragraphs
-    cleaned = cleaned.replacingOccurrences(of: "<p>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
+    // Remove entirely empty paragraphs (with or without attributes)
+    cleaned = cleaned.replacingOccurrences(of: "<p[^>]*>\\s*</p>", with: "", options: [.regularExpression, .caseInsensitive])
     
     // Flatten nested paragraphs: <p><p>...</p></p> → <p>...</p>
     while cleaned.contains("<p><p>") || cleaned.contains("</p></p>") {
@@ -114,7 +116,7 @@ func sanitizeHtml(_ html: String) -> String {
 
     // Trim leading whitespace inside paragraphs (spaces, tabs, &nbsp;)
     cleaned = cleaned.replacingOccurrences(
-        of: "<p>\\s+",
+        of: "<p[^>]*>\\s+",
         with: "<p>",
         options: [.regularExpression, .caseInsensitive]
     )
@@ -257,12 +259,25 @@ private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color 
                 let (childOutput, _) = parseNode(child, font: font, color: color, linkColor: linkColor, isTopLevel: false)
                 output.append(childOutput)
             }
-            // Trim the final paragraph content
-            output = AttributedString(String(output.characters).trimmingCharacters(in: .whitespacesAndNewlines))
-            var formatted = output
-            formatted.font = font
-            formatted.foregroundColor = color
-            output = formatted
+            
+            // Trim whitespace while preserving all attributes
+            let fullText = String(output.characters)
+            let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if !trimmed.isEmpty && trimmed.count < fullText.count {
+                // Find the range of non-whitespace content
+                if let startIndex = fullText.firstIndex(where: { !$0.isWhitespace }),
+                   let endIndex = fullText.lastIndex(where: { !$0.isWhitespace }) {
+                    // Convert String indices to AttributedString indices
+                    let startOffset = fullText.distance(from: fullText.startIndex, to: startIndex)
+                    let endOffset = fullText.distance(from: fullText.startIndex, to: endIndex)
+                    
+                    let attrStartIndex = output.characters.index(output.startIndex, offsetBy: startOffset)
+                    let attrEndIndex = output.characters.index(output.startIndex, offsetBy: endOffset + 1)
+                    
+                    output = AttributedString(output[attrStartIndex..<attrEndIndex])
+                }
+            }
 
         case "br":
             // Convert BR to a line break only if we're inside a paragraph
@@ -318,6 +333,14 @@ private func parseNode(_ node: Node, font: Font, color: Color, linkColor: Color 
             // Just parse the content of list items
             for child in element.getChildNodes() {
                 let (childOutput, _) = parseNode(child, font: font, color: color, linkColor: linkColor, isTopLevel: false)
+                output.append(childOutput)
+            }
+            
+        case "u":
+            // Handle underline tags
+            for child in element.getChildNodes() {
+                var (childOutput, _) = parseNode(child, font: font, color: color, linkColor: linkColor, isTopLevel: false)
+                childOutput.underlineStyle = .single
                 output.append(childOutput)
             }
 

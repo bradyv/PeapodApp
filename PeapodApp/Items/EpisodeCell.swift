@@ -18,6 +18,7 @@ struct EpisodeCellData {
     let isQueued: Bool
     let isFav: Bool
     let feedUrl: String
+    let episodeDescription: String
     
     init(from episode: Episode) {
         self.id = episode.id ?? ""
@@ -30,6 +31,7 @@ struct EpisodeCellData {
         self.isQueued = episode.isQueued
         self.isFav = episode.isFav
         self.feedUrl = episode.podcast?.feedUrl ?? ""
+        self.episodeDescription = episode.episodeDescription ?? ""
     }
 }
 
@@ -83,7 +85,7 @@ struct EpisodeCell: View {
                     }
                 }
                 
-                EpisodeDetails(episode: episode)
+                EpisodeDetails(data: data)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

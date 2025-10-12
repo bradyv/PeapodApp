@@ -33,7 +33,7 @@ struct EpisodeItem: View {
             PodcastDetailsRow(episode: episode, displayedInQueue: true)
             
             // Episode Meta
-            EpisodeDetails(episode: episode, displayedInQueue: true)
+            EpisodeDetails(data: data, displayedInQueue: true)
             
             // Episode Actions
             HStack {
@@ -59,8 +59,9 @@ struct EpisodeItem: View {
             workItem?.cancel()
             // Create a new work item
             let item = DispatchWorkItem {
+                // FIX: Use the shared singleton instead of the environment object
                 Task.detached(priority: .background) {
-                    await player.writeActualDuration(for: episode)
+                    await AudioPlayerManager.shared.writeActualDuration(for: episode)
                 }
             }
             workItem = item
@@ -93,7 +94,7 @@ struct EpisodeItem: View {
         // ▶️ Playback Button
         Button(action: {
             guard !playerState.isLoading else { return }
-            player.togglePlayback(for: episode)
+            player.togglePlayback(for: episode, episodesViewModel: episodesViewModel)
         }) {
             HStack {
                 PPCircularPlayButton(

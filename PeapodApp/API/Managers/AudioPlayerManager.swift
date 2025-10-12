@@ -242,74 +242,45 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func setupPlayer(url: URL, episode: Episode, startPosition: Double) async {
         guard let episodeID = episode.id else { return }
-
-        // Step 1: on MainActor, cleanup and allocate
+        
         await MainActor.run {
+            // Clean up previous player
             self.cleanupPlayer()
             self.cachedArtwork = nil
-
+            
+            // Create new player - let system handle everything else
             let playerItem = AVPlayerItem(url: url)
             self.player = AVPlayer(playerItem: playerItem)
-            // Initially disable stalling, we’ll override next
             self.player?.automaticallyWaitsToMinimizeStalling = false
-
+            
+            // Minimal observations only
             self.setupPlayerObservations(for: episodeID)
         }
-
-        // Step 2: Seek if needed
+        
+        // Seek if needed
         if startPosition > 0 {
             await seekToPosition(startPosition)
         }
-
-        // Step 3: Activate audio session before playback attempt
-        do {
-            try AVAudioSession.sharedInstance().setActive(true, options: [])
-            LogManager.shared.info("Audio session successfully activated")
-        } catch {
-            LogManager.shared.error("Failed to activate audio session: \(error)")
-            // You might want to retry or delay here
-        }
-
-        // Step 4: Choose stalling strategy based on state
-        let isInBackground = UIApplication.shared.applicationState == .background
+        
+        // Start playback - let system handle routing
         await MainActor.run {
-            self.player?.automaticallyWaitsToMinimizeStalling = isInBackground
-        }
-
-        // Step 5: Start playback
-        await MainActor.run {
-            if isInBackground {
-                // In background, prefer letting the system buffer first
-                self.player?.play()
-            } else {
-                // In foreground, you can go aggressive
-                self.player?.play()
-                self.player?.rate = self.playbackSpeed
-            }
-        }
-
-        // Step 6: As a fallback, try playImmediately if things didn’t start
-        // (Optional) after a small delay, check if playing, and if not, force immediate play
-        Task { @MainActor in
-            try await Task.sleep(nanoseconds: UInt64(0.5 * Double(NSEC_PER_SEC)))
-            if let p = self.player, p.rate == 0 {
-                LogManager.shared.warning("Playback not started; trying playImmediately")
-                p.playImmediately(atRate: self.playbackSpeed)
-            }
-        }
-
-        // Step 7: Now the rest of your “mark nowPlaying state, update metadata, etc.”
-        await MainActor.run {
+            self.player?.play()
+            self.player?.rate = self.playbackSpeed
+            
             episode.nowPlaying = true
             if episode.isPlayed {
                 removeEpisodeFromPlaylist(episode, playlistName: "Played")
             }
+            
+            // Ensure episode is in queue if it wasn't already
             if !episode.isQueued {
                 episode.isQueued = true
             }
+            
             try? episode.managedObjectContext?.save()
-
+            
             MPNowPlayingInfoCenter.default().playbackState = .playing
+            // Update metadata
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 self.updateNowPlayingInfo()
             }

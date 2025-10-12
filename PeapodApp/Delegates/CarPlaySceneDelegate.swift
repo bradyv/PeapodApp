@@ -11,6 +11,7 @@ import CoreData
 import Combine
 import Kingfisher
 
+@MainActor
 class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     
     var interfaceController: CPInterfaceController?
@@ -18,29 +19,33 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private var episodesViewModel: EpisodesViewModel?
     private var cancellables = Set<AnyCancellable>()
     
-    // Keep references to templates for updates
+    // Template references
     private var upNextTemplate: CPListTemplate?
     private var favoritesTemplate: CPListTemplate?
     private var recentTemplate: CPListTemplate?
     private var libraryTemplate: CPListTemplate?
     
-    // Cache for resized images to prevent flashing
+    // CRITICAL: Image cache to prevent flashing
     private var imageCache: [String: UIImage] = [:]
     private let imageCacheQueue = DispatchQueue(label: "carplay.imageCache", qos: .userInteractive)
+    
+    // CRITICAL: Update throttling to prevent excessive refreshes
+    private var updateWorkItem: DispatchWorkItem?
+    private let updateDebounceInterval: TimeInterval = 0.3
+    
+    // CRITICAL: Track currently playing episode to minimize updates
+    private var lastPlayingEpisodeID: String?
     
     func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene,
                                  didConnect interfaceController: CPInterfaceController) {
         
         self.interfaceController = interfaceController
         
-        print("CarPlay connected!")
+        print("🚗 CarPlay connected!")
         
         // Get episodes view model from AppDelegate
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             self.episodesViewModel = appDelegate.episodesViewModel
-            print("Got episodesViewModel with \(appDelegate.episodesViewModel.queue.count) queued episodes")
-            
-            // Set up observers for data changes
             setupDataObservers()
         }
         
@@ -48,7 +53,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         let rootTemplate = createTabBarTemplate()
         interfaceController.setRootTemplate(rootTemplate, animated: false, completion: nil)
         
-        // Listen for Core Data changes
+        // Listen for Core Data changes (debounced)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(dataDidChange),
@@ -56,10 +61,13 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
             object: nil
         )
         
-        // Force initial refresh after a short delay to ensure data is loaded
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.refreshAllTemplates()
-        }
+        // Listen for CarPlay play requests
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePlayRequest),
+            name: NSNotification.Name("PlayEpisodeFromCarPlay"),
+            object: nil
+        )
     }
     
     func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene,
@@ -68,129 +76,158 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         cancellables.removeAll()
         NotificationCenter.default.removeObserver(self)
         
-        // Clear image cache on disconnect
         imageCacheQueue.async { [weak self] in
             self?.imageCache.removeAll()
         }
         
-        print("CarPlay disconnected")
+        print("🚗 CarPlay disconnected")
     }
     
-    // MARK: - Data Observers
+    // MARK: - Data Observers (Optimized)
     
     private func setupDataObservers() {
         guard let viewModel = episodesViewModel else { return }
         
-        // Observe queue changes - only update when episodes actually change
+        // Observe queue changes with deduplication
         viewModel.$queue
             .dropFirst()
             .removeDuplicates { old, new in
-                // Only update if the episode IDs actually changed
                 old.map { $0.id } == new.map { $0.id }
             }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] queue in
-                print("Queue episodes changed in CarPlay: \(queue.count) episodes")
-                self?.updateUpNextTemplate()
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.scheduleUpdate {
+                    self?.updateUpNextTemplate()  // FIX: Use self? here too
+                }
             }
             .store(in: &cancellables)
         
-        // Same for favorites
+        // Observe favorites changes
         viewModel.$favs
             .dropFirst()
             .removeDuplicates { old, new in
                 old.map { $0.id } == new.map { $0.id }
             }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] favs in
-                print("Favorites changed in CarPlay: \(favs.count) episodes")
-                self?.updateFavoritesTemplate()
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.scheduleUpdate {
+                    self?.updateFavoritesTemplate()  // FIX
+                }
             }
             .store(in: &cancellables)
         
-        // Same for latest
+        // Observe latest changes
         viewModel.$latest
             .dropFirst()
             .removeDuplicates { old, new in
                 old.map { $0.id } == new.map { $0.id }
             }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] latest in
-                print("Latest changed in CarPlay: \(latest.count) episodes")
-                self?.updateRecentTemplate()
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.scheduleUpdate {
+                    self?.updateRecentTemplate()  // FIX
+                }
             }
             .store(in: &cancellables)
         
-        // Observe audio player changes to update accessory images
+        // CRITICAL: Only update when playing state actually changes
         let player = AudioPlayerManager.shared
         
-        // Observe playback state changes
-        player.$playbackState
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                print("Playback state changed in CarPlay")
-                self?.refreshAllTemplates()
+        Publishers.CombineLatest(
+            player.$playbackState.map { $0.episodeID }.removeDuplicates(),
+            player.$playbackState.map { $0.isPlaying }.removeDuplicates()
+        )
+        .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
+        .sink { [weak self] episodeID, isPlaying in
+            guard let self = self else { return }
+            
+            if self.lastPlayingEpisodeID != episodeID {
+                self.lastPlayingEpisodeID = episodeID
+                self.scheduleUpdate {
+                    self.refreshAllTemplates()  // FIX: Remove the ? since we already unwrapped self
+                }
             }
-            .store(in: &cancellables)
+        }
+        .store(in: &cancellables)
+    }
+    
+    // MARK: - Update Scheduling (Debounced)
+    
+    private func scheduleUpdate(_ updateBlock: @escaping () -> Void) {
+        updateWorkItem?.cancel()
+        
+        let workItem = DispatchWorkItem {
+            updateBlock()
+        }
+        updateWorkItem = workItem
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + updateDebounceInterval, execute: workItem)
     }
     
     @objc private func dataDidChange() {
-        print("Core Data changed, refreshing CarPlay templates")
-        refreshAllTemplates()
+        scheduleUpdate { [weak self] in
+            self?.refreshAllTemplates()
+        }
+    }
+    
+    @objc private func handlePlayRequest(_ notification: Notification) {
+        guard let episodeID = notification.object as? String else { return }
+        
+        // Find episode and play it
+        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", episodeID)
+        request.fetchLimit = 1
+        
+        if let episode = try? context.fetch(request).first {
+            AudioPlayerManager.shared.togglePlayback(for: episode, episodesViewModel: episodesViewModel)
+        }
     }
     
     private func refreshAllTemplates() {
-        DispatchQueue.main.async { [weak self] in
-            self?.updateUpNextTemplate()
-            self?.updateFavoritesTemplate()
-            self?.updateRecentTemplate()
-            self?.updateLibraryTemplate()
-        }
+        updateUpNextTemplate()
+        updateFavoritesTemplate()
+        updateRecentTemplate()
+        updateLibraryTemplate()
     }
     
-    // MARK: - Template Updates
+    // MARK: - Template Updates (Batch Operations)
     
     private func updateUpNextTemplate() {
-        guard let template = upNextTemplate else {
-            print("No upNextTemplate reference")
-            return
-        }
+        guard let template = upNextTemplate else { return }
         let newSection = createUpNextSection()
-        print("Updating Up Next with \(newSection.items.count) items")
         template.updateSections([newSection])
     }
     
     private func updateFavoritesTemplate() {
         guard let template = favoritesTemplate else { return }
         let newSection = createFavoritesSection()
-        print("Updating Favorites with \(newSection.items.count) items")
         template.updateSections([newSection])
     }
     
     private func updateRecentTemplate() {
         guard let template = recentTemplate else { return }
         let newSection = createRecentSection()
-        print("Updating Recent with \(newSection.items.count) items")
         template.updateSections([newSection])
     }
     
     private func updateLibraryTemplate() {
         guard let template = libraryTemplate else { return }
         
-        let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
-        request.predicate = NSPredicate(format: "isSubscribed == YES")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Podcast.title, ascending: true)]
-        
-        do {
-            let podcasts = try context.fetch(request)
-            let items = podcasts.map { podcast in
-                createPodcastItem(for: podcast)
-            }
+        context.perform { [weak self] in
+            guard let self = self else { return }
             
-            let section = CPListSection(items: items)
-            template.updateSections([section])
-        } catch {
-            print("Failed to update library: \(error)")
+            let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+            request.predicate = NSPredicate(format: "isSubscribed == YES")
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \Podcast.title, ascending: true)]
+            
+            if let podcasts = try? self.context.fetch(request) {
+                let items = podcasts.map { self.createPodcastItem(for: $0) }
+                let section = CPListSection(items: items)
+                
+                DispatchQueue.main.async {
+                    template.updateSections([section])
+                }
+            }
         }
     }
     
@@ -200,12 +237,10 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         upNextTemplate = CPListTemplate(title: "Up Next", sections: [createUpNextSection()])
         upNextTemplate?.tabImage = UIImage(systemName: "play.square.stack")
         upNextTemplate?.emptyViewTitleVariants = ["Nothing Up Next"]
-        upNextTemplate?.emptyViewSubtitleVariants = ["New releases are automatically added"]
         
         favoritesTemplate = CPListTemplate(title: "Favorites", sections: [createFavoritesSection()])
         favoritesTemplate?.tabImage = UIImage(systemName: "heart.fill")
         favoritesTemplate?.emptyViewTitleVariants = ["No Favorites"]
-        favoritesTemplate?.emptyViewSubtitleVariants = ["Tap the heart icon on any episode"]
         
         recentTemplate = CPListTemplate(title: "Recents", sections: [createRecentSection()])
         recentTemplate?.tabImage = UIImage(systemName: "clock.fill")
@@ -222,93 +257,81 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         ])
     }
     
-    // MARK: - Sections
+    // MARK: - Sections (Background Fetching)
     
     private func createUpNextSection() -> CPListSection {
-        // Try ViewModel first
+        // Use ViewModel first (already loaded)
         if let viewModel = episodesViewModel, !viewModel.queue.isEmpty {
-            print("Using viewModel queue: \(viewModel.queue.count) episodes")
-            let items = viewModel.queue.prefix(20).map { episode in
-                createEpisodeItem(for: episode)
-            }
+            let items = viewModel.queue.prefix(20).map { createEpisodeItem(for: $0) }
             return CPListSection(items: items)
         }
         
-        // Fallback to direct fetch using Playback boolean
-        print("Falling back to direct fetch for queue")
+        // Fallback to direct fetch
         let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
         playbackRequest.predicate = NSPredicate(format: "isQueued == YES")
         playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.queuePosition, ascending: true)]
+        playbackRequest.fetchLimit = 20
         
-        do {
-            let playbackStates = try context.fetch(playbackRequest)
-            let episodeIds = playbackStates.compactMap { $0.episodeId }
-            
-            guard !episodeIds.isEmpty else {
-                print("No queued episode IDs found")
-                return CPListSection(items: [])
-            }
-            
-            let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
-            let episodes = try context.fetch(episodeRequest)
-            
-            // Sort by queue position
-            let sortedEpisodes = episodes.sorted { e1, e2 in
-                guard let id1 = e1.id, let id2 = e2.id else { return false }
-                let pos1 = episodeIds.firstIndex(of: id1) ?? Int.max
-                let pos2 = episodeIds.firstIndex(of: id2) ?? Int.max
-                return pos1 < pos2
-            }
-            
-            print("Direct fetch found \(sortedEpisodes.count) queued episodes")
-            let items = sortedEpisodes.prefix(20).map { episode in
-                createEpisodeItem(for: episode)
-            }
-            return CPListSection(items: items)
-            
-        } catch {
-            print("Failed to fetch queue: \(error)")
+        guard let playbackStates = try? context.fetch(playbackRequest) else {
             return CPListSection(items: [])
         }
+        
+        let episodeIds = playbackStates.compactMap { $0.episodeId }
+        guard !episodeIds.isEmpty else {
+            return CPListSection(items: [])
+        }
+        
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
+        episodeRequest.relationshipKeyPathsForPrefetching = ["podcast"]
+        
+        guard let episodes = try? context.fetch(episodeRequest) else {
+            return CPListSection(items: [])
+        }
+        
+        // Sort by queue position
+        let sortedEpisodes = episodes.sorted { e1, e2 in
+            guard let id1 = e1.id, let id2 = e2.id else { return false }
+            let pos1 = episodeIds.firstIndex(of: id1) ?? Int.max
+            let pos2 = episodeIds.firstIndex(of: id2) ?? Int.max
+            return pos1 < pos2
+        }
+        
+        let items = sortedEpisodes.map { createEpisodeItem(for: $0) }
+        return CPListSection(items: items)
     }
     
     private func createFavoritesSection() -> CPListSection {
-        // Direct fetch using Playback boolean
         let playbackRequest: NSFetchRequest<Playback> = Playback.fetchRequest()
         playbackRequest.predicate = NSPredicate(format: "isFav == YES")
         playbackRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Playback.favDate, ascending: false)]
+        playbackRequest.fetchLimit = 20
         
-        do {
-            let playbackStates = try context.fetch(playbackRequest)
-            let episodeIds = playbackStates.compactMap { $0.episodeId }
-            
-            guard !episodeIds.isEmpty else {
-                return CPListSection(items: [])
-            }
-            
-            let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-            episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
-            let episodes = try context.fetch(episodeRequest)
-            
-            print("Found \(episodes.count) favorite episodes")
-            let items = episodes.prefix(20).map { episode in
-                createEpisodeItem(for: episode)
-            }
-            return CPListSection(items: items)
-            
-        } catch {
-            print("Failed to fetch favorites: \(error)")
+        guard let playbackStates = try? context.fetch(playbackRequest) else {
             return CPListSection(items: [])
         }
+        
+        let episodeIds = playbackStates.compactMap { $0.episodeId }
+        guard !episodeIds.isEmpty else {
+            return CPListSection(items: [])
+        }
+        
+        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+        episodeRequest.predicate = NSPredicate(format: "id IN %@", episodeIds)
+        episodeRequest.relationshipKeyPathsForPrefetching = ["podcast"]
+        
+        guard let episodes = try? context.fetch(episodeRequest) else {
+            return CPListSection(items: [])
+        }
+        
+        let items = episodes.map { createEpisodeItem(for: $0) }
+        return CPListSection(items: items)
     }
     
     private func createRecentSection() -> CPListSection {
-        // Direct fetch from Core Data instead of relying on ViewModel
         let subscribedPodcastIds = getSubscribedPodcastIds(context: context)
         
         guard !subscribedPodcastIds.isEmpty else {
-            print("No subscribed podcasts for Recent")
             return CPListSection(items: [])
         }
         
@@ -316,18 +339,14 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         request.predicate = NSPredicate(format: "podcastId IN %@", subscribedPodcastIds)
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
         request.fetchLimit = 20
+        request.relationshipKeyPathsForPrefetching = ["podcast"]
         
-        do {
-            let episodes = try context.fetch(request)
-            print("Found \(episodes.count) recent episodes")
-            let items = episodes.map { episode in
-                createEpisodeItem(for: episode)
-            }
-            return CPListSection(items: items)
-        } catch {
-            print("Failed to fetch recent episodes: \(error)")
+        guard let episodes = try? context.fetch(request) else {
             return CPListSection(items: [])
         }
+        
+        let items = episodes.map { createEpisodeItem(for: $0) }
+        return CPListSection(items: items)
     }
     
     private func createLibraryTemplate() -> CPListTemplate {
@@ -335,25 +354,16 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         request.predicate = NSPredicate(format: "isSubscribed == YES")
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Podcast.title, ascending: true)]
         
-        do {
-            let podcasts = try context.fetch(request)
-            let items = podcasts.map { podcast in
-                createPodcastItem(for: podcast)
-            }
-            
-            let section = CPListSection(items: items)
-            let template = CPListTemplate(title: "Library", sections: [section])
-            template.emptyViewTitleVariants = ["No Podcasts"]
-            template.emptyViewSubtitleVariants = ["Subscribe to podcasts in the app"]
-            return template
-            
-        } catch {
-            print("Failed to fetch podcasts for CarPlay: \(error)")
-            return CPListTemplate(title: "Library", sections: [])
-        }
+        let podcasts = (try? context.fetch(request)) ?? []
+        let items = podcasts.map { createPodcastItem(for: $0) }
+        
+        let section = CPListSection(items: items)
+        let template = CPListTemplate(title: "Library", sections: [section])
+        template.emptyViewTitleVariants = ["No Podcasts"]
+        return template
     }
     
-    // MARK: - List Items
+    // MARK: - List Items (Optimized)
     
     private func createEpisodeItem(for episode: Episode) -> CPListItem {
         let title = episode.title ?? "Untitled Episode"
@@ -361,27 +371,27 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         
         let item = CPListItem(text: title, detailText: subtitle)
         
-        // Check if this is the currently playing episode
+        // CRITICAL: Only show playing indicator for the actual playing episode
         let player = AudioPlayerManager.shared
-        let isCurrentlyPlaying = player.currentEpisode?.id == episode.id
-        
-        if isCurrentlyPlaying {
-            // Show playing indicator
-            if player.isPlaying {
-                item.setAccessoryImage(
-                    UIImage(systemName: "speaker.wave.2.fill")?.withTintColor(.systemBlue, renderingMode: .alwaysOriginal))
-            }
+        if player.currentEpisode?.id == episode.id && player.isPlaying {
+            item.setAccessoryImage(
+                UIImage(systemName: "speaker.wave.2.fill")?
+                    .withTintColor(.systemBlue, renderingMode: .alwaysOriginal)
+            )
         }
         
-        // Load artwork with caching to prevent flashing
+        // Load artwork with caching (non-blocking)
         if let artworkURL = episode.episodeImage ?? episode.podcast?.image {
             loadImageWithCaching(from: artworkURL, for: item)
         }
         
-        // Handle tap to play episode
+        // CRITICAL: Handler for instant playback
         item.handler = { [weak self] (item: any CPSelectableListItem, completion: @escaping () -> Void) in
-            self?.playEpisode(episode)
+            // Complete immediately for instant UI feedback
             completion()
+            
+            // Play episode
+            self?.playEpisodeInstantly(episode)
         }
         
         return item
@@ -391,112 +401,83 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         let title = podcast.title ?? "Untitled Podcast"
         let item = CPListItem(text: title, detailText: nil)
         
-        // Load artwork with caching to prevent flashing
         if let artworkURL = podcast.image {
             loadImageWithCaching(from: artworkURL, for: item)
         }
         
-        // Handle tap to show podcast episodes
         item.handler = { [weak self] (item: any CPSelectableListItem, completion: @escaping () -> Void) in
-            self?.showPodcastEpisodes(for: podcast)
             completion()
+            self?.showPodcastEpisodes(for: podcast)
         }
         
         return item
     }
     
-    // MARK: - Actions
+    // MARK: - Actions (Instant)
     
     private func showPodcastEpisodes(for podcast: Podcast) {
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
         request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
         request.fetchLimit = 50
+        request.relationshipKeyPathsForPrefetching = ["podcast"]
         
-        do {
-            let episodes = try context.fetch(request)
-            let items = episodes.map { episode in
-                createEpisodeItem(for: episode)
-            }
-            
-            let section = CPListSection(items: items)
-            let template = CPListTemplate(title: podcast.title ?? "Episodes", sections: [section])
-            
-            interfaceController?.pushTemplate(template, animated: true, completion: nil)
-            
-        } catch {
-            print("Failed to fetch episodes for podcast: \(error)")
-        }
+        guard let episodes = try? context.fetch(request) else { return }
+        
+        let items = episodes.map { createEpisodeItem(for: $0) }
+        let section = CPListSection(items: items)
+        let template = CPListTemplate(title: podcast.title ?? "Episodes", sections: [section])
+        
+        interfaceController?.pushTemplate(template, animated: true, completion: nil)
     }
     
-    private func playEpisode(_ episode: Episode) {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("PlayEpisodeFromCarPlay"),
-                object: episode.id
-            )
-            print("Posted CarPlay play request for: \(episode.title ?? "Unknown")")
-            
-            // Force Now Playing update after playback starts
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                let player = AudioPlayerManager.shared
-                if player.currentEpisode?.id == episode.id {
-                    // Trigger a manual update to ensure CarPlay gets the info
-                    player.objectWillChange.send()
-                }
-            }
-        }
+    private func playEpisodeInstantly(_ episode: Episode) {
+        // CRITICAL: Play immediately without any async operations
+        AudioPlayerManager.shared.togglePlayback(for: episode, episodesViewModel: episodesViewModel)
+        
+        print("🚗 Playing: \(episode.title ?? "Unknown")")
     }
     
-    // MARK: - Image Loading
+    // MARK: - Image Loading (Background + Cache)
     
     private func loadImageWithCaching(from urlString: String, for item: CPListItem) {
         guard let url = URL(string: urlString) else { return }
         
-        // Check cache first
+        // Check memory cache first (instant)
         if let cachedImage = imageCache[urlString] {
             item.setImage(cachedImage)
             return
         }
         
-        // Load from Kingfisher cache or network
-        loadImage(from: url) { [weak self] image in
-            DispatchQueue.main.async {
-                if let image = image {
-                    // Cache the resized image
-                    self?.imageCacheQueue.async {
-                        self?.imageCache[urlString] = image
-                    }
-                    item.setImage(image)
+        // Load in background
+        Task.detached(priority: .userInteractive) {
+            // Use Kingfisher's efficient cache
+            let result = try? await KingfisherManager.shared.retrieveImage(with: url)
+            
+            if let image = result?.image {
+                // Resize on background thread
+                let size = CGSize(width: 200, height: 200)
+                let renderer = UIGraphicsImageRenderer(size: size)
+                let resizedImage = renderer.image { context in
+                    image.draw(in: CGRect(origin: .zero, size: size))
+                }
+                
+                // Cache in memory
+                await self.cacheImage(resizedImage, for: urlString)
+                
+                // Update UI on main thread
+                await MainActor.run {
+                    item.setImage(resizedImage)
                 }
             }
         }
     }
     
-    private func loadImage(from url: URL, completion: @escaping (UIImage?) -> Void) {
-        // Use Kingfisher's cache
-        KingfisherManager.shared.retrieveImage(with: url) { result in
-            switch result {
-            case .success(let imageResult):
-                // Resize for CarPlay on background queue to avoid blocking
-                DispatchQueue.global(qos: .userInteractive).async {
-                    let image = imageResult.image
-                    let size = CGSize(width: 200, height: 200)
-                    
-                    let renderer = UIGraphicsImageRenderer(size: size)
-                    let resizedImage = renderer.image { context in
-                        image.draw(in: CGRect(origin: .zero, size: size))
-                    }
-                    
-                    DispatchQueue.main.async {
-                        completion(resizedImage)
-                    }
-                }
-            case .failure(let error):
-                print("Failed to load image: \(error)")
-                DispatchQueue.main.async {
-                    completion(nil)
-                }
+    private func cacheImage(_ image: UIImage, for key: String) async {
+        await withCheckedContinuation { continuation in
+            imageCacheQueue.async { [weak self] in
+                self?.imageCache[key] = image
+                continuation.resume()
             }
         }
     }

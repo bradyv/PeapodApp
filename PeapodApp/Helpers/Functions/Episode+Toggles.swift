@@ -54,19 +54,15 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     guard let context = episode.managedObjectContext else { return }
     
     if !episode.isQueued {
-        LogManager.shared.warning("⚠️ Episode not marked as queued in Core Data, but forcing removal from UI: \(episode.title?.prefix(30) ?? "Episode")")
+        LogManager.shared.warning("Episode not queued: \(episode.title?.prefix(30) ?? "Episode")")
     }
     
-    // 🔥 Immediate change for UI feedback
     episode.isQueued = false
     episode.objectWillChange.send()
     
-    // 🔥 CRITICAL: Update EpisodesViewModel immediately for animations
     episodesViewModel?.fetchQueue()
     
-    LogManager.shared.info("✅ Removing episode from queue: \(episode.title?.prefix(30) ?? "Episode")")
-    
-    // 🆕 Check if playback entity can be deleted BEFORE saving
+    // Check if playback entity can be deleted
     var shouldDeletePlayback = false
     if let playback = episode.playbackState {
         let canDelete = !playback.isPlayed &&
@@ -75,31 +71,27 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
         
         if canDelete {
             shouldDeletePlayback = true
-            LogManager.shared.info("🗑️ Will delete orphaned playback entity for episode: \(episode.title?.prefix(30) ?? "Episode")")
         }
     }
     
     do {
         try context.save()
-        LogManager.shared.info("✅ Episode removed from queue successfully")
         
-        // Delete playback entity AFTER successful save if needed
         if shouldDeletePlayback, let playback = episode.playbackState {
             context.delete(playback)
             try context.save()
-            LogManager.shared.info("✅ Deleted orphaned playback entity")
         }
     } catch {
-        LogManager.shared.error("⚠️ Error removing from queue: \(error)")
-        // Revert the change if save failed
+        LogManager.shared.error("Error removing from queue: \(error)")
         episode.isQueued = true
         context.rollback()
-        // Also revert the view model
         episodesViewModel?.fetchQueue()
         return
     }
     
-    AudioPlayerManager.shared.handleQueueRemoval()
+    Task { @MainActor in
+        AudioPlayerManager.shared.handleQueueRemoval()
+    }
 }
 
 func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel: EpisodesViewModel? = nil) {

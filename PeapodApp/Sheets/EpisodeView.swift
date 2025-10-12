@@ -18,6 +18,8 @@ struct EpisodeView: View {
     @State private var selectedPodcast: Podcast? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var favoriteCount = 0
+    @State private var localProgress: Double = 0
+    @State private var isDragging: Bool = false
     var skipTip = SkipTip()
     
     // Computed properties based on unified state
@@ -171,11 +173,23 @@ struct EpisodeView: View {
             
             PPProgress(
                 value: Binding(
-                    get: { player.getProgress(for: episode) },
-                    set: { player.seek(to: $0) }
+                    get: {
+                        // Use local progress while dragging, otherwise use player state
+                        isDragging ? localProgress : player.getProgress(for: episode)
+                    },
+                    set: { newValue in
+                        localProgress = newValue
+                        player.seek(to: newValue)
+                    }
                 ),
                 range: 0...player.getActualDuration(for: episode),
-                onEditingChanged: { _ in },
+                onEditingChanged: { editing in
+                    isDragging = editing
+                    if !editing {
+                        // Sync when done dragging
+                        localProgress = player.getProgress(for: episode)
+                    }
+                },
                 isDraggable: true,
                 isQQ: false
             )
@@ -188,6 +202,15 @@ struct EpisodeView: View {
                     player.skipForward(seconds: player.forwardInterval)
                 }
                 .if(player.isPlaying, transform: { $0.popoverTip(skipTip, arrowEdge: .bottom) })
+        }
+        .onChange(of: player.getProgress(for: episode)) { oldValue, newValue in
+            // Update local progress when player updates (if not dragging)
+            if !isDragging {
+                localProgress = newValue
+            }
+        }
+        .onAppear {
+            localProgress = player.getProgress(for: episode)
         }
     }
 }

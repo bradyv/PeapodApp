@@ -665,8 +665,6 @@ class EpisodeRefresher {
             
             let semaphore = DispatchSemaphore(value: 3) // Slightly higher since HEAD requests are faster
             let group = DispatchGroup()
-            var refreshedCount = 0
-            var skippedCount = 0
             
             let startTime = Date()
             

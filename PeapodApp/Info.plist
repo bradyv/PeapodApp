@@ -15,6 +15,8 @@
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
+    <key>AVInitialRouteSharingPolicy</key>
+    <string>LongFormAudio</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>CFBundleIcons</key>

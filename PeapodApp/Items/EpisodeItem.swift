@@ -9,25 +9,22 @@ import SwiftUI
 import Pow
 
 struct EpisodeItem: View {
-    @Environment(\.managedObjectContext) private var context
-    @ObservedObject var episode: Episode
+    let data: EpisodeCellData
+    let episode: Episode  // Keep for actions only
+    
     @EnvironmentObject var player: AudioPlayerManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @State private var workItem: DispatchWorkItem?
     @State private var favoriteCount = 0
     @Namespace private var namespace
     
-    // Computed properties based on unified state
-    private var isPlaying: Bool {
-        player.isPlayingEpisode(episode)
-    }
-    
-    private var isLoading: Bool {
-        player.isLoadingEpisode(episode)
-    }
-    
-    private var playbackPosition: Double {
-        player.getProgress(for: episode)
+    // Only compute player state when needed
+    private var playerState: (isPlaying: Bool, isLoading: Bool, progress: Double) {
+        (
+            player.isPlayingEpisode(episode),
+            player.isLoadingEpisode(episode),
+            player.getProgress(for: episode)
+        )
     }
     
     var body: some View {
@@ -40,29 +37,12 @@ struct EpisodeItem: View {
             
             // Episode Actions
             HStack {
-//                let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
                 PlayButton
-                
-//                if hasStarted {
-//                    MarkAsPlayedButton
-//                } else {
-//                    ArchiveButton
-//                }
                 
                 Spacer()
                 
                 Menu {
-                    ArchiveButton(episode:episode)
-                    MarkAsPlayedButton(episode:episode)
-                    FavButton(episode:episode)
-                    
-                    Section(episode.podcast?.title ?? "") {
-                        NavigationLink {
-                            PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-                        } label: {
-                            Label("View Podcast", systemImage: "widget.small")
-                        }
-                    }
+                    contextMenuContent
                 } label: {
                     Label("More", systemImage:"ellipsis")
                         .frame(width:36,height:36)
@@ -70,8 +50,6 @@ struct EpisodeItem: View {
                 .labelStyle(.iconOnly)
                 .foregroundStyle(Color.white)
                 .textButton()
-                
-//                FavButton
             }
         }
         .contentShape(Rectangle())
@@ -96,10 +74,25 @@ struct EpisodeItem: View {
     }
     
     @ViewBuilder
+    private var contextMenuContent: some View {
+        ArchiveButton(episode: episode)
+        MarkAsPlayedButton(episode: episode)
+        FavButton(episode: episode)
+        
+        Section(data.podcastTitle) {
+            NavigationLink {
+                PodcastDetailView(feedUrl: data.feedUrl)
+            } label: {
+                Label("View Podcast", systemImage: "widget.small")
+            }
+        }
+    }
+    
+    @ViewBuilder
     var PlayButton: some View {
         // ▶️ Playback Button
         Button(action: {
-            guard !isLoading else { return }
+            guard !playerState.isLoading else { return }
             player.togglePlayback(for: episode)
         }) {
             HStack {
@@ -115,7 +108,6 @@ struct EpisodeItem: View {
                     .textButton()
             }
         }
-        .buttonStyle(.bordered)
-        .tint(.white)
+        .buttonStyle(.glassProminent)
     }
 }

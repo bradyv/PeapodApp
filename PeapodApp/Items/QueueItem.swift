@@ -29,7 +29,7 @@ struct QueueItem: View {
                 Spacer()
             }
             
-            EpisodeItem(episode: episode)
+            EpisodeItem(data: data, episode: episode)
                 .lineLimit(3)
                 .padding()
                 .frame(maxWidth: .infinity)

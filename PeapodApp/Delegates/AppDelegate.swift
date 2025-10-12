@@ -66,12 +66,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             // Use the most permissive configuration
             try session.setCategory(
                 .playback,
-                mode: .default,  // Let system choose best mode
+                mode: .spokenAudio,
                 options: [
                     .allowAirPlay,
                     .allowBluetoothA2DP,
                     .allowBluetoothHFP,
-                    .mixWithOthers  // Allow other apps to interrupt gracefully
+                    .duckOthers
                 ]
             )
             

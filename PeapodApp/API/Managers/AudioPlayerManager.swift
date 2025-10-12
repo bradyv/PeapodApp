@@ -272,11 +272,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 removeEpisodeFromPlaylist(episode, playlistName: "Played")
             }
             
-            // Ensure episode is in queue if it wasn't already
-            if !episode.isQueued {
-                episode.isQueued = true
-            }
-            
             try? episode.managedObjectContext?.save()
             
             MPNowPlayingInfoCenter.default().playbackState = .playing

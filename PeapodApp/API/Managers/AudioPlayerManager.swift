@@ -248,26 +248,38 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func setupPlayer(url: URL, episode: Episode, startPosition: Double) async {
         guard let episodeID = episode.id else { return }
         
-        // Clean up previous player
         self.cleanupPlayer()
         self.cachedArtwork = nil
         
-        // Create new player - optimize for quick start
-        let playerItem = AVPlayerItem(url: url)
-        self.player = AVPlayer(playerItem: playerItem)
+        // OPTIMIZED: Use AVURLAsset with automatic preloading
+        let asset = AVURLAsset(url: url, options: [
+            AVURLAssetPreferPreciseDurationAndTimingKey: false,  // Faster start
+            "AVURLAssetHTTPHeaderFieldsKey": [
+                "Range": "bytes=0-"  // Enable HTTP range requests for faster seeking
+            ]
+        ])
         
-        // CRITICAL: Don't wait to minimize stalling in background - start immediately
+        // Load essential properties asynchronously but don't wait
+        Task.detached(priority: .high) {
+            _ = try? await asset.load(.duration)
+        }
+        
+        let playerItem = AVPlayerItem(asset: asset)
+        
+        // CRITICAL: Enable faster buffering
+        playerItem.preferredForwardBufferDuration = 30  // Reduced from default 60s
+        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true
+        
+        self.player = AVPlayer(playerItem: playerItem)
         self.player?.automaticallyWaitsToMinimizeStalling = false
         
-        // Setup observations
         self.setupPlayerObservations(for: episodeID)
         
-        // Seek if needed (do this before playing for smoother experience)
+        // Seek before playing if needed
         if startPosition > 0 {
             await seekToPosition(startPosition)
         }
         
-        // CRITICAL: Set rate immediately to start playback faster
         episode.nowPlaying = true
         if episode.isPlayed {
             removeEpisodeFromPlaylist(episode, playlistName: "Played")
@@ -275,15 +287,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         try? episode.managedObjectContext?.save()
         
-        // Start playback with correct rate
+        // Start immediately
         self.player?.playImmediately(atRate: self.playbackSpeed)
-        
-        // Update system state
         MPNowPlayingInfoCenter.default().playbackState = .playing
         
-        // Update metadata after a brief delay to not block playback
+        // Update metadata after brief delay
         Task {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            try? await Task.sleep(nanoseconds: 100_000_000)
             await MainActor.run {
                 self.updateNowPlayingInfo()
             }

@@ -74,7 +74,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 ]
             )
             
-            // CRITICAL: Activate session at app launch for faster background response
+            // NEW: Optimize buffer size for faster response
+            try session.setPreferredIOBufferDuration(0.005)  // 5ms for responsive playback
+            
+            // NEW: Ensure high sample rate for quality
+            try session.setPreferredSampleRate(44100)
+            
             try session.setActive(true)
             
             LogManager.shared.info("Audio session configured and activated")

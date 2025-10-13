@@ -39,12 +39,12 @@ struct MarkAsPlayedButton: View {
             if episode.isPlayed {
                 player.markAsUnplayed(for:episode)
             } else {
-                player.markAsPlayed(for: episode, manually: true)
-                if episode.isQueued && episode.isPlayed {
+                if episode.isQueued {
                     withAnimation {
                         removeFromQueue(episode, episodesViewModel: episodesViewModel)
                     }
                 }
+                player.markAsPlayed(for: episode, manually: true)
             }
         }) {
             Label(episode.isPlayed ? "Mark Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "checkmark.arrow.trianglehead.counterclockwise" : "checkmark.circle")

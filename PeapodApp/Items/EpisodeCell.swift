@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct EpisodeCellData {
+struct EpisodeCellData: Equatable {
     let id: String
     let title: String
     let podcastTitle: String
@@ -37,20 +37,11 @@ struct EpisodeCellData {
 
 struct EpisodeCell: View {
     let data: EpisodeCellData
-    let episode: Episode  // Keep for actions only
+    let episode: Episode
     var showPodcast: Bool = true
     
     @EnvironmentObject var player: AudioPlayerManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    
-    // Only compute player state when needed
-    private var playerState: (isPlaying: Bool, isLoading: Bool, progress: Double) {
-        (
-            player.isPlayingEpisode(episode),
-            player.isLoadingEpisode(episode),
-            player.getProgress(for: episode)
-        )
-    }
     
     var body: some View {
         HStack(spacing: 16) {
@@ -91,11 +82,8 @@ struct EpisodeCell: View {
         }
         .contentShape(Rectangle())
         .contextMenu { contextMenuContent }
-        .swipeActions(edge: .trailing) { trailingSwipeActions }
-        .swipeActions(edge: .leading) { leadingSwipeActions }
     }
     
-    // Extract to separate computed properties to avoid rebuilding
     @ViewBuilder
     private var contextMenuContent: some View {
         ArchiveButton(episode: episode)
@@ -109,38 +97,6 @@ struct EpisodeCell: View {
                 Label("View Podcast", systemImage: "widget.small")
             }
         }
-    }
-    
-    @ViewBuilder
-    private var trailingSwipeActions: some View {
-        Button {
-            withAnimation {
-                if data.isQueued {
-                    removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                } else {
-                    toggleQueued(episode, episodesViewModel: episodesViewModel)
-                }
-            }
-        } label: {
-            Label(
-                data.isQueued ? "Archive" : "Up Next",
-                systemImage: data.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled"
-            )
-        }
-        .tint(.accentColor)
-    }
-    
-    @ViewBuilder
-    private var leadingSwipeActions: some View {
-        Button {
-            toggleFav(episode)
-        } label: {
-            Label(
-                data.isFav ? "Undo" : "Favorite",
-                systemImage: data.isFav ? "heart.slash" : "heart"
-            )
-        }
-        .tint(.red)
     }
 }
 

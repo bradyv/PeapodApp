@@ -106,6 +106,32 @@ struct FavEpisodesView: View {
                 .matchedTransitionSource(id: episode.id, in: namespace)
                 .lineLimit(3)
             }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button {
+                    withAnimation {
+                        if episode.isQueued {
+                            removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                        } else {
+                            toggleQueued(episode, episodesViewModel: episodesViewModel)
+                        }
+                    }
+                } label: {
+                    Label(
+                        episode.isQueued ? "Archive" : "Up Next",
+                        systemImage: episode.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled"
+                    )
+                }
+                .tint(.accentColor)
+            }
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button {
+                    toggleFav(episode)
+                } label: {
+                    Label(episode.isFav ? "Undo" : "Favorite",
+                          systemImage: episode.isFav ? "heart.slash" : "heart")
+                }
+                .tint(.red)
+            }
         }
     }
     

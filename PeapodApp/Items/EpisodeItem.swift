@@ -66,7 +66,7 @@ struct EpisodeItem: View {
             }
             workItem = item
             // Schedule after 0.5 seconds (adjust as needed)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: item)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: item)
         }
         .onDisappear {
             // Cancel if the user scrolls away before debounce interval

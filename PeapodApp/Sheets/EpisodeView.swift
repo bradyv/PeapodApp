@@ -119,9 +119,7 @@ struct EpisodeView: View {
             
             ToolbarItem(placement: .bottomBar) {
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        player.togglePlayback(for: episode)
-                    }
+                    player.togglePlayback(for: episode)
                 }) {
                     Group {
                         HStack {

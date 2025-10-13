@@ -121,7 +121,9 @@ struct QueueScrollView: View {
     
     @ViewBuilder
     private var queueContent: some View {
-        ForEach(Array(episodesViewModel.queue.enumerated()), id: \.element.id) { index, episode in
+        ForEach(episodesViewModel.queue) { episode in
+            let index = episodesViewModel.queue.firstIndex(where: { $0.id == episode.id }) ?? 0
+            
             NavigationLink {
                 EpisodeView(episode: episode)
                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))

@@ -436,6 +436,10 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         AudioPlayerManager.shared.togglePlayback(for: episode, episodesViewModel: episodesViewModel)
         
         print("🚗 Playing: \(episode.title ?? "Unknown")")
+        
+        // Navigate to Now Playing screen
+        let nowPlayingTemplate = CPNowPlayingTemplate.shared
+        interfaceController?.pushTemplate(nowPlayingTemplate, animated: true, completion: nil)
     }
     
     // MARK: - Image Loading (Background + Cache)

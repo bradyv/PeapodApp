@@ -200,6 +200,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         startPlayback(for: episode, episodesViewModel: episodesViewModel)
     }
     
+    // ⚠️ FIX #1: Wrap ALL Core Data modifications in proper context.perform
     private func startPlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
         guard let episodeID = episode.id,
               let audioURL = episode.audio,
@@ -214,7 +215,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             let session = AVAudioSession.sharedInstance()
             try session.setActive(true)
             
-            // IMPORTANT: Request background task to ensure completion
             var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
             backgroundTaskID = UIApplication.shared.beginBackgroundTask {
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
@@ -223,36 +223,48 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             LogManager.shared.info("Audio session activated for playback")
         } catch {
             LogManager.shared.error("Failed to activate audio session: \(error)")
-            return  // Don't proceed if session activation fails
+            return
         }
         
-        // Add to queue SYNCHRONOUSLY if not already queued
-        if !episode.isQueued {
-            episode.isQueued = true
-            episode.objectWillChange.send()
-            
-            Task { @MainActor in
-                episodesViewModel?.fetchQueue()
-            }
-            
-            do {
-                try episode.managedObjectContext?.save()
-            } catch {
-                LogManager.shared.error("Failed to add episode to queue: \(error)")
-                episode.isQueued = false
-            }
-        }
-        
+        // ⚠️ FIX #1: Get episode ObjectID before any async work
+        let episodeObjectID = episode.objectID
         let savedPosition = episode.playbackPosition
         let duration = getActualDuration(for: episode)
         
+        // Update playback state FIRST (before any Core Data changes)
         updateState(episode: episode, position: savedPosition, duration: duration, isPlaying: false, isLoading: true)
         
-        // CRITICAL: Use synchronous setup on main queue instead of Task
-        // This ensures player is created before app backgrounds
+        // ⚠️ FIX #2: Modify Core Data on MAIN thread with proper perform block
+        Task { @MainActor in
+            guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+            
+            // Add to queue if not already queued
+            if !episode.isQueued {
+                viewContext.perform {
+                    episode.isQueued = true
+                    
+                    do {
+                        try viewContext.save()
+                        LogManager.shared.info("✅ Episode added to queue")
+                        
+                        // Refresh queue on main actor
+                        Task { @MainActor in
+                            episodesViewModel?.fetchQueue()
+                        }
+                    } catch {
+                        LogManager.shared.error("Failed to add episode to queue: \(error)")
+                        // Rollback on failure
+                        viewContext.rollback()
+                    }
+                }
+            }
+        }
+        
+        // Setup player synchronously
         setupPlayer(url: url, episode: episode, startPosition: savedPosition)
     }
     
+    // ⚠️ FIX #3: Ensure episode modifications happen on correct thread
     private func setupPlayer(url: URL, episode: Episode, startPosition: Double) {
         guard let episodeID = episode.id else { return }
         
@@ -278,22 +290,35 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Setup observations immediately
         self.setupPlayerObservations(for: episodeID)
         
-        // Update episode state
-        episode.nowPlaying = true
-        if episode.isPlayed {
-            removeEpisodeFromPlaylist(episode, playlistName: "Played")
+        // ⚠️ FIX #4: Update episode state on main thread with proper context
+        let episodeObjectID = episode.objectID
+        Task { @MainActor in
+            viewContext.perform {
+                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+                
+                episode.nowPlaying = true
+                if episode.isPlayed {
+                    removeEpisodeFromPlaylist(episode, playlistName: "Played")
+                }
+                
+                do {
+                    try viewContext.save()
+                    LogManager.shared.info("✅ Episode marked as nowPlaying")
+                } catch {
+                    LogManager.shared.error("Failed to update episode state: \(error)")
+                    viewContext.rollback()
+                }
+            }
         }
-        try? episode.managedObjectContext?.save()
         
-        // CRITICAL: Start playback IMMEDIATELY, even if seek is pending
-        // This ensures audio starts in background
+        // Start playback IMMEDIATELY
         self.player?.playImmediately(atRate: self.playbackSpeed)
         
         // Update system state
         MPNowPlayingInfoCenter.default().playbackState = .playing
         self.updateNowPlayingInfo()
         
-        // Seek AFTER starting if needed (won't interrupt playback)
+        // Seek AFTER starting if needed
         if startPosition > 0 {
             let targetTime = CMTime(seconds: startPosition, preferredTimescale: 1)
             self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
@@ -339,8 +364,16 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Save final position
         if let episode = playbackState.episode {
             savePositionImmediately(for: episode, position: playbackState.position)
-            episode.nowPlaying = false
-            try? episode.managedObjectContext?.save()
+            
+            // ⚠️ FIX #5: Update Core Data on main thread
+            let episodeObjectID = episode.objectID
+            Task { @MainActor in
+                viewContext.perform {
+                    guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+                    episode.nowPlaying = false
+                    try? viewContext.save()
+                }
+            }
         }
         
         cleanupPlayer()
@@ -442,9 +475,16 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                         if duration.isFinite && duration > 0 {
                             self.updateState(duration: duration)
                             
+                            // ⚠️ FIX #6: Update episode duration on main thread
                             if let episode = self.playbackState.episode, episode.actualDuration <= 0 {
-                                episode.actualDuration = duration
-                                try? episode.managedObjectContext?.save()
+                                let episodeObjectID = episode.objectID
+                                Task { @MainActor in
+                                    viewContext.perform {
+                                        guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+                                        episode.actualDuration = duration
+                                        try? viewContext.save()
+                                    }
+                                }
                             }
                         }
                     case .failed:
@@ -518,11 +558,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    // ⚠️ FIX #7: Thread-safe position saving
     private func savePositionImmediately(for episode: Episode, position: Double) {
         lastSavedPosition = position
-        episode.playbackPosition = position
-        try? episode.managedObjectContext?.save()
-        LogManager.shared.info("Saved position immediately: \(String(format: "%.1f", position))")
+        
+        let episodeObjectID = episode.objectID
+        Task { @MainActor in
+            viewContext.perform {
+                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+                episode.playbackPosition = position
+                try? viewContext.save()
+                LogManager.shared.info("Saved position immediately: \(String(format: "%.1f", position))")
+            }
+        }
     }
     
     private func savePositionToDatabase(for episode: Episode, position: Double) {
@@ -636,64 +684,69 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
+    // ⚠️ FIX #8: Thread-safe episode completion handling
     private func handleEpisodeEnd() {
         guard let episode = playbackState.episode else { return }
         
         LogManager.shared.info("Episode finished: \(episode.title?.prefix(30) ?? "Episode")")
         
-        let context = episode.managedObjectContext ?? viewContext
+        let episodeObjectID = episode.objectID
         let wasPlayed = episode.isPlayed
+        let duration = playbackState.duration
         
-        // CRITICAL: Cancel any pending position saves FIRST and reset position immediately
+        // CRITICAL: Cancel any pending position saves FIRST
         positionSaveTimer?.invalidate()
         positionSaveTimer = nil
         
-        // CRITICAL: Reset position to 0 BEFORE any other operations
-        episode.playbackPosition = 0
-        
-        // Mark as played using boolean system
-        episode.isPlayed = true
-        
-        // Clear nowPlaying
-        episode.nowPlaying = false
-        
-        if let podcast = episode.podcast {
-            podcast.playCount += 1
-            podcast.playedSeconds += playbackState.duration
-        }
-        
-        // Remove from queue in same transaction if not already played
-        if !wasPlayed {
-            LogManager.shared.info("Removing finished episode from queue")
-            
-            Task { @MainActor in
-                removeFromQueue(episode)
+        // Update Core Data on main thread
+        Task { @MainActor in
+            viewContext.perform {
+                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+                
+                // CRITICAL: Reset position to 0 BEFORE any other operations
+                episode.playbackPosition = 0
+                
+                // Mark as played using boolean system
+                episode.isPlayed = true
+                
+                // Clear nowPlaying
+                episode.nowPlaying = false
+                
+                if let podcast = episode.podcast {
+                    podcast.playCount += 1
+                    podcast.playedSeconds += duration
+                }
+                
+                // Remove from queue if not already played
+                if !wasPlayed {
+                    LogManager.shared.info("Removing finished episode from queue")
+                    
+                    Task { @MainActor in
+                        removeFromQueue(episode)
+                    }
+                }
+                
+                // Single save for all changes
+                do {
+                    try viewContext.save()
+                    LogManager.shared.info("Episode marked as played and saved with position reset to 0")
+                } catch {
+                    LogManager.shared.error("Failed to save episode completion: \(error)")
+                    viewContext.rollback()
+                }
             }
-        } else {
-            LogManager.shared.info("Episode was already played - not removing from queue")
         }
         
-        // Single save for all changes
-        do {
-            try context.save()
-            LogManager.shared.info("Episode marked as played and saved with position reset to 0")
-        } catch {
-            LogManager.shared.error("Failed to save episode completion: \(error)")
-        }
-        
-        // Clear player state AFTER saving (only if not already cleared by removeFromQueue)
+        // Clear player state AFTER saving
         if playbackState.episode != nil {
             LogManager.shared.info("Clearing player state after episode completion")
             clearState()
             cleanupPlayer()
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-        } else {
-            LogManager.shared.info("Player state already cleared by queue removal")
         }
         
         // Check for autoplay AFTER clearing state
         if autoplayNext {
-            // Check premium access on main actor
             Task { @MainActor in
                 guard UserManager.shared.hasPremiumAccess else { return }
                 
@@ -762,26 +815,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         return episode.playbackPosition > 0
     }
     
+    // ⚠️ FIX #9: Thread-safe mark as played
     func markAsPlayed(for episode: Episode, manually: Bool = false) {
-        let context = episode.managedObjectContext ?? viewContext
-        
+        let episodeObjectID = episode.objectID
         let isCurrentEpisode = (playbackState.episode?.id == episode.id)
         let progressBeforeStop = isCurrentEpisode ? playbackState.position : episode.playbackPosition
-        
-        // Toggle played state
-        episode.isPlayed = true
-        
         let actualDuration = getActualDuration(for: episode)
         let playedTime = manually ? progressBeforeStop : actualDuration
-        
-        if let podcast = episode.podcast {
-            podcast.playCount += 1
-            podcast.playedSeconds += playedTime
-        }
-        
-        // Reset position and nowPlaying
-        episode.playbackPosition = 0
-        episode.nowPlaying = false
         
         // Stop playback if this is the current episode
         if isCurrentEpisode {
@@ -794,11 +834,31 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         }
         
-        do {
-            try context.save()
-            LogManager.shared.info("Manual mark as played completed - isPlayed: \(episode.isPlayed)")
-        } catch {
-            LogManager.shared.error("Failed to save manual mark as played: \(error)")
+        // Update Core Data on main thread
+        Task { @MainActor in
+            viewContext.perform {
+                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+                
+                // Toggle played state
+                episode.isPlayed = true
+                
+                if let podcast = episode.podcast {
+                    podcast.playCount += 1
+                    podcast.playedSeconds += playedTime
+                }
+                
+                // Reset position and nowPlaying
+                episode.playbackPosition = 0
+                episode.nowPlaying = false
+                
+                do {
+                    try viewContext.save()
+                    LogManager.shared.info("Manual mark as played completed - isPlayed: \(episode.isPlayed)")
+                } catch {
+                    LogManager.shared.error("Failed to save manual mark as played: \(error)")
+                    viewContext.rollback()
+                }
+            }
         }
         
         DispatchQueue.main.async {
@@ -807,19 +867,26 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func markAsUnplayed(for episode: Episode) {
-        let context = episode.managedObjectContext ?? viewContext
+        let episodeObjectID = episode.objectID
         
         guard episode.isPlayed else {
-            return // Already unplayed, no changes needed
+            return
         }
         
-        episode.isPlayed = false
-        
-        do {
-            try context.save()
-            LogManager.shared.info("Mark as unplayed completed")
-        } catch {
-            LogManager.shared.error("Failed to mark as unplayed: \(error)")
+        Task { @MainActor in
+            viewContext.perform {
+                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
+                
+                episode.isPlayed = false
+                
+                do {
+                    try viewContext.save()
+                    LogManager.shared.info("Mark as unplayed completed")
+                } catch {
+                    LogManager.shared.error("Failed to mark as unplayed: \(error)")
+                    viewContext.rollback()
+                }
+            }
         }
     }
 
@@ -839,13 +906,15 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 let durationSeconds = duration.seconds
                 
                 await MainActor.run {
-                    if let updatedEpisode = try? viewContext.existingObject(with: objectID) as? Episode {
-                        updatedEpisode.actualDuration = durationSeconds
-                        try? updatedEpisode.managedObjectContext?.save()
-                        
-                        // Update current state if this is the playing episode
-                        if self.playbackState.episode?.id == episode.id {
-                            self.updateState(duration: durationSeconds)
+                    viewContext.perform {
+                        if let updatedEpisode = try? viewContext.existingObject(with: objectID) as? Episode {
+                            updatedEpisode.actualDuration = durationSeconds
+                            try? viewContext.save()
+                            
+                            // Update current state if this is the playing episode
+                            if self.playbackState.episode?.id == updatedEpisode.id {
+                                self.updateState(duration: durationSeconds)
+                            }
                         }
                     }
                 }
@@ -1047,14 +1116,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         commandCenter.skipForwardCommand.preferredIntervals = [60]
         commandCenter.skipForwardCommand.addTarget { [weak self] _ in
             guard let self = self else { return .commandFailed }
-            self.skipForward(seconds: self.forwardInterval)  // Uses current value
+            self.skipForward(seconds: self.forwardInterval)
             return .success
         }
         
         commandCenter.skipBackwardCommand.isEnabled = true
         commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
             guard let self = self else { return .commandFailed }
-            self.skipBackward(seconds: self.backwardInterval)  // Uses current value
+            self.skipBackward(seconds: self.backwardInterval)
             return .success
         }
         
@@ -1164,30 +1233,31 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         queueLock.lock()
         defer { queueLock.unlock() }
         
-        // Immediate UI feedback for all episodes
-        for episode in episodes {
-            episode.objectWillChange.send()
-            episode.isQueued = false
-        }
-        
-        // Reindex remaining episodes
-        let remainingEpisodes = getQueuedEpisodes(context: context)
-            .sorted { $0.queuePosition < $1.queuePosition }
-        
-        for (index, ep) in remainingEpisodes.enumerated() {
-            ep.objectWillChange.send()
-            ep.queuePosition = Int64(index)
-        }
-        
-        do {
-            try context.save()
-            LogManager.shared.info("Removed \(episodes.count) episodes from queue")
+        // ⚠️ FIX #10: Wrap in context.perform
+        context.perform {
+            // Immediate UI feedback for all episodes
+            for episode in episodes {
+                episode.isQueued = false
+            }
             
-            NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+            // Reindex remaining episodes
+            let remainingEpisodes = getQueuedEpisodes(context: context)
+                .sorted { $0.queuePosition < $1.queuePosition }
             
-        } catch {
-            LogManager.shared.error("Error removing multiple episodes from queue: \(error)")
-            context.rollback()
+            for (index, ep) in remainingEpisodes.enumerated() {
+                ep.queuePosition = Int64(index)
+            }
+            
+            do {
+                try context.save()
+                LogManager.shared.info("Removed \(episodes.count) episodes from queue")
+                
+                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+                
+            } catch {
+                LogManager.shared.error("Error removing multiple episodes from queue: \(error)")
+                context.rollback()
+            }
         }
         
         // Check if current episode should be stopped
@@ -1205,21 +1275,23 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         queueLock.lock()
         defer { queueLock.unlock() }
         
-        // Update positions with immediate UI feedback
-        for (index, episode) in episodes.enumerated() {
-            episode.objectWillChange.send()
-            episode.queuePosition = Int64(index)
-        }
-        
-        do {
-            try context.save()
-            LogManager.shared.info("Reordered queue with \(episodes.count) episodes")
+        // ⚠️ FIX #11: Wrap in context.perform
+        context.perform {
+            // Update positions with immediate UI feedback
+            for (index, episode) in episodes.enumerated() {
+                episode.queuePosition = Int64(index)
+            }
             
-            NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
-            
-        } catch {
-            LogManager.shared.error("Error reordering queue: \(error)")
-            context.rollback()
+            do {
+                try context.save()
+                LogManager.shared.info("Reordered queue with \(episodes.count) episodes")
+                
+                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+                
+            } catch {
+                LogManager.shared.error("Error reordering queue: \(error)")
+                context.rollback()
+            }
         }
     }
 
@@ -1229,39 +1301,39 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         queueLock.lock()
         defer { queueLock.unlock() }
         
-        episode.objectWillChange.send()
-        
-        // Ensure episode is in the queue
-        if !episode.isQueued {
-            episode.isQueued = true
-        }
-        
-        // Get current queue order
-        let queue = getQueuedEpisodes(context: context)
-            .sorted { $0.queuePosition < $1.queuePosition }
-        
-        // Create new ordering
-        var reordered = queue.filter { $0.id != episode.id }
-        let targetPosition = min(max(0, position), reordered.count)
-        reordered.insert(episode, at: targetPosition)
-        
-        // Update positions with immediate UI feedback
-        for (index, ep) in reordered.enumerated() {
-            ep.objectWillChange.send()
-            ep.queuePosition = Int64(index)
-        }
-        
-        do {
-            try context.save()
-            LogManager.shared.info("Updated episode queue position: \(episode.title ?? "Episode") to position \(position)")
-            
-            Task { @MainActor in
-                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+        // ⚠️ FIX #12: Wrap in context.perform
+        context.perform {
+            // Ensure episode is in the queue
+            if !episode.isQueued {
+                episode.isQueued = true
             }
             
-        } catch {
-            LogManager.shared.error("Error updating episode queue position: \(error)")
-            context.rollback()
+            // Get current queue order
+            let queue = getQueuedEpisodes(context: context)
+                .sorted { $0.queuePosition < $1.queuePosition }
+            
+            // Create new ordering
+            var reordered = queue.filter { $0.id != episode.id }
+            let targetPosition = min(max(0, position), reordered.count)
+            reordered.insert(episode, at: targetPosition)
+            
+            // Update positions
+            for (index, ep) in reordered.enumerated() {
+                ep.queuePosition = Int64(index)
+            }
+            
+            do {
+                try context.save()
+                LogManager.shared.info("Updated episode queue position: \(episode.title ?? "Episode") to position \(position)")
+                
+                Task { @MainActor in
+                    NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
+                }
+                
+            } catch {
+                LogManager.shared.error("Error updating episode queue position: \(error)")
+                context.rollback()
+            }
         }
     }
 }

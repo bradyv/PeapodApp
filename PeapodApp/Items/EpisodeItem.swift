@@ -54,24 +54,24 @@ struct EpisodeItem: View {
         }
         .contentShape(Rectangle())
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            // Cancel any previous work item
-            workItem?.cancel()
-            // Create a new work item
-            let item = DispatchWorkItem {
-                // FIX: Use the shared singleton instead of the environment object
-                Task.detached(priority: .background) {
-                    await AudioPlayerManager.shared.writeActualDuration(for: episode)
-                }
-            }
-            workItem = item
-            // Schedule after 0.5 seconds (adjust as needed)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: item)
-        }
-        .onDisappear {
-            // Cancel if the user scrolls away before debounce interval
-            workItem?.cancel()
-        }
+//        .onAppear {
+//            // Cancel any previous work item
+//            workItem?.cancel()
+//            // Create a new work item
+//            let item = DispatchWorkItem {
+//                // FIX: Use the shared singleton instead of the environment object
+//                Task.detached(priority: .background) {
+//                    await AudioPlayerManager.shared.writeActualDuration(for: episode)
+//                }
+//            }
+//            workItem = item
+//            // Schedule after 0.5 seconds (adjust as needed)
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: item)
+//        }
+//        .onDisappear {
+//            // Cancel if the user scrolls away before debounce interval
+//            workItem?.cancel()
+//        }
     }
     
     @ViewBuilder

@@ -209,12 +209,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
-        // CRITICAL: Activate audio session immediately for background playback
+        // CRITICAL: Activate audio session AND ensure it's active synchronously
         do {
-            try AVAudioSession.sharedInstance().setActive(true)
+            let session = AVAudioSession.sharedInstance()
+            try session.setActive(true)
+            
+            // IMPORTANT: Request background task to ensure completion
+            var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+            backgroundTaskID = UIApplication.shared.beginBackgroundTask {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            }
+            
             LogManager.shared.info("Audio session activated for playback")
         } catch {
             LogManager.shared.error("Failed to activate audio session: \(error)")
+            return  // Don't proceed if session activation fails
         }
         
         // Add to queue SYNCHRONOUSLY if not already queued
@@ -239,64 +248,55 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         updateState(episode: episode, position: savedPosition, duration: duration, isPlaying: false, isLoading: true)
         
-        // CRITICAL: Use Task instead of Task.detached for faster background response
-        Task { @MainActor in
-            await self.setupPlayer(url: url, episode: episode, startPosition: savedPosition)
-        }
+        // CRITICAL: Use synchronous setup on main queue instead of Task
+        // This ensures player is created before app backgrounds
+        setupPlayer(url: url, episode: episode, startPosition: savedPosition)
     }
     
-    private func setupPlayer(url: URL, episode: Episode, startPosition: Double) async {
+    private func setupPlayer(url: URL, episode: Episode, startPosition: Double) {
         guard let episodeID = episode.id else { return }
         
+        // Clean up previous player
         self.cleanupPlayer()
         self.cachedArtwork = nil
         
-        // OPTIMIZED: Use AVURLAsset with automatic preloading
+        // CRITICAL: Create player synchronously
         let asset = AVURLAsset(url: url, options: [
-            AVURLAssetPreferPreciseDurationAndTimingKey: false,  // Faster start
+            AVURLAssetPreferPreciseDurationAndTimingKey: false,
             "AVURLAssetHTTPHeaderFieldsKey": [
-                "Range": "bytes=0-"  // Enable HTTP range requests for faster seeking
+                "Range": "bytes=0-"
             ]
         ])
         
-        // Load essential properties asynchronously but don't wait
-        Task.detached(priority: .high) {
-            _ = try? await asset.load(.duration)
-        }
-        
         let playerItem = AVPlayerItem(asset: asset)
-        
-        // CRITICAL: Enable faster buffering
-        playerItem.preferredForwardBufferDuration = 30  // Reduced from default 60s
+        playerItem.preferredForwardBufferDuration = 15
         playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true
         
         self.player = AVPlayer(playerItem: playerItem)
         self.player?.automaticallyWaitsToMinimizeStalling = false
         
+        // Setup observations immediately
         self.setupPlayerObservations(for: episodeID)
         
-        // Seek before playing if needed
-        if startPosition > 0 {
-            await seekToPosition(startPosition)
-        }
-        
+        // Update episode state
         episode.nowPlaying = true
         if episode.isPlayed {
             removeEpisodeFromPlaylist(episode, playlistName: "Played")
         }
-        
         try? episode.managedObjectContext?.save()
         
-        // Start immediately
+        // CRITICAL: Start playback IMMEDIATELY, even if seek is pending
+        // This ensures audio starts in background
         self.player?.playImmediately(atRate: self.playbackSpeed)
-        MPNowPlayingInfoCenter.default().playbackState = .playing
         
-        // Update metadata after brief delay
-        Task {
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            await MainActor.run {
-                self.updateNowPlayingInfo()
-            }
+        // Update system state
+        MPNowPlayingInfoCenter.default().playbackState = .playing
+        self.updateNowPlayingInfo()
+        
+        // Seek AFTER starting if needed (won't interrupt playback)
+        if startPosition > 0 {
+            let targetTime = CMTime(seconds: startPosition, preferredTimescale: 1)
+            self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
         }
     }
     
@@ -571,7 +571,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             MPNowPlayingInfoPropertyMediaType: 1
         ]
         
-        if let cachedArtwork = cachedArtwork {
+        // Set immediately with basic info
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        
+        // Fetch artwork asynchronously and update later
+        if cachedArtwork != nil {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = cachedArtwork
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
         } else {
@@ -579,8 +583,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 DispatchQueue.main.async {
                     if let artwork = artwork {
                         nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+                        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
                     }
-                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
                 }
             }
         }
@@ -903,8 +907,100 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     // MARK: - Simplified Notifications Setup
     private func setupNotifications() {
-        NotificationCenter.default.addObserver(self, selector: #selector(savePlaybackOnExit), name: UIApplication.willTerminateNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(savePlaybackOnExit),
+            name: UIApplication.willTerminateNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        
+        // NEW: Handle audio session interruptions
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioSessionInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        
+        // NEW: Handle route changes (CarPlay connection)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRouteChange),
+            name: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+    }
+    
+    @objc private func handleAudioSessionInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            LogManager.shared.info("Audio session interrupted")
+            
+        case .ended:
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
+                return
+            }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            
+            if options.contains(.shouldResume) {
+                LogManager.shared.info("Resuming after interruption")
+                
+                // Reactivate session
+                do {
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    
+                    // Resume playback if it was playing
+                    if !userInitiatedPause && playbackState.episode != nil {
+                        resume()
+                    }
+                } catch {
+                    LogManager.shared.error("Failed to reactivate audio session: \(error)")
+                }
+            }
+            
+        @unknown default:
+            break
+        }
+    }
+
+    @objc private func handleRouteChange(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+            return
+        }
+        
+        switch reason {
+        case .newDeviceAvailable:
+            // CarPlay or Bluetooth connected
+            LogManager.shared.info("New audio device available")
+            
+            // Ensure session is active
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+            } catch {
+                LogManager.shared.error("Failed to activate session for new device: \(error)")
+            }
+            
+        case .oldDeviceUnavailable:
+            // Device disconnected - might want to pause
+            LogManager.shared.info("Audio device disconnected")
+            
+        default:
+            break
+        }
     }
     
     @objc private func appDidEnterBackground() {

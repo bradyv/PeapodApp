@@ -60,19 +60,19 @@ struct EpisodeCell: View {
                             .textDetailEmphasis()
                     }
                     
-                    if data.isPlayed {
+                    if !data.isPlayed {
+                        Text(getRelativeDateString(from: data.airDate))
+                            .textDetail()
+                    } else {
                         HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
+                            Image(systemName: data.isFav ? "heart.circle.fill" : "checkmark.circle.fill")
                                 .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(Color.heading)
+                                .foregroundStyle(data.isFav ? .orange : Color.heading)
                                 .textDetail()
                             
                             Text("Played")
                                 .textDetail()
                         }
-                    } else {
-                        Text(getRelativeDateString(from: data.airDate))
-                            .textDetail()
                     }
                 }
                 

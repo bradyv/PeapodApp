@@ -319,7 +319,7 @@ struct LatestEpisodesView: View {
                     Label(episode.isFav ? "Undo" : "Favorite",
                           systemImage: episode.isFav ? "heart.slash" : "heart")
                 }
-                .tint(.red)
+                .tint(.orange)
             }
         }
     }

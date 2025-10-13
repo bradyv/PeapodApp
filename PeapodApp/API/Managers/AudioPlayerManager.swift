@@ -209,33 +209,38 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
+        // CRITICAL: Activate audio session immediately for background playback
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+            LogManager.shared.info("Audio session activated for playback")
+        } catch {
+            LogManager.shared.error("Failed to activate audio session: \(error)")
+        }
+        
         // Add to queue SYNCHRONOUSLY if not already queued
         if !episode.isQueued {
             episode.isQueued = true
             episode.objectWillChange.send()
             
-            // Update the episodes view model immediately
             Task { @MainActor in
                 episodesViewModel?.fetchQueue()
             }
             
-            // Save to Core Data
             do {
                 try episode.managedObjectContext?.save()
             } catch {
                 LogManager.shared.error("Failed to add episode to queue: \(error)")
-                episode.isQueued = false // Revert on failure
+                episode.isQueued = false
             }
         }
         
-        // Get saved position and duration
         let savedPosition = episode.playbackPosition
         let duration = getActualDuration(for: episode)
         
-        // Update state to loading
         updateState(episode: episode, position: savedPosition, duration: duration, isPlaying: false, isLoading: true)
         
-        Task.detached(priority: .userInitiated) {
+        // CRITICAL: Use Task instead of Task.detached for faster background response
+        Task { @MainActor in
             await self.setupPlayer(url: url, episode: episode, startPosition: savedPosition)
         }
     }
@@ -243,40 +248,43 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func setupPlayer(url: URL, episode: Episode, startPosition: Double) async {
         guard let episodeID = episode.id else { return }
         
-        await MainActor.run {
-            // Clean up previous player
-            self.cleanupPlayer()
-            self.cachedArtwork = nil
-            
-            // Create new player - let system handle everything else
-            let playerItem = AVPlayerItem(url: url)
-            self.player = AVPlayer(playerItem: playerItem)
-            self.player?.automaticallyWaitsToMinimizeStalling = false
-            
-            // Minimal observations only
-            self.setupPlayerObservations(for: episodeID)
-        }
+        // Clean up previous player
+        self.cleanupPlayer()
+        self.cachedArtwork = nil
         
-        // Seek if needed
+        // Create new player - optimize for quick start
+        let playerItem = AVPlayerItem(url: url)
+        self.player = AVPlayer(playerItem: playerItem)
+        
+        // CRITICAL: Don't wait to minimize stalling in background - start immediately
+        self.player?.automaticallyWaitsToMinimizeStalling = false
+        
+        // Setup observations
+        self.setupPlayerObservations(for: episodeID)
+        
+        // Seek if needed (do this before playing for smoother experience)
         if startPosition > 0 {
             await seekToPosition(startPosition)
         }
         
-        // Start playback - let system handle routing
-        await MainActor.run {
-            self.player?.play()
-            self.player?.rate = self.playbackSpeed
-            
-            episode.nowPlaying = true
-            if episode.isPlayed {
-                removeEpisodeFromPlaylist(episode, playlistName: "Played")
-            }
-            
-            try? episode.managedObjectContext?.save()
-            
-            MPNowPlayingInfoCenter.default().playbackState = .playing
-            // Update metadata
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        // CRITICAL: Set rate immediately to start playback faster
+        episode.nowPlaying = true
+        if episode.isPlayed {
+            removeEpisodeFromPlaylist(episode, playlistName: "Played")
+        }
+        
+        try? episode.managedObjectContext?.save()
+        
+        // Start playback with correct rate
+        self.player?.playImmediately(atRate: self.playbackSpeed)
+        
+        // Update system state
+        MPNowPlayingInfoCenter.default().playbackState = .playing
+        
+        // Update metadata after a brief delay to not block playback
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            await MainActor.run {
                 self.updateNowPlayingInfo()
             }
         }

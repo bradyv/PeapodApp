@@ -63,7 +63,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         do {
             let session = AVAudioSession.sharedInstance()
             
-            // Use the most permissive configuration
             try session.setCategory(
                 .playback,
                 mode: .spokenAudio,
@@ -75,8 +74,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 ]
             )
             
-            // Don't force active - let the player activate when needed
-            LogManager.shared.info("Audio session configured - system will manage activation")
+            // CRITICAL: Activate session at app launch for faster background response
+            try session.setActive(true)
+            
+            LogManager.shared.info("Audio session configured and activated")
         } catch {
             LogManager.shared.error("Failed to configure audio session: \(error)")
         }

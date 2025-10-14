@@ -84,7 +84,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     }
     
     // MARK: - Data Observers (Optimized)
-    
+
     private func setupDataObservers() {
         guard let viewModel = episodesViewModel else { return }
         
@@ -97,7 +97,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
             .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleUpdate {
-                    self?.updateUpNextTemplate()  // FIX: Use self? here too
+                    self?.updateUpNextTemplate()
                 }
             }
             .store(in: &cancellables)
@@ -111,7 +111,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
             .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleUpdate {
-                    self?.updateFavoritesTemplate()  // FIX
+                    self?.updateFavoritesTemplate()
                 }
             }
             .store(in: &cancellables)
@@ -125,30 +125,31 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
             .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.scheduleUpdate {
-                    self?.updateRecentTemplate()  // FIX
+                    self?.updateRecentTemplate()
                 }
             }
             .store(in: &cancellables)
         
-        // CRITICAL: Only update when playing state actually changes
+        // CRITICAL: Observe AudioPlayerManager changes (simplified)
         let player = AudioPlayerManager.shared
         
-        Publishers.CombineLatest(
-            player.$playbackState.map { $0.episodeID }.removeDuplicates(),
-            player.$playbackState.map { $0.isPlaying }.removeDuplicates()
-        )
-        .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
-        .sink { [weak self] episodeID, isPlaying in
-            guard let self = self else { return }
-            
-            if self.lastPlayingEpisodeID != episodeID {
-                self.lastPlayingEpisodeID = episodeID
-                self.scheduleUpdate {
-                    self.refreshAllTemplates()  // FIX: Remove the ? since we already unwrapped self
+        // Listen to player's objectWillChange publisher
+        player.objectWillChange
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                
+                let currentPlayingID = player.currentEpisode?.id
+                
+                // Only refresh if playing episode changed
+                if self.lastPlayingEpisodeID != currentPlayingID {
+                    self.lastPlayingEpisodeID = currentPlayingID
+                    self.scheduleUpdate {
+                        self.refreshAllTemplates()
+                    }
                 }
             }
-        }
-        .store(in: &cancellables)
+            .store(in: &cancellables)
     }
     
     // MARK: - Update Scheduling (Debounced)

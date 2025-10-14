@@ -51,7 +51,7 @@ struct EpisodeView: View {
             FadeInView(delay: 0.2) {
                 VStack(alignment:.leading,spacing: 8) {
                     Text(episode.title ?? "Episode title")
-                        .titleSerif()
+                        .titleSerifSm()
                         .multilineTextAlignment(.leading)
                     
                     PodcastDetailsRow(episode: episode)
@@ -166,7 +166,7 @@ struct EpisodeView: View {
                 .fontDesign(.monospaced)
                 .font(.caption)
                 .onTapGesture {
-                    player.skipBackward(seconds: player.backwardInterval)
+                    player.skipBackward()
                 }
             
             PPProgress(
@@ -197,7 +197,7 @@ struct EpisodeView: View {
                 .fontDesign(.monospaced)
                 .font(.caption)
                 .onTapGesture {
-                    player.skipForward(seconds: player.forwardInterval)
+                    player.skipForward()
                 }
                 .if(player.isPlaying, transform: { $0.popoverTip(skipTip, arrowEdge: .bottom) })
         }

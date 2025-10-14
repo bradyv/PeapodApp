@@ -436,7 +436,7 @@ extension SettingsView {
                 ForEach(speeds, id: \.self) { speed in
                     Button(action: {
                         withAnimation {
-                            player.setPlaybackSpeed(speed)
+                            player.playbackSpeed = speed
                         }
                     }) {
                         HStack {
@@ -511,7 +511,7 @@ extension SettingsView {
             Section(header: Text("Skip Backwards Interval")) {
                 ForEach(intervals, id: \.self) { interval in
                     Button(action: {
-                        player.setBackwardInterval(interval)
+                        player.backwardInterval = interval
                     }) {
                         HStack {
                             if interval == currentBackwardInterval {
@@ -585,7 +585,7 @@ extension SettingsView {
             Section(header: Text("Skip Forwards Interval")) {
                 ForEach(intervals, id: \.self) { interval in
                     Button(action: {
-                        player.setForwardInterval(interval)
+                        player.forwardInterval = interval
                     }) {
                         HStack {
                             if interval == currentForwardInterval {

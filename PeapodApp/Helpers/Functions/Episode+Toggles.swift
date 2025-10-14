@@ -88,10 +88,6 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
         episodesViewModel?.fetchQueue()
         return
     }
-    
-    Task { @MainActor in
-        AudioPlayerManager.shared.handleQueueRemoval()
-    }
 }
 
 func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel: EpisodesViewModel? = nil) {

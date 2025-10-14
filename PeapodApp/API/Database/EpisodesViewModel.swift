@@ -46,14 +46,6 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             name: .NSManagedObjectContextDidSave,
             object: nil
         )
-        
-        // 🔥 NEW: Listen for queue updates from AudioPlayerManager
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(queueDidUpdate),
-            name: .episodeQueueUpdated,
-            object: nil
-        )
     }
     
     // New method to load initial data and track loading state

@@ -45,11 +45,12 @@ struct EpisodeItem: View {
                     contextMenuContent
                 } label: {
                     Label("More", systemImage:"ellipsis")
-                        .frame(width:36,height:36)
+                        .frame(width:34,height:34)
                 }
                 .labelStyle(.iconOnly)
                 .foregroundStyle(Color.white)
                 .textButton()
+                .glassEffect(.clear.interactive())
             }
         }
         .contentShape(Rectangle())
@@ -97,11 +98,16 @@ struct EpisodeItem: View {
             player.togglePlayback(for: episode, episodesViewModel: episodesViewModel)
         }) {
             HStack {
-                PPCircularPlayButton(
-                    episode: episode,
-                    displayedInQueue: true,
-                    buttonSize: 20
-                )
+                if playerState.isLoading {
+                    PPSpinner(color: Color.white)
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    PPCircularPlayButton(
+                        episode: episode,
+                        displayedInQueue: true,
+                        buttonSize: 20
+                    )
+                }
                 
                 Text("\(player.getStableRemainingTime(for: episode, pretty: true))")
                     .contentTransition(.numericText())

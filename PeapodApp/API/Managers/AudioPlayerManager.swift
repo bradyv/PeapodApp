@@ -11,89 +11,81 @@ import Combine
 import MediaPlayer
 import CoreData
 import Kingfisher
-import UIKit
-
-// MARK: - Unified Playback State
-struct PlaybackState: Equatable {
-    let episode: Episode?
-    let position: Double
-    let duration: Double
-    let isPlaying: Bool
-    let isLoading: Bool
-    
-    var episodeID: String? { episode?.id }
-    
-    static let idle = PlaybackState(episode: nil, position: 0, duration: 0, isPlaying: false, isLoading: false)
-    
-    static func == (lhs: PlaybackState, rhs: PlaybackState) -> Bool {
-        return lhs.episodeID == rhs.episodeID &&
-               abs(lhs.position - rhs.position) < 0.1 &&
-               abs(lhs.duration - rhs.duration) < 0.1 &&
-               lhs.isPlaying == rhs.isPlaying &&
-               lhs.isLoading == rhs.isLoading
-    }
-}
-
-private var viewContext: NSManagedObjectContext {
-    PersistenceController.shared.container.viewContext
-}
-
-func fetchQueuedEpisodes() -> [Episode] {
-    let context = PersistenceController.shared.container.viewContext
-    return getQueuedEpisodes(context: context)
-}
 
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     static let shared = AudioPlayerManager()
     
-    // MARK: - Single Source of Truth
-    @Published private(set) var playbackState = PlaybackState.idle {
+    // MARK: - Player
+    private var player: AVPlayer?
+    private var timeObserver: Any?
+    private var observations: [NSKeyValueObservation] = []
+    
+    // MARK: - Artwork Cache
+    private var cachedArtwork: MPMediaItemArtwork?
+    private var cachedArtworkURL: String?
+    
+    // MARK: - Current Episode
+    private(set) var currentEpisode: Episode? {
         didSet {
-            if playbackState != oldValue {
+            if oldValue?.id != currentEpisode?.id {
+                objectWillChange.send()
                 updateNowPlayingInfo()
             }
         }
     }
     
-    // MARK: - Simplified State Intent
-    private var userInitiatedPause = false
+    // MARK: - Computed State (derived from AVPlayer)
+    var isPlaying: Bool {
+        guard let player = player,
+              let item = player.currentItem,
+              item.status == .readyToPlay else {
+            return false
+        }
+        return player.rate > 0
+    }
     
-    // MARK: - Episode Keys
-    private let currentEpisodeKey = "currentEpisodeID"
-    private let currentPositionKey = "currentPosition"
+    var isLoading: Bool {
+        guard let item = player?.currentItem else { return false }
+        return item.status == .unknown
+    }
     
-    // MARK: - Computed Properties (derived from playbackState)
-    var currentEpisode: Episode? { playbackState.episode }
-    var progress: Double { playbackState.position }
-    var isPlaying: Bool { playbackState.isPlaying }
-    var isLoading: Bool { playbackState.isLoading }
+    var currentTime: Double {
+        player?.currentTime().seconds ?? currentEpisode?.playbackPosition ?? 0
+    }
     
-    // MARK: - Player and Settings
-    private var player: AVPlayer?
-    private var timeObserver: Any?
-    private var playerObservations: [NSKeyValueObservation] = []
-    private var positionSaveTimer: Timer?
-    private var lastSavedPosition: Double = 0
-    private let queueLock = NSLock()
-    private var cachedArtwork: MPMediaItemArtwork?
-    private var positionUpdateWorkItem: DispatchWorkItem?
+    var duration: Double {
+        // Prefer actual duration from player
+        if let playerDuration = player?.currentItem?.duration.seconds,
+           playerDuration.isFinite && playerDuration > 0 {
+            return playerDuration
+        }
+        // Fallback to cached actual duration
+        if let actualDuration = currentEpisode?.actualDuration, actualDuration > 0 {
+            return actualDuration
+        }
+        // Last resort: feed duration
+        return currentEpisode?.duration ?? 0
+    }
     
+    // MARK: - Settings
     @Published var playbackSpeed: Float = UserDefaults.standard.float(forKey: "playbackSpeed").nonZeroOrDefault(1.0) {
         didSet {
             UserDefaults.standard.set(playbackSpeed, forKey: "playbackSpeed")
-            player?.rate = isPlaying ? playbackSpeed : 0.0
+            if isPlaying {
+                player?.rate = playbackSpeed
+            }
             updateNowPlayingInfo()
         }
     }
     
-    @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval") != 0 ? UserDefaults.standard.double(forKey: "forwardInterval") : 30 {
+    @Published var forwardInterval: Double = UserDefaults.standard.double(forKey: "forwardInterval").nonZeroOrDefault(30) {
         didSet {
             UserDefaults.standard.set(forwardInterval, forKey: "forwardInterval")
             updateRemoteCommandIntervals()
         }
     }
     
-    @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval") != 0 ? UserDefaults.standard.double(forKey: "backwardInterval") : 15 {
+    @Published var backwardInterval: Double = UserDefaults.standard.double(forKey: "backwardInterval").nonZeroOrDefault(15) {
         didSet {
             UserDefaults.standard.set(backwardInterval, forKey: "backwardInterval")
             updateRemoteCommandIntervals()
@@ -108,823 +100,603 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     @Published var isSeekingManually: Bool = false
     
+    // MARK: - Initialization
+    
     private init() {
-        primePlayer()
-        configureRemoteTransportControls()
-        updateRemoteCommandIntervals()
-        setupNotifications()
-        restoreCurrentEpisodeState()
+        setupRemoteCommands()
+        setupAudioSessionNotifications()
+        restoreCurrentEpisode()
     }
     
-    // MARK: - State Management
-    private func updateState(episode: Episode? = nil, position: Double? = nil, duration: Double? = nil, isPlaying: Bool? = nil, isLoading: Bool? = nil) {
-        let newState = PlaybackState(
-            episode: episode ?? playbackState.episode,
-            position: position ?? playbackState.position,
-            duration: duration ?? playbackState.duration,
-            isPlaying: isPlaying ?? playbackState.isPlaying,
-            isLoading: isLoading ?? playbackState.isLoading
-        )
-        
-        playbackState = newState
-        
-        // Save current episode state when it changes
-        saveCurrentEpisodeState()
-    }
+    // MARK: - Playback Control
     
-    private func clearState() {
-        LogManager.shared.info("Clearing episode from state: \(playbackState.episode?.title?.prefix(20) ?? "nil") -> nil")
-        playbackState = PlaybackState.idle
-        saveCurrentEpisodeState()
-    }
-    
-    private func saveCurrentEpisodeState() {
-        if let episode = playbackState.episode {
-            UserDefaults.standard.set(episode.id, forKey: currentEpisodeKey)
-            UserDefaults.standard.set(playbackState.position, forKey: currentPositionKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: currentEpisodeKey)
-            UserDefaults.standard.removeObject(forKey: currentPositionKey)
-        }
-    }
-
-    // Add this function to restore current episode
-    private func restoreCurrentEpisodeState() {
-        guard let episodeID = UserDefaults.standard.string(forKey: currentEpisodeKey) else { return }
-        
-        // Find the episode in Core Data
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@ AND nowPlaying == YES", episodeID)
-        request.fetchLimit = 1
-        
-        do {
-            if let episode = try viewContext.fetch(request).first {
-                let savedPosition = UserDefaults.standard.double(forKey: currentPositionKey)
-                let duration = getActualDuration(for: episode)
-                
-                // Restore the playback state without starting playback
-                updateState(episode: episode, position: savedPosition, duration: duration, isPlaying: false, isLoading: false)
-                
-                LogManager.shared.info("Restored current episode: \(episode.title?.prefix(30) ?? "Episode")")
-            } else {
-                // Episode not found or not marked as nowPlaying - clear the saved state
-                UserDefaults.standard.removeObject(forKey: currentEpisodeKey)
-                UserDefaults.standard.removeObject(forKey: currentPositionKey)
-            }
-        } catch {
-            LogManager.shared.error("Failed to restore current episode: \(error)")
-        }
-    }
-    
-    // MARK: - Core Playback Control
     func togglePlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-        guard let episodeID = episode.id else { return }
-        
-        LogManager.shared.info("Toggle playback for: \(episode.title?.prefix(30) ?? "Episode")")
-        
-        // Handle current episode
-        if let currentEpisode = playbackState.episode, currentEpisode.id == episodeID {
-            if playbackState.isPlaying {
+        // Already playing this episode - toggle pause
+        if currentEpisode?.id == episode.id {
+            if isPlaying {
                 pause()
-            } else if playbackState.isLoading {
-                LogManager.shared.info("Already loading - ignoring")
             } else {
-                userInitiatedPause = false
                 resume()
             }
             return
         }
         
-        // Start new episode
-        userInitiatedPause = false
-        startPlayback(for: episode, episodesViewModel: episodesViewModel)
+        // Play new episode
+        play(episode, episodesViewModel: episodesViewModel)
     }
     
-    // ⚠️ FIX #1: Wrap ALL Core Data modifications in proper context.perform
-    private func startPlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-        guard let episodeID = episode.id,
-              let audioURL = episode.audio,
+    private func play(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+        guard let audioURL = episode.audio,
               !audioURL.isEmpty,
               let url = URL(string: audioURL) else {
-            LogManager.shared.error("Invalid episode data")
+            LogManager.shared.error("Invalid audio URL")
             return
         }
         
-        // CRITICAL: Activate audio session AND ensure it's active synchronously
+        // Stop current playback
+        if currentEpisode != nil {
+            stop()
+        }
+        
+        // CRITICAL: Activate audio session FIRST
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setActive(true)
-            
-            var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
-            backgroundTaskID = UIApplication.shared.beginBackgroundTask {
-                UIApplication.shared.endBackgroundTask(backgroundTaskID)
-            }
-            
-            LogManager.shared.info("Audio session activated for playback")
+            try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             LogManager.shared.error("Failed to activate audio session: \(error)")
             return
         }
         
-        // ⚠️ FIX #1: Get episode ObjectID before any async work
-        let episodeObjectID = episode.objectID
-        let savedPosition = episode.playbackPosition
-        let duration = getActualDuration(for: episode)
-        
-        // Update playback state FIRST (before any Core Data changes)
-        updateState(episode: episode, position: savedPosition, duration: duration, isPlaying: false, isLoading: true)
-        
-        // ⚠️ FIX #2: Modify Core Data on MAIN thread with proper perform block
-        Task { @MainActor in
-            guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-            
-            // Add to queue if not already queued
-            if !episode.isQueued {
-                viewContext.perform {
-                    episode.isQueued = true
-                    
-                    do {
-                        try viewContext.save()
-                        LogManager.shared.info("✅ Episode added to queue")
-                        
-                        // Refresh queue on main actor
-                        Task { @MainActor in
-                            episodesViewModel?.fetchQueue()
-                        }
-                    } catch {
-                        LogManager.shared.error("Failed to add episode to queue: \(error)")
-                        // Rollback on failure
-                        viewContext.rollback()
-                    }
-                }
-            }
-        }
-        
-        // Setup player synchronously
-        setupPlayer(url: url, episode: episode, startPosition: savedPosition)
-    }
-    
-    // ⚠️ FIX #3: Ensure episode modifications happen on correct thread
-    private func setupPlayer(url: URL, episode: Episode, startPosition: Double) {
-        guard let episodeID = episode.id else { return }
-        
-        // Clean up previous player
-        self.cleanupPlayer()
-        self.cachedArtwork = nil
-        
-        // CRITICAL: Create player synchronously
+        // Create player synchronously
         let asset = AVURLAsset(url: url, options: [
-            AVURLAssetPreferPreciseDurationAndTimingKey: false,
-            "AVURLAssetHTTPHeaderFieldsKey": [
-                "Range": "bytes=0-"
-            ]
+            AVURLAssetPreferPreciseDurationAndTimingKey: false
         ])
-        
         let playerItem = AVPlayerItem(asset: asset)
         playerItem.preferredForwardBufferDuration = 15
-        playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = true
         
-        self.player = AVPlayer(playerItem: playerItem)
-        self.player?.automaticallyWaitsToMinimizeStalling = false
-        
-        // Setup observations immediately
-        self.setupPlayerObservations(for: episodeID)
-        
-        // ⚠️ FIX #4: Update episode state on main thread with proper context
-        let episodeObjectID = episode.objectID
-        Task { @MainActor in
-            viewContext.perform {
-                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-                
-                episode.nowPlaying = true
-                if episode.isPlayed {
-                    removeEpisodeFromPlaylist(episode, playlistName: "Played")
-                }
-                
-                do {
-                    try viewContext.save()
-                    LogManager.shared.info("✅ Episode marked as nowPlaying")
-                } catch {
-                    LogManager.shared.error("Failed to update episode state: \(error)")
-                    viewContext.rollback()
-                }
-            }
-        }
+        player = AVPlayer(playerItem: playerItem)
         
         // Start playback IMMEDIATELY
-        self.player?.playImmediately(atRate: self.playbackSpeed)
+        player?.playImmediately(atRate: playbackSpeed)
         
-        // Update system state
-        MPNowPlayingInfoCenter.default().playbackState = .playing
-        self.updateNowPlayingInfo()
+        // Update Core Data AFTER playback starts
+        currentEpisode = episode
         
-        // Seek AFTER starting if needed
-        if startPosition > 0 {
-            let targetTime = CMTime(seconds: startPosition, preferredTimescale: 1)
-            self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        let context = PersistenceController.shared.container.viewContext
+        context.perform {
+            episode.nowPlaying = true
+            
+            // Add to queue if not already
+            if !episode.isQueued {
+                episode.isQueued = true
+                episodesViewModel?.fetchQueue()
+            }
+            
+            try? context.save()
         }
+        
+        // Setup observers
+        setupPlayerObservations(for: playerItem, episodeID: episode.id ?? "")
+        
+        // Seek to saved position
+        if episode.playbackPosition > 0 {
+            let targetTime = CMTime(seconds: episode.playbackPosition, preferredTimescale: 600)
+            player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        }
+        
+        // Update system
+        MPNowPlayingInfoCenter.default().playbackState = .playing
+        updateNowPlayingInfo()
+        objectWillChange.send()
     }
     
     private func pause() {
-        guard let player = player else { return }
-        
-        // Mark as user-initiated pause
-        userInitiatedPause = true
-        
-        player.pause()
-        updateState(isPlaying: false, isLoading: false)
-        
-        // Save position immediately on pause
-        if let episode = playbackState.episode {
-            savePositionImmediately(for: episode, position: playbackState.position)
-        }
+        player?.pause()
+        savePosition()
+        updateNowPlayingInfo()
+        objectWillChange.send()
     }
     
     private func resume() {
+        // Ensure we have a valid player
         guard let player = player,
               let currentItem = player.currentItem,
               currentItem.status == .readyToPlay else {
-            // No valid player/item - restart playback
-            if let episode = playbackState.episode {
-                LogManager.shared.info("No valid player for resume - restarting playback")
-                userInitiatedPause = false
-                Task { @MainActor in
-                    await startPlayback(for: episode)
-                }
+            // No valid player - restart playback
+            if let episode = currentEpisode {
+                play(episode)
             }
             return
         }
         
-        // Valid player exists, just resume
-        userInitiatedPause = false
         player.rate = playbackSpeed
+        updateNowPlayingInfo()
+        objectWillChange.send()
     }
     
     func stop() {
-        // Save final position
-        if let episode = playbackState.episode {
-            savePositionImmediately(for: episode, position: playbackState.position)
-            
-            // ⚠️ FIX #5: Update Core Data on main thread
-            let episodeObjectID = episode.objectID
-            Task { @MainActor in
-                viewContext.perform {
-                    guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-                    episode.nowPlaying = false
-                    try? viewContext.save()
-                }
+        savePosition()
+        
+        // Clear nowPlaying flag
+        if let episode = currentEpisode {
+            let context = PersistenceController.shared.container.viewContext
+            context.perform {
+                episode.nowPlaying = false
+                try? context.save()
             }
         }
         
-        cleanupPlayer()
+        // Cleanup player
+        timeObserver.map { player?.removeTimeObserver($0) }
+        timeObserver = nil
         
-        // CRITICAL: Completely clear the playback state
-        clearState()
+        observations.forEach { $0.invalidate() }
+        observations.removeAll()
         
-        // Clear system now playing
+        player?.pause()
+        player?.replaceCurrentItem(with: nil)
+        player = nil
+        
+        currentEpisode = nil
+        
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-        
-        LogManager.shared.info("Player stopped and state cleared")
-    }
-    
-    // MARK: - Player Observations
-    private func setupPlayerObservations(for episodeID: String) {
-        guard let player = player else { return }
-        
-        // Clean up previous observations
-        playerObservations.forEach { $0.invalidate() }
-        playerObservations.removeAll()
-        
-        // Rate observer - simplified logic
-        let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] _, change in
-            guard let self = self else { return }
-            
-            let newRate = change.newValue ?? 0
-            
-            DispatchQueue.main.async {
-                guard self.playbackState.episodeID == episodeID else { return }
-                
-                // Simple: just reflect what the system is doing
-                let isPlaying = newRate > 0
-                self.updateState(isPlaying: isPlaying, isLoading: false)
-            }
-        }
-        playerObservations.append(rateObserver)
-        
-        // Time observer (for position updates)
-        let interval = UIApplication.shared.applicationState == .background ? 3.0 : 1.0
-        timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: interval, preferredTimescale: 10),
-            queue: .main
-        ) { [weak self] time in
-            guard let self = self else { return }
-            
-            // Only update if this is still the current episode
-            guard self.playbackState.episodeID == episodeID,
-                  !self.isSeekingManually else { return }
-            
-            let newPosition = time.seconds
-            guard newPosition.isFinite && newPosition >= 0 else { return }
-            
-            // DEBOUNCE: Cancel previous update and schedule new one
-            self.positionUpdateWorkItem?.cancel()
-            self.positionUpdateWorkItem = DispatchWorkItem { [weak self] in
-                guard let self = self else { return }
-                
-                // Check if player actually stopped (rate = 0) but we're still near the end
-                let playerRate = self.player?.rate ?? 0
-                let duration = self.playbackState.duration
-                let isNearEnd = duration > 0 && newPosition >= (duration - 3.0)
-                let hasValidDuration = duration > 10
-                
-                // Episode completion detection
-                if isNearEnd && hasValidDuration && playerRate == 0 && self.playbackState.isPlaying {
-                    LogManager.shared.info("Background episode completion detected")
-                    self.handleEpisodeEnd()
-                    return
-                }
-                
-                if isNearEnd && hasValidDuration && playerRate > 0 {
-                    LogManager.shared.info("Foreground episode ending detected")
-                    self.handleEpisodeEnd()
-                    return
-                }
-                
-                // Only update if position actually changed significantly
-                if abs(newPosition - self.playbackState.position) > 0.5 {
-                    self.updateState(position: newPosition)
-                }
-            }
-            
-            // Execute after a small delay to debounce rapid updates
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: self.positionUpdateWorkItem!)
-        }
-        
-        // Status observer (for errors/ready state)
-        if let currentItem = player.currentItem {
-            let statusObserver = currentItem.observe(\.status, options: [.new]) { [weak self] item, _ in
-                guard let self = self else { return }
-                
-                DispatchQueue.main.async {
-                    guard self.playbackState.episodeID == episodeID else { return }
-                    
-                    switch item.status {
-                    case .readyToPlay:
-                        // Update duration only
-                        let duration = item.asset.duration.seconds
-                        if duration.isFinite && duration > 0 {
-                            self.updateState(duration: duration)
-                            
-                            // ⚠️ FIX #6: Update episode duration on main thread
-                            if let episode = self.playbackState.episode, episode.actualDuration <= 0 {
-                                let episodeObjectID = episode.objectID
-                                Task { @MainActor in
-                                    viewContext.perform {
-                                        guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-                                        episode.actualDuration = duration
-                                        try? viewContext.save()
-                                    }
-                                }
-                            }
-                        }
-                    case .failed:
-                        // Just log and stop - don't try to recover
-                        LogManager.shared.error("Player failed: \(item.error?.localizedDescription ?? "unknown")")
-                        self.updateState(isPlaying: false, isLoading: false)
-                    default:
-                        break
-                    }
-                }
-            }
-            playerObservations.append(statusObserver)
-            
-            // Player item ended notification observer
-            NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime,
-                object: currentItem,
-                queue: .main
-            ) { [weak self] _ in
-                guard let self = self else { return }
-                guard self.playbackState.episodeID == episodeID else { return }
-                
-                LogManager.shared.info("AVPlayerItemDidPlayToEndTime notification received")
-                // Small delay to ensure any final time updates are processed
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.handleEpisodeEnd()
-                }
-            }
-            
-            // Player stalled notification (backup detection)
-            NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemPlaybackStalled,
-                object: currentItem,
-                queue: .main
-            ) { [weak self] _ in
-                guard let self = self else { return }
-                guard self.playbackState.episodeID == episodeID else { return }
-                
-                // Check if we stalled near the end (might be completion)
-                let currentTime = self.player?.currentTime().seconds ?? 0
-                let duration = self.playbackState.duration
-                
-                if duration > 0 && currentTime >= (duration - 10.0) && duration > 10 {
-                    LogManager.shared.info("Player stalled near end - checking for completion: pos=\(currentTime), duration=\(duration)")
-                    
-                    // Wait a moment and check if we're actually at the end
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        let finalTime = self.player?.currentTime().seconds ?? 0
-                        if finalTime >= (duration - 5.0) {
-                            LogManager.shared.info("Confirmed episode completion via stall detection")
-                            self.handleEpisodeEnd()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Position Management
-    private func savePositionIfNeeded() {
-        guard let episode = playbackState.episode else { return }
-        
-        let currentPos = playbackState.position
-        
-        // Save throttled for regular updates (every 2 seconds)
-        if abs(currentPos - lastSavedPosition) >= 2.0 {
-            positionSaveTimer?.invalidate()
-            positionSaveTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
-                self?.savePositionToDatabase(for: episode, position: currentPos)
-            }
-        }
-    }
-    
-    // ⚠️ FIX #7: Thread-safe position saving
-    private func savePositionImmediately(for episode: Episode, position: Double) {
-        lastSavedPosition = position
-        
-        let episodeObjectID = episode.objectID
-        Task { @MainActor in
-            viewContext.perform {
-                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-                episode.playbackPosition = position
-                try? viewContext.save()
-                LogManager.shared.info("Saved position immediately: \(String(format: "%.1f", position))")
-            }
-        }
-    }
-    
-    private func savePositionToDatabase(for episode: Episode, position: Double) {
-        lastSavedPosition = position
-        
-        let objectID = episode.objectID
-        Task.detached(priority: .background) {
-            let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
-            backgroundContext.perform {
-                do {
-                    if let episodeInBackground = try backgroundContext.existingObject(with: objectID) as? Episode {
-                        episodeInBackground.playbackPosition = position
-                        if backgroundContext.hasChanges {
-                            try backgroundContext.save()
-                            LogManager.shared.info("Background saved position: \(String(format: "%.1f", position))")
-                        }
-                    }
-                } catch {
-                    LogManager.shared.error("Failed to save position: \(error)")
-                }
-            }
-        }
-    }
-    
-    private func saveCurrentPosition() async {
-        guard let episode = playbackState.episode else { return }
-        
-        await MainActor.run {
-            self.savePositionImmediately(for: episode, position: self.playbackState.position)
-        }
-    }
-    
-    // MARK: - Now Playing Info (Auto-synced)
-    private func updateNowPlayingInfo() {
-        guard let episode = playbackState.episode else {
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-            return
-        }
-        
-        var nowPlayingInfo: [String: Any] = [
-            MPMediaItemPropertyTitle: episode.title ?? "Episode",
-            MPMediaItemPropertyArtist: episode.podcast?.title ?? "Podcast",
-            MPNowPlayingInfoPropertyPlaybackRate: playbackState.isPlaying ? playbackSpeed : 0.0,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: playbackState.position,
-            MPMediaItemPropertyPlaybackDuration: playbackState.duration,
-            MPNowPlayingInfoPropertyMediaType: 1
-        ]
-        
-        // Set immediately with basic info
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-        
-        // Fetch artwork asynchronously and update later
-        if cachedArtwork != nil {
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = cachedArtwork
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-        } else {
-            fetchArtwork(for: episode) { artwork in
-                DispatchQueue.main.async {
-                    if let artwork = artwork {
-                        nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-                        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-                    }
-                }
-            }
-        }
+        objectWillChange.send()
     }
     
     // MARK: - Seeking
+    
     func seek(to time: Double) {
         guard let player = player else { return }
         
         isSeekingManually = true
+        objectWillChange.send()
         
-        // Update state immediately for responsive UI
-        updateState(position: time)
-        
-        let targetTime = CMTime(seconds: time, preferredTimescale: 1)
-        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
-            DispatchQueue.main.async {
-                self?.isSeekingManually = false
-                if !completed {
-                    LogManager.shared.warning("Seek failed")
-                }
-            }
+        let targetTime = CMTime(seconds: time, preferredTimescale: 600)
+        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            self?.isSeekingManually = false
+            self?.savePosition()
+            self?.objectWillChange.send()
         }
     }
     
-    func skipForward(seconds: Double) {
-        let newPosition = min(playbackState.position + seconds, playbackState.duration)
-        seek(to: newPosition)
+    func skipForward() {
+        let newTime = min(currentTime + forwardInterval, duration)
+        seek(to: newTime)
     }
     
-    func skipBackward(seconds: Double) {
-        let newPosition = max(playbackState.position - seconds, 0)
-        seek(to: newPosition)
+    func skipBackward() {
+        let newTime = max(currentTime - backwardInterval, 0)
+        seek(to: newTime)
     }
     
-    // MARK: - Helper Functions
-    private func primePlayer() {
-        self.player = AVPlayer()
-    }
+    // MARK: - Player Observations
     
-    private func seekToPosition(_ position: Double) async {
-        guard let player = player else { return }
+    private func setupPlayerObservations(for playerItem: AVPlayerItem, episodeID: String) {
+        // Clean up previous
+        observations.forEach { $0.invalidate() }
+        observations.removeAll()
         
-        await withCheckedContinuation { continuation in
-            let targetTime = CMTime(seconds: position, preferredTimescale: 1)
-            player.seek(to: targetTime) { _ in
-                continuation.resume()
-            }
-        }
-    }
-    
-    // ⚠️ FIX #8: Thread-safe episode completion handling
-    private func handleEpisodeEnd() {
-        guard let episode = playbackState.episode else { return }
-        
-        LogManager.shared.info("Episode finished: \(episode.title?.prefix(30) ?? "Episode")")
-        
-        let episodeObjectID = episode.objectID
-        let wasPlayed = episode.isPlayed
-        let duration = playbackState.duration
-        
-        // CRITICAL: Cancel any pending position saves FIRST
-        positionSaveTimer?.invalidate()
-        positionSaveTimer = nil
-        
-        // Update Core Data on main thread
-        Task { @MainActor in
-            viewContext.perform {
-                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-                
-                // CRITICAL: Reset position to 0 BEFORE any other operations
-                episode.playbackPosition = 0
-                
-                // Mark as played using boolean system
-                episode.isPlayed = true
-                
-                // Clear nowPlaying
-                episode.nowPlaying = false
-                
-                if let podcast = episode.podcast {
-                    podcast.playCount += 1
-                    podcast.playedSeconds += duration
+        // Rate observer - triggers UI updates when playback rate changes (play/pause/interruptions)
+        if let player = player {
+            let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] _, _ in
+                DispatchQueue.main.async {
+                    self?.objectWillChange.send()
                 }
-                
-                // Remove from queue if not already played
-                if !wasPlayed {
-                    LogManager.shared.info("Removing finished episode from queue")
-                    
-                    Task { @MainActor in
-                        removeFromQueue(episode)
+            }
+            observations.append(rateObserver)
+        }
+        
+        // Duration observer - fires once when ready
+        let durationObserver = playerItem.observe(\.duration, options: [.new]) { [weak self] item, _ in
+            let seconds = item.duration.seconds
+            guard seconds.isFinite && seconds > 0 else { return }
+            
+            // Cache actual duration in Core Data
+            Task { @MainActor in
+                if let episode = self?.currentEpisode, episode.id == episodeID {
+                    let context = PersistenceController.shared.container.viewContext
+                    context.perform {
+                        episode.actualDuration = seconds
+                        try? context.save()
                     }
-                }
-                
-                // Single save for all changes
-                do {
-                    try viewContext.save()
-                    LogManager.shared.info("Episode marked as played and saved with position reset to 0")
-                } catch {
-                    LogManager.shared.error("Failed to save episode completion: \(error)")
-                    viewContext.rollback()
+                    self?.objectWillChange.send()
                 }
             }
         }
+        observations.append(durationObserver)
         
-        // Clear player state AFTER saving
-        if playbackState.episode != nil {
-            LogManager.shared.info("Clearing player state after episode completion")
-            clearState()
-            cleanupPlayer()
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        // Episode completion - system notification
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: playerItem,
+            queue: .main
+        ) { [weak self] _ in
+            guard self?.currentEpisode?.id == episodeID else { return }
+            self?.handleEpisodeCompletion()
         }
         
-        // Check for autoplay AFTER clearing state
+        // Periodic time observer for position saving
+        let interval = UIApplication.shared.applicationState == .background ? 5.0 : 1.0
+        timeObserver = player?.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: interval, preferredTimescale: 10),
+            queue: .main
+        ) { [weak self] _ in
+            guard let self = self,
+                  self.currentEpisode?.id == episodeID,
+                  !self.isSeekingManually else { return }
+            
+            self.objectWillChange.send()
+            
+            // Save position every 5 seconds
+            if Int(self.currentTime) % 5 == 0 {
+                self.savePosition()
+            }
+        }
+    }
+    
+    // MARK: - Position Saving
+    
+    private func savePosition() {
+        guard let episode = currentEpisode else { return }
+        
+        let position = currentTime
+        let context = PersistenceController.shared.container.viewContext
+        
+        context.perform {
+            episode.playbackPosition = position
+            
+            if context.hasChanges {
+                try? context.save()
+            }
+        }
+    }
+    
+    // MARK: - Episode Completion
+    
+    private func handleEpisodeCompletion() {
+        guard let episode = currentEpisode else { return }
+        
+        LogManager.shared.info("Episode completed: \(episode.title ?? "Unknown")")
+        
+        let context = PersistenceController.shared.container.viewContext
+        context.perform {
+            // Mark as played
+            episode.isPlayed = true
+            episode.playedDate = Date()
+            episode.playbackPosition = 0
+            episode.nowPlaying = false
+            
+            // Remove from queue
+            episode.isQueued = false
+            
+            // Update podcast stats
+            if let podcast = episode.podcast {
+                podcast.playCount += 1
+                podcast.playedSeconds += self.duration
+            }
+            
+            try? context.save()
+        }
+        
+        // Clear player
+        stop()
+        
+        // Autoplay next
         if autoplayNext {
             Task { @MainActor in
-                guard UserManager.shared.hasPremiumAccess else { return }
-                
-                let queuedEpisodes = fetchQueuedEpisodes()
-                if let nextEpisode = queuedEpisodes.first {
-                    LogManager.shared.info("Auto-playing next episode: \(nextEpisode.title?.prefix(30) ?? "Next")")
+                if let next = fetchNextQueuedEpisode() {
+                    LogManager.shared.info("Autoplaying next: \(next.title ?? "Unknown")")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self.startPlayback(for: nextEpisode)
+                        self.play(next)
                     }
                 }
             }
         }
-        
-        // Final queue status check
-        checkQueueStatusAfterRemoval()
     }
     
-    private func cleanupPlayer() {
-        // Remove time observer
-        timeObserver.map { player?.removeTimeObserver($0) }
-        timeObserver = nil
-        
-        // Remove property observers
-        playerObservations.forEach { $0.invalidate() }
-        playerObservations.removeAll()
-        
-        // Stop player - don't force replaceCurrentItem
-        player?.pause()
-        player = nil
+    private func fetchNextQueuedEpisode() -> Episode? {
+        let context = PersistenceController.shared.container.viewContext
+        return getQueuedEpisodes(context: context).first
     }
     
-    // MARK: - Public Getters (for compatibility)
+    // MARK: - Manual Mark as Played
+    
+    func markAsPlayed(for episode: Episode, manually: Bool = false) {
+        let isCurrentEpisode = currentEpisode?.id == episode.id
+        let playedTime = isCurrentEpisode ? currentTime : episode.playbackPosition
+        
+        // Stop if currently playing
+        if isCurrentEpisode {
+            stop()
+        }
+        
+        let context = PersistenceController.shared.container.viewContext
+        context.perform {
+            episode.isPlayed = true
+            episode.playedDate = Date()
+            episode.playbackPosition = 0
+            episode.nowPlaying = false
+            episode.isQueued = false
+            
+            if let podcast = episode.podcast {
+                podcast.playCount += 1
+                podcast.playedSeconds += manually ? playedTime : (episode.actualDuration > 0 ? episode.actualDuration : episode.duration)
+            }
+            
+            try? context.save()
+        }
+        
+        objectWillChange.send()
+    }
+    
+    func markAsUnplayed(for episode: Episode) {
+        let context = PersistenceController.shared.container.viewContext
+        context.perform {
+            episode.isPlayed = false
+            episode.playedDate = nil
+            try? context.save()
+        }
+        
+        objectWillChange.send()
+    }
+    
+    // MARK: - Audio Session Notifications
+    
+    private func setupAudioSessionNotifications() {
+        // Interruption handling (calls, Siri, etc)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        
+        // Route change (CarPlay, Bluetooth)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRouteChange),
+            name: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        
+        // App lifecycle
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillTerminate),
+            name: UIApplication.willTerminateNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func handleAudioInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            // System automatically pauses
+            updateNowPlayingInfo()
+            objectWillChange.send()
+            
+        case .ended:
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
+                return
+            }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            
+            if options.contains(.shouldResume) {
+                // Reactivate session
+                try? AVAudioSession.sharedInstance().setActive(true)
+                resume()
+            } else {
+                // Interruption ended but shouldn't resume - ensure Command Center reflects paused state
+                updateNowPlayingInfo()
+                objectWillChange.send()
+            }
+            
+        @unknown default:
+            break
+        }
+    }
+    
+    @objc private func handleRouteChange(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+            return
+        }
+        
+        switch reason {
+        case .newDeviceAvailable:
+            // CarPlay or Bluetooth connected - ensure session active
+            try? AVAudioSession.sharedInstance().setActive(true)
+            
+        case .oldDeviceUnavailable:
+            // Device disconnected - system handles pause
+            break
+            
+        default:
+            break
+        }
+    }
+    
+    @objc private func appWillTerminate() {
+        savePosition()
+    }
+    
+    // MARK: - Restore State
+    
+    private func restoreCurrentEpisode() {
+        let context = PersistenceController.shared.container.viewContext
+        
+        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+        request.predicate = NSPredicate(format: "nowPlaying == YES")
+        request.fetchLimit = 1
+        
+        if let episode = try? context.fetch(request).first {
+            currentEpisode = episode
+            LogManager.shared.info("Restored current episode: \(episode.title ?? "Unknown")")
+        }
+    }
+    
+    // MARK: - Now Playing Info
+    
+    private func updateNowPlayingInfo() {
+        guard let episode = currentEpisode else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            cachedArtwork = nil
+            cachedArtworkURL = nil
+            return
+        }
+        
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: episode.title ?? "Episode",
+            MPMediaItemPropertyArtist: episode.podcast?.title ?? "Podcast",
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? playbackSpeed : 0.0
+        ]
+        
+        // Use cached artwork if available
+        if let cachedArtwork = cachedArtwork {
+            info[MPMediaItemPropertyArtwork] = cachedArtwork
+        }
+        
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        
+        // Load artwork only if we don't have it cached OR if URL changed
+        let artworkURL = episode.episodeImage ?? episode.podcast?.image
+        if cachedArtwork == nil || cachedArtworkURL != artworkURL {
+            cachedArtworkURL = artworkURL
+            fetchArtwork(for: episode) { [weak self] artwork in
+                guard let self = self else { return }
+                self.cachedArtwork = artwork
+                info[MPMediaItemPropertyArtwork] = artwork
+                MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+            }
+        }
+    }
+    
+    private func fetchArtwork(for episode: Episode, completion: @escaping (MPMediaItemArtwork?) -> Void) {
+        guard let urlString = episode.episodeImage ?? episode.podcast?.image,
+              let url = URL(string: urlString) else {
+            completion(nil)
+            return
+        }
+        
+        // CRITICAL: Check Kingfisher cache FIRST (synchronous, instant)
+        let cacheKey = url.cacheKey
+        KingfisherManager.shared.cache.retrieveImage(forKey: cacheKey) { result in
+            switch result {
+            case .success(let value):
+                if let cachedImage = value.image {
+                    // Cache hit - use immediately
+                    let artwork = MPMediaItemArtwork(boundsSize: cachedImage.size) { _ in cachedImage }
+                    completion(artwork)
+                } else {
+                    // Cache miss - fetch from network
+                    self.fetchArtworkFromNetwork(url: url, completion: completion)
+                }
+            case .failure:
+                // Cache error - fetch from network
+                self.fetchArtworkFromNetwork(url: url, completion: completion)
+            }
+        }
+    }
+
+    private func fetchArtworkFromNetwork(url: URL, completion: @escaping (MPMediaItemArtwork?) -> Void) {
+        Task {
+            do {
+                let result = try await KingfisherManager.shared.retrieveImage(with: url)
+                let artwork = MPMediaItemArtwork(boundsSize: result.image.size) { _ in result.image }
+                await MainActor.run {
+                    completion(artwork)
+                }
+            } catch {
+                LogManager.shared.warning("Failed to fetch artwork: \(error)")
+                await MainActor.run {
+                    completion(nil)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Remote Commands
+    
+    private func setupRemoteCommands() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            self?.resume()
+            return .success
+        }
+        
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            self?.pause()
+            return .success
+        }
+        
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.skipForwardCommand.addTarget { [weak self] _ in
+            self?.skipForward()
+            return .success
+        }
+        
+        commandCenter.skipBackwardCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
+            self?.skipBackward()
+            return .success
+        }
+        
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            self?.seek(to: event.positionTime)
+            return .success
+        }
+        
+        updateRemoteCommandIntervals()
+    }
+    
+    private func updateRemoteCommandIntervals() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+        commandCenter.skipForwardCommand.preferredIntervals = [forwardInterval as NSNumber]
+        commandCenter.skipBackwardCommand.preferredIntervals = [backwardInterval as NSNumber]
+    }
+    
+    // MARK: - Helper Methods (for UI compatibility)
+    
     func getActualDuration(for episode: Episode) -> Double {
-        // Always prefer the saved actualDuration from Core Data if it exists
-        if episode.actualDuration > 0 {
-            return episode.actualDuration
+        if episode.id == currentEpisode?.id {
+            return duration
         }
-        
-        // For currently playing episode, fall back to player duration if available
-        if let currentEpisode = playbackState.episode,
-           currentEpisode.id == episode.id,
-           playbackState.duration > 0 {
-            return playbackState.duration
-        }
-        
-        // Final fallback to feed duration
-        return episode.duration
+        return episode.actualDuration > 0 ? episode.actualDuration : episode.duration
     }
     
     func getProgress(for episode: Episode) -> Double {
-        if let currentEpisode = playbackState.episode, currentEpisode.id == episode.id {
-            return playbackState.position
+        if episode.id == currentEpisode?.id {
+            return currentTime
         }
         return episode.playbackPosition
     }
     
     func isPlayingEpisode(_ episode: Episode) -> Bool {
-        return playbackState.episode?.id == episode.id && playbackState.isPlaying
+        currentEpisode?.id == episode.id && isPlaying
     }
     
     func isLoadingEpisode(_ episode: Episode) -> Bool {
-        return playbackState.episode?.id == episode.id && playbackState.isLoading
+        currentEpisode?.id == episode.id && isLoading
     }
     
     func hasStartedPlayback(for episode: Episode) -> Bool {
-        return episode.playbackPosition > 0
-    }
-    
-    // ⚠️ FIX #9: Thread-safe mark as played
-    func markAsPlayed(for episode: Episode, manually: Bool = false) {
-        let episodeObjectID = episode.objectID
-        let isCurrentEpisode = (playbackState.episode?.id == episode.id)
-        let progressBeforeStop = isCurrentEpisode ? playbackState.position : episode.playbackPosition
-        let actualDuration = getActualDuration(for: episode)
-        let playedTime = manually ? progressBeforeStop : actualDuration
-        
-        // Stop playback if this is the current episode
-        if isCurrentEpisode {
-            positionSaveTimer?.invalidate()
-            positionSaveTimer = nil
-            
-            LogManager.shared.info("Stopping player for manual mark as played")
-            clearState()
-            cleanupPlayer()
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-        }
-        
-        // Update Core Data on main thread
-        Task { @MainActor in
-            viewContext.perform {
-                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-                
-                // Toggle played state
-                episode.isPlayed = true
-                
-                if let podcast = episode.podcast {
-                    podcast.playCount += 1
-                    podcast.playedSeconds += playedTime
-                }
-                
-                // Reset position and nowPlaying
-                episode.playbackPosition = 0
-                episode.nowPlaying = false
-                
-                do {
-                    try viewContext.save()
-                    LogManager.shared.info("Manual mark as played completed - isPlayed: \(episode.isPlayed)")
-                } catch {
-                    LogManager.shared.error("Failed to save manual mark as played: \(error)")
-                    viewContext.rollback()
-                }
-            }
-        }
-        
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
-        }
-    }
-    
-    func markAsUnplayed(for episode: Episode) {
-        let episodeObjectID = episode.objectID
-        
-        guard episode.isPlayed else {
-            return
-        }
-        
-        Task { @MainActor in
-            viewContext.perform {
-                guard let episode = try? viewContext.existingObject(with: episodeObjectID) as? Episode else { return }
-                
-                episode.isPlayed = false
-                
-                do {
-                    try viewContext.save()
-                    LogManager.shared.info("Mark as unplayed completed")
-                } catch {
-                    LogManager.shared.error("Failed to mark as unplayed: \(error)")
-                    viewContext.rollback()
-                }
-            }
-        }
-    }
-
-    func writeActualDuration(for episode: Episode) {
-        guard episode.actualDuration <= 0,
-              let urlString = episode.audio,
-              let url = URL(string: urlString) else {
-            return
-        }
-        
-        let asset = AVURLAsset(url: url)
-        let objectID = episode.objectID
-        
-        Task.detached(priority: .background) {
-            do {
-                let duration = try await asset.load(.duration)
-                let durationSeconds = duration.seconds
-                
-                await MainActor.run {
-                    viewContext.perform {
-                        if let updatedEpisode = try? viewContext.existingObject(with: objectID) as? Episode {
-                            updatedEpisode.actualDuration = durationSeconds
-                            try? viewContext.save()
-                            
-                            // Update current state if this is the playing episode
-                            if self.playbackState.episode?.id == updatedEpisode.id {
-                                self.updateState(duration: durationSeconds)
-                            }
-                        }
-                    }
-                }
-            } catch {
-                LogManager.shared.warning("Failed to load actual duration: \(error)")
-            }
-        }
+        episode.playbackPosition > 0
     }
     
     // MARK: - Time Formatting
+    
     func formatView(seconds: Int) -> String {
         let hours = seconds / 3600
         let minutes = (seconds % 3600) / 60
@@ -938,414 +710,44 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func getElapsedTime(for episode: Episode) -> String {
-        let elapsedTime = Int(getProgress(for: episode))
-        return formatView(seconds: elapsedTime)
+        formatView(seconds: Int(getProgress(for: episode)))
     }
     
     func getRemainingTime(for episode: Episode, pretty: Bool = true) -> String {
         let duration = getActualDuration(for: episode)
         let position = getProgress(for: episode)
         let remaining = max(0, duration - position)
-        let seconds = Int(remaining)
-        
-        return pretty ? formatDuration(seconds: seconds) : formatView(seconds: seconds)
+        return formatDuration(seconds: Int(remaining))
     }
     
     func getStableRemainingTime(for episode: Episode, pretty: Bool = true) -> String {
         let duration = getActualDuration(for: episode)
         let progress = getProgress(for: episode)
         
-        // Check if this episode has ever been played (either currently or previously)
-        let hasEverBeenPlayed = isPlayingEpisode(episode) ||
-                               isLoadingEpisode(episode) ||
-                               hasStartedPlayback(for: episode) ||
-                               progress > 0
+        let hasBeenPlayed = isPlayingEpisode(episode) ||
+                           isLoadingEpisode(episode) ||
+                           hasStartedPlayback(for: episode) ||
+                           progress > 0
         
-        let valueToShow: Double
-        if hasEverBeenPlayed {
-            // Always show remaining time if episode has been touched
-            valueToShow = max(0, duration - progress)
+        let valueToShow = hasBeenPlayed ? max(0, duration - progress) : duration
+        if pretty {
+            return formatDuration(seconds: Int(valueToShow))
         } else {
-            // Show full duration for untouched episodes
-            valueToShow = duration
-        }
-        
-        let seconds = Int(valueToShow)
-        return pretty ? formatDuration(seconds: seconds) : formatView(seconds: seconds)
-    }
-    
-    // MARK: - Simplified Notifications Setup
-    private func setupNotifications() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(savePlaybackOnExit),
-            name: UIApplication.willTerminateNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appDidEnterBackground),
-            name: UIApplication.didEnterBackgroundNotification,
-            object: nil
-        )
-        
-        // NEW: Handle audio session interruptions
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleAudioSessionInterruption),
-            name: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance()
-        )
-        
-        // NEW: Handle route changes (CarPlay connection)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleRouteChange),
-            name: AVAudioSession.routeChangeNotification,
-            object: AVAudioSession.sharedInstance()
-        )
-    }
-    
-    @objc private func handleAudioSessionInterruption(notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
-            return
-        }
-        
-        switch type {
-        case .began:
-            LogManager.shared.info("Audio session interrupted")
-            
-        case .ended:
-            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
-                return
-            }
-            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            
-            if options.contains(.shouldResume) {
-                LogManager.shared.info("Resuming after interruption")
-                
-                // Reactivate session
-                do {
-                    try AVAudioSession.sharedInstance().setActive(true)
-                    
-                    // Resume playback if it was playing
-                    if !userInitiatedPause && playbackState.episode != nil {
-                        resume()
-                    }
-                } catch {
-                    LogManager.shared.error("Failed to reactivate audio session: \(error)")
-                }
-            }
-            
-        @unknown default:
-            break
-        }
-    }
-
-    @objc private func handleRouteChange(notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
-            return
-        }
-        
-        switch reason {
-        case .newDeviceAvailable:
-            // CarPlay or Bluetooth connected
-            LogManager.shared.info("New audio device available")
-            
-            // Ensure session is active
-            do {
-                try AVAudioSession.sharedInstance().setActive(true)
-            } catch {
-                LogManager.shared.error("Failed to activate session for new device: \(error)")
-            }
-            
-        case .oldDeviceUnavailable:
-            // Device disconnected - might want to pause
-            LogManager.shared.info("Audio device disconnected")
-            
-        default:
-            break
-        }
-    }
-    
-    @objc private func appDidEnterBackground() {
-        // Save current state
-        if let episode = playbackState.episode {
-            savePositionImmediately(for: episode, position: playbackState.position)
-        }
-        
-        LogManager.shared.info("App backgrounded - was playing: \(playbackState.isPlaying)")
-    }
-    
-    @objc private func savePlaybackOnExit() {
-        if let episode = playbackState.episode {
-            savePositionImmediately(for: episode, position: playbackState.position)
-        }
-    }
-    
-    // MARK: - Remote Controls & Artwork
-    private func configureRemoteTransportControls() {
-        let commandCenter = MPRemoteCommandCenter.shared()
-        
-        commandCenter.playCommand.addTarget { [weak self] _ in
-            guard let self = self else { return .commandFailed }
-            
-            // Only resume if we have a valid player and episode
-            if let episode = self.playbackState.episode {
-                if self.player != nil {
-                    self.resume()
-                } else {
-                    // User explicitly pressed play - restart is OK here
-                    self.userInitiatedPause = false
-                    self.startPlayback(for: episode)
-                }
-            }
-            return .success
-        }
-        
-        commandCenter.pauseCommand.addTarget { [weak self] _ in
-            self?.pause()
-            return .success
-        }
-        
-        commandCenter.skipForwardCommand.isEnabled = true
-        commandCenter.skipForwardCommand.preferredIntervals = [60]
-        commandCenter.skipForwardCommand.addTarget { [weak self] _ in
-            guard let self = self else { return .commandFailed }
-            self.skipForward(seconds: self.forwardInterval)
-            return .success
-        }
-        
-        commandCenter.skipBackwardCommand.isEnabled = true
-        commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
-            guard let self = self else { return .commandFailed }
-            self.skipBackward(seconds: self.backwardInterval)
-            return .success
-        }
-        
-        commandCenter.nextTrackCommand.isEnabled = false
-        commandCenter.previousTrackCommand.isEnabled = false
-    }
-    
-    private func updateRemoteCommandIntervals() {
-        let commandCenter = MPRemoteCommandCenter.shared()
-        commandCenter.skipForwardCommand.preferredIntervals = [forwardInterval as NSNumber]
-        commandCenter.skipBackwardCommand.preferredIntervals = [backwardInterval as NSNumber]
-    }
-    
-    private func fetchArtwork(for episode: Episode, completion: @escaping (MPMediaItemArtwork?) -> Void) {
-        if let cachedArtwork = cachedArtwork {
-            completion(cachedArtwork)
-            return
-        }
-        
-        let imageUrls = [episode.episodeImage, episode.podcast?.image]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-        
-        guard let validImageUrl = imageUrls.first, let url = URL(string: validImageUrl) else {
-            completion(nil)
-            return
-        }
-        
-        KingfisherManager.shared.cache.retrieveImage(forKey: url.cacheKey) { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let value):
-                if let cachedImage = value.image {
-                    let artwork = MPMediaItemArtwork(boundsSize: cachedImage.size) { _ in cachedImage }
-                    self.cachedArtwork = artwork
-                    completion(artwork)
-                } else {
-                    self.downloadAndCacheArtwork(from: url, completion: completion)
-                }
-            case .failure:
-                self.downloadAndCacheArtwork(from: url, completion: completion)
-            }
-        }
-    }
-    
-    private func downloadAndCacheArtwork(from url: URL, completion: @escaping (MPMediaItemArtwork?) -> Void) {
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            guard let self = self,
-                  error == nil,
-                  let data = data,
-                  let image = UIImage(data: data) else {
-                completion(nil)
-                return
-            }
-            
-            KingfisherManager.shared.cache.store(image, forKey: url.cacheKey)
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-            self.cachedArtwork = artwork
-            completion(artwork)
-        }.resume()
-    }
-    
-    func setPlaybackSpeed(_ speed: Float) {
-        playbackSpeed = speed
-        // Only update rate if currently playing
-        if playbackState.isPlaying {
-            player?.rate = speed
-        }
-    }
-    
-    func setForwardInterval(_ interval: Double) {
-        forwardInterval = interval
-    }
-    
-    func setBackwardInterval(_ interval: Double) {
-        backwardInterval = interval
-    }
-
-    private func checkQueueStatusAfterRemoval() {
-        // Check if queue is now empty and current episode should be cleared
-        let queuedEpisodes = fetchQueuedEpisodes()
-        
-        if queuedEpisodes.isEmpty {
-            // Queue is empty - check if current episode should be cleared
-            if let currentEpisode = playbackState.episode, !currentEpisode.isQueued {
-                LogManager.shared.warning("Queue empty and current episode not queued - clearing player state")
-                stop()
-            }
-        }
-    }
-
-    /// Public method for global queue functions to call
-    @MainActor
-    func handleQueueRemoval() {
-        checkQueueStatusAfterRemoval()
-        
-        // Notify any listening views that queue changed
-        NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
-    }
-    
-    @MainActor
-    func removeMultipleFromQueue(_ episodes: [Episode]) {
-        guard !episodes.isEmpty else { return }
-        guard let context = episodes.first?.managedObjectContext else { return }
-        
-        queueLock.lock()
-        defer { queueLock.unlock() }
-        
-        // ⚠️ FIX #10: Wrap in context.perform
-        context.perform {
-            // Immediate UI feedback for all episodes
-            for episode in episodes {
-                episode.isQueued = false
-            }
-            
-            // Reindex remaining episodes
-            let remainingEpisodes = getQueuedEpisodes(context: context)
-                .sorted { $0.queuePosition < $1.queuePosition }
-            
-            for (index, ep) in remainingEpisodes.enumerated() {
-                ep.queuePosition = Int64(index)
-            }
-            
-            do {
-                try context.save()
-                LogManager.shared.info("Removed \(episodes.count) episodes from queue")
-                
-                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
-                
-            } catch {
-                LogManager.shared.error("Error removing multiple episodes from queue: \(error)")
-                context.rollback()
-            }
-        }
-        
-        // Check if current episode should be stopped
-        if let currentEpisode = playbackState.episode,
-           episodes.contains(where: { $0.id == currentEpisode.id }) {
-            handleQueueRemoval()
-        }
-    }
-
-    @MainActor
-    func reorderQueue(episodes: [Episode]) {
-        guard !episodes.isEmpty else { return }
-        guard let context = episodes.first?.managedObjectContext else { return }
-        
-        queueLock.lock()
-        defer { queueLock.unlock() }
-        
-        // ⚠️ FIX #11: Wrap in context.perform
-        context.perform {
-            // Update positions with immediate UI feedback
-            for (index, episode) in episodes.enumerated() {
-                episode.queuePosition = Int64(index)
-            }
-            
-            do {
-                try context.save()
-                LogManager.shared.info("Reordered queue with \(episodes.count) episodes")
-                
-                NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
-                
-            } catch {
-                LogManager.shared.error("Error reordering queue: \(error)")
-                context.rollback()
-            }
-        }
-    }
-
-    func updateEpisodeQueuePosition(_ episode: Episode, to position: Int) {
-        guard let context = episode.managedObjectContext else { return }
-        
-        queueLock.lock()
-        defer { queueLock.unlock() }
-        
-        // ⚠️ FIX #12: Wrap in context.perform
-        context.perform {
-            // Ensure episode is in the queue
-            if !episode.isQueued {
-                episode.isQueued = true
-            }
-            
-            // Get current queue order
-            let queue = getQueuedEpisodes(context: context)
-                .sorted { $0.queuePosition < $1.queuePosition }
-            
-            // Create new ordering
-            var reordered = queue.filter { $0.id != episode.id }
-            let targetPosition = min(max(0, position), reordered.count)
-            reordered.insert(episode, at: targetPosition)
-            
-            // Update positions
-            for (index, ep) in reordered.enumerated() {
-                ep.queuePosition = Int64(index)
-            }
-            
-            do {
-                try context.save()
-                LogManager.shared.info("Updated episode queue position: \(episode.title ?? "Episode") to position \(position)")
-                
-                Task { @MainActor in
-                    NotificationCenter.default.post(name: .episodeQueueUpdated, object: nil)
-                }
-                
-            } catch {
-                LogManager.shared.error("Error updating episode queue position: \(error)")
-                context.rollback()
-            }
+            return formatView(seconds: Int(valueToShow))
         }
     }
 }
 
-// MARK: - Missing Helper Functions
+// MARK: - Extensions
+
 extension Float {
     func nonZeroOrDefault(_ defaultValue: Float) -> Float {
-        return self == 0 ? defaultValue : self
+        self == 0 ? defaultValue : self
     }
 }
 
-extension Notification.Name {
-    static let episodeQueueUpdated = Notification.Name("episodeQueueUpdated")
-    static let episodePlaybackStateChanged = Notification.Name("episodePlaybackStateChanged")
+extension Double {
+    func nonZeroOrDefault(_ defaultValue: Double) -> Double {
+        self == 0 ? defaultValue : self
+    }
 }

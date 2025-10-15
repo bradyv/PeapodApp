@@ -157,6 +157,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Start playback IMMEDIATELY
         player?.playImmediately(atRate: playbackSpeed)
+        player?.automaticallyWaitsToMinimizeStalling = false
         
         // Update Core Data AFTER playback starts
         currentEpisode = episode
@@ -185,7 +186,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Update system
         MPNowPlayingInfoCenter.default().playbackState = .playing
-        updateNowPlayingInfo()
         objectWillChange.send()
     }
     
@@ -275,11 +275,37 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         observations.forEach { $0.invalidate() }
         observations.removeAll()
         
+        // Status observer - fires when player is ready to play
+        let statusObserver = playerItem.observe(\.status, options: [.new]) { [weak self] item, _ in
+            guard let self = self,
+                  item.status == .readyToPlay,
+                  let player = self.player,
+                  player.rate > 0 else { return }
+            
+            DispatchQueue.main.async {
+                print("🎵 Player ready and playing - updating Now Playing Info")
+                self.updateNowPlayingInfo()
+            }
+        }
+        observations.append(statusObserver)
+        
         // Rate observer - triggers UI updates when playback rate changes (play/pause/interruptions)
         if let player = player {
-            let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] _, _ in
+            let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] player, _ in
+                guard let self = self,
+                      let item = player.currentItem,
+                      item.status == .readyToPlay,
+                      player.rate > 0 else {
+                    DispatchQueue.main.async {
+                        self?.objectWillChange.send()
+                    }
+                    return
+                }
+                
                 DispatchQueue.main.async {
-                    self?.objectWillChange.send()
+                    print("🎵 Rate changed and ready - updating Now Playing Info")
+                    self.updateNowPlayingInfo()
+                    self.objectWillChange.send()
                 }
             }
             observations.append(rateObserver)

@@ -45,6 +45,6 @@ struct ArtworkView: View {
                 .strokeBorder(Color.white.blendMode(.overlay), lineWidth: 1)
         )
         .rotationEffect(.degrees(tilt ? 2 : 0))
-        .drawingGroup()
+//        .drawingGroup()
     }
 }

@@ -294,14 +294,18 @@ struct PodcastDetailView: View {
             if podcast.isSubscribed {
                 // FIXED: Add latest episode to queue when subscribing using boolean approach
                 if let latest = episodes.first {
-                    latest.isQueued = true
-                    LogManager.shared.info("🔥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
+                    if !latest.isPlayed {
+                        latest.isQueued = true
+                        LogManager.shared.info("🔥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
+                    }
                 }
-                
-            } else {
-                // Remove all of this podcast's episodes from all playlists when unsubscribing
-                removeAllEpisodesFromPlaylists(for: podcast)
             }
+                
+//            } else {
+//                // Remove episodes from playlists when unsubscribing
+//                // Preserves episodes with meaningful playback data
+//                removeEpisodesFromPlaylists(for: podcast)
+//            }
 
             // Save Core Data changes
             do {
@@ -324,25 +328,40 @@ struct PodcastDetailView: View {
         .if(podcast?.isSubscribed != true, transform: { $0.buttonStyle(.glassProminent) })
     }
     
-    // Helper function to remove all episodes from playlists when unsubscribing
-    private func removeAllEpisodesFromPlaylists(for podcast: Podcast) {
+    // Helper function to intelligently handle episodes when unsubscribing
+    // Uses same logic as AppDelegate's cleanup: preserves episodes with meaningful playback data
+    private func removeEpisodesFromPlaylists(for podcast: Podcast) {
         // Get all episodes for this podcast
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
         request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
         
         do {
             let podcastEpisodes = try context.fetch(request)
+            var removedCount = 0
+            var preservedCount = 0
             
-            // Clear all boolean states for episodes from this podcast
             for episode in podcastEpisodes {
-                episode.isQueued = false
-                // Also reset playback position
-                episode.playbackPosition = 0
+                // Check if episode has meaningful playback data (same logic as AppDelegate)
+                let hasMeaningfulPlayback = episode.isPlayed ||
+                                           episode.isFav ||
+                                           episode.isQueued ||
+                                           episode.playbackPosition > 300 // 5 minutes
+                
+                if hasMeaningfulPlayback {
+                    // Keep the episode but remove it from queue
+                    episode.isQueued = false
+                    preservedCount += 1
+                    LogManager.shared.info("📌 Preserved episode with meaningful playback: \(episode.title ?? "Unknown")")
+                } else {
+                    // Remove episode entirely - no meaningful interaction
+                    context.delete(episode)
+                    removedCount += 1
+                }
             }
             
             // Save the changes
             try context.save()
-            LogManager.shared.info("✅ Removed all episodes from playlists for podcast: \(podcast.title ?? "Unknown")")
+            LogManager.shared.info("✅ Unsubscribed from \(podcast.title ?? "Unknown"): removed \(removedCount) episodes, preserved \(preservedCount) with meaningful playback")
             
         } catch {
             LogManager.shared.error("⚠️ Failed to remove episodes from playlists: \(error)")

@@ -355,9 +355,24 @@ struct CategoryRowItem: View {
                 .textBody()
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            LazyHStack(spacing:-4) {
-                // Actual podcast artworks
-                if !podcasts.isEmpty {
+            ZStack {
+                // Background placeholders
+                HStack(spacing: -4) {
+                    ForEach(0..<3, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.background.opacity(0.15))
+                            .frame(width: 32, height: 32)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(lineWidth: 2)
+                                    .blendMode(.destinationOut)
+                            )
+                    }
+                }
+                .compositingGroup()
+                
+                // Podcast artworks
+                HStack(spacing: -4) {
                     ForEach(Array(podcasts.prefix(3).enumerated()), id: \.offset) { index, podcast in
                         ArtworkView(url: podcast.artworkUrl600, size: 32, cornerRadius: 8, tilt: false)
                             .overlay(
@@ -367,8 +382,8 @@ struct CategoryRowItem: View {
                             )
                     }
                 }
+                .compositingGroup()
             }
-            .compositingGroup()
             
             Image(systemName: "chevron.right")
                 .frame(width: 16, alignment: .trailing)

@@ -203,7 +203,9 @@ struct WelcomeView: View {
                                     do {
                                         let episodes = try context.fetch(episodeRequest)
                                         if let latestEpisode = episodes.first {
-                                            toggleQueued(latestEpisode)
+                                            if !latestEpisode.isPlayed {
+                                                toggleQueued(latestEpisode)
+                                            }
                                         }
                                     } catch {
                                         LogManager.shared.error("Failed to fetch latest episode: \(error)")

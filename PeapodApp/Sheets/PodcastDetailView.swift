@@ -288,11 +288,25 @@ struct PodcastDetailView: View {
             // Toggle subscription state
             podcast.isSubscribed.toggle()
             
+            // 🔥 NEW: Subscribe/unsubscribe from FCM topic
+            if let feedUrl = podcast.feedUrl?.normalizeURL() {
+                if podcast.isSubscribed {
+                    SubscriptionSyncService.shared.subscribeToFeed(feedUrl: feedUrl)
+                    SubscriptionSyncService.shared.reportFeedsToBackend()
+                } else {
+                    SubscriptionSyncService.shared.unsubscribeFromFeed(feedUrl: feedUrl)
+                    SubscriptionSyncService.shared.reportFeedsToBackend()
+                }
+            }
+            
             // Show toast message
-            toastManager.show(message: podcast.isSubscribed ? "Followed \(podcast.title ?? "")" : "Unfollowed \(podcast.title ?? "")", icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle")
+            toastManager.show(
+                message: podcast.isSubscribed ? "Followed \(podcast.title ?? "")" : "Unfollowed \(podcast.title ?? "")",
+                icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle"
+            )
             
             if podcast.isSubscribed {
-                // FIXED: Add latest episode to queue when subscribing using boolean approach
+                // Add latest episode to queue when subscribing
                 if let latest = episodes.first {
                     if !latest.isPlayed {
                         latest.isQueued = true
@@ -300,23 +314,11 @@ struct PodcastDetailView: View {
                     }
                 }
             }
-                
-//            } else {
-//                // Remove episodes from playlists when unsubscribing
-//                // Preserves episodes with meaningful playback data
-//                removeEpisodesFromPlaylists(for: podcast)
-//            }
 
             // Save Core Data changes
             do {
                 try podcast.managedObjectContext?.save()
-                
-                // 🔥 Sync subscription changes with Firebase after Core Data save
-                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
-                
-                // Refresh episodes after subscription change
                 refreshEpisodes()
-                
             } catch {
                 LogManager.shared.error("⚠️ Failed to save subscription change: \(error)")
             }

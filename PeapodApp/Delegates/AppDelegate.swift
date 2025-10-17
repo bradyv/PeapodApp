@@ -50,8 +50,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Schedule the first cleanup
         checkAndRunWeeklyCleanup()
         
-//        debugPerformCleanupNow()
-        
         checkAndRegisterForNotificationsIfGranted()
         
         return true
@@ -131,6 +129,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         print("📱 Registered for remote notifications")
         Messaging.messaging().apnsToken = deviceToken
+        
+        // ✅ NEW: Now that we have APNs token, sync topic subscriptions
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            LogManager.shared.info("🔄 APNs token received, syncing subscriptions...")
+            SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+        }
     }
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

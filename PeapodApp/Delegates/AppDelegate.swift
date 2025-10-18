@@ -149,6 +149,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             LogManager.shared.info("🔥 Firebase message ID: \(messageID)")
         }
         
+        let NEW_ARCHITECTURE_SENDER_ID = "336465196225"
+        if let senderID = userInfo["google.c.sender.id"] as? String {
+            if senderID != NEW_ARCHITECTURE_SENDER_ID {
+                LogManager.shared.info("⚠️ Ignoring notification from old architecture (sender: \(senderID))")
+                completionHandler(.noData)
+                return
+            }
+        }
+        
         let refreshStartTime = Date()
         LogManager.shared.info("🔄 Starting force refresh for notification at \(refreshStartTime)")
         

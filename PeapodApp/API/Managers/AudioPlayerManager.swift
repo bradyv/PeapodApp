@@ -255,6 +255,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self?.isSeekingManually = false
             self?.savePosition()
             self?.objectWillChange.send()
+            self?.updateNowPlayingInfo()
         }
     }
     

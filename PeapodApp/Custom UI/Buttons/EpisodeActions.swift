@@ -11,10 +11,16 @@ struct ArchiveButton: View {
     @Environment(\.managedObjectContext) private var context
     @ObservedObject var episode: Episode
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @EnvironmentObject var player: AudioPlayerManager
     
     var body: some View {
         Button {
             if episode.isQueued {
+                // Check if this episode is the current episode (playing or paused)
+                if player.currentEpisode?.id == episode.id {
+                    player.stop()
+                }
+                
                 withAnimation {
                     removeFromQueue(episode, episodesViewModel: episodesViewModel)
                 }

@@ -38,7 +38,6 @@ struct EpisodeCellData: Equatable {
 struct EpisodeCell: View {
     let data: EpisodeCellData
     let episode: Episode
-    var showPodcast: Bool = true
     
     @EnvironmentObject var player: AudioPlayerManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
@@ -54,20 +53,20 @@ struct EpisodeCell: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    if showPodcast {
-                        Text(data.podcastTitle)
-                            .lineLimit(1)
-                            .textDetailEmphasis()
-                    }
+                    Text(getRelativeDateString(from: data.airDate))
+                        .lineLimit(1)
+                        .textDetailEmphasis()
                     
-                    if !data.isPlayed {
-                        Text(getRelativeDateString(from: data.airDate))
+                    if data.isFav {
+                        Image(systemName: "heart.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.orange)
                             .textDetail()
-                    } else {
+                    } else if data.isPlayed {
                         HStack(spacing: 4) {
-                            Image(systemName: data.isFav ? "heart.circle.fill" : "checkmark.circle.fill")
+                            Image(systemName: "checkmark.circle.fill")
                                 .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(data.isFav ? .orange : Color.heading)
+                                .foregroundStyle(Color.heading)
                                 .textDetail()
                             
                             Text("Played")

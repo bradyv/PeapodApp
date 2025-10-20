@@ -49,12 +49,59 @@ struct EpisodeView: View {
             Spacer().frame(height:24)
             
             FadeInView(delay: 0.2) {
-                VStack(alignment:.leading,spacing: 8) {
+                VStack(alignment:.center,spacing: 8) {
+                    
+                    HStack {
+                        Text(episode.airDate?.formatted(date: .abbreviated, time: .omitted) ?? "")
+                            .textDetail()
+                        
+                        if episode.isQueued {
+                            Text("•")
+                                .textDetailEmphasis()
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "rectangle.portrait.on.rectangle.portrait.angled")
+                                    .foregroundStyle(Color.heading)
+                                    .textDetail()
+                                
+                                Text("Up Next")
+                                    .textDetail()
+                            }
+                        } else if episode.isPlayed {
+                            Text("•")
+                                .textDetailEmphasis()
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .foregroundStyle(Color.heading)
+                                    .textDetail()
+                                
+                                Text("Played")
+                                    .textDetail()
+                            }
+                        }
+                        
+                        if episode.isFav {
+                            Text("•")
+                                .textDetailEmphasis()
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "heart.fill")
+                                    .foregroundStyle(.orange)
+                                    .textDetail()
+                                
+                                Text("Favorite")
+                                    .textDetail()
+                            }
+                        }
+                    }
+                    
                     Text(episode.title ?? "Episode title")
                         .titleSerifSm()
-                        .multilineTextAlignment(.leading)
+                        .multilineTextAlignment(.center)
                     
-                    PodcastDetailsRow(episode: episode)
+//                    PodcastDetailsRow(episode: episode)
                     
                     Spacer().frame(height: 8)
                     
@@ -79,6 +126,7 @@ struct EpisodeView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
                     .multilineTextAlignment(.leading)
+                    .lineSpacing(2)
                     .environment(\.openURL, OpenURLAction { url in
                         if url.scheme == "peapod", url.host == "seek",
                            let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -111,13 +159,28 @@ struct EpisodeView: View {
                     .font(.system(.headline, design: .serif))
             }
             
-            ToolbarItemGroup(placement:.topBarTrailing) {
-                ArchiveButton(episode:episode)
-                MarkAsPlayedButton(episode:episode)
+            ToolbarItem(placement:.topBarTrailing) {
                 FavButton(episode:episode)
             }
             
-            ToolbarItem(placement: .bottomBar) {
+//            ToolbarItemGroup(placement:.topBarTrailing) {
+//                ArchiveButton(episode:episode)
+//                MarkAsPlayedButton(episode:episode)
+//                FavButton(episode:episode)
+//            }
+            
+            ToolbarItemGroup(placement: .bottomBar) {
+                Menu {
+                    contextMenuContent
+                } label: {
+                    Label("More", systemImage:"ellipsis")
+                        .frame(width:34,height:34)
+                }
+                .menuOrder(.fixed)
+                .labelStyle(.iconOnly)
+                
+                Spacer()
+                
                 Button(action: {
                     player.togglePlayback(for: episode)
                 }) {
@@ -134,7 +197,7 @@ struct EpisodeView: View {
                                     .contentTransition(.symbolEffect(.replace))
                             }
                             
-                            Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen Now")))
+                            Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen")))
                                 .foregroundStyle(.white)
                                 .textBodyEmphasis()
                                 .contentTransition(.interpolate)
@@ -209,6 +272,21 @@ struct EpisodeView: View {
         }
         .onAppear {
             localProgress = player.getProgress(for: episode)
+        }
+    }
+    
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        ArchiveButton(episode: episode)
+        MarkAsPlayedButton(episode: episode)
+        FavButton(episode: episode)
+        
+        Section(episode.podcast?.title ?? "") {
+            NavigationLink {
+                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+            } label: {
+                Label("View Podcast", systemImage: "widget.small")
+            }
         }
     }
 }

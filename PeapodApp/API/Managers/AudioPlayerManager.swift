@@ -111,21 +111,31 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     // MARK: - Playback Control
     
     func togglePlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+        LogManager.shared.info("🎵 togglePlayback called for: \(episode.title ?? "Unknown")")
+        LogManager.shared.info("🎵 Current episode: \(currentEpisode?.title ?? "none"), isPlaying: \(isPlaying)")
+        
         // Already playing this episode - toggle pause
         if currentEpisode?.id == episode.id {
             if isPlaying {
+                LogManager.shared.info("🎵 Pausing current episode")
                 pause()
             } else {
+                LogManager.shared.info("🎵 Resuming current episode")
                 resume()
             }
             return
         }
         
         // Play new episode
+        LogManager.shared.info("🎵 Playing new episode")
         play(episode, episodesViewModel: episodesViewModel)
     }
     
     private func play(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+        LogManager.shared.info("🎵 ========== PLAY START ==========")
+        LogManager.shared.info("🎵 Episode: \(episode.title ?? "Unknown")")
+        LogManager.shared.info("🎵 Audio URL: \(episode.audio ?? "nil")")
+        
         guard let audioURL = episode.audio,
               !audioURL.isEmpty,
               let url = URL(string: audioURL) else {
@@ -133,31 +143,49 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
+        LogManager.shared.info("✅ URL validated: \(url)")
+        
         // Stop current playback
         if currentEpisode != nil {
+            LogManager.shared.info("🛑 Stopping current playback")
             stop()
         }
         
         // CRITICAL: Activate audio session FIRST
+        LogManager.shared.info("🔊 Attempting to activate audio session...")
+        let audioSession = AVAudioSession.sharedInstance()
+        LogManager.shared.info("🔊 Audio session BEFORE - Category: \(audioSession.category.rawValue), Mode: \(audioSession.mode.rawValue)")
+        
         do {
             try AVAudioSession.sharedInstance().setActive(true)
+            LogManager.shared.info("✅ Audio session activated successfully")
         } catch {
             LogManager.shared.error("Failed to activate audio session: \(error)")
             return
         }
         
+        LogManager.shared.info("🔊 Audio session AFTER - Category: \(audioSession.category.rawValue), Mode: \(audioSession.mode.rawValue)")
+        
         // Create player synchronously
+        LogManager.shared.info("🎬 Creating AVURLAsset...")
         let asset = AVURLAsset(url: url, options: [
             AVURLAssetPreferPreciseDurationAndTimingKey: false
         ])
+        LogManager.shared.info("🎬 Creating AVPlayerItem...")
         let playerItem = AVPlayerItem(asset: asset)
         playerItem.preferredForwardBufferDuration = 15
         
+        LogManager.shared.info("🎬 Creating AVPlayer...")
         player = AVPlayer(playerItem: playerItem)
         
+        LogManager.shared.info("🎬 Player created, status: \(playerItem.status.rawValue) (0=unknown, 1=ready, 2=failed)")
+        
         // Start playback IMMEDIATELY
+        LogManager.shared.info("▶️ Calling playImmediately(atRate: \(playbackSpeed))...")
         player?.playImmediately(atRate: playbackSpeed)
         player?.automaticallyWaitsToMinimizeStalling = false
+        
+        LogManager.shared.info("▶️ playImmediately called, rate: \(player?.rate ?? -1)")
         
         // Update Core Data AFTER playback starts
         currentEpisode = episode
@@ -173,20 +201,26 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
             
             try? context.save()
+            LogManager.shared.info("💾 Core Data saved")
         }
         
         // Setup observers
+        LogManager.shared.info("👀 Setting up player observations...")
         setupPlayerObservations(for: playerItem, episodeID: episode.id ?? "")
         
         // Seek to saved position
         if episode.playbackPosition > 0 {
+            LogManager.shared.info("⏩ Seeking to saved position: \(episode.playbackPosition)s")
             let targetTime = CMTime(seconds: episode.playbackPosition, preferredTimescale: 600)
             player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
         }
         
         // Update system
+        LogManager.shared.info("📱 Updating Now Playing Info...")
         MPNowPlayingInfoCenter.default().playbackState = .playing
         objectWillChange.send()
+        
+        LogManager.shared.info("🎵 ========== PLAY END ==========")
     }
     
     private func pause() {
@@ -214,6 +248,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func stop() {
+        LogManager.shared.info("🛑 Stop called")
+        LogManager.shared.info("🛑 Current player: \(player != nil ? "exists" : "nil")")
+        LogManager.shared.info("🛑 Current item status: \(player?.currentItem?.status.rawValue ?? -1)")
+        
         savePosition()
         
         // Clear nowPlaying flag
@@ -240,6 +278,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         objectWillChange.send()
+        
+        LogManager.shared.info("🛑 Stop complete, player cleared")
     }
     
     // MARK: - Seeking
@@ -274,16 +314,31 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     // MARK: - Player Observations
     
     private func setupPlayerObservations(for playerItem: AVPlayerItem, episodeID: String) {
+        LogManager.shared.info("👀 Setting up observations for episode: \(episodeID)")
+        
         // Clean up previous
         observations.forEach { $0.invalidate() }
         observations.removeAll()
         
         // Status observer - fires when player is ready to play
-        let statusObserver = playerItem.observe(\.status, options: [.new]) { [weak self] item, _ in
+        let statusObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
+            let oldValue = change.oldValue?.rawValue ?? -1
+            let newValue = item.status.rawValue
+            LogManager.shared.info("📊 Status changed: \(oldValue) -> \(newValue) (0=unknown, 1=ready, 2=failed)")
+            
+            if item.status == .failed {
+                if let error = item.error {
+                    LogManager.shared.error("❌ Player item FAILED: \(error)")
+                    LogManager.shared.error("❌ Error domain: \(error._domain), code: \(error._code)")
+                }
+            }
+            
             guard let self = self,
                   item.status == .readyToPlay,
                   let player = self.player,
                   player.rate > 0 else { return }
+            
+            LogManager.shared.info("📊 Status is readyToPlay, rate: \(self.player?.rate ?? -1)")
             
             DispatchQueue.main.async {
                 print("🎵 Player ready and playing - updating Now Playing Info")
@@ -305,6 +360,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                     return
                 }
                 
+                LogManager.shared.info("🎚️ Rate changed: \(player.rate), status: \(item.status.rawValue)")
+                
                 DispatchQueue.main.async {
                     print("🎵 Rate changed and ready - updating Now Playing Info")
                     self.updateNowPlayingInfo()
@@ -312,12 +369,41 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 }
             }
             observations.append(rateObserver)
+            
+            // TimeControlStatus observer - critical for seeing stalls
+            let timeControlObserver = player.observe(\.timeControlStatus, options: [.new, .old]) { player, change in
+                let oldValue = change.oldValue?.rawValue ?? -1
+                let newValue = player.timeControlStatus.rawValue
+                LogManager.shared.info("⏱️ TimeControlStatus changed: \(oldValue) -> \(newValue) (0=paused, 1=waitingToPlay, 2=playing)")
+                
+                if player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+                    if let reason = player.reasonForWaitingToPlay {
+                        LogManager.shared.warning("⚠️ Waiting reason: \(reason.rawValue)")
+                    }
+                }
+            }
+            observations.append(timeControlObserver)
         }
+        
+        // Buffer state observers
+        let bufferEmptyObserver = playerItem.observe(\.isPlaybackBufferEmpty, options: [.new]) { item, _ in
+            if item.isPlaybackBufferEmpty {
+                LogManager.shared.info("📭 Playback buffer is EMPTY")
+            }
+        }
+        observations.append(bufferEmptyObserver)
+        
+        let bufferKeepUpObserver = playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { item, _ in
+            LogManager.shared.info("📶 Playback likely to keep up: \(item.isPlaybackLikelyToKeepUp)")
+        }
+        observations.append(bufferKeepUpObserver)
         
         // Duration observer - fires once when ready
         let durationObserver = playerItem.observe(\.duration, options: [.new]) { [weak self] item, _ in
             let seconds = item.duration.seconds
             guard seconds.isFinite && seconds > 0 else { return }
+            
+            LogManager.shared.info("⏱️ Duration available: \(seconds)s")
             
             // Cache actual duration in Core Data
             Task { @MainActor in
@@ -340,7 +426,28 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             queue: .main
         ) { [weak self] _ in
             guard self?.currentEpisode?.id == episodeID else { return }
+            LogManager.shared.info("🏁 Episode completed")
             self?.handleEpisodeCompletion()
+        }
+        
+        // Failed to play to end time
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: playerItem,
+            queue: .main
+        ) { notification in
+            if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
+                LogManager.shared.error("❌ Failed to play to end: \(error)")
+            }
+        }
+        
+        // Playback stalled
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemPlaybackStalled,
+            object: playerItem,
+            queue: .main
+        ) { _ in
+            LogManager.shared.warning("⚠️ Playback stalled!")
         }
         
         // Periodic time observer for position saving
@@ -360,6 +467,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 self.savePosition()
             }
         }
+        
+        LogManager.shared.info("✅ All observations set up")
     }
     
     // MARK: - Position Saving

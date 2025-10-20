@@ -85,8 +85,7 @@ struct PodcastEpisodeSearchView: View {
                 } label: {
                     EpisodeCell(
                         data: EpisodeCellData(from: episode),
-                        episode: episode,
-                        showPodcast: false
+                        episode: episode
                     )
                     .matchedTransitionSource(id: episode.id, in: namespace)
                     .lineLimit(3)

@@ -122,8 +122,7 @@ struct PodcastDetailView: View {
                                 } label: {
                                     EpisodeCell(
                                         data: EpisodeCellData(from: episode),
-                                        episode: episode,
-                                        showPodcast: false
+                                        episode: episode
                                     )
                                     .matchedTransitionSource(id: episode.id, in: namespace)
                                     .frame(maxWidth:.infinity)
@@ -285,18 +284,21 @@ struct PodcastDetailView: View {
         Button(action: {
             guard let podcast = podcast else { return }
             
-            // Toggle subscription state
-            podcast.isSubscribed.toggle()
+            let wasSubscribed = podcast.isSubscribed
             
-            // 🔥 NEW: Subscribe/unsubscribe from FCM topic
-            if let feedUrl = podcast.feedUrl?.normalizeURL() {
-                if podcast.isSubscribed {
-                    SubscriptionSyncService.shared.subscribeToFeed(feedUrl: feedUrl)
-                    SubscriptionSyncService.shared.reportFeedsToBackend()
-                } else {
-                    SubscriptionSyncService.shared.unsubscribeFromFeed(feedUrl: feedUrl)
-                    SubscriptionSyncService.shared.reportFeedsToBackend()
-                }
+            // ✅ USE CENTRALIZED SUBSCRIPTION MANAGER
+            if wasSubscribed {
+                PodcastSubscriptionManager.shared.unsubscribe(
+                    from: podcast,
+                    context: context,
+                    removeEpisodes: false
+                )
+            } else {
+                PodcastSubscriptionManager.shared.subscribe(
+                    to: podcast,
+                    context: context,
+                    queueLatestEpisode: true
+                )
             }
             
             // Show toast message
@@ -305,68 +307,13 @@ struct PodcastDetailView: View {
                 icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle"
             )
             
-            if podcast.isSubscribed {
-                // Add latest episode to queue when subscribing
-                if let latest = episodes.first {
-                    if !latest.isPlayed {
-                        latest.isQueued = true
-                        LogManager.shared.info("🔥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
-                    }
-                }
-            }
-
-            // Save Core Data changes
-            do {
-                try podcast.managedObjectContext?.save()
-                refreshEpisodes()
-            } catch {
-                LogManager.shared.error("⚠️ Failed to save subscription change: \(error)")
-            }
+            // Refresh episodes list
+            refreshEpisodes()
         }) {
             Text(podcast?.isSubscribed == true ? "Unfollow" : "Follow")
                 .if(podcast?.isSubscribed != true, transform: { $0.foregroundStyle(.white) })
                 .titleCondensed()
         }
         .if(podcast?.isSubscribed != true, transform: { $0.buttonStyle(.glassProminent) })
-    }
-    
-    // Helper function to intelligently handle episodes when unsubscribing
-    // Uses same logic as AppDelegate's cleanup: preserves episodes with meaningful playback data
-    private func removeEpisodesFromPlaylists(for podcast: Podcast) {
-        // Get all episodes for this podcast
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
-        
-        do {
-            let podcastEpisodes = try context.fetch(request)
-            var removedCount = 0
-            var preservedCount = 0
-            
-            for episode in podcastEpisodes {
-                // Check if episode has meaningful playback data (same logic as AppDelegate)
-                let hasMeaningfulPlayback = episode.isPlayed ||
-                                           episode.isFav ||
-                                           episode.isQueued ||
-                                           episode.playbackPosition > 300 // 5 minutes
-                
-                if hasMeaningfulPlayback {
-                    // Keep the episode but remove it from queue
-                    episode.isQueued = false
-                    preservedCount += 1
-                    LogManager.shared.info("📌 Preserved episode with meaningful playback: \(episode.title ?? "Unknown")")
-                } else {
-                    // Remove episode entirely - no meaningful interaction
-                    context.delete(episode)
-                    removedCount += 1
-                }
-            }
-            
-            // Save the changes
-            try context.save()
-            LogManager.shared.info("✅ Unsubscribed from \(podcast.title ?? "Unknown"): removed \(removedCount) episodes, preserved \(preservedCount) with meaningful playback")
-            
-        } catch {
-            LogManager.shared.error("⚠️ Failed to remove episodes from playlists: \(error)")
-        }
     }
 }

@@ -262,11 +262,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func skipForward() {
         let newTime = min(currentTime + forwardInterval, duration)
         seek(to: newTime)
+        updateNowPlayingInfo()
     }
     
     func skipBackward() {
         let newTime = max(currentTime - backwardInterval, 0)
         seek(to: newTime)
+        updateNowPlayingInfo()
     }
     
     // MARK: - Player Observations

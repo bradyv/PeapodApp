@@ -45,7 +45,8 @@ struct PodcastDetailsRow: View {
                         .textDetail()
                 }
             } else {
-                Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
+//                Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
+                RoundedRelativeDateView(date: episode.airDate ?? Date.now)
                     .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : .text)
                     .textDetail()
             }

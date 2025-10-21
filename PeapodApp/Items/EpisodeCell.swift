@@ -53,7 +53,8 @@ struct EpisodeCell: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(getRelativeDateString(from: data.airDate))
+//                    Text(getRelativeDateString(from: data.airDate))
+                    RoundedRelativeDateView(date: data.airDate)
                         .lineLimit(1)
                         .textDetailEmphasis()
                     

@@ -249,6 +249,7 @@ struct EpisodeView: View {
                     if !editing {
                         // Sync when done dragging
                         localProgress = player.getProgress(for: episode)
+                        player.updateNowPlayingInfo()
                     }
                 },
                 isDraggable: true,

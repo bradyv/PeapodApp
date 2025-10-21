@@ -104,7 +104,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private init() {
         setupRemoteCommands()
-        setupAudioSessionNotifications()
+        setupAppLifecycleNotifications()
         restoreCurrentEpisode()
     }
     
@@ -215,7 +215,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
         }
         
-        // Update system
+        // Update system - only once at start
         LogManager.shared.info("📱 Updating Now Playing Info...")
         MPNowPlayingInfoCenter.default().playbackState = .playing
         objectWillChange.send()
@@ -225,8 +225,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func pause() {
         player?.pause()
+        MPNowPlayingInfoCenter.default().playbackState = .paused
         savePositionSync()
-        updateNowPlayingInfo()
         objectWillChange.send()
     }
     
@@ -243,7 +243,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         player.rate = playbackSpeed
-        updateNowPlayingInfo()
+        MPNowPlayingInfoCenter.default().playbackState = .playing
         objectWillChange.send()
     }
     
@@ -277,6 +277,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         currentEpisode = nil
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        MPNowPlayingInfoCenter.default().playbackState = .stopped
         objectWillChange.send()
         
         LogManager.shared.info("🛑 Stop complete, player cleared")
@@ -295,6 +296,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self?.isSeekingManually = false
             self?.savePosition()
             self?.objectWillChange.send()
+            // Only update Now Playing after manual seek to sync scrubber
             self?.updateNowPlayingInfo()
         }
     }
@@ -302,13 +304,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func skipForward() {
         let newTime = min(currentTime + forwardInterval, duration)
         seek(to: newTime)
-        updateNowPlayingInfo()
     }
     
     func skipBackward() {
         let newTime = max(currentTime - backwardInterval, 0)
         seek(to: newTime)
-        updateNowPlayingInfo()
     }
     
     // MARK: - Player Observations
@@ -347,24 +347,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         observations.append(statusObserver)
         
-        // Rate observer - triggers UI updates when playback rate changes (play/pause/interruptions)
+        // Rate observer - triggers UI updates when playback rate changes (play/pause)
         if let player = player {
             let rateObserver = player.observe(\.rate, options: [.new]) { [weak self] player, _ in
-                guard let self = self,
-                      let item = player.currentItem,
-                      item.status == .readyToPlay,
-                      player.rate > 0 else {
-                    DispatchQueue.main.async {
-                        self?.objectWillChange.send()
-                    }
-                    return
-                }
-                
-                LogManager.shared.info("🎚️ Rate changed: \(player.rate), status: \(item.status.rawValue)")
+                guard let self = self else { return }
                 
                 DispatchQueue.main.async {
-                    print("🎵 Rate changed and ready - updating Now Playing Info")
-                    self.updateNowPlayingInfo()
+                    // Just update UI state, don't call updateNowPlayingInfo()
+                    // The system tracks rate changes automatically
                     self.objectWillChange.send()
                 }
             }
@@ -450,7 +440,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             LogManager.shared.warning("⚠️ Playback stalled!")
         }
         
-        // Periodic time observer for position saving
+        // Periodic time observer for position saving and UI updates
         let interval = UIApplication.shared.applicationState == .background ? 5.0 : 1.0
         timeObserver = player?.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: interval, preferredTimescale: 10),
@@ -461,7 +451,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                   !self.isSeekingManually else { return }
             
             self.objectWillChange.send()
-            self.savePosition() // Save every 5 seconds, not on 5-second marks
+            self.savePosition() // Save every interval
         }
         
         LogManager.shared.info("✅ All observations set up")
@@ -586,26 +576,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         objectWillChange.send()
     }
     
-    // MARK: - Audio Session Notifications
+    // MARK: - App Lifecycle Notifications
+    // These are necessary for saving state and managing background playback
     
-    private func setupAudioSessionNotifications() {
-        // Interruption handling (calls, Siri, etc)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleAudioInterruption),
-            name: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance()
-        )
-        
-        // Route change (CarPlay, Bluetooth)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleRouteChange),
-            name: AVAudioSession.routeChangeNotification,
-            object: AVAudioSession.sharedInstance()
-        )
-        
-        // App lifecycle
+    private func setupAppLifecycleNotifications() {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appWillTerminate),
@@ -623,61 +597,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     @objc private func appDidEnterBackground() {
         savePositionSync()
-    }
-    
-    @objc private func handleAudioInterruption(notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
-            return
-        }
-        
-        switch type {
-        case .began:
-            // System automatically pauses
-            updateNowPlayingInfo()
-            objectWillChange.send()
-            
-        case .ended:
-            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
-                return
-            }
-            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            
-            if options.contains(.shouldResume) {
-                // Reactivate session
-                try? AVAudioSession.sharedInstance().setActive(true)
-                resume()
-            } else {
-                // Interruption ended but shouldn't resume - ensure Command Center reflects paused state
-                updateNowPlayingInfo()
-                objectWillChange.send()
-            }
-            
-        @unknown default:
-            break
-        }
-    }
-    
-    @objc private func handleRouteChange(notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
-            return
-        }
-        
-        switch reason {
-        case .newDeviceAvailable:
-            // CarPlay or Bluetooth connected - ensure session active
-            try? AVAudioSession.sharedInstance().setActive(true)
-            
-        case .oldDeviceUnavailable:
-            // Device disconnected - system handles pause
-            break
-            
-        default:
-            break
-        }
     }
     
     @objc private func appWillTerminate() {
@@ -700,6 +619,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     // MARK: - Now Playing Info
+    // Only call this when episode changes, playback speed changes, or after manual seek
     
     func updateNowPlayingInfo() {
         guard let episode = currentEpisode else {

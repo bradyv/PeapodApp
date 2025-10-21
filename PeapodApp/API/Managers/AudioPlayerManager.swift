@@ -112,80 +112,53 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func togglePlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
         LogManager.shared.info("🎵 togglePlayback called for: \(episode.title ?? "Unknown")")
-        LogManager.shared.info("🎵 Current episode: \(currentEpisode?.title ?? "none"), isPlaying: \(isPlaying)")
         
         // Already playing this episode - toggle pause
         if currentEpisode?.id == episode.id {
             if isPlaying {
-                LogManager.shared.info("🎵 Pausing current episode")
                 pause()
             } else {
-                LogManager.shared.info("🎵 Resuming current episode")
                 resume()
             }
             return
         }
         
         // Play new episode
-        LogManager.shared.info("🎵 Playing new episode")
         play(episode, episodesViewModel: episodesViewModel)
     }
     
     private func play(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-        LogManager.shared.info("🎵 ========== PLAY START ==========")
-        LogManager.shared.info("🎵 Episode: \(episode.title ?? "Unknown")")
-        LogManager.shared.info("🎵 Audio URL: \(episode.audio ?? "nil")")
-        
         guard let audioURL = episode.audio,
               !audioURL.isEmpty,
               let url = URL(string: audioURL) else {
-            LogManager.shared.error("Invalid audio URL")
             return
-        }
-        
-        LogManager.shared.info("✅ URL validated: \(url)")
-        
-        // Stop current playback
-        if currentEpisode != nil {
-            LogManager.shared.info("🛑 Stopping current playback")
-            stop()
         }
         
         // CRITICAL: Activate audio session FIRST
-        LogManager.shared.info("🔊 Attempting to activate audio session...")
         let audioSession = AVAudioSession.sharedInstance()
-        LogManager.shared.info("🔊 Audio session BEFORE - Category: \(audioSession.category.rawValue), Mode: \(audioSession.mode.rawValue)")
-        
-        do {
-            try AVAudioSession.sharedInstance().setActive(true)
-            LogManager.shared.info("✅ Audio session activated successfully")
-        } catch {
-            LogManager.shared.error("Failed to activate audio session: \(error)")
-            return
+        if !audioSession.isOtherAudioPlaying {
+            do {
+                try audioSession.setActive(true)
+            } catch {
+                LogManager.shared.error("Failed to reactivate audio session: \(error)")
+            }
         }
         
-        LogManager.shared.info("🔊 Audio session AFTER - Category: \(audioSession.category.rawValue), Mode: \(audioSession.mode.rawValue)")
-        
         // Create player synchronously
-        LogManager.shared.info("🎬 Creating AVURLAsset...")
         let asset = AVURLAsset(url: url, options: [
-            AVURLAssetPreferPreciseDurationAndTimingKey: false
+            AVURLAssetPreferPreciseDurationAndTimingKey: false,
+            AVURLAssetReferenceRestrictionsKey: AVAssetReferenceRestrictions([]).rawValue,
+            AVURLAssetAllowsCellularAccessKey: true,
+            AVURLAssetHTTPCookiesKey: []
         ])
-        LogManager.shared.info("🎬 Creating AVPlayerItem...")
         let playerItem = AVPlayerItem(asset: asset)
-        playerItem.preferredForwardBufferDuration = 15
+        playerItem.preferredForwardBufferDuration = 5
         
-        LogManager.shared.info("🎬 Creating AVPlayer...")
         player = AVPlayer(playerItem: playerItem)
         
-        LogManager.shared.info("🎬 Player created, status: \(playerItem.status.rawValue) (0=unknown, 1=ready, 2=failed)")
-        
         // Start playback IMMEDIATELY
-        LogManager.shared.info("▶️ Calling playImmediately(atRate: \(playbackSpeed))...")
         player?.playImmediately(atRate: playbackSpeed)
         player?.automaticallyWaitsToMinimizeStalling = false
-        
-        LogManager.shared.info("▶️ playImmediately called, rate: \(player?.rate ?? -1)")
         
         // Update Core Data AFTER playback starts
         currentEpisode = episode
@@ -201,11 +174,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             }
             
             try? context.save()
-            LogManager.shared.info("💾 Core Data saved")
         }
         
         // Setup observers
-        LogManager.shared.info("👀 Setting up player observations...")
         setupPlayerObservations(for: playerItem, episodeID: episode.id ?? "")
         
         // Seek to saved position
@@ -216,11 +187,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         // Update system - only once at start
-        LogManager.shared.info("📱 Updating Now Playing Info...")
         MPNowPlayingInfoCenter.default().playbackState = .playing
         objectWillChange.send()
-        
-        LogManager.shared.info("🎵 ========== PLAY END ==========")
     }
     
     private func pause() {

@@ -25,7 +25,6 @@ struct QueueView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            QueueHeader(hasQueue: hasQueue)
             QueueScrollView(
                 hasQueue: hasQueue,
                 subscriptions: subscriptions,
@@ -35,41 +34,6 @@ struct QueueView: View {
             )
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Queue Header
-struct QueueHeader: View {
-    let hasQueue: Bool
-    
-    var body: some View {
-        Group {
-            if hasQueue {
-                NavigationLink {
-                    QueueListView()
-                        .navigationTitle("Up Next")
-                } label: {
-                    headerContent
-                }
-            } else {
-                headerContent
-            }
-        }
-    }
-    
-    private var headerContent: some View {
-        HStack(alignment: .center) {
-            Text("Up Next")
-                .titleSerifMini()
-            
-            if hasQueue {
-                Image(systemName: "chevron.right")
-                    .textDetailEmphasis()
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal)
-        .padding(.bottom, 8)
     }
 }
 

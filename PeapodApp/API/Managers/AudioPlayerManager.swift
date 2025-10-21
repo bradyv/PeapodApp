@@ -225,7 +225,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func pause() {
         player?.pause()
-        savePosition()
+        savePositionSync()
         updateNowPlayingInfo()
         objectWillChange.send()
     }
@@ -252,7 +252,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         LogManager.shared.info("🛑 Current player: \(player != nil ? "exists" : "nil")")
         LogManager.shared.info("🛑 Current item status: \(player?.currentItem?.status.rawValue ?? -1)")
         
-        savePosition()
+        savePositionSync()
         
         // Clear nowPlaying flag
         if let episode = currentEpisode {
@@ -461,11 +461,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                   !self.isSeekingManually else { return }
             
             self.objectWillChange.send()
-            
-            // Save position every 5 seconds
-            if Int(self.currentTime) % 5 == 0 {
-                self.savePosition()
-            }
+            self.savePosition() // Save every 5 seconds, not on 5-second marks
         }
         
         LogManager.shared.info("✅ All observations set up")
@@ -482,6 +478,19 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         context.perform {
             episode.playbackPosition = position
             
+            if context.hasChanges {
+                try? context.save()
+            }
+        }
+    }
+    
+    private func savePositionSync() {
+        guard let episode = currentEpisode else { return }
+        let position = currentTime
+        
+        let context = PersistenceController.shared.container.viewContext
+        context.performAndWait {
+            episode.playbackPosition = position
             if context.hasChanges {
                 try? context.save()
             }
@@ -603,6 +612,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             name: UIApplication.willTerminateNotification,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appDidEnterBackground() {
+        savePositionSync()
     }
     
     @objc private func handleAudioInterruption(notification: Notification) {
@@ -661,7 +681,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     @objc private func appWillTerminate() {
-        savePosition()
+        savePositionSync()
     }
     
     // MARK: - Restore State
@@ -681,7 +701,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     // MARK: - Now Playing Info
     
-    private func updateNowPlayingInfo() {
+    func updateNowPlayingInfo() {
         guard let episode = currentEpisode else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
             cachedArtwork = nil

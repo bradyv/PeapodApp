@@ -41,7 +41,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             await SubscriptionManager.shared.checkSubscriptionStatus()
         }
         
-//        configureGlobalAudioSession()
+        configureGlobalAudioSession()
         
         // Initialize the episodes view model early
         _ = episodesViewModel

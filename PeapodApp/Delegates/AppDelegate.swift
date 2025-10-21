@@ -664,7 +664,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         } else {
             let hoursRemaining = Int((sevenDaysInSeconds - timeSinceLastCleanup) / 3600)
             LogManager.shared.info("✅ Cleanup not needed yet - next cleanup in ~\(hoursRemaining) hours")
-            print("✅ Cleanup not needed yet - next cleanup in ~\(hoursRemaining) hours")
         }
     }
 }

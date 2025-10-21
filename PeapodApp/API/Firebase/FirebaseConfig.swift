@@ -32,8 +32,6 @@ class FirebaseConfig {
             print("🔥 Using default Firebase config for bundle: \(bundleId)")
         }
         
-        print("🔍 Looking for config file: \(configFileName).plist")
-        
         if let path = Bundle.main.path(forResource: configFileName, ofType: "plist"),
            let options = FirebaseOptions(contentsOfFile: path) {
             FirebaseApp.configure(options: options)

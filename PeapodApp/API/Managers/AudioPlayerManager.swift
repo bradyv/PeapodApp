@@ -134,61 +134,49 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
-        // CRITICAL: Activate audio session FIRST
-        let audioSession = AVAudioSession.sharedInstance()
-        if !audioSession.isOtherAudioPlaying {
-            do {
-                try audioSession.setActive(true)
-            } catch {
-                LogManager.shared.error("Failed to reactivate audio session: \(error)")
-            }
-        }
-        
-        // Create player synchronously
-        let asset = AVURLAsset(url: url, options: [
-            AVURLAssetPreferPreciseDurationAndTimingKey: false,
-            AVURLAssetReferenceRestrictionsKey: AVAssetReferenceRestrictions([]).rawValue,
-            AVURLAssetAllowsCellularAccessKey: true,
-            AVURLAssetHTTPCookiesKey: []
-        ])
-        let playerItem = AVPlayerItem(asset: asset)
-        playerItem.preferredForwardBufferDuration = 5
+        // Create player
+        let playerItem = AVPlayerItem(url: url)
+        playerItem.preferredForwardBufferDuration = 2
         
         player = AVPlayer(playerItem: playerItem)
+        player?.automaticallyWaitsToMinimizeStalling = false
         
         // Start playback IMMEDIATELY
         player?.playImmediately(atRate: playbackSpeed)
-        player?.automaticallyWaitsToMinimizeStalling = false
         
-        // Update Core Data AFTER playback starts
+        // Update state
         currentEpisode = episode
-        
-        let context = PersistenceController.shared.container.viewContext
-        context.perform {
-            episode.nowPlaying = true
-            
-            // Add to queue if not already
-            if !episode.isQueued {
-                episode.isQueued = true
-                episodesViewModel?.fetchQueue()
-            }
-            
-            try? context.save()
-        }
-        
-        // Setup observers
-        setupPlayerObservations(for: playerItem, episodeID: episode.id ?? "")
-        
-        // Seek to saved position
-        if episode.playbackPosition > 0 {
-            LogManager.shared.info("⏩ Seeking to saved position: \(episode.playbackPosition)s")
-            let targetTime = CMTime(seconds: episode.playbackPosition, preferredTimescale: 600)
-            player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
-        }
-        
-        // Update system - only once at start
         MPNowPlayingInfoCenter.default().playbackState = .playing
         objectWillChange.send()
+        
+        // Setup observers (lightweight)
+        setupPlayerObservations(for: playerItem, episodeID: episode.id ?? "")
+        
+        // Everything slow happens AFTER playback starts
+        Task {
+            // Seek to saved position asynchronously
+            if episode.playbackPosition > 0 {
+                let targetTime = CMTime(seconds: episode.playbackPosition, preferredTimescale: 600)
+                await self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+            }
+            
+            // Update Core Data in background
+            let context = PersistenceController.shared.container.newBackgroundContext()
+            await context.perform {
+                if let bgEpisode = context.object(with: episode.objectID) as? Episode {
+                    bgEpisode.nowPlaying = true
+                    
+                    if !bgEpisode.isQueued {
+                        bgEpisode.isQueued = true
+                        Task { @MainActor in
+                            episodesViewModel?.fetchQueue()
+                        }
+                    }
+                    
+                    try? context.save()
+                }
+            }
+        }
     }
     
     private func pause() {

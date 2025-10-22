@@ -113,6 +113,20 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func togglePlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
         LogManager.shared.info("🎵 togglePlayback called for: \(episode.title ?? "Unknown")")
         
+        // Prewarm the asset
+        if let audioURL = episode.audio,
+        let url = URL(string: audioURL) {
+            let asset = AVURLAsset(url: url)
+            Task.detached(priority: .background) {
+                do {
+                    _ = try await asset.load(.isPlayable)
+                    LogManager.shared.debug("🔥 Prewarmed asset for \(episode.title ?? "Unknown")")
+                } catch {
+                    LogManager.shared.warning("⚠️ Prewarm failed: \(error.localizedDescription)")
+                }
+            }
+        }
+        
         // Already playing this episode - toggle pause
         if currentEpisode?.id == episode.id {
             if isPlaying {
@@ -136,7 +150,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         // Create player
         let playerItem = AVPlayerItem(url: url)
-        playerItem.preferredForwardBufferDuration = 2
+        playerItem.preferredForwardBufferDuration = 1
         
         player = AVPlayer(playerItem: playerItem)
         player?.automaticallyWaitsToMinimizeStalling = false

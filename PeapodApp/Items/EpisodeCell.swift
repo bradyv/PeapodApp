@@ -41,7 +41,22 @@ struct EpisodeCell: View {
     
     @EnvironmentObject var player: AudioPlayerManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @EnvironmentObject var downloadManager: DownloadManager  // 🆕 Observe DownloadManager
+    @EnvironmentObject var downloadManager: DownloadManager
+    
+    private var isDownloaded: Bool {
+        guard let episodeId = episode.id else { return false }
+        // Force dependency on published arrays to trigger updates
+        let _ = episodesViewModel.downloaded
+        return downloadManager.isDownloaded(episodeId: episodeId)
+    }
+    
+    private var isDownloading: Bool {
+        guard let episodeId = episode.id else { return false }
+        // Force dependency on published dictionaries to trigger updates
+        let _ = downloadManager.activeDownloads
+        let _ = downloadManager.downloadQueue
+        return downloadManager.isDownloading(episodeId: episodeId)
+    }
     
     var body: some View {
         HStack(spacing: 16) {
@@ -54,17 +69,15 @@ struct EpisodeCell: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-//                    Text(getRelativeDateString(from: data.airDate))
                     RoundedRelativeDateView(date: data.airDate)
                         .lineLimit(1)
                         .textDetailEmphasis()
                     
-                    // 🆕 Now these will update when downloadManager changes
-                    if episode.isDownloaded {
+                    if isDownloaded {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundStyle(Color.accentColor)
                             .textDetail()
-                    } else if episode.isDownloading {
+                    } else if isDownloading {
                         ProgressView()
                             .scaleEffect(0.7)
                     }

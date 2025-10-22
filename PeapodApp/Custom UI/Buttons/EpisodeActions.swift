@@ -76,33 +76,48 @@ struct FavButton: View {
 }
 
 struct DownloadActionButton: View {
-    @ObservedObject var episode: Episode
-    @EnvironmentObject var downloadManager: DownloadManager
+    let episode: Episode
     
-    var body: some View {
-        Button {
-            handleDownloadAction()
-        } label: {
-            if episode.isDownloaded {
-                Label("Delete Download", systemImage: "trash")
-            } else if episode.isDownloading {
-                Label("Cancel Download", systemImage: "xmark.circle")
-            } else {
-                Label("Download Episode", systemImage: "arrow.down.circle")
-            }
-        }
+    @EnvironmentObject var downloadManager: DownloadManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    
+    private var isDownloaded: Bool {
+        guard let episodeId = episode.id else { return false }
+        // Force dependency on published array to trigger updates
+        let _ = episodesViewModel.downloaded
+        return downloadManager.isDownloaded(episodeId: episodeId)
     }
     
-    private func handleDownloadAction() {
-        guard let episodeId = episode.id else { return }
-        
-        withAnimation {
-            if episode.isDownloaded {
-                downloadManager.deleteDownload(for: episodeId)
-            } else if episode.isDownloading {
-                downloadManager.cancelDownload(for: episodeId)
-            } else {
+    private var isDownloading: Bool {
+        guard let episodeId = episode.id else { return false }
+        // Force dependency on published dictionaries to trigger updates
+        let _ = downloadManager.activeDownloads
+        let _ = downloadManager.downloadQueue
+        return downloadManager.isDownloading(episodeId: episodeId)
+    }
+    
+    var body: some View {
+        if isDownloaded {
+            Button(role: .destructive) {
+                if let episodeId = episode.id {
+                    downloadManager.deleteDownload(for: episodeId)
+                }
+            } label: {
+                Label("Delete Download", systemImage: "trash")
+            }
+        } else if isDownloading {
+            Button(role: .destructive) {
+                if let episodeId = episode.id {
+                    downloadManager.cancelDownload(for: episodeId)
+                }
+            } label: {
+                Label("Cancel Download", systemImage: "xmark.circle")
+            }
+        } else {
+            Button {
                 downloadManager.downloadEpisode(episode)
+            } label: {
+                Label("Download Episode", systemImage: "arrow.down.circle")
             }
         }
     }

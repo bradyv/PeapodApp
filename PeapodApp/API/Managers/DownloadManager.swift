@@ -112,6 +112,8 @@ class DownloadManager: NSObject, ObservableObject {
         
         // Start next queued download
         processQueue()
+        
+        notifyDownloadUpdate()
     }
     
     /// Delete a downloaded episode
@@ -121,6 +123,8 @@ class DownloadManager: NSObject, ObservableObject {
         if FileManager.default.fileExists(atPath: fileURL.path) {
             try? FileManager.default.removeItem(at: fileURL)
             LogManager.shared.info("🗑️ Deleted download for episode: \(episodeId)")
+            
+            notifyDownloadUpdate()
         }
     }
     
@@ -205,6 +209,10 @@ class DownloadManager: NSObject, ObservableObject {
                 }
             }
         }
+    }
+    
+    private func notifyDownloadUpdate() {
+        NotificationCenter.default.post(name: .downloadDidUpdate, object: nil)
     }
     
     // MARK: - Cleanup
@@ -304,6 +312,8 @@ extension DownloadManager: URLSessionDownloadDelegate {
                 activeDownloads.removeValue(forKey: episodeId)
                 activeDownloadTasks.removeValue(forKey: episodeId)
                 processQueue()
+                
+                notifyDownloadUpdate()
             }
             
         } catch {

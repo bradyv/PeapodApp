@@ -488,7 +488,7 @@ class EpisodeRefresher {
             if newestEpisode.isPlayed {
                 LogManager.shared.info("📥 Skipping queueing for played episode: \(newestEpisode.title ?? "Unknown")")
             } else {
-                newestEpisode.isQueued = true
+                addToQueue(newestEpisode)
                 LogManager.shared.info("📥 Queued newest episode: \(newestEpisode.title ?? "Unknown")")
             }
         }

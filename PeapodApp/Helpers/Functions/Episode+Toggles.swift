@@ -38,7 +38,8 @@ private let queueLock = NSLock()
 }
 
 /// Add episode to queue
-private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+    guard let context = episode.managedObjectContext else { return }
     
     // Check if already in queue
     if episode.isQueued {
@@ -46,7 +47,26 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     }
     
     episode.isQueued = true
-    LogManager.shared.info("✅ Added episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+    
+    // Download the episode on the main actor
+    Task { @MainActor in
+        DownloadManager.shared.downloadEpisode(episode)
+    }
+    
+    do {
+        try context.save()
+        LogManager.shared.info("✅ Added episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+        
+    } catch {
+        LogManager.shared.error("⚠️ Error saving queue toggle: \(error)")
+        // Revert the change if save failed
+        episode.isQueued.toggle()
+        
+        Task { @MainActor in
+            // Also revert the view model
+            episodesViewModel?.fetchQueue()
+        }
+    }
 }
 
 /// Remove episode from queue

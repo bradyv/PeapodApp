@@ -96,7 +96,7 @@ struct PodcastEpisodeSearchView: View {
                             if episode.isQueued {
                                 removeFromQueue(episode, episodesViewModel: episodesViewModel)
                             } else {
-                                toggleQueued(episode, episodesViewModel: episodesViewModel)
+                                addToQueue(episode, episodesViewModel: episodesViewModel)
                             }
                         }
                     } label: {

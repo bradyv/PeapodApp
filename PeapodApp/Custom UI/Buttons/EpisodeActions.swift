@@ -26,7 +26,7 @@ struct ArchiveButton: View {
                 }
             } else {
                 withAnimation {
-                    toggleQueued(episode, episodesViewModel: episodesViewModel)
+                    addToQueue(episode, episodesViewModel: episodesViewModel)
                 }
             }
         } label: {

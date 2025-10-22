@@ -298,7 +298,7 @@ struct ContentView: View {
                     NavigationLink {
                         SettingsView()
                     } label: {
-                        Label("Settings", systemImage: "person.crop.circle")
+                        Label("Settings", systemImage: "gear")
                     }
                     .labelStyle(.iconOnly)
                 }

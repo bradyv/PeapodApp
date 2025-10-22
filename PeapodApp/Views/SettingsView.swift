@@ -51,7 +51,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing:24) {
-                userStatsSection
+//                userStatsSection
                 settingsSection
                 aboutSection
                 debugSection
@@ -177,7 +177,7 @@ extension SettingsView {
             Button {
                 activeSheet = .upgrade
             } label: {
-                Label("Unlock Stats", systemImage: "fill.lock")
+                Label("Unlock Stats", systemImage: "lock.fill")
             }
             .buttonStyle(.glassProminent)
         }

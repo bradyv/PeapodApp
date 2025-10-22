@@ -10,7 +10,9 @@ import Kingfisher
 
 struct SubscriptionsView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @StateObject private var userManager = UserManager.shared
     @State private var selectedEpisodeForNavigation: Episode? = nil
+    @State private var showUpgrade = false
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
@@ -18,6 +20,8 @@ struct SubscriptionsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment:.leading,spacing:32) {
+                userStatsSection
+                    .padding(.horizontal)
                 LatestEpisodesView(mini:true, maxItems: 5)
                 FavEpisodesView(mini: true, maxItems: 5)
                 
@@ -53,6 +57,70 @@ struct SubscriptionsView: View {
                     MiniPlayerButton()
                 }
             }
+        }
+        .sheet(isPresented: $showUpgrade) {
+            UpgradeView()
+                .modifier(PPSheet())
+        }
+    }
+    
+    @ViewBuilder
+    private var userStatsSection: some View {
+        VStack(alignment:.leading) {
+            if userManager.hasPremiumAccess {
+                ActivityView(mini:true)
+            } else {
+                HStack(spacing:28) {
+                    VStack(alignment:.leading,spacing:10) {
+                        SkeletonItem(width:44, height:8)
+                        VStack(alignment:.leading,spacing:4) {
+                            SkeletonItem(width:68, height:24)
+                            SkeletonItem(width:33, height:12)
+                        }
+                    }
+                    .fixedSize()
+                    
+                    VStack(alignment:.leading,spacing:10) {
+                        SkeletonItem(width:44, height:8)
+                        SkeletonItem(width:40, height:40)
+                    }
+                    .fixedSize()
+                    
+                    WeeklyListeningLineChart(
+                        weeklyData: WeeklyListeningLineChart.mockData,
+                        favoriteDayName: "Friday",
+                        mini: true
+                    )
+                    .frame(maxWidth:.infinity)
+                }
+                .frame(maxWidth:.infinity, alignment:.leading)
+            }
+            
+            Spacer().frame(height:16)
+            
+            moreStatsButton
+        }
+        .padding()
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius:26))
+    }
+    
+    @ViewBuilder
+    private var moreStatsButton: some View {
+        if userManager.hasPremiumAccess {
+            NavigationLink {
+                ActivityView()
+            } label: {
+                Text("View More")
+            }
+            .buttonStyle(.glass)
+        } else {
+            Button {
+                showUpgrade = true
+            } label: {
+                Label("Unlock Stats", systemImage: "lock.fill")
+            }
+            .buttonStyle(.glassProminent)
         }
     }
 }

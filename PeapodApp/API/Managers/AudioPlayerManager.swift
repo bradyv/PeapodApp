@@ -113,9 +113,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     func togglePlayback(for episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
         LogManager.shared.info("🎵 togglePlayback called for: \(episode.title ?? "Unknown")")
         
-        // Prewarm the asset
-        if let audioURL = episode.audio,
-        let url = URL(string: audioURL) {
+        // 🆕 Prewarm the preferred asset (local or remote)
+        if let url = episode.preferredAudioURL {
             let asset = AVURLAsset(url: url)
             Task.detached(priority: .background) {
                 do {
@@ -142,10 +141,17 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private func play(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
-        guard let audioURL = episode.audio,
-              !audioURL.isEmpty,
-              let url = URL(string: audioURL) else {
+        // Use preferred audio URL (local file if downloaded, otherwise remote)
+        guard let url = episode.preferredAudioURL else {
+            LogManager.shared.error("❌ No audio URL available for episode: \(episode.title ?? "Unknown")")
             return
+        }
+        
+        // Log whether we're using local or remote
+        if episode.isDownloaded {
+            LogManager.shared.info("📱 Playing from local file: \(episode.title ?? "Unknown")")
+        } else {
+            LogManager.shared.info("🌐 Streaming from remote URL: \(episode.title ?? "Unknown")")
         }
         
         // Create player

@@ -78,6 +78,57 @@ extension Episode {
         }
     }
     
+    // MARK: - Download Properties
+    
+    /// Check if episode is downloaded for offline playback
+    var isDownloaded: Bool {
+        guard let episodeId = id else { return false }
+        // Access MainActor-isolated property safely
+        guard Thread.isMainThread else { return false }
+        return MainActor.assumeIsolated {
+            DownloadManager.shared.isDownloaded(episodeId: episodeId)
+        }
+    }
+    
+    /// Check if episode is currently downloading
+    var isDownloading: Bool {
+        guard let episodeId = id else { return false }
+        // Access MainActor-isolated property safely
+        guard Thread.isMainThread else { return false }
+        return MainActor.assumeIsolated {
+            DownloadManager.shared.isDownloading(episodeId: episodeId)
+        }
+    }
+    
+    /// Get download progress (0.0 to 1.0)
+    var downloadProgress: Double {
+        guard let episodeId = id else { return 0.0 }
+        // Access MainActor-isolated property safely
+        guard Thread.isMainThread else { return 0.0 }
+        return MainActor.assumeIsolated {
+            DownloadManager.shared.getProgress(for: episodeId)
+        }
+    }
+    
+    /// Get local file URL if downloaded
+    var localFileURL: URL? {
+        guard let episodeId = id, isDownloaded else { return nil }
+        // Access MainActor-isolated property safely
+        guard Thread.isMainThread else { return nil }
+        return MainActor.assumeIsolated {
+            DownloadManager.shared.getLocalFileURL(for: episodeId)
+        }
+    }
+    
+    /// Get preferred audio URL for playback (local if available, otherwise remote)
+    var preferredAudioURL: URL? {
+        // Access MainActor-isolated property safely
+        guard Thread.isMainThread else { return nil }
+        return MainActor.assumeIsolated {
+            DownloadManager.shared.getPreferredAudioURL(for: self)
+        }
+    }
+    
     // MARK: - Convenience Properties (Delegated to Playback)
     
     var queuePosition: Int64 {

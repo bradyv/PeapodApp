@@ -74,3 +74,36 @@ struct FavButton: View {
         }
     }
 }
+
+struct DownloadActionButton: View {
+    @ObservedObject var episode: Episode
+    @EnvironmentObject var downloadManager: DownloadManager
+    
+    var body: some View {
+        Button {
+            handleDownloadAction()
+        } label: {
+            if episode.isDownloaded {
+                Label("Delete Download", systemImage: "trash")
+            } else if episode.isDownloading {
+                Label("Cancel Download", systemImage: "xmark.circle")
+            } else {
+                Label("Download Episode", systemImage: "arrow.down.circle")
+            }
+        }
+    }
+    
+    private func handleDownloadAction() {
+        guard let episodeId = episode.id else { return }
+        
+        withAnimation {
+            if episode.isDownloaded {
+                downloadManager.deleteDownload(for: episodeId)
+            } else if episode.isDownloading {
+                downloadManager.cancelDownload(for: episodeId)
+            } else {
+                downloadManager.downloadEpisode(episode)
+            }
+        }
+    }
+}

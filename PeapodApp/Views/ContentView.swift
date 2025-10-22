@@ -290,6 +290,12 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
                     
                     NavigationLink {
+                        DownloadsView()
+                    } label: {
+                        Label("Downloads", systemImage: "arrow.down.circle")
+                    }
+                    
+                    NavigationLink {
                         SettingsView()
                     } label: {
                         Label("Settings", systemImage: "person.crop.circle")

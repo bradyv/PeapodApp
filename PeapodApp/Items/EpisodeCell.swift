@@ -41,6 +41,7 @@ struct EpisodeCell: View {
     
     @EnvironmentObject var player: AudioPlayerManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @EnvironmentObject var downloadManager: DownloadManager  // 🆕 Observe DownloadManager
     
     var body: some View {
         HStack(spacing: 16) {
@@ -57,6 +58,16 @@ struct EpisodeCell: View {
                     RoundedRelativeDateView(date: data.airDate)
                         .lineLimit(1)
                         .textDetailEmphasis()
+                    
+                    // 🆕 Now these will update when downloadManager changes
+                    if episode.isDownloaded {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                            .textDetail()
+                    } else if episode.isDownloading {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    }
                     
                     if data.isFav {
                         Image(systemName: "heart.circle.fill")
@@ -89,6 +100,7 @@ struct EpisodeCell: View {
         ArchiveButton(episode: episode)
         MarkAsPlayedButton(episode: episode)
         FavButton(episode: episode)
+        DownloadActionButton(episode: episode)
         
         Section(data.podcastTitle) {
             NavigationLink {

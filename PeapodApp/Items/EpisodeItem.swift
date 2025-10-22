@@ -80,6 +80,7 @@ struct EpisodeItem: View {
         ArchiveButton(episode: episode)
         MarkAsPlayedButton(episode: episode)
         FavButton(episode: episode)
+        DownloadActionButton(episode: episode)
         
         Section(data.podcastTitle) {
             NavigationLink {

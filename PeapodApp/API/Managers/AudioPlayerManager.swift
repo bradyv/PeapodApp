@@ -178,6 +178,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             if episode.playbackPosition > 0 {
                 let targetTime = CMTime(seconds: episode.playbackPosition, preferredTimescale: 600)
                 await self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+                
+                await MainActor.run {
+                    self.updateNowPlayingInfo()
+                }
             }
             
             // Update Core Data in background
@@ -203,6 +207,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         player?.pause()
         MPNowPlayingInfoCenter.default().playbackState = .paused
         savePositionSync()
+        updateNowPlayingInfo()
         objectWillChange.send()
     }
     
@@ -220,6 +225,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         player.rate = playbackSpeed
         MPNowPlayingInfoCenter.default().playbackState = .playing
+        updateNowPlayingInfo()
         objectWillChange.send()
     }
     
@@ -329,8 +335,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
                 guard let self = self else { return }
                 
                 DispatchQueue.main.async {
-                    // Just update UI state, don't call updateNowPlayingInfo()
-                    // The system tracks rate changes automatically
                     self.objectWillChange.send()
                 }
             }
@@ -573,10 +577,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     @objc private func appDidEnterBackground() {
         savePositionSync()
+        updateNowPlayingInfo()
     }
     
     @objc private func appWillTerminate() {
         savePositionSync()
+        updateNowPlayingInfo()
     }
     
     // MARK: - Restore State
@@ -640,7 +646,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
-        // CRITICAL: Check Kingfisher cache FIRST (synchronous, instant)
         let cacheKey = url.cacheKey
         KingfisherManager.shared.cache.retrieveImage(forKey: cacheKey) { result in
             switch result {

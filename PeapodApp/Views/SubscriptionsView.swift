@@ -35,7 +35,7 @@ struct SubscriptionsView: View {
                     // Actual grid with Add button + (possibly empty) real subscriptions
                     LazyVGrid(columns: columns, spacing: 16) {
                         // Real podcasts - optimized for scroll performance
-                        ForEach(subscriptions, id: \.objectID) { podcast in
+                        ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" }), id: \.objectID) { podcast in
                             NavigationLink {
                                 PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                             } label: {
@@ -151,7 +151,7 @@ struct SubscriptionsRow: View {
                 
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 16) {
-                        ForEach(subscriptions, id: \.objectID) { podcast in
+                        ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" }), id: \.objectID) { podcast in
                             NavigationLink {
                                 PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                             } label: {

@@ -155,7 +155,7 @@ class PodcastSubscriptionManager {
             let episodes = try context.fetch(episodeRequest)
             // Filter for unplayed episodes in memory (isPlayed is a computed property)
             if let latestUnplayed = episodes.first(where: { !$0.isPlayed }) {
-                latestUnplayed.isQueued = true
+                addToQueue(latestUnplayed)
                 LogManager.shared.info("📥 Queued latest episode: \(latestUnplayed.title ?? "Unknown")")
             }
         } catch {

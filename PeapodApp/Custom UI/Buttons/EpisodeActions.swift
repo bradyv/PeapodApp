@@ -9,14 +9,14 @@ import SwiftUI
 
 struct ArchiveButton: View {
     @Environment(\.managedObjectContext) private var context
-    @ObservedObject var episode: Episode
+    let episode: Episode  // Changed from @ObservedObject
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @EnvironmentObject var player: AudioPlayerManager
     
     var body: some View {
         Button {
+            let player = AudioPlayerManager.shared
+            
             if episode.isQueued {
-                // Check if this episode is the current episode (playing or paused)
                 if player.currentEpisode?.id == episode.id {
                     player.stop()
                 }
@@ -30,20 +30,21 @@ struct ArchiveButton: View {
                 }
             }
         } label: {
-            Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage:episode.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled")
+            Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage: episode.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled")
         }
     }
 }
 
 struct MarkAsPlayedButton: View {
-    @ObservedObject var episode: Episode
-    @EnvironmentObject var player: AudioPlayerManager
+    let episode: Episode  // Changed from @ObservedObject
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     
     var body: some View {
         Button(action: {
+            let player = AudioPlayerManager.shared
+            
             if episode.isPlayed {
-                player.markAsUnplayed(for:episode)
+                player.markAsUnplayed(for: episode)
             } else {
                 if episode.isQueued {
                     withAnimation {
@@ -61,7 +62,7 @@ struct MarkAsPlayedButton: View {
 }
 
 struct FavButton: View {
-    @ObservedObject var episode: Episode
+    let episode: Episode  // Changed from @ObservedObject
     
     var body: some View {
         Button(action: {
@@ -83,14 +84,12 @@ struct DownloadActionButton: View {
     
     private var isDownloaded: Bool {
         guard let episodeId = episode.id else { return false }
-        // Force dependency on published array to trigger updates
         let _ = episodesViewModel.downloaded
         return downloadManager.isDownloaded(episodeId: episodeId)
     }
     
     private var isDownloading: Bool {
         guard let episodeId = episode.id else { return false }
-        // Force dependency on published dictionaries to trigger updates
         let _ = downloadManager.activeDownloads
         let _ = downloadManager.downloadQueue
         return downloadManager.isDownloading(episodeId: episodeId)

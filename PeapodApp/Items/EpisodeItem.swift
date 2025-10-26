@@ -10,22 +10,11 @@ import Pow
 
 struct EpisodeItem: View {
     let data: EpisodeCellData
-    let episode: Episode  // Keep for actions only
-    
-    @EnvironmentObject var player: AudioPlayerManager
-    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    let episode: Episode
+
     @State private var workItem: DispatchWorkItem?
     @State private var favoriteCount = 0
     @Namespace private var namespace
-    
-    // Only compute player state when needed
-    private var playerState: (isPlaying: Bool, isLoading: Bool, progress: Double) {
-        (
-            player.isPlayingEpisode(episode),
-            player.isLoadingEpisode(episode),
-            player.getProgress(for: episode)
-        )
-    }
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -37,10 +26,12 @@ struct EpisodeItem: View {
             
             // Episode Actions
             HStack {
-                PlayButton
+                // Isolated play button - only this rebuilds on player changes
+                EpisodePlayButton(episode: episode)
                 
                 Spacer()
                 
+                // Context menu - no longer depends on player state
                 Menu {
                     contextMenuContent
                 } label: {
@@ -55,24 +46,6 @@ struct EpisodeItem: View {
         }
         .contentShape(Rectangle())
         .frame(maxWidth: .infinity, alignment: .leading)
-//        .onAppear {
-//            // Cancel any previous work item
-//            workItem?.cancel()
-//            // Create a new work item
-//            let item = DispatchWorkItem {
-//                // FIX: Use the shared singleton instead of the environment object
-//                Task.detached(priority: .background) {
-//                    await AudioPlayerManager.shared.writeActualDuration(for: episode)
-//                }
-//            }
-//            workItem = item
-//            // Schedule after 0.5 seconds (adjust as needed)
-//            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: item)
-//        }
-//        .onDisappear {
-//            // Cancel if the user scrolls away before debounce interval
-//            workItem?.cancel()
-//        }
     }
     
     @ViewBuilder
@@ -90,16 +63,24 @@ struct EpisodeItem: View {
             }
         }
     }
+}
+
+struct EpisodePlayButton: View {
+    let episode: Episode
+    @EnvironmentObject var player: AudioPlayerManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
     
-    @ViewBuilder
-    var PlayButton: some View {
-        // ▶️ Playback Button
+    private var isLoading: Bool {
+        player.isLoadingEpisode(episode)
+    }
+    
+    var body: some View {
         Button(action: {
-            guard !playerState.isLoading else { return }
+            guard !isLoading else { return }
             player.togglePlayback(for: episode, episodesViewModel: episodesViewModel)
         }) {
             HStack {
-                if playerState.isLoading {
+                if isLoading {
                     PPSpinner(color: Color.white)
                         .transition(.scale.combined(with: .opacity))
                 } else {

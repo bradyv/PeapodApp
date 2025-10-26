@@ -20,6 +20,7 @@ struct EpisodeView: View {
     @State private var favoriteCount = 0
     @State private var localProgress: Double = 0
     @State private var isDragging: Bool = false
+    @State private var availableWidth: CGFloat = UIScreen.main.bounds.width - 32
     var skipTip = SkipTip()
     
     // Computed properties based on unified state
@@ -123,10 +124,20 @@ struct EpisodeView: View {
                 
                 Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
                     .lineLimit(nil)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
+                    .frame(maxWidth: availableWidth)
                     .multilineTextAlignment(.leading)
                     .lineSpacing(2)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .onAppear {
+                                    availableWidth = geo.size.width
+                                }
+                                .onChange(of: geo.size.width) { _, newWidth in
+                                    availableWidth = newWidth
+                                }
+                        }
+                    )
                     .environment(\.openURL, OpenURLAction { url in
                         if url.scheme == "peapod", url.host == "seek",
                            let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -162,12 +173,6 @@ struct EpisodeView: View {
             ToolbarItem(placement:.topBarTrailing) {
                 FavButton(episode:episode)
             }
-            
-//            ToolbarItemGroup(placement:.topBarTrailing) {
-//                ArchiveButton(episode:episode)
-//                MarkAsPlayedButton(episode:episode)
-//                FavButton(episode:episode)
-//            }
             
             ToolbarItemGroup(placement: .bottomBar) {
                 Menu {

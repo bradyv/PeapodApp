@@ -42,6 +42,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         configureGlobalAudioSession()
+        setupAppLifecycleNotifications()
         
         // Initialize the episodes view model early
         _ = episodesViewModel
@@ -84,6 +85,22 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         } catch {
             LogManager.shared.error("Failed to configure audio session: \(error)")
         }
+    }
+
+    // MARK: - App Lifecycle Notifications
+    
+    func setupAppLifecycleNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillResignActive),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appWillResignActive() {
+        // Save playback position immediately when app loses focus
+        AudioPlayerManager.shared.savePositionSync()
     }
 
     // MARK: - Firebase Messaging Delegate

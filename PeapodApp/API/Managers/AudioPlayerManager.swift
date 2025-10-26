@@ -105,6 +105,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private init() {
         setupRemoteCommands()
         setupAppLifecycleNotifications()
+        setupAudioSessionNotifications()
         restoreCurrentEpisode()
     }
     
@@ -205,9 +206,23 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func pause() {
         player?.pause()
-        MPNowPlayingInfoCenter.default().playbackState = .paused
+        
+        // Verify player actually stopped before updating control center
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            
+            if self.player?.rate == 0 {
+                MPNowPlayingInfoCenter.default().playbackState = .paused
+            } else {
+                // Force stop if still playing
+                self.player?.rate = 0
+                MPNowPlayingInfoCenter.default().playbackState = .paused
+            }
+            
+            self.updateNowPlayingInfo()
+        }
+        
         savePositionSync()
-        updateNowPlayingInfo()
         objectWillChange.send()
     }
     
@@ -405,10 +420,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             forName: .AVPlayerItemFailedToPlayToEndTime,
             object: playerItem,
             queue: .main
-        ) { notification in
+        ) { [weak self] notification in
             if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
                 LogManager.shared.error("❌ Failed to play to end: \(error)")
             }
+            self?.savePositionSync()
         }
         
         // Playback stalled
@@ -421,7 +437,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         // Periodic time observer for position saving and UI updates
-        let interval = UIApplication.shared.applicationState == .background ? 5.0 : 1.0
+        let interval = UIApplication.shared.applicationState == .background ? 2.0 : 0.5
         timeObserver = player?.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: interval, preferredTimescale: 10),
             queue: .main
@@ -454,7 +470,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
     }
     
-    private func savePositionSync() {
+    func savePositionSync() {
         guard let episode = currentEpisode else { return }
         let position = currentTime
         
@@ -557,7 +573,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     // MARK: - App Lifecycle Notifications
-    // These are necessary for saving state and managing background playback
     
     private func setupAppLifecycleNotifications() {
         NotificationCenter.default.addObserver(
@@ -573,6 +588,13 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             name: UIApplication.didEnterBackgroundNotification,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillResignActive),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
     }
     
     @objc private func appDidEnterBackground() {
@@ -580,9 +602,83 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         updateNowPlayingInfo()
     }
     
+    @objc private func appWillResignActive() {
+        savePositionSync()
+    }
+    
     @objc private func appWillTerminate() {
         savePositionSync()
         updateNowPlayingInfo()
+    }
+    
+    // MARK: - Audio Session Notifications
+    
+    private func setupAudioSessionNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRouteChange),
+            name: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+    }
+    
+    @objc private func handleAudioInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            // CRITICAL: Save position IMMEDIATELY when interruption starts
+            savePositionSync()
+            LogManager.shared.info("🔴 Audio interrupted - position saved")
+            
+        case .ended:
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            
+            if options.contains(.shouldResume) {
+                // Resume playback if user expects it
+                resume()
+            }
+            
+            // Update Now Playing Info after interruption ends
+            updateNowPlayingInfo()
+            
+        @unknown default:
+            break
+        }
+    }
+    
+    @objc private func handleRouteChange(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+            return
+        }
+        
+        switch reason {
+        case .oldDeviceUnavailable:
+            // CRITICAL: Device disconnected (AirPods removed, CarPlay disconnected)
+            savePositionSync()
+            pause()
+            LogManager.shared.info("🎧 Audio route changed (device unavailable) - position saved and paused")
+            
+        case .newDeviceAvailable:
+            LogManager.shared.info("🎧 New audio device available")
+            
+        default:
+            break
+        }
     }
     
     // MARK: - Restore State

@@ -49,9 +49,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         return item.status == .unknown
     }
     
-    var currentTime: Double {
-        player?.currentTime().seconds ?? currentEpisode?.playbackPosition ?? 0
-    }
+    @Published private(set) var currentTime: TimeInterval = 0
     
     var duration: Double {
         // Prefer actual duration from player
@@ -437,17 +435,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         // Periodic time observer for position saving and UI updates
-        let interval = UIApplication.shared.applicationState == .background ? 2.0 : 0.5
+        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: interval, preferredTimescale: 10),
+            forInterval: interval,
             queue: .main
-        ) { [weak self] _ in
-            guard let self = self,
-                  self.currentEpisode?.id == episodeID,
-                  !self.isSeekingManually else { return }
-            
-            self.objectWillChange.send()
-            self.savePosition() // Save every interval
+        ) { [weak self] time in
+            self?.currentTime = time.seconds
         }
         
         LogManager.shared.info("✅ All observations set up")
@@ -832,7 +825,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func getProgress(for episode: Episode) -> Double {
-        if episode.id == currentEpisode?.id {
+        // Only use currentTime if player is active for this episode
+        if episode.id == currentEpisode?.id && isPlaying {
             return currentTime
         }
         return episode.playbackPosition

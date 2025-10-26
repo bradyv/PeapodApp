@@ -11,7 +11,6 @@ import Kingfisher
 struct QueueView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @EnvironmentObject var player: AudioPlayerManager
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     

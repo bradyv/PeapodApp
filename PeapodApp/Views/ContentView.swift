@@ -14,7 +14,6 @@ struct ContentView: View {
     @EnvironmentObject var appStateManager: AppStateManager
     @EnvironmentObject var toastManager: ToastManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @EnvironmentObject var player: AudioPlayerManager
     @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
@@ -131,7 +130,7 @@ struct ContentView: View {
                         if let episode = try? context.fetch(fetchRequest).first {
                             print("🎵 Found episode: \(episode.title ?? "Unknown")")
                             print("🎵 Calling togglePlayback")
-                            player.togglePlayback(for: episode)
+                            AudioPlayerManager.shared.togglePlayback(for: episode)
                         } else {
                             print("❌ Episode not found with ID: \(episodeID)")
                         }

@@ -15,6 +15,14 @@ import Kingfisher
 class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     static let shared = AudioPlayerManager()
     
+    // MARK: - Time Publisher (Isolated for UI updates)
+    /// Separate observable object for time updates to prevent unnecessary view rebuilds
+    class TimePublisher: ObservableObject {
+        @Published var currentTime: TimeInterval = 0
+    }
+    
+    let timePublisher = TimePublisher()
+    
     // MARK: - Player
     private var player: AVPlayer?
     private var timeObserver: Any?
@@ -49,7 +57,11 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         return item.status == .unknown
     }
     
-    @Published private(set) var currentTime: TimeInterval = 0
+    // Computed property for backward compatibility
+    var currentTime: TimeInterval {
+        get { timePublisher.currentTime }
+        set { timePublisher.currentTime = newValue }
+    }
     
     var duration: Double {
         // Prefer actual duration from player
@@ -126,7 +138,7 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         // Already playing this episode - toggle pause
-        if currentEpisode?.id == episode.id {
+        if currentEpisode?.id == episode.id && player != nil {
             if isPlaying {
                 pause()
             } else {
@@ -205,6 +217,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     private func pause() {
         player?.pause()
         
+        // Save position immediately
+        savePositionSync()
+        
         // Verify player actually stopped before updating control center
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             guard let self = self else { return }
@@ -220,19 +235,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             self.updateNowPlayingInfo()
         }
         
-        savePositionSync()
         objectWillChange.send()
     }
     
     private func resume() {
         // Ensure we have a valid player
         guard let player = player,
-              let currentItem = player.currentItem,
-              currentItem.status == .readyToPlay else {
-            // No valid player - restart playback
-            if let episode = currentEpisode {
-                play(episode)
-            }
+              let currentItem = player.currentItem else {
+            LogManager.shared.warning("⚠️ Cannot resume - no player or item")
             return
         }
         
@@ -435,12 +445,14 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         }
         
         // Periodic time observer for position saving and UI updates
+        // 🔥 UPDATE: Now updates timePublisher instead of @Published property
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(
             forInterval: interval,
             queue: .main
         ) { [weak self] time in
-            self?.currentTime = time.seconds
+            // Only update the nested TimePublisher
+            self?.timePublisher.currentTime = time.seconds
         }
         
         LogManager.shared.info("✅ All observations set up")
@@ -465,6 +477,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     func savePositionSync() {
         guard let episode = currentEpisode else { return }
+        
+        // Only save if player exists - don't overwrite saved position with 0
+        guard player != nil else {
+            return  // Skip saving if no player
+        }
+        
         let position = currentTime
         
         let context = PersistenceController.shared.container.viewContext
@@ -825,11 +843,10 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     func getProgress(for episode: Episode) -> Double {
-        // Only use currentTime if player is active for this episode
-        if episode.id == currentEpisode?.id && isPlaying {
-            return currentTime
+        if episode.id == currentEpisode?.id && player != nil {
+            return currentTime  // Live time when player active
         }
-        return episode.playbackPosition
+        return episode.playbackPosition  // Cached when player not active
     }
     
     func isPlayingEpisode(_ episode: Episode) -> Bool {

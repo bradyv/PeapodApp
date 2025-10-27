@@ -14,7 +14,13 @@ struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.openURL) private var openURL
     @ObservedObject var episode: Episode
-    @EnvironmentObject var player: AudioPlayerManager
+    
+    // 🔥 FIX: No EnvironmentObject - use direct reference to prevent context menu flashing
+    private var player: AudioPlayerManager { AudioPlayerManager.shared }
+    
+    // Subscribe to time updates for progress bar only
+    @ObservedObject private var timePublisher = AudioPlayerManager.shared.timePublisher
+    
     @State private var selectedPodcast: Podcast? = nil
     @State private var scrollOffset: CGFloat = 0
     @State private var favoriteCount = 0
@@ -174,44 +180,13 @@ struct EpisodeView: View {
             }
             
             ToolbarItemGroup(placement: .bottomBar) {
-                Menu {
-                    contextMenuContent
-                } label: {
-                    Label("More", systemImage:"ellipsis")
-                        .frame(width:34,height:34)
-                }
-                .menuOrder(.fixed)
-                .labelStyle(.iconOnly)
+                // 🔥 FIX: Wrap menu in its own view to isolate from timePublisher updates
+                ContextMenuButton(episode: episode)
                 
                 Spacer()
                 
-                Button(action: {
-                    player.togglePlayback(for: episode)
-                }) {
-                    Group {
-                        HStack {
-                            if isLoading {
-                                PPSpinner(color: Color.white)
-                                    .transition(.scale.combined(with: .opacity))
-                            } else {
-                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                    .foregroundStyle(Color.white)
-                                    .textBody()
-                                    .transition(.scale.combined(with: .opacity))
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            
-                            Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen")))
-                                .foregroundStyle(.white)
-                                .textBodyEmphasis()
-                                .contentTransition(.interpolate)
-                        }
-                        .padding(.horizontal,8)
-                    }
-                    .animation(.easeInOut(duration: 0.2), value: isLoading)
-                    .animation(.easeInOut(duration: 0.2), value: isPlaying)
-                }
-                .buttonStyle(.glassProminent)
+                // Play button needs to update, so it stays here
+                PlayButton(episode: episode, isPlaying: isPlaying, isLoading: isLoading, hasStarted: hasStarted)
             }
         }
         .task {
@@ -239,8 +214,6 @@ struct EpisodeView: View {
             PPProgress(
                 value: Binding(
                     get: {
-                        // Always use player state - it will return currentTime for current episode
-                        // or playbackPosition for other episodes
                         player.getProgress(for: episode)
                     },
                     set: { newValue in
@@ -268,21 +241,72 @@ struct EpisodeView: View {
                 .if(player.isPlaying, transform: { $0.popoverTip(skipTip, arrowEdge: .bottom) })
         }
     }
+}
+
+// 🔥 NEW: Separate view for context menu button to prevent flashing
+struct ContextMenuButton: View {
+    let episode: Episode
     
-    @ViewBuilder
-    private var contextMenuContent: some View {
-        ArchiveButton(episode: episode)
-        MarkAsPlayedButton(episode: episode)
-        FavButton(episode: episode)
-        DownloadActionButton(episode: episode)
-        
-        Section(episode.podcast?.title ?? "") {
-            NavigationLink {
-                PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
-            } label: {
-                Label("View Podcast", systemImage: "widget.small")
+    var body: some View {
+        Menu {
+            ArchiveButton(episode: episode)
+            MarkAsPlayedButton(episode: episode)
+            FavButton(episode: episode)
+            DownloadActionButton(episode: episode)
+            
+            Section(episode.podcast?.title ?? "") {
+                NavigationLink {
+                    PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+                } label: {
+                    Label("View Podcast", systemImage: "widget.small")
+                }
             }
+        } label: {
+            Label("More", systemImage:"ellipsis")
+                .frame(width:34,height:34)
         }
+        .menuOrder(.fixed)
+        .labelStyle(.iconOnly)
+    }
+}
+
+// 🔥 NEW: Separate view for play button that needs live updates
+struct PlayButton: View {
+    let episode: Episode
+    let isPlaying: Bool
+    let isLoading: Bool
+    let hasStarted: Bool
+    
+    private var player: AudioPlayerManager { AudioPlayerManager.shared }
+    
+    var body: some View {
+        Button(action: {
+            player.togglePlayback(for: episode)
+        }) {
+            Group {
+                HStack {
+                    if isLoading {
+                        PPSpinner(color: Color.white)
+                            .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .foregroundStyle(Color.white)
+                            .textBody()
+                            .transition(.scale.combined(with: .opacity))
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    
+                    Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen")))
+                        .foregroundStyle(.white)
+                        .textBodyEmphasis()
+                        .contentTransition(.interpolate)
+                }
+                .padding(.horizontal,8)
+            }
+            .animation(.easeInOut(duration: 0.2), value: isLoading)
+            .animation(.easeInOut(duration: 0.2), value: isPlaying)
+        }
+        .buttonStyle(.glassProminent)
     }
 }
 

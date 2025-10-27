@@ -26,12 +26,12 @@ struct EpisodeItem: View {
             
             // Episode Actions
             HStack {
-                // Isolated play button - only this rebuilds on player changes
+                // Isolated play button - gets its own player reference
                 EpisodePlayButton(episode: episode)
                 
                 Spacer()
                 
-                // Context menu - no longer depends on player state
+                // Context menu - doesn't depend on player so won't rebuild
                 Menu {
                     contextMenuContent
                 } label: {
@@ -67,7 +67,13 @@ struct EpisodeItem: View {
 
 struct EpisodePlayButton: View {
     let episode: Episode
-    @EnvironmentObject var player: AudioPlayerManager
+    
+    // Get player reference directly - not through EnvironmentObject
+    private var player: AudioPlayerManager { AudioPlayerManager.shared }
+    
+    // Subscribe to time updates for live UI
+    @ObservedObject private var timePublisher = AudioPlayerManager.shared.timePublisher
+    
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     
     private var isLoading: Bool {

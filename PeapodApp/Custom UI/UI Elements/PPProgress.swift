@@ -8,12 +8,18 @@
 import SwiftUI
 
 struct PPProgress: View {
-    @EnvironmentObject var player: AudioPlayerManager
     @Binding var value: Double
     let range: ClosedRange<Double>
     let onEditingChanged: (Bool) -> Void
     let isDraggable: Bool
     var isQQ: Bool
+    
+    // Get player reference directly - not through EnvironmentObject
+    private var player: AudioPlayerManager { AudioPlayerManager.shared }
+    
+    // Subscribe to time updates for live progress
+    @ObservedObject private var timePublisher = AudioPlayerManager.shared.timePublisher
+    
     @State private var isDragging = false
     @State private var dragValue: Double? = nil
     @State private var isAwaitingSeekCompletion = false

@@ -246,6 +246,12 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             return
         }
         
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            LogManager.shared.error("Failed to reactivate audio session: \(error)")
+        }
+        
         player.rate = playbackSpeed
         MPNowPlayingInfoCenter.default().playbackState = .playing
         updateNowPlayingInfo()
@@ -649,7 +655,6 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         switch type {
         case .began:
-            // CRITICAL: Save position IMMEDIATELY when interruption starts
             savePositionSync()
             LogManager.shared.info("🔴 Audio interrupted - position saved")
             
@@ -658,11 +663,9 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
             
             if options.contains(.shouldResume) {
-                // Resume playback if user expects it
                 resume()
             }
             
-            // Update Now Playing Info after interruption ends
             updateNowPlayingInfo()
             
         @unknown default:

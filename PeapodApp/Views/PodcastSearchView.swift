@@ -13,7 +13,6 @@ import CoreData
 struct PodcastSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @FocusState private var isTextFieldFocused: Bool
     @State private var query = ""
     @State private var results: [PodcastResult] = []
     @State private var urlFeedPodcast: Podcast?
@@ -24,7 +23,6 @@ struct PodcastSearchView: View {
     @State private var isLoadingUrlFeed = false
     @State private var urlFeedError: String?
     @State private var debounceWorkItem: DispatchWorkItem?
-    @State private var selectedPodcast: PodcastResult? = nil
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     
     // Define categories with their genre IDs
@@ -273,10 +271,6 @@ struct PodcastSearchView: View {
             
             debounceWorkItem = task
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: task)
-        }
-        .sheet(item: $selectedPodcast) { podcastResult in
-            PodcastDetailView(feedUrl: podcastResult.feedUrl)
-                .modifier(PPSheet())
         }
     }
 

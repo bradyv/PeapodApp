@@ -14,15 +14,12 @@ struct ActivityView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @ObservedObject private var userManager = UserManager.shared
     @ObservedObject private var statsManager = StatisticsManager.shared
-    @State private var showingUpgrade = false
     @State private var recentlyPlayed: [Episode] = []
     @State private var longestEpisode: Episode?
     @State private var topPlayedEpisodes: [Episode] = []
     @State private var favoriteDayName: String = "Loading..."
     @State private var favoriteDayCount: Int = 0
     @State private var weeklyData: [WeeklyListeningData] = []
-    @State private var rotationAngle: Double = 0
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default

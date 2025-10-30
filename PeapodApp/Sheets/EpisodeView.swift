@@ -7,7 +7,6 @@
 
 import SwiftUI
 import Kingfisher
-import Pow
 import TipKit
 
 struct EpisodeView: View {
@@ -15,15 +14,11 @@ struct EpisodeView: View {
     @Environment(\.openURL) private var openURL
     @ObservedObject var episode: Episode
     
-    // 🔥 FIX: No EnvironmentObject - use direct reference to prevent context menu flashing
     private var player: AudioPlayerManager { AudioPlayerManager.shared }
     
-    // Subscribe to time updates for progress bar only
     @ObservedObject private var timePublisher = AudioPlayerManager.shared.timePublisher
     
-    @State private var selectedPodcast: Podcast? = nil
     @State private var scrollOffset: CGFloat = 0
-    @State private var favoriteCount = 0
     @State private var isDragging: Bool = false
     @State private var availableWidth: CGFloat = UIScreen.main.bounds.width - 32
     var skipTip = SkipTip()

@@ -21,15 +21,12 @@ struct SettingsView: View {
     @State private var notificationAuthStatus: UNAuthorizationStatus = .notDetermined
     @State private var showNotificationAlert = false
     @State private var showNotificationRequest = false
-    @State private var lastSynced: Date? = UserDefaults.standard.object(forKey: "lastCloudSyncDate") as? Date
-    @State private var scrollOffset: CGFloat = 0
     @State private var currentSpeed: Float = AudioPlayerManager.shared.playbackSpeed
     @State private var currentForwardInterval: Double = AudioPlayerManager.shared.forwardInterval
     @State private var currentBackwardInterval: Double = AudioPlayerManager.shared.backwardInterval
     @State private var showDebugTools = false
     @State private var showMailErrorAlert = false
     @State private var activeSheet: SheetType?
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @StateObject private var userManager = UserManager.shared
     @StateObject private var opmlImportManager = OPMLImportManager()
     @State private var showFileBrowser: Bool = false
@@ -73,10 +70,6 @@ struct SettingsView: View {
         .scrollEdgeEffectStyle(.soft, for: .all)
         .contentMargins(.horizontal,16,for:.scrollContent)
         .coordinateSpace(name: "scroll")
-        .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange)) { _ in
-            lastSynced = Date()
-            UserDefaults.standard.set(lastSynced, forKey: "lastCloudSyncDate")
-        }
         .sheet(item: $activeSheet) { sheetType in
             switch sheetType {
             case .upgrade:
@@ -115,74 +108,6 @@ struct SettingsView: View {
 
 // MARK: - View Sections
 extension SettingsView {
-    
-    @ViewBuilder
-    private var userStatsSection: some View {
-        VStack(alignment:.leading) {
-            if userManager.hasPremiumAccess {
-                ActivityView(mini:true)
-            } else {
-                HStack(spacing:28) {
-                    VStack(alignment:.leading,spacing:10) {
-                        SkeletonItem(width:44, height:8)
-                        VStack(alignment:.leading,spacing:4) {
-                            SkeletonItem(width:68, height:24)
-                            SkeletonItem(width:33, height:12)
-                        }
-                    }
-                    .fixedSize()
-                    
-                    VStack(alignment:.leading,spacing:10) {
-                        SkeletonItem(width:44, height:8)
-                        SkeletonItem(width:40, height:40)
-                    }
-                    .fixedSize()
-                    
-                    WeeklyListeningLineChart(
-                        weeklyData: WeeklyListeningLineChart.mockData,
-                        favoriteDayName: "Friday",
-                        mini: true
-                    )
-                    .frame(maxWidth:.infinity)
-                }
-                .frame(maxWidth:.infinity, alignment:.leading)
-            }
-            
-            Spacer().frame(height:16)
-            
-            moreStatsButton
-        }
-        .padding()
-        .background(Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius:26))
-    }
-    
-    @ViewBuilder
-    private var moreStatsButton: some View {
-//        if userManager.hasPremiumAccess || {
-//                #if DEBUG
-//                true
-//                #else
-//                false
-//                #endif
-//            }() {
-        if userManager.hasPremiumAccess {
-            NavigationLink {
-                ActivityView()
-            } label: {
-                Text("View More")
-            }
-            .buttonStyle(.glass)
-        } else {
-            Button {
-                activeSheet = .upgrade
-            } label: {
-                Label("Unlock Stats", systemImage: "lock.fill")
-            }
-            .buttonStyle(.glassProminent)
-        }
-    }
-    
     @ViewBuilder
     private var settingsSection: some View {
         FadeInView(delay:0.2) {

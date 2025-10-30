@@ -18,7 +18,6 @@ struct PodcastEpisodeSearchView: View {
     @State private var query = ""
     @State private var hasMoreEpisodes = true
     @State private var isLoadingMoreEpisodes = false
-    @FocusState private var isTextFieldFocused: Bool
     @Namespace private var namespace
 
     init(podcast: Podcast, showSearch: Binding<Bool>) {

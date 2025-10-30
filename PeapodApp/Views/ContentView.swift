@@ -19,16 +19,11 @@ struct ContentView: View {
     var subscriptions: FetchedResults<Podcast>
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
-    @State private var query = ""
-    @State private var selectedTab: Tabs = .listen
     @State private var episodeID = UUID()
-    @State private var rotateTrigger = false
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @StateObject private var opmlImportManager = OPMLImportManager()
     @State private var showFileBrowser: Bool = false
     @State private var selectedOPMLContent: String = ""
     @Namespace private var namespace
-    
     enum Tabs: Hashable {
         case listen
         case library

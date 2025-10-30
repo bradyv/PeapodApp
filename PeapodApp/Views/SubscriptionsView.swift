@@ -11,7 +11,6 @@ import Kingfisher
 struct SubscriptionsView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @StateObject private var userManager = UserManager.shared
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @State private var showUpgrade = false
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>

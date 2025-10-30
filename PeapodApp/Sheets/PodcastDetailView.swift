@@ -18,15 +18,12 @@ struct PodcastDetailView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
-    @State var showFullDescription: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var showDebugTools = false
     @State private var showConfirm = false
-    @State private var query = ""
     @State private var showSearch = false
     @State private var isLoading = true
     @State private var loadedPodcast: Podcast? = nil
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
     
     var podcast: Podcast? { loadedPodcast ?? podcastResults.first }
@@ -286,7 +283,6 @@ struct PodcastDetailView: View {
             
             let wasSubscribed = podcast.isSubscribed
             
-            // ✅ USE CENTRALIZED SUBSCRIPTION MANAGER
             if wasSubscribed {
                 PodcastSubscriptionManager.shared.unsubscribe(
                     from: podcast,

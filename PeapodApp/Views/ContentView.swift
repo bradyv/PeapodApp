@@ -24,11 +24,6 @@ struct ContentView: View {
     @State private var showFileBrowser: Bool = false
     @State private var selectedOPMLContent: String = ""
     @Namespace private var namespace
-    enum Tabs: Hashable {
-        case listen
-        case library
-        case search
-    }
 
     var body: some View {
         switch appStateManager.currentState {
@@ -265,6 +260,10 @@ struct ContentView: View {
             }
             .navigationTitle("Peapod")
             .background(Color.background)
+            .navigationDestination(item: $selectedEpisode) { episode in
+                EpisodeView(episode: episode)
+                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -328,23 +327,23 @@ struct ContentView: View {
                 .frame(maxWidth:.infinity, alignment:.leading)
             }
             .frame(maxWidth:.infinity, alignment:.leading)
-//            
+//
 //            VStack(alignment:.leading, spacing: 8) {
 //                Text("Recent Releases")
 //                    .titleSerifMini()
-//                
+//
 //                EmptyEpisodeCell()
 //            }
 //            .frame(maxWidth:.infinity,alignment:.leading)
-//            
+//
 //            VStack(alignment:.leading, spacing: 8) {
 //                Text("Favorites")
 //                    .titleSerifMini()
-//                
+//
 //                EmptyEpisodeCell()
 //            }
 //            .frame(maxWidth:.infinity,alignment:.leading)
-//            
+//
             VStack(alignment:.leading, spacing:8) {
                 Text("Library")
                     .titleSerifMini()
@@ -401,52 +400,45 @@ struct ContentView: View {
         }
     }
     
-    // 🆕 Helper to find episode using Firebase episode ID format
-    private func findEpisodeByFirebaseId(_ episodeID: String) {
-        // Firebase episode IDs are in format: encodedFeedUrl_guid
-        let components = episodeID.components(separatedBy: "_")
-        guard components.count >= 2 else {
-            LogManager.shared.error("❌ Invalid episode ID format: \(episodeID)")
-            return
-        }
+    // Helper to find episode using Firebase episode ID format
+    private func findEpisodeByFirebaseId(_ firebaseEpisodeID: String) {
+        LogManager.shared.info("🔍 Searching for episode with Firebase ID (MD5 hash): \(firebaseEpisodeID)")
         
-        let encodedFeedUrl = components[0]
-        let guid = components.dropFirst().joined(separator: "_")
-        
-        // Decode the feed URL
-        guard let feedUrl = encodedFeedUrl.removingPercentEncoding else {
-            LogManager.shared.error("❌ Could not decode feed URL: \(encodedFeedUrl)")
-            return
-        }
-        
-        print("🔍 Searching for episode with GUID: \(guid) in feed: \(feedUrl)")
-        
-        // Find episode by GUID and feed URL
-        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcast.feedUrl == %@", guid, feedUrl)
-        fetchRequest.fetchLimit = 1
+        // Fetch all subscribed podcasts
+        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        podcastRequest.predicate = NSPredicate(format: "isSubscribed == YES")
         
         do {
-            if let foundEpisode = try context.fetch(fetchRequest).first {
-                LogManager.shared.info("✅ Found episode from notification: \(foundEpisode.title ?? "Unknown")")
-                selectedEpisode = foundEpisode
-            } else {
-                LogManager.shared.error("❌ Could not find episode with GUID: \(guid) in feed: \(feedUrl)")
-                // Try fallback search by GUID only
-                let fallbackRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                fallbackRequest.predicate = NSPredicate(format: "guid == %@", guid)
-                fallbackRequest.fetchLimit = 1
+            let subscribedPodcasts = try context.fetch(podcastRequest)
+            
+            // Search through all episodes in subscribed podcasts
+            for podcast in subscribedPodcasts {
+                guard let feedUrl = podcast.feedUrl else { continue }
                 
-                if let fallbackEpisode = try context.fetch(fallbackRequest).first {
-                    LogManager.shared.info("✅ Found episode via fallback search: \(fallbackEpisode.title ?? "Unknown")")
-                    selectedEpisode = fallbackEpisode
-                } else {
-                    LogManager.shared.error("❌ Episode not found even with fallback search")
+                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+                
+                let episodes = try context.fetch(episodeRequest)
+                
+                for episode in episodes {
+                    guard let guid = episode.guid else { continue }
+                    
+                    // Recreate the hash using the same logic as Firebase
+                    let combined = "\(feedUrl)_\(guid)"
+                    let hash = combined.md5Hash()
+                    
+                    if hash == firebaseEpisodeID {
+                        LogManager.shared.info("✅ Found episode by hash match: \(episode.title ?? "Unknown")")
+                        LogManager.shared.info("   Matched: \(feedUrl) + \(guid) = \(hash)")
+                        selectedEpisode = episode
+                        return
+                    }
                 }
             }
+            
+            LogManager.shared.error("❌ Could not find episode matching Firebase ID: \(firebaseEpisodeID)")
         } catch {
             LogManager.shared.error("❌ Error searching for episode: \(error)")
         }
     }
-
 }

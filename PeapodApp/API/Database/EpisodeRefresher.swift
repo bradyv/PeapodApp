@@ -31,8 +31,6 @@ class EpisodeRefresher {
     }
     
     static func refreshPodcastEpisodes(for podcast: Podcast, context: NSManagedObjectContext, limitToRecent: Bool = false, completion: (() -> Void)? = nil) {
-        LogManager.shared.info("🔄 Starting smart refresh for: \(podcast.title ?? "Unknown") \(limitToRecent ? "(limited to recent episodes)" : "(full feed)")")
-        
         guard let feedUrl = podcast.feedUrl else {
             LogManager.shared.error("❌ No valid feed URL for: \(podcast.title ?? "Unknown")")
             completion?()
@@ -61,7 +59,6 @@ class EpisodeRefresher {
         objc_sync_exit(podcastRefreshLocks)
         
         guard lock.try() else {
-            print("⏩ Skipping refresh for \(podcast.title ?? "podcast"), already in progress")
             completion?()
             return
         }
@@ -334,10 +331,6 @@ class EpisodeRefresher {
         // 🆕 Limit episodes to most recent 50 if requested
         let episodesToProcess = limitToRecent ? Array(items.prefix(25)) : items
         
-        if limitToRecent {
-            LogManager.shared.info("📦 Processing recent \(episodesToProcess.count) episodes out of \(items.count) total for: \(podcast.title ?? "Unknown")")
-        }
-        
         // 🚀 Pre-fetch all existing episodes to avoid repeated database queries
         let existingEpisodes = fetchAllExistingEpisodes(for: podcast, context: context)
         
@@ -495,7 +488,7 @@ class EpisodeRefresher {
             if newestEpisode.isPlayed {
                 LogManager.shared.info("📥 Skipping queueing for played episode: \(newestEpisode.title ?? "Unknown")")
             } else {
-                newestEpisode.isQueued = true
+                addToQueue(newestEpisode)
                 LogManager.shared.info("📥 Queued newest episode: \(newestEpisode.title ?? "Unknown")")
             }
         }
@@ -665,8 +658,6 @@ class EpisodeRefresher {
             
             let semaphore = DispatchSemaphore(value: 3) // Slightly higher since HEAD requests are faster
             let group = DispatchGroup()
-            var refreshedCount = 0
-            var skippedCount = 0
             
             let startTime = Date()
             
@@ -695,8 +686,6 @@ class EpisodeRefresher {
                     if backgroundContext.hasChanges {
                         try backgroundContext.save()
                         LogManager.shared.info("✅ Background context saved after smart refresh")
-                    } else {
-                        print("ℹ️ No background context changes to save")
                     }
                     
                     // Run deduplication less frequently

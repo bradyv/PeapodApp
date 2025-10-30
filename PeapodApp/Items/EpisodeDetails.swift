@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct EpisodeDetails: View {
-    @ObservedObject var episode: Episode
+    let data: EpisodeCellData
     var displayedInQueue: Bool = false
     
     var body: some View {
@@ -20,14 +20,14 @@ struct EpisodeDetails: View {
                 .hidden()
                 .overlay(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(episode.title ?? "Episode title")
+                        Text(data.title)
                             .foregroundStyle(displayedInQueue ? .white : .heading)
                             .titleCondensed()
                             .lineLimit(2)
                             .layoutPriority(1)
                             .multilineTextAlignment(.leading)
                         
-                        Text(parseHtml(episode.episodeDescription ?? "Episode description", flat: true))
+                        Text(parseHtml(data.episodeDescription))
                             .foregroundStyle(displayedInQueue ? .white.opacity(0.75) : .text)
                             .textBody()
                             .lineLimit(3)

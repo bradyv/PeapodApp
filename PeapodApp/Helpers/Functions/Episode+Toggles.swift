@@ -11,30 +11,18 @@ import CoreData
 private let queueLock = NSLock()
 
 /// Toggle episode in queue using boolean approach
-@MainActor func toggleQueued(_ episode: Episode, toFront: Bool = false, pushingPrevious current: Episode? = nil, episodesViewModel: EpisodesViewModel? = nil) {
+@MainActor func toggleQueued(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
 
-    if toFront {
-        if let current = current, current.id != episode.id {
-            // Ensure current episode is queued
-            if !current.isQueued {
-                current.isQueued = true
-            }
-            moveEpisodeInQueue(current, to: 1, episodesViewModel: episodesViewModel)
-        }
+    if episode.isQueued {
+        episode.isQueued = false
+        episode.objectWillChange.send()
     } else {
-        // 🔥 Immediate toggle for UI feedback
-        if episode.isQueued {
-            episode.isQueued = false
-            episode.objectWillChange.send()
-        } else {
-            episode.isQueued = true
-            episode.objectWillChange.send()
-        }
-        
-        // 🔥 CRITICAL: Update EpisodesViewModel immediately for animations
-        episodesViewModel?.fetchQueue()
+        episode.isQueued = true
+        episode.objectWillChange.send()
     }
+    
+    episodesViewModel?.fetchQueue()
     
     do {
         try context.save()
@@ -47,17 +35,10 @@ private let queueLock = NSLock()
         // Also revert the view model
         episodesViewModel?.fetchQueue()
     }
-    
-    if !toFront {
-        // Reindex in background after UI update
-        Task {
-            reindexQueuePositions(context: context, episodesViewModel: episodesViewModel)
-        }
-    }
 }
 
 /// Add episode to queue
-private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
+func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
     
     // Check if already in queue
@@ -66,7 +47,26 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     }
     
     episode.isQueued = true
-    LogManager.shared.info("✅ Added episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+    
+    // Download the episode on the main actor
+    Task { @MainActor in
+        DownloadManager.shared.downloadEpisode(episode)
+    }
+    
+    do {
+        try context.save()
+        LogManager.shared.info("✅ Added episode to queue: \(episode.title?.prefix(30) ?? "Episode")")
+        
+    } catch {
+        LogManager.shared.error("⚠️ Error saving queue toggle: \(error)")
+        // Revert the change if save failed
+        episode.isQueued.toggle()
+        
+        Task { @MainActor in
+            // Also revert the view model
+            episodesViewModel?.fetchQueue()
+        }
+    }
 }
 
 /// Remove episode from queue
@@ -74,41 +74,42 @@ private func addToQueue(_ episode: Episode, episodesViewModel: EpisodesViewModel
     guard let context = episode.managedObjectContext else { return }
     
     if !episode.isQueued {
-        LogManager.shared.warning("⚠️ Episode not marked as queued in Core Data, but forcing removal from UI: \(episode.title?.prefix(30) ?? "Episode")")
+        LogManager.shared.warning("Episode not queued: \(episode.title?.prefix(30) ?? "Episode")")
     }
     
-    // 🔥 Immediate change for UI feedback
     episode.isQueued = false
     episode.objectWillChange.send()
     
-    // 🔥 CRITICAL: Update EpisodesViewModel immediately for animations
     episodesViewModel?.fetchQueue()
     
-    LogManager.shared.info("✅ Removing episode from queue: \(episode.title?.prefix(30) ?? "Episode")")
+    // Check if playback entity can be deleted
+    var shouldDeletePlayback = false
+    if let playback = episode.playbackState {
+        let canDelete = !playback.isPlayed &&
+                       !playback.isFav &&
+                       playback.playbackPosition <= 0
+        
+        if canDelete {
+            shouldDeletePlayback = true
+        }
+    }
     
     do {
         try context.save()
-        LogManager.shared.info("✅ Episode removed from queue successfully")
         
-        // Reindex positions in background after UI update
-        Task {
-            reindexQueuePositions(context: context, episodesViewModel: episodesViewModel)
+        if shouldDeletePlayback, let playback = episode.playbackState {
+            context.delete(playback)
+            try context.save()
         }
-        
     } catch {
-        LogManager.shared.error("⚠️ Error removing from queue: \(error)")
-        // Revert the change if save failed
+        LogManager.shared.error("Error removing from queue: \(error)")
         episode.isQueued = true
         context.rollback()
-        // Also revert the view model
         episodesViewModel?.fetchQueue()
         return
     }
-    
-    AudioPlayerManager.shared.handleQueueRemoval()
 }
 
-/// Move episode to specific position in queue
 func moveEpisodeInQueue(_ episode: Episode, to position: Int, episodesViewModel: EpisodesViewModel? = nil) {
     guard let context = episode.managedObjectContext else { return }
     

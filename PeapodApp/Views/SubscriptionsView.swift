@@ -10,27 +10,43 @@ import Kingfisher
 
 struct SubscriptionsView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @State private var selectedEpisodeForNavigation: Episode? = nil
+    @StateObject private var userManager = UserManager.shared
+    @State private var showUpgrade = false
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest(), animation: .none)
     var subscriptions: FetchedResults<Podcast>
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     
     var body: some View {
         ScrollView {
-            // Actual grid with Add button + (possibly empty) real subscriptions
-            LazyVGrid(columns: columns, spacing: 16) {
-                // Real podcasts - optimized for scroll performance
-                ForEach(subscriptions, id: \.objectID) { podcast in
-                    NavigationLink {
-                        PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
-                    } label: {
-                        ArtworkView(url: podcast.image ?? "", cornerRadius: 24)
-//                        PodcastGridItem(podcast: podcast)
+            VStack(alignment:.leading,spacing:32) {
+                userStatsSection
+                    .padding(.horizontal)
+                LatestEpisodesView(mini:true, maxItems: 5)
+                FavEpisodesView(mini: true, maxItems: 5)
+                
+                VStack(spacing: 8) {
+                    HStack(alignment: .center) {
+                        Text("Following")
+                            .titleSerifMini()
+                            .padding(.leading)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Actual grid with Add button + (possibly empty) real subscriptions
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        // Real podcasts - optimized for scroll performance
+                        ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" }), id: \.objectID) { podcast in
+                            NavigationLink {
+                                PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
+                            } label: {
+                                ArtworkView(url: podcast.image ?? "", cornerRadius: 24)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
                 }
             }
+            .frame(maxWidth:.infinity, alignment:.leading)
         }
-        .contentMargins(.horizontal, 16, for: .scrollContent)
         .background(Color.background)
         .toolbar {
             if !episodesViewModel.queue.isEmpty {
@@ -40,6 +56,70 @@ struct SubscriptionsView: View {
                     MiniPlayerButton()
                 }
             }
+        }
+        .sheet(isPresented: $showUpgrade) {
+            UpgradeView()
+                .modifier(PPSheet())
+        }
+    }
+    
+    @ViewBuilder
+    private var userStatsSection: some View {
+        VStack(alignment:.leading) {
+            if userManager.hasPremiumAccess {
+                ActivityView(mini:true)
+            } else {
+                HStack(spacing:28) {
+                    VStack(alignment:.leading,spacing:10) {
+                        SkeletonItem(width:44, height:8)
+                        VStack(alignment:.leading,spacing:4) {
+                            SkeletonItem(width:68, height:24)
+                            SkeletonItem(width:33, height:12)
+                        }
+                    }
+                    .fixedSize()
+                    
+                    VStack(alignment:.leading,spacing:10) {
+                        SkeletonItem(width:44, height:8)
+                        SkeletonItem(width:40, height:40)
+                    }
+                    .fixedSize()
+                    
+                    WeeklyListeningLineChart(
+                        weeklyData: WeeklyListeningLineChart.mockData,
+                        favoriteDayName: "Friday",
+                        mini: true
+                    )
+                    .frame(maxWidth:.infinity)
+                }
+                .frame(maxWidth:.infinity, alignment:.leading)
+            }
+            
+            Spacer().frame(height:16)
+            
+            moreStatsButton
+        }
+        .padding()
+        .background(Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius:26))
+    }
+    
+    @ViewBuilder
+    private var moreStatsButton: some View {
+        if userManager.hasPremiumAccess {
+            NavigationLink {
+                ActivityView()
+            } label: {
+                Text("View More")
+            }
+            .buttonStyle(.glass)
+        } else {
+            Button {
+                showUpgrade = true
+            } label: {
+                Label("Unlock Stats", systemImage: "lock.fill")
+            }
+            .buttonStyle(.glassProminent)
         }
     }
 }
@@ -55,10 +135,10 @@ struct SubscriptionsRow: View {
             VStack(spacing: 8) {
                 NavigationLink {
                     SubscriptionsView()
-                        .navigationTitle("Following")
+                        .navigationTitle("Library")
                 } label: {
                     HStack(alignment: .center) {
-                        Text("Following")
+                        Text("Library")
                             .titleSerifMini()
                             .padding(.leading)
                         
@@ -70,7 +150,7 @@ struct SubscriptionsRow: View {
                 
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 16) {
-                        ForEach(subscriptions, id: \.objectID) { podcast in
+                        ForEach(subscriptions.sorted(by: { $1.title?.trimmedTitle() ?? "Podcast title" > $0.title?.trimmedTitle() ?? "Podcast title" }), id: \.objectID) { podcast in
                             NavigationLink {
                                 PodcastDetailView(feedUrl: podcast.feedUrl ?? "")
                             } label: {

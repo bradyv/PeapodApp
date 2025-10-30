@@ -15,6 +15,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     @Published var unplayed: [Episode] = []
     @Published var favs: [Episode] = []
     @Published var old: [Episode] = []
+    @Published var downloaded: [Episode] = []
     
     // Add loading state properties
     @Published var isLoading: Bool = true
@@ -47,11 +48,10 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             object: nil
         )
         
-        // 🔥 NEW: Listen for queue updates from AudioPlayerManager
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(queueDidUpdate),
-            name: .episodeQueueUpdated,
+            selector: #selector(downloadDidUpdate),
+            name: .downloadDidUpdate,
             object: nil
         )
     }
@@ -65,6 +65,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
                 group.addTask { await self.fetchUnplayedAsync() }
                 group.addTask { await self.fetchFavsAsync() }
                 group.addTask { await self.fetchOldAsync() }
+                group.addTask { await self.fetchDownloadedAsync() } // 🔥 NEW
             }
             
             // Mark as loaded when all initial fetches are complete
@@ -84,7 +85,12 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         }
     }
     
-    // 🔥 NEW: Handle queue updates from AudioPlayerManager
+    @objc private func downloadDidUpdate() {
+        Task { @MainActor in
+            await fetchDownloadedAsync()
+        }
+    }
+    
     @objc private func queueDidUpdate() {
         Task { @MainActor in
             fetchQueue()
@@ -101,7 +107,6 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         self.queue = episodes
     }
     
-    // 🔥 NEW: Async version for background updates - now returns async
     func fetchQueueAsync() async {
         guard let context = context else { return }
         
@@ -288,6 +293,63 @@ final class EpisodesViewModel: NSObject, ObservableObject {
             self.old = result
         }
     }
+    
+    func fetchDownloaded() {
+        Task {
+            await fetchDownloadedAsync()
+        }
+    }
+    
+    func fetchDownloadedAsync() async {
+        guard let context = context else { return }
+        
+        // Get list of downloaded episode IDs from file system
+        let downloadedIds = await getDownloadedEpisodeIds()
+        
+        guard !downloadedIds.isEmpty else {
+            await MainActor.run {
+                self.downloaded = []
+            }
+            return
+        }
+        
+        let result: [Episode] = await withCheckedContinuation { continuation in
+            context.perform {
+                let request: NSFetchRequest<Episode> = Episode.fetchRequest()
+                request.predicate = NSPredicate(format: "id IN %@", downloadedIds)
+                request.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
+                
+                do {
+                    let episodes = try context.fetch(request)
+                    continuation.resume(returning: episodes)
+                } catch {
+                    LogManager.shared.error("⚠️ Failed to fetch downloaded episodes: \(error)")
+                    continuation.resume(returning: [])
+                }
+            }
+        }
+        
+        await MainActor.run {
+            self.downloaded = result
+        }
+    }
+    
+    private func getDownloadedEpisodeIds() async -> [String] {
+        return await Task.detached {
+            let fileManager = FileManager.default
+            let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let downloadsURL = documentsURL.appendingPathComponent("Downloads", isDirectory: true)
+            
+            guard let files = try? fileManager.contentsOfDirectory(at: downloadsURL, includingPropertiesForKeys: nil) else {
+                return []
+            }
+            
+            return files.compactMap { url -> String? in
+                let filename = url.lastPathComponent
+                return filename.hasSuffix(".mp3") ? String(filename.dropLast(4)) : nil
+            }
+        }.value
+    }
 
     func fetchAll() {
         fetchQueue()
@@ -295,6 +357,7 @@ final class EpisodesViewModel: NSObject, ObservableObject {
         fetchUnplayed()
         fetchFavs()
         fetchOld()
+        fetchDownloaded()
     }
 
     func refreshEpisodes() {
@@ -316,4 +379,8 @@ final class EpisodesViewModel: NSObject, ObservableObject {
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
+}
+
+extension Notification.Name {
+    static let downloadDidUpdate = Notification.Name("downloadDidUpdate")
 }

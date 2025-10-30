@@ -9,7 +9,6 @@ import SwiftUI
 
 struct FavEpisodesView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
     
     let mini: Bool
@@ -57,6 +56,7 @@ struct FavEpisodesView: View {
                 ScrollView(.horizontal) {
                     episodesCells
                 }
+                .scrollClipDisabled(true)
                 .contentMargins(.horizontal, 16, for: .scrollContent)
                 .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)
@@ -98,9 +98,38 @@ struct FavEpisodesView: View {
                 EpisodeView(episode:episode)
                     .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
             } label: {
-                EpisodeCell(episode: episode)
-                    .matchedTransitionSource(id: episode.id, in: namespace)
-                    .lineLimit(3)
+                EpisodeCell(
+                    data: EpisodeCellData(from: episode),
+                    episode: episode
+                )
+                .matchedTransitionSource(id: episode.id, in: namespace)
+                .lineLimit(3)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button {
+                    withAnimation {
+                        if episode.isQueued {
+                            removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                        } else {
+                            addToQueue(episode, episodesViewModel: episodesViewModel)
+                        }
+                    }
+                } label: {
+                    Label(
+                        episode.isQueued ? "Archive" : "Up Next",
+                        systemImage: episode.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled"
+                    )
+                }
+                .tint(.accentColor)
+            }
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button {
+                    toggleFav(episode)
+                } label: {
+                    Label(episode.isFav ? "Undo" : "Favorite",
+                          systemImage: episode.isFav ? "heart.slash" : "heart")
+                }
+                .tint(.orange)
             }
         }
     }
@@ -113,9 +142,12 @@ struct FavEpisodesView: View {
                     EpisodeView(episode:episode)
                         .navigationTransition(.zoom(sourceID: "\(episode.id ?? "")-favs", in: namespace))
                 } label: {
-                    EpisodeCell(episode: episode)
-                        .frame(width: UIScreen.main.bounds.width - 40)
-                        .matchedTransitionSource(id: "\(episode.id ?? "")-favs", in: namespace)
+                    EpisodeCell(
+                        data: EpisodeCellData(from: episode),
+                        episode: episode
+                    )
+                    .frame(width: UIScreen.main.bounds.width - 40)
+                    .matchedTransitionSource(id: "\(episode.id ?? "")-favs", in: namespace)
                 }
             }
         }

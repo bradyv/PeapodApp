@@ -18,15 +18,12 @@ struct PodcastDetailView: View {
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
     @FetchRequest var podcastResults: FetchedResults<Podcast>
     @State private var episodes: [Episode] = []
-    @State var showFullDescription: Bool = false
     @State private var scrollOffset: CGFloat = 0
     @State private var showDebugTools = false
     @State private var showConfirm = false
-    @State private var query = ""
     @State private var showSearch = false
     @State private var isLoading = true
     @State private var loadedPodcast: Podcast? = nil
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @Namespace private var namespace
     
     var podcast: Podcast? { loadedPodcast ?? podcastResults.first }
@@ -120,9 +117,12 @@ struct PodcastDetailView: View {
                                     EpisodeView(episode:episode)
                                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                                 } label: {
-                                    EpisodeCell(episode:episode, showPodcast:false)
-                                        .matchedTransitionSource(id: episode.id, in: namespace)
-                                        .frame(maxWidth:.infinity)
+                                    EpisodeCell(
+                                        data: EpisodeCellData(from: episode),
+                                        episode: episode
+                                    )
+                                    .matchedTransitionSource(id: episode.id, in: namespace)
+                                    .frame(maxWidth:.infinity)
                                 }
                             }
                         }
@@ -163,9 +163,14 @@ struct PodcastDetailView: View {
                         await EpisodeRefresher.refreshPodcastEpisodes(for: podcast, context: context, limitToRecent: true)
                     }
                 }
-                .navigationTitle(scrollOffset < -194 ? "\(podcast.title ?? "")" : "")
+                .navigationTitle(podcast.title ?? "")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement:.principal) {
+                        Text(scrollOffset < -250 ? "\(podcast.title ?? "") " : " ")
+                            .font(.system(.headline, design: .serif))
+                    }
+                    
                     ToolbarItem {
                         subscribeButton()
                     }
@@ -239,19 +244,31 @@ struct PodcastDetailView: View {
     @ViewBuilder
     var LoadingView: some View {
         ScrollView {
-            SkeletonItem(width:128, height:128, cornerRadius:32)
+            Color.clear
+                .frame(height: 1)
+                .trackScrollOffset("scroll") { value in
+                    scrollOffset = value
+                }
+            
+            Spacer().frame(height:24)
+            
+            SkeletonItem(width:128, height:128, cornerRadius:24)
                 .rotationEffect(.degrees(2))
             
-            SkeletonItem(height:34)
+            Spacer().frame(height:16)
             
-            Spacer().frame(height:32)
+            SkeletonItem(width:128, height:34)
+            
+            Spacer().frame(height:36)
             
             Text("Episodes")
-                .titleSerifSm()
+                .titleSerifMini()
                 .frame(maxWidth:.infinity, alignment:.leading)
             
-            ForEach(1...3, id: \.self) { _ in
-                EmptyEpisodeCell()
+            VStack(spacing:24) {
+                ForEach(1...3, id: \.self) { _ in
+                    EmptyEpisodeCell()
+                }
             }
         }
         .disabled(true)
@@ -264,67 +281,35 @@ struct PodcastDetailView: View {
         Button(action: {
             guard let podcast = podcast else { return }
             
-            // Toggle subscription state
-            podcast.isSubscribed.toggle()
+            let wasSubscribed = podcast.isSubscribed
+            
+            if wasSubscribed {
+                PodcastSubscriptionManager.shared.unsubscribe(
+                    from: podcast,
+                    context: context,
+                    removeEpisodes: false
+                )
+            } else {
+                PodcastSubscriptionManager.shared.subscribe(
+                    to: podcast,
+                    context: context,
+                    queueLatestEpisode: true
+                )
+            }
             
             // Show toast message
-            toastManager.show(message: podcast.isSubscribed ? "Followed \(podcast.title ?? "")" : "Unfollowed \(podcast.title ?? "")", icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle")
+            toastManager.show(
+                message: podcast.isSubscribed ? "Followed \(podcast.title ?? "")" : "Unfollowed \(podcast.title ?? "")",
+                icon: podcast.isSubscribed ? "checkmark.circle" : "minus.circle"
+            )
             
-            if podcast.isSubscribed {
-                // FIXED: Add latest episode to queue when subscribing using boolean approach
-                if let latest = episodes.first {
-                    latest.isQueued = true
-                    LogManager.shared.info("🔥 Queued latest episode when subscribing: \(latest.title ?? "Unknown")")
-                }
-                
-            } else {
-                // Remove all of this podcast's episodes from all playlists when unsubscribing
-                removeAllEpisodesFromPlaylists(for: podcast)
-            }
-
-            // Save Core Data changes
-            do {
-                try podcast.managedObjectContext?.save()
-                
-                // 🔥 Sync subscription changes with Firebase after Core Data save
-                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
-                
-                // Refresh episodes after subscription change
-                refreshEpisodes()
-                
-            } catch {
-                LogManager.shared.error("⚠️ Failed to save subscription change: \(error)")
-            }
+            // Refresh episodes list
+            refreshEpisodes()
         }) {
             Text(podcast?.isSubscribed == true ? "Unfollow" : "Follow")
                 .if(podcast?.isSubscribed != true, transform: { $0.foregroundStyle(.white) })
                 .titleCondensed()
         }
         .if(podcast?.isSubscribed != true, transform: { $0.buttonStyle(.glassProminent) })
-    }
-    
-    // Helper function to remove all episodes from playlists when unsubscribing
-    private func removeAllEpisodesFromPlaylists(for podcast: Podcast) {
-        // Get all episodes for this podcast
-        let request: NSFetchRequest<Episode> = Episode.fetchRequest()
-        request.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
-        
-        do {
-            let podcastEpisodes = try context.fetch(request)
-            
-            // Clear all boolean states for episodes from this podcast
-            for episode in podcastEpisodes {
-                episode.isQueued = false
-                // Also reset playback position
-                episode.playbackPosition = 0
-            }
-            
-            // Save the changes
-            try context.save()
-            LogManager.shared.info("✅ Removed all episodes from playlists for podcast: \(podcast.title ?? "Unknown")")
-            
-        } catch {
-            LogManager.shared.error("⚠️ Failed to remove episodes from playlists: \(error)")
-        }
     }
 }

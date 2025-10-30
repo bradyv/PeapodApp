@@ -65,6 +65,8 @@ class OPMLImportManager: ObservableObject {
     @Published var totalPodcasts: Int = 0
     @Published var processedPodcasts: Int = 0
     
+    private var successfullyLoadedPodcasts: [Podcast] = []
+    
     func importOPML(xmlString: String, context: NSManagedObjectContext) {
         Task {
             await performImport(xmlString: xmlString, context: context)
@@ -91,8 +93,21 @@ class OPMLImportManager: ObservableObject {
         let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
         backgroundContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         
+        // Reset the successfully loaded podcasts array
+        successfullyLoadedPodcasts = []
+        
         // Process feeds with concurrency control
         await processFeedsWithConcurrency(feedUrls: feedUrls, context: backgroundContext)
+        
+        // ✅ USE CENTRALIZED SUBSCRIPTION MANAGER FOR BULK SUBSCRIBE
+        // Subscribe to all successfully loaded podcasts at once
+        if !successfullyLoadedPodcasts.isEmpty {
+            PodcastSubscriptionManager.shared.subscribeBulk(
+                to: successfullyLoadedPodcasts,
+                context: backgroundContext,
+                queueLatestEpisodes: true
+            )
+        }
         
         currentStatus = "Added \(processedPodcasts) podcasts to your library."
         isComplete = true
@@ -142,18 +157,22 @@ class OPMLImportManager: ObservableObject {
                         if let rss = feed.rssFeed {
                             // Create podcast metadata using new approach
                             let podcast = self.createPodcastMetadataOnly(from: rss, feedUrl: feedUrl, context: context)
-                            podcast.isSubscribed = true
+                            
+                            // Don't set isSubscribed yet - we'll do bulk subscription later
+                            // Just create the podcast entity
                             
                             // Save podcast first
                             do {
                                 try context.save()
                                 LogManager.shared.info("✅ Created podcast: \(podcast.title ?? feedUrl)")
                                 
+                                // Store the podcast for later bulk subscription
+                                Task { @MainActor in
+                                    self.successfullyLoadedPodcasts.append(podcast)
+                                }
+                                
                                 // Load initial episodes
                                 EpisodeRefresher.loadInitialEpisodes(for: podcast, context: context) {
-                                    // Find latest episode and add to queue
-                                    self.queueLatestEpisode(for: podcast, context: context)
-                                    
                                     Task { @MainActor in
                                         self.incrementProgressSync()
                                     }
@@ -234,20 +253,6 @@ class OPMLImportManager: ObservableObject {
     private func forceHTTPS(_ urlString: String?) -> String? {
         guard let urlString = urlString else { return nil }
         return urlString.replacingOccurrences(of: "http://", with: "https://")
-    }
-    
-    // Helper to queue latest episode using new playlist system
-    private func queueLatestEpisode(for podcast: Podcast, context: NSManagedObjectContext) {
-        let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-        episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
-        episodeRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
-        episodeRequest.fetchLimit = 1
-        
-        if let latestEpisode = try? context.fetch(episodeRequest).first {
-            // Add to queue using new playlist system
-            addEpisodeToPlaylist(latestEpisode, playlistName: "Queue")
-            LogManager.shared.info("🎵 Added latest episode to queue: \(latestEpisode.title ?? "Unknown")")
-        }
     }
     
     @MainActor

@@ -18,6 +18,7 @@ struct Peapod: App {
     @StateObject private var appStateManager = AppStateManager()
     @StateObject private var userManager = UserManager.shared
     @StateObject private var audioPlayer = AudioPlayerManager.shared
+    @StateObject private var downloadManager = DownloadManager.shared
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     // Get the episodes view model from AppDelegate instead of creating a new one
@@ -40,7 +41,8 @@ struct Peapod: App {
                 .environmentObject(toastManager)
                 .environmentObject(userManager)
                 .environmentObject(audioPlayer)
-                .environmentObject(episodesViewModel) // This is now coming from AppDelegate
+                .environmentObject(episodesViewModel)
+                .environmentObject(downloadManager)
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
     }

@@ -26,10 +26,31 @@ struct PodcastDetailsRow: View {
                 }
             }
             
-            Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
-                .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : .text)
-                .textDetail()
+            if episode.isQueued && !displayedInQueue {
+                HStack(spacing:4) {
+                    Image(systemName:"rectangle.portrait.on.rectangle.portrait.angled")
+                        .textDetail()
+                    
+                    Text("Up Next")
+                        .textDetail()
+                }
+            } else if episode.isPlayed && !displayedInQueue {
+                HStack(spacing:4) {
+                    Image(systemName:"checkmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(Color.heading)
+                        .textDetail()
+                    
+                    Text("Played")
+                        .textDetail()
+                }
+            } else {
+//                Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
+                RoundedRelativeDateView(date: episode.airDate ?? Date.now)
+                    .foregroundStyle(displayedInQueue ? Color.white.opacity(0.75) : .text)
+                    .textDetail()
+            }
         }
-        .frame(maxWidth: .infinity, alignment: displayedInQueue ? .leading : .center)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

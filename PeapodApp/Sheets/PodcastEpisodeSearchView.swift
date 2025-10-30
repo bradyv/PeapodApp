@@ -18,7 +18,6 @@ struct PodcastEpisodeSearchView: View {
     @State private var query = ""
     @State private var hasMoreEpisodes = true
     @State private var isLoadingMoreEpisodes = false
-    @FocusState private var isTextFieldFocused: Bool
     @Namespace private var namespace
 
     init(podcast: Podcast, showSearch: Binding<Bool>) {
@@ -83,9 +82,38 @@ struct PodcastEpisodeSearchView: View {
                     EpisodeView(episode:episode)
                         .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
                 } label: {
-                    EpisodeCell(episode: episode, showPodcast:false)
-                        .matchedTransitionSource(id: episode.id, in: namespace)
-                        .lineLimit(3)
+                    EpisodeCell(
+                        data: EpisodeCellData(from: episode),
+                        episode: episode
+                    )
+                    .matchedTransitionSource(id: episode.id, in: namespace)
+                    .lineLimit(3)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button {
+                        withAnimation {
+                            if episode.isQueued {
+                                removeFromQueue(episode, episodesViewModel: episodesViewModel)
+                            } else {
+                                addToQueue(episode, episodesViewModel: episodesViewModel)
+                            }
+                        }
+                    } label: {
+                        Label(
+                            episode.isQueued ? "Archive" : "Up Next",
+                            systemImage: episode.isQueued ? "rectangle.portrait.on.rectangle.portrait.slash" : "rectangle.portrait.on.rectangle.portrait.angled"
+                        )
+                    }
+                    .tint(.accentColor)
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    Button {
+                        toggleFav(episode)
+                    } label: {
+                        Label(episode.isFav ? "Undo" : "Favorite",
+                              systemImage: episode.isFav ? "heart.slash" : "heart")
+                    }
+                    .tint(.orange)
                 }
             }
             

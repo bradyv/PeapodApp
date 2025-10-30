@@ -9,17 +9,8 @@ import SwiftUI
 import Kingfisher
 
 struct QueueItem: View {
-    @ObservedObject var episode: Episode
-    @EnvironmentObject var player: AudioPlayerManager
-    
-    // Computed properties based on unified state
-    private var isPlaying: Bool {
-        player.isPlayingEpisode(episode)
-    }
-    
-    private var isLoading: Bool {
-        player.isLoadingEpisode(episode)
-    }
+    let data: EpisodeCellData
+    let episode: Episode
     
     var body: some View {
         let frame = UIScreen.main.bounds.width - 40
@@ -38,7 +29,7 @@ struct QueueItem: View {
                 Spacer()
             }
             
-            EpisodeItem(episode: episode)
+            EpisodeItem(data: data, episode: episode)
                 .lineLimit(3)
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -84,7 +75,7 @@ struct EmptyQueueItem: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal).padding(.bottom, 16)
         }
-        .frame(width: frame, height: 250, alignment: .bottomLeading)
+        .frame(width: frame, height: 450, alignment: .bottomLeading)
         .background(Color.heading.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: 32))
         .overlay(RoundedRectangle(cornerRadius: 32).strokeBorder(Color.heading.opacity(0.5), lineWidth: 1))

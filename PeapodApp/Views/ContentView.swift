@@ -14,27 +14,16 @@ struct ContentView: View {
     @EnvironmentObject var appStateManager: AppStateManager
     @EnvironmentObject var toastManager: ToastManager
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @EnvironmentObject var player: AudioPlayerManager
     @Environment(\.scenePhase) private var scenePhase
     @FetchRequest(fetchRequest: Podcast.subscriptionsFetchRequest())
     var subscriptions: FetchedResults<Podcast>
     @State private var lastRefreshDate = Date.distantPast
     @State private var selectedEpisode: Episode? = nil
-    @State private var query = ""
-    @State private var selectedTab: Tabs = .listen
     @State private var episodeID = UUID()
-    @State private var rotateTrigger = false
-    @State private var selectedEpisodeForNavigation: Episode? = nil
     @StateObject private var opmlImportManager = OPMLImportManager()
     @State private var showFileBrowser: Bool = false
     @State private var selectedOPMLContent: String = ""
     @Namespace private var namespace
-    
-    enum Tabs: Hashable {
-        case listen
-        case library
-        case search
-    }
 
     var body: some View {
         switch appStateManager.currentState {
@@ -118,6 +107,25 @@ struct ContentView: View {
                         } else {
                             LogManager.shared.error("❌ Could not find episode for id \(id)")
                         }
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PlayEpisodeFromCarPlay"))) { notification in
+                    print("🎵 ContentView received CarPlay play notification")
+                    if let episodeID = notification.object as? String {
+                        print("🎵 Looking for episode with ID: \(episodeID)")
+                        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                        fetchRequest.predicate = NSPredicate(format: "id == %@", episodeID)
+                        fetchRequest.fetchLimit = 1
+                        
+                        if let episode = try? context.fetch(fetchRequest).first {
+                            print("🎵 Found episode: \(episode.title ?? "Unknown")")
+                            print("🎵 Calling togglePlayback")
+                            AudioPlayerManager.shared.togglePlayback(for: episode)
+                        } else {
+                            print("❌ Episode not found with ID: \(episodeID)")
+                        }
+                    } else {
+                        print("❌ No episode ID in notification")
                     }
                 }
 //                .toast()
@@ -234,14 +242,13 @@ struct ContentView: View {
                     MainBackground()
                     
                     ScrollView {
+                        Spacer().frame(height:4)
                         if episodesViewModel.isLoading {
                             LoadingView
                                 .transition(.opacity)
                         } else {
                             VStack(spacing: 32) {
                                 QueueView()
-                                LatestEpisodesView(mini:true, maxItems: 5)
-                                FavEpisodesView(mini: true, maxItems: 5)
                                 SubscriptionsRow()
                                 Spacer().frame(height:0)
                             }
@@ -251,8 +258,12 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.3), value: episodesViewModel.isLoading)
                 }
             }
-            .navigationTitle("Up Next")
+            .navigationTitle("Peapod")
             .background(Color.background)
+            .navigationDestination(item: $selectedEpisode) { episode in
+                EpisodeView(episode: episode)
+                    .navigationTransition(.zoom(sourceID: episode.id, in: namespace))
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -263,11 +274,24 @@ struct ContentView: View {
                     .labelStyle(.iconOnly)
                 }
                 
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    NavigationLink {
+                        QueueListView()
+                    } label: {
+                        Label("Up Next", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
+                    }
+                    .labelStyle(.iconOnly)
+                    
+                    NavigationLink {
+                        DownloadsView()
+                    } label: {
+                        Label("Downloads", systemImage: "arrow.down.circle")
+                    }
+                    
                     NavigationLink {
                         SettingsView()
                     } label: {
-                        Label("Settings", systemImage: "person.crop.circle")
+                        Label("Settings", systemImage: "gear")
                     }
                     .labelStyle(.iconOnly)
                 }
@@ -298,26 +322,39 @@ struct ContentView: View {
                                            startPoint: .top, endPoint: .init(x: 0.5, y: 0.8))
                         )
                     }
-                    .frame(height: 250)
+                    .frame(height: 450)
                 }
+                .frame(maxWidth:.infinity, alignment:.leading)
             }
             .frame(maxWidth:.infinity, alignment:.leading)
-            
-            VStack(alignment:.leading, spacing: 8) {
-                Text("Recent Releases")
+//
+//            VStack(alignment:.leading, spacing: 8) {
+//                Text("Recent Releases")
+//                    .titleSerifMini()
+//
+//                EmptyEpisodeCell()
+//            }
+//            .frame(maxWidth:.infinity,alignment:.leading)
+//
+//            VStack(alignment:.leading, spacing: 8) {
+//                Text("Favorites")
+//                    .titleSerifMini()
+//
+//                EmptyEpisodeCell()
+//            }
+//            .frame(maxWidth:.infinity,alignment:.leading)
+//
+            VStack(alignment:.leading, spacing:8) {
+                Text("Library")
                     .titleSerifMini()
                 
-                EmptyEpisodeCell()
+                HStack(spacing: 16) {
+                    let frame = (UIScreen.main.bounds.width - 80) / 3
+                    ForEach(1...3, id:\.self) {_ in
+                        SkeletonItem(width:frame,height:frame,cornerRadius:24)
+                    }
+                }
             }
-            .frame(maxWidth:.infinity,alignment:.leading)
-            
-            VStack(alignment:.leading, spacing: 8) {
-                Text("Favorites")
-                    .titleSerifMini()
-                
-                EmptyEpisodeCell()
-            }
-            .frame(maxWidth:.infinity,alignment:.leading)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal)
@@ -363,52 +400,45 @@ struct ContentView: View {
         }
     }
     
-    // 🆕 Helper to find episode using Firebase episode ID format
-    private func findEpisodeByFirebaseId(_ episodeID: String) {
-        // Firebase episode IDs are in format: encodedFeedUrl_guid
-        let components = episodeID.components(separatedBy: "_")
-        guard components.count >= 2 else {
-            LogManager.shared.error("❌ Invalid episode ID format: \(episodeID)")
-            return
-        }
+    // Helper to find episode using Firebase episode ID format
+    private func findEpisodeByFirebaseId(_ firebaseEpisodeID: String) {
+        LogManager.shared.info("🔍 Searching for episode with Firebase ID (MD5 hash): \(firebaseEpisodeID)")
         
-        let encodedFeedUrl = components[0]
-        let guid = components.dropFirst().joined(separator: "_")
-        
-        // Decode the feed URL
-        guard let feedUrl = encodedFeedUrl.removingPercentEncoding else {
-            LogManager.shared.error("❌ Could not decode feed URL: \(encodedFeedUrl)")
-            return
-        }
-        
-        print("🔍 Searching for episode with GUID: \(guid) in feed: \(feedUrl)")
-        
-        // Find episode by GUID and feed URL
-        let fetchRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "guid == %@ AND podcast.feedUrl == %@", guid, feedUrl)
-        fetchRequest.fetchLimit = 1
+        // Fetch all subscribed podcasts
+        let podcastRequest: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        podcastRequest.predicate = NSPredicate(format: "isSubscribed == YES")
         
         do {
-            if let foundEpisode = try context.fetch(fetchRequest).first {
-                LogManager.shared.info("✅ Found episode from notification: \(foundEpisode.title ?? "Unknown")")
-                selectedEpisode = foundEpisode
-            } else {
-                LogManager.shared.error("❌ Could not find episode with GUID: \(guid) in feed: \(feedUrl)")
-                // Try fallback search by GUID only
-                let fallbackRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                fallbackRequest.predicate = NSPredicate(format: "guid == %@", guid)
-                fallbackRequest.fetchLimit = 1
+            let subscribedPodcasts = try context.fetch(podcastRequest)
+            
+            // Search through all episodes in subscribed podcasts
+            for podcast in subscribedPodcasts {
+                guard let feedUrl = podcast.feedUrl else { continue }
                 
-                if let fallbackEpisode = try context.fetch(fallbackRequest).first {
-                    LogManager.shared.info("✅ Found episode via fallback search: \(fallbackEpisode.title ?? "Unknown")")
-                    selectedEpisode = fallbackEpisode
-                } else {
-                    LogManager.shared.error("❌ Episode not found even with fallback search")
+                let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
+                episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcast.id ?? "")
+                
+                let episodes = try context.fetch(episodeRequest)
+                
+                for episode in episodes {
+                    guard let guid = episode.guid else { continue }
+                    
+                    // Recreate the hash using the same logic as Firebase
+                    let combined = "\(feedUrl)_\(guid)"
+                    let hash = combined.md5Hash()
+                    
+                    if hash == firebaseEpisodeID {
+                        LogManager.shared.info("✅ Found episode by hash match: \(episode.title ?? "Unknown")")
+                        LogManager.shared.info("   Matched: \(feedUrl) + \(guid) = \(hash)")
+                        selectedEpisode = episode
+                        return
+                    }
                 }
             }
+            
+            LogManager.shared.error("❌ Could not find episode matching Firebase ID: \(firebaseEpisodeID)")
         } catch {
             LogManager.shared.error("❌ Error searching for episode: \(error)")
         }
     }
-
 }

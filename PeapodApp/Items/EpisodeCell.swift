@@ -6,115 +6,124 @@
 //
 
 import SwiftUI
-import Pow
 
-struct EpisodeCell: View {
-    @Environment(\.managedObjectContext) private var context
-    @ObservedObject var episode: Episode
-    @EnvironmentObject var player: AudioPlayerManager
-    @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @State private var selectedPodcast: Podcast? = nil
-    @State private var selectedEpisode: Episode? = nil
-    @State private var workItem: DispatchWorkItem?
-    @State private var favoriteCount = 0
-    @Namespace private var namespace
+struct EpisodeCellData: Equatable {
+    let id: String
+    let title: String
+    let podcastTitle: String
+    let podcastImage: String
+    let episodeImage: String?
+    let airDate: Date
+    let isPlayed: Bool
+    let isQueued: Bool
+    let isFav: Bool
+    let feedUrl: String
+    let episodeDescription: String
     
-    var showPodcast: Bool? = true
-    
-    // Computed properties based on unified state
-    private var isPlaying: Bool {
-        player.isPlayingEpisode(episode)
-    }
-    
-    private var isLoading: Bool {
-        player.isLoadingEpisode(episode)
-    }
-    
-    private var playbackPosition: Double {
-        player.getProgress(for: episode)
-    }
-    
-    var body: some View {
-        let hasStarted = isPlaying || player.hasStartedPlayback(for: episode) || player.getProgress(for: episode) > 0.1
-        // Podcast Info Row
-        HStack(spacing: 16) {
-            ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 100, cornerRadius: 24, tilt: false)
-            
-            // Episode Meta
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    HStack(spacing:4) {
-                        if episode.isPlayed {
-                            ZStack {
-                                Image(systemName:"checkmark.circle.fill")
-                                    .foregroundStyle(Color.accentColor)
-                                    .textMini()
-                            }
-                            .background(Color.background)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.background, lineWidth: 1)
-                            )
-                        }
-                        
-                        if showPodcast == true {
-                            Text(episode.podcast?.title ?? "Podcast title")
-                                .lineLimit(1)
-                                .textDetailEmphasis()
-                        }
-                    }
-                    
-                    Text(getRelativeDateString(from: episode.airDate ?? Date.distantPast))
-                        .textDetail()
-                }
-                
-                EpisodeDetails(episode: episode)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading) 
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contextMenu {
-            Button {
-                if episode.isQueued {
-                    withAnimation {
-                        removeFromQueue(episode, episodesViewModel: episodesViewModel)
-                    }
-                } else {
-                    withAnimation {
-                        toggleQueued(episode, episodesViewModel: episodesViewModel)
-                    }
-                }
-            } label: {
-                Label(episode.isQueued ? "Archive" : "Add to Up Next", systemImage:episode.isQueued ? "archivebox" : "text.append")
-            }
-            Button {
-                withAnimation {
-                    toggleFav(episode)
-                }
-            } label: {
-                Label(episode.isFav ? "Undo" : "Add to Favorites", systemImage: episode.isFav ? "heart.slash" : "heart")
-            }
-        }
-        .swipeActions(edge: .trailing) {
-            Button {
-                toggleQueued(episode)
-            } label: {
-                Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-            }
-            .tint(.accentColor)
-        }
-        .swipeActions(edge: .leading) {
-            Button {
-                toggleFav(episode)
-            } label: {
-                Label(episode.isFav ? "Undo" : "Favorite", systemImage: episode.isFav ? "heart.slash" : "heart")
-            }
-            .tint(.red)
-        }
+    init(from episode: Episode) {
+        self.id = episode.id ?? ""
+        self.title = episode.title ?? ""
+        self.podcastTitle = episode.podcast?.title ?? ""
+        self.podcastImage = episode.podcast?.image ?? ""
+        self.episodeImage = episode.episodeImage
+        self.airDate = episode.airDate ?? Date.distantPast
+        self.isPlayed = episode.isPlayed
+        self.isQueued = episode.isQueued
+        self.isFav = episode.isFav
+        self.feedUrl = episode.podcast?.feedUrl ?? ""
+        self.episodeDescription = episode.episodeDescription ?? ""
     }
 }
 
+struct EpisodeCell: View {
+    let data: EpisodeCellData
+    let episode: Episode
+    
+    @EnvironmentObject var player: AudioPlayerManager
+    @EnvironmentObject var episodesViewModel: EpisodesViewModel
+    @EnvironmentObject var downloadManager: DownloadManager
+    
+    private var isDownloaded: Bool {
+        guard let episodeId = episode.id else { return false }
+        // Force dependency on published arrays to trigger updates
+        let _ = episodesViewModel.downloaded
+        return downloadManager.isDownloaded(episodeId: episodeId)
+    }
+    
+    private var isDownloading: Bool {
+        guard let episodeId = episode.id else { return false }
+        // Force dependency on published dictionaries to trigger updates
+        let _ = downloadManager.activeDownloads
+        let _ = downloadManager.downloadQueue
+        return downloadManager.isDownloading(episodeId: episodeId)
+    }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            ArtworkView(
+                url: data.episodeImage ?? data.podcastImage,
+                size: 100,
+                cornerRadius: 24,
+                tilt: false
+            )
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    RoundedRelativeDateView(date: data.airDate)
+                        .lineLimit(1)
+                        .textDetailEmphasis()
+                    
+                    if isDownloaded {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                            .textDetail()
+                    } else if isDownloading {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    }
+                    
+                    if data.isFav {
+                        Image(systemName: "heart.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.orange)
+                            .textDetail()
+                    } else if data.isPlayed {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(Color.heading)
+                                .textDetail()
+                            
+                            Text("Played")
+                                .textDetail()
+                        }
+                    }
+                }
+                
+                EpisodeDetails(data: data)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .contentShape(Rectangle())
+        .contextMenu { contextMenuContent }
+    }
+    
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        ArchiveButton(episode: episode)
+        MarkAsPlayedButton(episode: episode)
+        FavButton(episode: episode)
+        DownloadActionButton(episode: episode)
+        
+        Section(data.podcastTitle) {
+            NavigationLink {
+                PodcastDetailView(feedUrl: data.feedUrl)
+            } label: {
+                Label("View Podcast", systemImage: "widget.small")
+            }
+        }
+    }
+}
 
 struct EmptyEpisodeCell: View {
     var body: some View {

@@ -192,24 +192,12 @@ struct WelcomeView: View {
                             
                             PodcastLoader.loadFeed(from: url, context: context) { loadedPodcast in
                                 if let podcastEntity = loadedPodcast {
-                                    podcastEntity.isSubscribed = true
-                                    
-                                    // Find the latest episode using podcastId instead of relationship
-                                    let episodeRequest: NSFetchRequest<Episode> = Episode.fetchRequest()
-                                    episodeRequest.predicate = NSPredicate(format: "podcastId == %@", podcastEntity.id ?? "")
-                                    episodeRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Episode.airDate, ascending: false)]
-                                    episodeRequest.fetchLimit = 1
-                                    
-                                    do {
-                                        let episodes = try context.fetch(episodeRequest)
-                                        if let latestEpisode = episodes.first {
-                                            toggleQueued(latestEpisode)
-                                        }
-                                    } catch {
-                                        LogManager.shared.error("Failed to fetch latest episode: \(error)")
-                                    }
-                                    
-                                    try? podcastEntity.managedObjectContext?.save()
+                                    // ✅ USE CENTRALIZED SUBSCRIPTION MANAGER
+                                    PodcastSubscriptionManager.shared.subscribe(
+                                        to: podcastEntity,
+                                        context: context,
+                                        queueLatestEpisode: true
+                                    )
                                     
                                     DispatchQueue.main.async {
                                         subscribedPodcasts.insert(podcast.id)

@@ -42,6 +42,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         configureGlobalAudioSession()
+        setupAppLifecycleNotifications()
         
         // Initialize the episodes view model early
         _ = episodesViewModel
@@ -49,8 +50,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         // Schedule the first cleanup
         checkAndRunWeeklyCleanup()
-        
-//        debugPerformCleanupNow()
         
         checkAndRegisterForNotificationsIfGranted()
         
@@ -63,23 +62,45 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         do {
             let session = AVAudioSession.sharedInstance()
             
-            // Use the most permissive configuration
             try session.setCategory(
                 .playback,
-                mode: .default,  // Let system choose best mode
+                mode: .spokenAudio,
                 options: [
                     .allowAirPlay,
                     .allowBluetoothA2DP,
                     .allowBluetoothHFP,
-                    .mixWithOthers  // Allow other apps to interrupt gracefully
+                    .duckOthers
                 ]
             )
             
-            // Don't force active - let the player activate when needed
-            LogManager.shared.info("Audio session configured - system will manage activation")
+            // NEW: Optimize buffer size for faster response
+            try session.setPreferredIOBufferDuration(0.005)  // 5ms for responsive playback
+            
+            // NEW: Ensure high sample rate for quality
+            try session.setPreferredSampleRate(44100)
+            
+            try session.setActive(true)
+            
+            LogManager.shared.info("Audio session configured and activated")
         } catch {
             LogManager.shared.error("Failed to configure audio session: \(error)")
         }
+    }
+
+    // MARK: - App Lifecycle Notifications
+    
+    func setupAppLifecycleNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillResignActive),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appWillResignActive() {
+        // Save playback position immediately when app loses focus
+        AudioPlayerManager.shared.savePositionSync()
     }
 
     // MARK: - Firebase Messaging Delegate
@@ -125,6 +146,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         print("📱 Registered for remote notifications")
         Messaging.messaging().apnsToken = deviceToken
+        
+        // ✅ NEW: Now that we have APNs token, sync topic subscriptions
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            LogManager.shared.info("🔄 APNs token received, syncing subscriptions...")
+            SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+        }
     }
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
@@ -654,7 +681,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         } else {
             let hoursRemaining = Int((sevenDaysInSeconds - timeSinceLastCleanup) / 3600)
             LogManager.shared.info("✅ Cleanup not needed yet - next cleanup in ~\(hoursRemaining) hours")
-            print("✅ Cleanup not needed yet - next cleanup in ~\(hoursRemaining) hours")
         }
     }
 }

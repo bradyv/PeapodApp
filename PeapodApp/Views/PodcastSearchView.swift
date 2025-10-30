@@ -13,7 +13,6 @@ import CoreData
 struct PodcastSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @FocusState private var isTextFieldFocused: Bool
     @State private var query = ""
     @State private var results: [PodcastResult] = []
     @State private var urlFeedPodcast: Podcast?
@@ -24,7 +23,6 @@ struct PodcastSearchView: View {
     @State private var isLoadingUrlFeed = false
     @State private var urlFeedError: String?
     @State private var debounceWorkItem: DispatchWorkItem?
-    @State private var selectedPodcast: PodcastResult? = nil
     private let columns = Array(repeating: GridItem(.flexible(), spacing:16), count: 3)
     
     // Define categories with their genre IDs
@@ -233,13 +231,15 @@ struct PodcastSearchView: View {
                 }
                 .frame(maxWidth:.infinity)
             }
+            
+            Spacer().frame(height:16)
         }
         .background(Color.background)
         .frame(maxWidth:.infinity, alignment:.leading)
         .navigationBarTitleDisplayMode(.large)
         .searchable(text: $query, prompt: "Find a Podcast")
         .navigationTitle("Find a Podcast")
-        .contentMargins(16, for: .scrollContent)
+        .contentMargins(.horizontal, 16, for: .scrollContent)
         .scrollEdgeEffectStyle(.soft, for: .all)
         .onAppear {
             PodcastAPI.fetchCuratedFeeds { podcasts in
@@ -271,10 +271,6 @@ struct PodcastSearchView: View {
             
             debounceWorkItem = task
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: task)
-        }
-        .sheet(item: $selectedPodcast) { podcastResult in
-            PodcastDetailView(feedUrl: podcastResult.feedUrl)
-                .modifier(PPSheet())
         }
     }
 
@@ -353,9 +349,24 @@ struct CategoryRowItem: View {
                 .textBody()
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            LazyHStack(spacing:-4) {
-                // Actual podcast artworks
-                if !podcasts.isEmpty {
+            ZStack {
+                // Background placeholders
+                HStack(spacing: -4) {
+                    ForEach(0..<3, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.background.opacity(0.15))
+                            .frame(width: 32, height: 32)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(lineWidth: 2)
+                                    .blendMode(.destinationOut)
+                            )
+                    }
+                }
+                .compositingGroup()
+                
+                // Podcast artworks
+                HStack(spacing: -4) {
                     ForEach(Array(podcasts.prefix(3).enumerated()), id: \.offset) { index, podcast in
                         ArtworkView(url: podcast.artworkUrl600, size: 32, cornerRadius: 8, tilt: false)
                             .overlay(
@@ -365,8 +376,8 @@ struct CategoryRowItem: View {
                             )
                     }
                 }
+                .compositingGroup()
             }
-            .compositingGroup() // Add this to group the overlapping items
             
             Image(systemName: "chevron.right")
                 .frame(width: 16, alignment: .trailing)

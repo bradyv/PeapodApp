@@ -7,17 +7,20 @@
 
 import SwiftUI
 import Kingfisher
-import Pow
 import TipKit
 
 struct EpisodeView: View {
     @Environment(\.managedObjectContext) private var context
     @Environment(\.openURL) private var openURL
     @ObservedObject var episode: Episode
-    @EnvironmentObject var player: AudioPlayerManager
-    @State private var selectedPodcast: Podcast? = nil
+    
+    private var player: AudioPlayerManager { AudioPlayerManager.shared }
+    
+    @ObservedObject private var timePublisher = AudioPlayerManager.shared.timePublisher
+    
     @State private var scrollOffset: CGFloat = 0
-    @State private var favoriteCount = 0
+    @State private var isDragging: Bool = false
+    @State private var availableWidth: CGFloat = UIScreen.main.bounds.width - 32
     var skipTip = SkipTip()
     
     // Computed properties based on unified state
@@ -34,14 +37,12 @@ struct EpisodeView: View {
     }
     
     var body: some View {
-        
         ScrollView {
             Color.clear
                 .frame(height: 1)
                 .trackScrollOffset("scroll") { value in
                     scrollOffset = value
                 }
-            
             FadeInView(delay: 0.1) {
                 ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 256, cornerRadius: 32, tilt: true)
             }
@@ -49,22 +50,59 @@ struct EpisodeView: View {
             Spacer().frame(height:24)
             
             FadeInView(delay: 0.2) {
-                VStack(spacing: 8) {
-                    Text(episode.title ?? "Episode title")
-                        .titleSerif()
-                        .multilineTextAlignment(.center)
-                    
-                    PodcastDetailsRow(episode: episode)
-                    
-                    Spacer().frame(height: 8)
+                VStack(alignment:.center,spacing: 8) {
                     
                     HStack {
-                        ArchiveButton
-                    
-                        MarkAsPlayedButton
+                        Text(episode.airDate?.formatted(date: .abbreviated, time: .omitted) ?? "")
+                            .textDetail()
                         
-                        FavButton
+                        if episode.isQueued {
+                            Text("•")
+                                .textDetailEmphasis()
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "rectangle.portrait.on.rectangle.portrait.angled")
+                                    .foregroundStyle(Color.heading)
+                                    .textDetail()
+                                
+                                Text("Up Next")
+                                    .textDetail()
+                            }
+                        } else if episode.isPlayed {
+                            Text("•")
+                                .textDetailEmphasis()
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .foregroundStyle(Color.heading)
+                                    .textDetail()
+                                
+                                Text("Played")
+                                    .textDetail()
+                            }
+                        }
+                        
+                        if episode.isFav {
+                            Text("•")
+                                .textDetailEmphasis()
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "heart.fill")
+                                    .foregroundStyle(.orange)
+                                    .textDetail()
+                                
+                                Text("Favorite")
+                                    .textDetail()
+                            }
+                        }
                     }
+                    
+                    Text(episode.title ?? "Episode title")
+                        .titleSerifSm()
+                        .multilineTextAlignment(.center)
+                    
+//                    PodcastDetailsRow(episode: episode)
                     
                     Spacer().frame(height: 8)
                     
@@ -86,9 +124,20 @@ struct EpisodeView: View {
                 
                 Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
                     .lineLimit(nil)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
+                    .frame(maxWidth: availableWidth)
                     .multilineTextAlignment(.leading)
+                    .lineSpacing(2)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .onAppear {
+                                    availableWidth = geo.size.width
+                                }
+                                .onChange(of: geo.size.width) { _, newWidth in
+                                    availableWidth = newWidth
+                                }
+                        }
+                    )
                     .environment(\.openURL, OpenURLAction { url in
                         if url.scheme == "peapod", url.host == "seek",
                            let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -102,46 +151,37 @@ struct EpisodeView: View {
                         return .systemAction
                     })
             }
+            
+            Spacer().frame(height: 24)
         }
+        .coordinateSpace(name: "scroll")
+        .navigationTitle(episode.title ?? "")
+        .navigationBarTitleDisplayMode(.inline)
         .background {
             SplashImage(image: episode.episodeImage ?? episode.podcast?.image ?? "")
                 .offset(y:-200)
         }
         .background(Color.background)
-        .coordinateSpace(name: "scroll")
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity)
         .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        player.togglePlayback(for: episode)
-                    }
-                }) {
-                    Group {
-                        HStack {
-                            if isLoading {
-                                PPSpinner(color: Color.white)
-                                    .transition(.scale.combined(with: .opacity))
-                            } else {
-                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                    .foregroundStyle(Color.white)
-                                    .textBody()
-                                    .transition(.scale.combined(with: .opacity))
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                            
-                            Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen Now")))
-                                .foregroundStyle(.white)
-                                .textBodyEmphasis()
-                                .contentTransition(.interpolate)
-                        }
-                        .padding(.horizontal,8)
-                    }
-                    .animation(.easeInOut(duration: 0.2), value: isLoading)
-                    .animation(.easeInOut(duration: 0.2), value: isPlaying)
-                }
-                .buttonStyle(.glassProminent)
+            ToolbarItem(placement:.principal) {
+                Text(scrollOffset < -250 ? "\(episode.title ?? "") " : " ")
+                    .font(.system(.headline, design: .serif))
+            }
+            
+            ToolbarItem(placement:.topBarTrailing) {
+                FavButton(episode:episode)
+            }
+            
+            ToolbarItemGroup(placement: .bottomBar) {
+                // 🔥 FIX: Wrap menu in its own view to isolate from timePublisher updates
+                ContextMenuButton(episode: episode)
+                
+                Spacer()
+                
+                // Play button needs to update, so it stays here
+                PlayButton(episode: episode, isPlaying: isPlaying, isLoading: isLoading, hasStarted: hasStarted)
             }
         }
         .task {
@@ -157,84 +197,31 @@ struct EpisodeView: View {
     }
     
     @ViewBuilder
-    var ArchiveButton: some View {
-        Button(action: {
-            if episode.isQueued {
-                withAnimation {
-                    removeFromQueue(episode)
-                }
-            } else {
-                withAnimation {
-                    toggleQueued(episode)
-                }
-            }
-        }) {
-            Label(episode.isQueued ? "Archive" : "Up Next", systemImage: episode.isQueued ? "archivebox" : "text.append")
-                .contentTransition(.symbolEffect(.replace))
-                .textButton()
-        }
-        .buttonStyle(.bordered)
-    }
-    
-    @ViewBuilder
-    var MarkAsPlayedButton: some View {
-        Button(action: {
-            withAnimation {
-                if episode.isQueued {
-                    removeFromQueue(episode)
-                }
-                player.markAsPlayed(for: episode, manually: true)
-            }
-        }) {
-            Label(episode.isPlayed ? "Mark Unplayed" : "Mark as Played", systemImage: episode.isPlayed ? "rectangle.badge.minus" : "rectangle.badge.checkmark")
-                .contentTransition(.symbolEffect(.replace))
-                .textButton()
-        }
-        .buttonStyle(.bordered)
-    }
-    
-    @ViewBuilder
-    var FavButton: some View {
-        Button(action: {
-            withAnimation {
-                let wasFavorite = episode.isFav
-                toggleFav(episode)
-                
-                // Only increment counter when favoriting (not unfavoriting)
-                if !wasFavorite && episode.isFav {
-                    favoriteCount += 1
-                }
-            }
-        }) {
-            Label("Favorite", systemImage: episode.isFav ? "heart.fill" : "heart")
-                .textButton()
-        }
-        .buttonStyle(.bordered)
-        .labelStyle(.iconOnly)
-        .changeEffect(
-            .spray(origin: UnitPoint(x: 0.25, y: 0.5)) {
-              Image(systemName: "heart.fill")
-                .foregroundStyle(.red)
-            }, value: favoriteCount)
-    }
-    
-    @ViewBuilder
     var EpisodeProgressBar: some View {
         HStack(spacing: 16) {
             Text(player.getElapsedTime(for: episode))
                 .fontDesign(.monospaced)
                 .font(.caption)
                 .onTapGesture {
-                    player.skipBackward(seconds: player.backwardInterval)
+                    player.skipBackward()
                 }
             
             PPProgress(
                 value: Binding(
-                    get: { player.getProgress(for: episode) },
-                    set: { player.seek(to: $0) }
+                    get: {
+                        player.getProgress(for: episode)
+                    },
+                    set: { newValue in
+                        player.seek(to: newValue)
+                    }
                 ),
                 range: 0...player.getActualDuration(for: episode),
-                onEditingChanged: { _ in },
+                onEditingChanged: { editing in
+                    isDragging = editing
+                    if !editing {
+                        player.updateNowPlayingInfo()
+                    }
+                },
                 isDraggable: true,
                 isQQ: false
             )
@@ -244,10 +231,77 @@ struct EpisodeView: View {
                 .fontDesign(.monospaced)
                 .font(.caption)
                 .onTapGesture {
-                    player.skipForward(seconds: player.forwardInterval)
+                    player.skipForward()
                 }
                 .if(player.isPlaying, transform: { $0.popoverTip(skipTip, arrowEdge: .bottom) })
         }
+    }
+}
+
+// 🔥 NEW: Separate view for context menu button to prevent flashing
+struct ContextMenuButton: View {
+    let episode: Episode
+    
+    var body: some View {
+        Menu {
+            ArchiveButton(episode: episode)
+            MarkAsPlayedButton(episode: episode)
+            FavButton(episode: episode)
+            DownloadActionButton(episode: episode)
+            
+            Section(episode.podcast?.title ?? "") {
+                NavigationLink {
+                    PodcastDetailView(feedUrl: episode.podcast?.feedUrl ?? "")
+                } label: {
+                    Label("View Podcast", systemImage: "widget.small")
+                }
+            }
+        } label: {
+            Label("More", systemImage:"ellipsis")
+                .frame(width:34,height:34)
+        }
+        .menuOrder(.fixed)
+        .labelStyle(.iconOnly)
+    }
+}
+
+// 🔥 NEW: Separate view for play button that needs live updates
+struct PlayButton: View {
+    let episode: Episode
+    let isPlaying: Bool
+    let isLoading: Bool
+    let hasStarted: Bool
+    
+    private var player: AudioPlayerManager { AudioPlayerManager.shared }
+    
+    var body: some View {
+        Button(action: {
+            player.togglePlayback(for: episode)
+        }) {
+            Group {
+                HStack {
+                    if isLoading {
+                        PPSpinner(color: Color.white)
+                            .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .foregroundStyle(Color.white)
+                            .textBody()
+                            .transition(.scale.combined(with: .opacity))
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    
+                    Text(isPlaying ? "Pause" : (hasStarted ? "Resume" : (episode.isPlayed ? "Listen Again" : "Listen")))
+                        .foregroundStyle(.white)
+                        .textBodyEmphasis()
+                        .contentTransition(.interpolate)
+                }
+                .padding(.horizontal,8)
+            }
+            .animation(.easeInOut(duration: 0.2), value: isLoading)
+            .animation(.easeInOut(duration: 0.2), value: isPlaying)
+        }
+        .buttonStyle(.glassProminent)
     }
 }
 

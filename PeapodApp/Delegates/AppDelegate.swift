@@ -147,10 +147,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         print("📱 Registered for remote notifications")
         Messaging.messaging().apnsToken = deviceToken
         
-        // ✅ NEW: Now that we have APNs token, sync topic subscriptions
+        // ✅ Only sync if user has enabled notifications in-app
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            LogManager.shared.info("🔄 APNs token received, syncing subscriptions...")
-            SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+            let appNotificationsEnabled = UserDefaults.standard.bool(forKey: "appNotificationsEnabled")
+            
+            if appNotificationsEnabled {
+                LogManager.shared.info("🔄 APNs token received, syncing subscriptions...")
+                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
+            } else {
+                LogManager.shared.info("ℹ️ APNs token received but app notifications disabled - skipping sync")
+            }
         }
     }
     

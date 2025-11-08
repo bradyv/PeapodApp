@@ -648,6 +648,8 @@ extension SettingsView {
         if enabled {
             if systemNotificationsGranted {
                 appNotificationsEnabled = true
+                // Sync subscriptions when notifications are enabled
+                SubscriptionSyncService.shared.syncSubscriptionsWithBackend()
             } else if notificationAuthStatus == .notDetermined {
                 showNotificationRequest = true
             } else {
@@ -655,18 +657,38 @@ extension SettingsView {
             }
         } else {
             appNotificationsEnabled = false
+            // Unsubscribe from all topics when notifications are disabled
+            unsubscribeFromAllTopics()
+        }
+    }
+    
+    private func unsubscribeFromAllTopics() {
+        let context = PersistenceController.shared.container.viewContext
+        let request: NSFetchRequest<Podcast> = Podcast.fetchRequest()
+        request.predicate = NSPredicate(format: "isSubscribed == YES")
+        
+        do {
+            let podcasts = try context.fetch(request)
+            for podcast in podcasts {
+                if let feedUrl = podcast.feedUrl {
+                    SubscriptionSyncService.shared.unsubscribeFromFeed(feedUrl: feedUrl)
+                }
+            }
+            LogManager.shared.info("✅ Unsubscribed from all feed topics")
+        } catch {
+            LogManager.shared.error("❌ Failed to unsubscribe from topics: \(error)")
         }
     }
     
     private func checkNotificationStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             DispatchQueue.main.async {
-                let wasGranted = systemNotificationsGranted
                 systemNotificationsGranted = (settings.authorizationStatus == .authorized)
                 notificationAuthStatus = settings.authorizationStatus
                 
-                if !wasGranted && systemNotificationsGranted {
-                    appNotificationsEnabled = true
+                // If system notifications are revoked, disable app notifications too
+                if !systemNotificationsGranted && appNotificationsEnabled {
+                    appNotificationsEnabled = false
                 }
             }
         }

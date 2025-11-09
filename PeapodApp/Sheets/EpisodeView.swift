@@ -43,114 +43,106 @@ struct EpisodeView: View {
                 .trackScrollOffset("scroll") { value in
                     scrollOffset = value
                 }
-            FadeInView(delay: 0.1) {
-                ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 256, cornerRadius: 32, tilt: true)
-            }
+            
+            ArtworkView(url: episode.episodeImage ?? episode.podcast?.image ?? "", size: 256, cornerRadius: 32, tilt: true)
             
             Spacer().frame(height:24)
             
-            FadeInView(delay: 0.2) {
-                VStack(alignment:.center,spacing: 8) {
+            VStack(alignment:.center,spacing: 8) {
+                HStack {
+                    Text(episode.airDate?.formatted(date: .abbreviated, time: .omitted) ?? "")
+                        .textDetail()
                     
-                    HStack {
-                        Text(episode.airDate?.formatted(date: .abbreviated, time: .omitted) ?? "")
-                            .textDetail()
+                    if episode.isQueued {
+                        Text("•")
+                            .textDetailEmphasis()
                         
-                        if episode.isQueued {
-                            Text("•")
-                                .textDetailEmphasis()
+                        HStack(spacing: 4) {
+                            Image(systemName: "rectangle.portrait.on.rectangle.portrait.angled")
+                                .foregroundStyle(Color.heading)
+                                .textDetail()
                             
-                            HStack(spacing: 4) {
-                                Image(systemName: "rectangle.portrait.on.rectangle.portrait.angled")
-                                    .foregroundStyle(Color.heading)
-                                    .textDetail()
-                                
-                                Text("Up Next")
-                                    .textDetail()
-                            }
-                        } else if episode.isPlayed {
-                            Text("•")
-                                .textDetailEmphasis()
-                            
-                            HStack(spacing: 4) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .symbolRenderingMode(.hierarchical)
-                                    .foregroundStyle(Color.heading)
-                                    .textDetail()
-                                
-                                Text("Played")
-                                    .textDetail()
-                            }
+                            Text("Up Next")
+                                .textDetail()
                         }
+                    } else if episode.isPlayed {
+                        Text("•")
+                            .textDetailEmphasis()
                         
-                        if episode.isFav {
-                            Text("•")
-                                .textDetailEmphasis()
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(Color.heading)
+                                .textDetail()
                             
-                            HStack(spacing: 4) {
-                                Image(systemName: "heart.fill")
-                                    .foregroundStyle(.orange)
-                                    .textDetail()
-                                
-                                Text("Favorite")
-                                    .textDetail()
-                            }
+                            Text("Played")
+                                .textDetail()
                         }
                     }
                     
-                    Text(episode.title ?? "Episode title")
-                        .titleSerifSm()
-                        .multilineTextAlignment(.center)
-                    
-//                    PodcastDetailsRow(episode: episode)
-                    
-                    Spacer().frame(height: 8)
-                    
-                    EpisodeProgressBar
+                    if episode.isFav {
+                        Text("•")
+                            .textDetailEmphasis()
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(.orange)
+                                .textDetail()
+                            
+                            Text("Favorite")
+                                .textDetail()
+                        }
+                    }
                 }
-                .padding(.horizontal)
-                .frame(maxWidth: .infinity)
+                
+                Text(episode.title ?? "Episode title")
+                    .titleSerifSm()
+                    .multilineTextAlignment(.center)
+                
+                Spacer().frame(height: 8)
+                
+                EpisodeProgressBar
             }
+            .padding(.horizontal)
+            .frame(maxWidth: .infinity)
             
             Spacer().frame(height: 24)
             
-            FadeInView(delay: 0.3) {
-                Text("Episode notes")
-                    .titleSerifMini()
-                    .frame(maxWidth:.infinity, alignment: .leading)
-                    .padding(.horizontal)
-                
-                Spacer().frame(height:8)
-                
-                Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
-                    .lineLimit(nil)
-                    .frame(maxWidth: availableWidth)
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(2)
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear
-                                .onAppear {
-                                    availableWidth = geo.size.width
-                                }
-                                .onChange(of: geo.size.width) { _, newWidth in
-                                    availableWidth = newWidth
-                                }
-                        }
-                    )
-                    .environment(\.openURL, OpenURLAction { url in
-                        if url.scheme == "peapod", url.host == "seek",
-                           let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                           let seconds = query.queryItems?.first(where: { $0.name == "t" })?.value,
-                           let time = Double(seconds) {
-                            
-                            player.seek(to: time)
-                            return .handled
-                        }
+            Text("Episode notes")
+                .titleSerifMini()
+                .frame(maxWidth:.infinity, alignment: .leading)
+                .padding(.horizontal)
+            
+            Spacer().frame(height:8)
+            
+            Text(parseHtmlToAttributedString(episode.episodeDescription ?? ""))
+                .lineLimit(nil)
+                .frame(maxWidth: availableWidth, alignment:.leading)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(2)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear {
+                                availableWidth = geo.size.width
+                            }
+                            .onChange(of: geo.size.width) { _, newWidth in
+                                availableWidth = newWidth
+                            }
+                    }
+                )
+                .environment(\.openURL, OpenURLAction { url in
+                    if url.scheme == "peapod", url.host == "seek",
+                       let query = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                       let seconds = query.queryItems?.first(where: { $0.name == "t" })?.value,
+                       let time = Double(seconds) {
                         
-                        return .systemAction
-                    })
-            }
+                        player.seek(to: time)
+                        return .handled
+                    }
+                    
+                    return .systemAction
+                })
             
             Spacer().frame(height: 24)
         }

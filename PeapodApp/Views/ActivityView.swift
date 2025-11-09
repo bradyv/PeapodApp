@@ -12,14 +12,12 @@ import Kingfisher
 struct ActivityView: View {
     @Environment(\.managedObjectContext) private var context
     @EnvironmentObject var episodesViewModel: EpisodesViewModel
-    @ObservedObject private var userManager = UserManager.shared
-    @ObservedObject private var statsManager = StatisticsManager.shared
+    @StateObject private var userManager = UserManager.shared
+    @StateObject private var statsManager = StatisticsManager.shared
     @State private var recentlyPlayed: [Episode] = []
     @State private var longestEpisode: Episode?
     @State private var topPlayedEpisodes: [Episode] = []
-    @State private var favoriteDayName: String = "Loading..."
-    @State private var favoriteDayCount: Int = 0
-    @State private var weeklyData: [WeeklyListeningData] = []
+    
     @FetchRequest(
         fetchRequest: Podcast.topPlayedRequest(),
         animation: .default
@@ -36,12 +34,11 @@ struct ActivityView: View {
                 fullView
             }
         }
-        .onAppear {
-            loadEpisodeData()
-        }
         .task {
-            await statsManager.loadStatistics(from: context)
-            await loadFavoriteDay()
+            // Only load episode data for full view
+            // All stats are already available in statsManager
+            guard !mini else { return }
+            await loadFullViewData()
         }
     }
     
@@ -83,8 +80,8 @@ struct ActivityView: View {
             .fixedSize()
             
             WeeklyListeningLineChart(
-                weeklyData: weeklyData,
-                favoriteDayName: favoriteDayName,
+                weeklyData: statsManager.weeklyData,
+                favoriteDayName: statsManager.favoriteDayName,
                 mini: true
             )
             .frame(maxWidth:.infinity)
@@ -164,19 +161,18 @@ struct ActivityView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Rest of your view code remains the same...
                     FadeInView(delay: 0.1) {
                         VStack(spacing:16) {
                             WeeklyListeningLineChart(
-                                weeklyData: weeklyData,
-                                favoriteDayName: favoriteDayName
+                                weeklyData: statsManager.weeklyData,
+                                favoriteDayName: statsManager.favoriteDayName
                             )
                             
                             HStack(spacing:2) {
                                 Text("You listen the most on")
                                     .textDetail()
                                 
-                                Text(favoriteDayName)
+                                Text(statsManager.favoriteDayName)
                                     .textDetailEmphasis()
                             }
                         }
@@ -295,100 +291,35 @@ struct ActivityView: View {
         .scrollEdgeEffectStyle(.soft, for: .all)
     }
     
-    // MARK: - Data Loading
-    private func loadEpisodeData() {
-        recentlyPlayed = getPlayedEpisodes(context: context)
-            .sorted { ($0.playedDate ?? Date.distantPast) > ($1.playedDate ?? Date.distantPast) }
-            .prefix(5)
-            .compactMap { $0 }
-        
-        let playedEpisodes = getPlayedEpisodes(context: context)
-        longestEpisode = playedEpisodes
-            .filter { $0.actualDuration > 0 }
-            .max { $0.actualDuration < $1.actualDuration }
-        
-        topPlayedEpisodes = playedEpisodes
-            .sorted { $0.playCount > $1.playCount }
-            .prefix(5)
-            .compactMap { $0 }
-    }
+    // MARK: - Data Loading (Full View Only)
     
-    private func loadFavoriteDay() async {
-        let weeklyListeningData = getWeeklyListeningData(context: context)
+    private func loadFullViewData() async {
+        // Perform Core Data work on background context
+        let bgContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        bgContext.parent = context
         
-        if let (dayOfWeek, count) = getMostPopularListeningDay(context: context) {
-            let dayName = dayName(from: dayOfWeek)
+        await bgContext.perform {
+            let playedEpisodes = getPlayedEpisodes(context: bgContext)
+            
+            let recentlyPlayedData = playedEpisodes
+                .sorted { ($0.playedDate ?? Date.distantPast) > ($1.playedDate ?? Date.distantPast) }
+                .prefix(5)
+                .compactMap { $0 }
+            
+            let longestEpisodeData = playedEpisodes
+                .filter { $0.actualDuration > 0 }
+                .max { $0.actualDuration < $1.actualDuration }
+            
+            let topPlayedEpisodesData = playedEpisodes
+                .sorted { $0.playCount > $1.playCount }
+                .prefix(5)
+                .compactMap { $0 }
             
             DispatchQueue.main.async {
-                withAnimation(.easeInOut) {
-                    self.weeklyData = weeklyListeningData
-                    self.favoriteDayName = dayName
-                    self.favoriteDayCount = count
-                }
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.weeklyData = weeklyListeningData
-                self.favoriteDayName = "No data yet"
+                self.recentlyPlayed = Array(recentlyPlayedData)
+                self.longestEpisode = longestEpisodeData
+                self.topPlayedEpisodes = Array(topPlayedEpisodesData)
             }
         }
-    }
-    
-    // Helper functions remain the same...
-    private func getWeeklyListeningData(context: NSManagedObjectContext) -> [WeeklyListeningData] {
-        let playedEpisodes = getPlayedEpisodes(context: context)
-        var dayCounts: [Int: Int] = [:]
-        let calendar = Calendar.current
-        
-        for episode in playedEpisodes {
-            if let playedDate = episode.playedDate {
-                let dayOfWeek = calendar.component(.weekday, from: playedDate)
-                dayCounts[dayOfWeek, default: 0] += 1
-            }
-        }
-        
-        let maxCount = dayCounts.values.max() ?? 1
-        
-        return (1...7).map { dayOfWeek in
-            let count = dayCounts[dayOfWeek] ?? 0
-            let percentage = maxCount > 0 ? Double(count) / Double(maxCount) : 0.0
-            let dayAbbreviation = dayAbbreviation(from: dayOfWeek)
-            
-            return WeeklyListeningData(
-                dayOfWeek: dayOfWeek,
-                count: count,
-                percentage: percentage,
-                dayAbbreviation: dayAbbreviation
-            )
-        }
-    }
-    
-    private func getMostPopularListeningDay(context: NSManagedObjectContext) -> (Int, Int)? {
-        let playedEpisodes = getPlayedEpisodes(context: context)
-        var dayCounts: [Int: Int] = [:]
-        let calendar = Calendar.current
-        
-        for episode in playedEpisodes {
-            if let playedDate = episode.playedDate {
-                let dayOfWeek = calendar.component(.weekday, from: playedDate)
-                dayCounts[dayOfWeek, default: 0] += 1
-            }
-        }
-        
-        return dayCounts.max { $0.value < $1.value }.map { ($0.key, $0.value) }
-    }
-    
-    private func dayName(from dayOfWeek: Int) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        let date = Calendar.current.date(from: DateComponents(weekday: dayOfWeek))!
-        return formatter.string(from: date)
-    }
-    
-    private func dayAbbreviation(from dayOfWeek: Int) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E"
-        let date = Calendar.current.date(from: DateComponents(weekday: dayOfWeek))!
-        return String(formatter.string(from: date).prefix(1))
     }
 }

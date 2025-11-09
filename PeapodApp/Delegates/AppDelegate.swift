@@ -48,6 +48,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         _ = episodesViewModel
         LogManager.shared.info("EpisodesViewModel initialized early in AppDelegate")
         
+        // Initialize stats
+        let context = PersistenceController.shared.container.viewContext
+        StatisticsManager.shared.initialize(with: context)
+        LogManager.shared.info("StatisticsManager initialized early in AppDelegate")
+
+        
         // Schedule the first cleanup
         checkAndRunWeeklyCleanup()
         

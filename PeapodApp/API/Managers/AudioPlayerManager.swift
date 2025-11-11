@@ -172,27 +172,41 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         player = AVPlayer(playerItem: playerItem)
         player?.automaticallyWaitsToMinimizeStalling = false
         
-        // Start playback IMMEDIATELY
-        player?.playImmediately(atRate: playbackSpeed)
-        
-        // Update state
+        // Update state BEFORE starting playback
         currentEpisode = episode
-        MPNowPlayingInfoCenter.default().playbackState = .playing
-        objectWillChange.send()
         
-        // Setup observers (lightweight)
+        // Set initial position in timePublisher to prevent flashing
+        timePublisher.currentTime = episode.playbackPosition
+        
+        // Setup observers BEFORE playback starts
         setupPlayerObservations(for: playerItem, episodeID: episode.id ?? "")
         
-        // Everything slow happens AFTER playback starts
+        // Everything happens in proper sequence
         Task {
-            // Seek to saved position asynchronously
+            // Wait for item to be ready
+            try? await playerItem.asset.load(.duration)
+            
+            // Seek to saved position BEFORE starting playback
             if episode.playbackPosition > 0 {
                 let targetTime = CMTime(seconds: episode.playbackPosition, preferredTimescale: 600)
                 await self.player?.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
                 
+                // Update time publisher after seek completes
                 await MainActor.run {
-                    self.updateNowPlayingInfo()
+                    self.timePublisher.currentTime = episode.playbackPosition
                 }
+            }
+            
+            // NOW update Now Playing Info with correct position
+            await MainActor.run {
+                self.updateNowPlayingInfo()
+                MPNowPlayingInfoCenter.default().playbackState = .playing
+            }
+            
+            // Start playback AFTER seek completes
+            await MainActor.run {
+                self.player?.playImmediately(atRate: self.playbackSpeed)
+                self.objectWillChange.send()
             }
             
             // Update Core Data in background
@@ -220,20 +234,8 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         // Save position immediately
         savePositionSync()
         
-        // Verify player actually stopped before updating control center
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self = self else { return }
-            
-            if self.player?.rate == 0 {
-                MPNowPlayingInfoCenter.default().playbackState = .paused
-            } else {
-                // Force stop if still playing
-                self.player?.rate = 0
-                MPNowPlayingInfoCenter.default().playbackState = .paused
-            }
-            
-            self.updateNowPlayingInfo()
-        }
+        MPNowPlayingInfoCenter.default().playbackState = .paused
+        updateNowPlayingInfo()
         
         objectWillChange.send()
     }
@@ -659,14 +661,20 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
             LogManager.shared.info("🔴 Audio interrupted - position saved")
             
         case .ended:
-            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
-            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            
-            if options.contains(.shouldResume) {
-                resume()
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
+                LogManager.shared.info("🔊 Audio interruption ended (no resume option)")
+                updateNowPlayingInfo()
+                return
             }
             
-            updateNowPlayingInfo()
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                LogManager.shared.info("🔊 Audio interruption ended - resuming")
+                resume()
+            } else {
+                LogManager.shared.info("🔊 Audio interruption ended - NOT resuming")
+                updateNowPlayingInfo()
+            }
             
         @unknown default:
             break
@@ -682,13 +690,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
         
         switch reason {
         case .oldDeviceUnavailable:
-            // CRITICAL: Device disconnected (AirPods removed, CarPlay disconnected)
+            LogManager.shared.info("🎧 Audio route disconnected - pausing and saving")
             savePositionSync()
             pause()
-            LogManager.shared.info("🎧 Audio route changed (device unavailable) - position saved and paused")
+            
+        case .routeConfigurationChange:
+            LogManager.shared.info("🔄 Audio route configuration changed")
+            updateNowPlayingInfo()
+            
+        case .wakeFromSleep:
+            LogManager.shared.info("💤 Device woke from sleep")
+            updateNowPlayingInfo()
             
         case .newDeviceAvailable:
-            LogManager.shared.info("🎧 New audio device available")
+            LogManager.shared.info("🚗 New audio route available")
+            updateNowPlayingInfo()
             
         default:
             break

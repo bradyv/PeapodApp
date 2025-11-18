@@ -241,20 +241,21 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     }
     
     private func resume() {
-        // Ensure we have a valid player
-        guard let player = player,
-              let currentItem = player.currentItem else {
-            LogManager.shared.warning("⚠️ Cannot resume - no player or item")
-            return
+        guard let episode = currentEpisode else { return }
+
+        // If player was cleared (app relaunched / CarPlay resume), rebuild first
+        if player == nil {
+            preparePlayer(for: episode)
         }
-        
+
         do {
-            try AVAudioSession.sharedInstance().setActive(true)
+            try AVAudioSession.sharedInstance().setActive(true, options: [])
         } catch {
-            LogManager.shared.error("Failed to reactivate audio session: \(error)")
+            LogManager.shared.error("Failed to activate audio session: \(error)")
         }
-        
-        player.rate = playbackSpeed
+
+        player?.rate = playbackSpeed
+
         MPNowPlayingInfoCenter.default().playbackState = .playing
         updateNowPlayingInfo()
         objectWillChange.send()
@@ -715,14 +716,48 @@ class AudioPlayerManager: ObservableObject, @unchecked Sendable {
     
     private func restoreCurrentEpisode() {
         let context = PersistenceController.shared.container.viewContext
-        
+
         let request: NSFetchRequest<Episode> = Episode.fetchRequest()
         request.predicate = NSPredicate(format: "nowPlaying == YES")
         request.fetchLimit = 1
-        
+
         if let episode = try? context.fetch(request).first {
             currentEpisode = episode
             LogManager.shared.info("Restored current episode: \(episode.title ?? "Unknown")")
+
+            // NEW: auto-create player in paused state
+            preparePlayer(for: episode)
+        }
+    }
+
+    private func preparePlayer(for episode: Episode) {
+        guard let url = episode.preferredAudioURL else { return }
+
+        let item = AVPlayerItem(url: url)
+        player = AVPlayer(playerItem: item)
+        player?.automaticallyWaitsToMinimizeStalling = false
+
+        // IMPORTANT: Attach observations before seeking
+        setupPlayerObservations(for: item, episodeID: episode.id ?? "")
+
+        let savedTime = episode.playbackPosition
+
+        Task { @MainActor in
+            // Load duration readiness (allows accurate seeking)
+            _ = try? await item.asset.load(.duration)
+
+            // Seek before exposing UI state or Now Playing
+            if savedTime > 0 {
+                await player?.seek(to: CMTime(seconds: savedTime, preferredTimescale: 600),
+                                   toleranceBefore: .zero,
+                                   toleranceAfter: .zero)
+                timePublisher.currentTime = savedTime
+            } else {
+                timePublisher.currentTime = 0
+            }
+
+            // Now that time is correct, reflect it system-wide
+            updateNowPlayingInfo()
         }
     }
     

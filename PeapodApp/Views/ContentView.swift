@@ -258,7 +258,7 @@ struct ContentView: View {
                     .animation(.easeInOut(duration: 0.3), value: episodesViewModel.isLoading)
                 }
             }
-            .navigationTitle("Peapod")
+            .navigationTitle("Up Next")
             .background(Color.background)
             .navigationDestination(item: $selectedEpisode) { episode in
                 EpisodeView(episode: episode)

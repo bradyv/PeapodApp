@@ -84,13 +84,13 @@ struct EpisodeCell: View {
                     
                     if data.isFav {
                         Image(systemName: "heart.circle.fill")
-                            .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(.orange)
                             .textDetail()
-                    } else if data.isPlayed {
+                    }
+                    
+                    if data.isPlayed {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
-                                .symbolRenderingMode(.hierarchical)
                                 .foregroundStyle(Color.heading)
                                 .textDetail()
                             
